@@ -1,27 +1,44 @@
-import React from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { FileText, TrendingUp, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { FileText, TrendingUp, Calendar, Download, Filter } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function Relatorios() {
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+
   const { data: pesagens, isLoading } = useQuery({
     queryKey: ['pesagens'],
     queryFn: () => base44.entities.Pesagem.list('-data_pesagem'),
     initialData: [],
   });
 
+  // Filtrar por período
+  const pesagensFiltradas = pesagens.filter(p => {
+    if (!dataInicio && !dataFim) return true;
+    const dataPesagem = new Date(p.data_pesagem);
+    if (dataInicio && new Date(dataInicio) > dataPesagem) return false;
+    if (dataFim && new Date(dataFim) < dataPesagem) return false;
+    return true;
+  });
+
   // Dados por tipo de pesagem
   const dadosPorTipo = [
-    { name: 'Entrada', value: pesagens.filter(p => p.tipo_pesagem === 'Entrada').length },
-    { name: 'Saída', value: pesagens.filter(p => p.tipo_pesagem === 'Saída').length },
-    { name: 'Ambos', value: pesagens.filter(p => p.tipo_pesagem === 'Ambos').length },
+    { name: 'Entrada', value: pesagensFiltradas.filter(p => p.tipo_pesagem === 'Entrada').length, color: '#10b981' },
+    { name: 'Saída', value: pesagensFiltradas.filter(p => p.tipo_pesagem === 'Saída').length, color: '#ef4444' },
+    { name: 'Ambos', value: pesagensFiltradas.filter(p => p.tipo_pesagem === 'Ambos').length, color: '#3b82f6' },
   ];
 
   // Dados por produto (top 5)
   const produtosCount = {};
-  pesagens.forEach(p => {
+  pesagensFiltradas.forEach(p => {
     produtosCount[p.produto] = (produtosCount[p.produto] || 0) + 1;
   });
   const dadosPorProduto = Object.entries(produtosCount)
@@ -31,74 +48,162 @@ export default function Relatorios() {
 
   // Peso líquido por produto (top 5)
   const pesosPorProduto = {};
-  pesagens.forEach(p => {
+  pesagensFiltradas.forEach(p => {
     pesosPorProduto[p.produto] = (pesosPorProduto[p.produto] || 0) + (p.peso_liquido || 0);
   });
   const dadosPesoProduto = Object.entries(pesosPorProduto)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([produto, peso]) => ({ produto, peso: peso.toFixed(2) }));
+    .map(([produto, peso]) => ({ produto, peso: parseFloat(peso.toFixed(2)) }));
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  // Pesagens por dia (últimos 7 dias)
+  const pesagensPorDia = {};
+  pesagensFiltradas.forEach(p => {
+    const data = format(new Date(p.data_pesagem), "dd/MM", { locale: ptBR });
+    pesagensPorDia[data] = (pesagensPorDia[data] || 0) + 1;
+  });
+  const dadosPorDia = Object.entries(pesagensPorDia)
+    .slice(-7)
+    .map(([data, quantidade]) => ({ data, quantidade }));
 
-  const totalPesoLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
-  const mediaPesoLiquido = pesagens.length > 0 ? totalPesoLiquido / pesagens.length : 0;
+  const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
+
+  const totalPesoLiquido = pesagensFiltradas.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
+  const mediaPesoLiquido = pesagensFiltradas.length > 0 ? totalPesoLiquido / pesagensFiltradas.length : 0;
+
+  // Exportar para Excel/CSV
+  const exportarRelatorio = () => {
+    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Tara (kg)', 'Bruto (kg)', 'Líquido (kg)', 'Observações'];
+    const rows = pesagensFiltradas.map(p => [
+      format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR }),
+      p.tipo_pesagem,
+      p.placa_caminhao,
+      p.nome_motorista,
+      p.produto,
+      p.fornecedor_destino || '',
+      p.peso_tara?.toFixed(2),
+      p.peso_bruto?.toFixed(2),
+      p.peso_liquido?.toFixed(2),
+      p.observacoes || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `relatorio_pesagens_${format(new Date(), 'ddMMyyyy_HHmmss')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-          <FileText className="w-6 h-6 text-white" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-green-900">Relatórios e Análises</h1>
+            <p className="text-green-700">Visualize estatísticas e métricas das pesagens</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Relatórios e Análises</h1>
-          <p className="text-slate-600">Visualize estatísticas e métricas das pesagens</p>
-        </div>
+        <Button onClick={exportarRelatorio} className="bg-green-600 hover:bg-green-700 gap-2">
+          <Download className="w-4 h-4" />
+          Exportar Relatório
+        </Button>
       </div>
+
+      {/* Filtros */}
+      <Card className="shadow-lg border-green-200 bg-white">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <Filter className="w-5 h-5" />
+            Filtros de Período
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="dataInicio" className="text-green-900">Data Início</Label>
+              <Input
+                id="dataInicio"
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="border-green-300 focus:border-green-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dataFim" className="text-green-900">Data Fim</Label>
+              <Input
+                id="dataFim"
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="border-green-300 focus:border-green-500"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => { setDataInicio(""); setDataFim(""); }}
+              className="border-green-300 text-green-700 hover:bg-green-50"
+            >
+              Limpar Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-blue-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total de Pesagens</CardTitle>
-            <FileText className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
+            <FileText className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{pesagens.length}</div>
-            <p className="text-xs text-slate-500 mt-1">Registros totais</p>
+            <div className="text-3xl font-bold text-green-900">{pesagensFiltradas.length}</div>
+            <p className="text-xs text-green-600 mt-1">Registros no período</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-green-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-emerald-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Peso Total</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Peso Total Líquido</CardTitle>
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{totalPesoLiquido.toFixed(2)} kg</div>
-            <p className="text-xs text-slate-500 mt-1">Peso líquido acumulado</p>
+            <div className="text-3xl font-bold text-emerald-900">{totalPesoLiquido.toFixed(2)} kg</div>
+            <p className="text-xs text-emerald-600 mt-1">Peso acumulado</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-purple-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-teal-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Média de Peso</CardTitle>
-            <Calendar className="h-5 w-5 text-purple-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Média de Peso</CardTitle>
+            <Calendar className="h-5 w-5 text-teal-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{mediaPesoLiquido.toFixed(2)} kg</div>
-            <p className="text-xs text-slate-500 mt-1">Por pesagem</p>
+            <div className="text-3xl font-bold text-teal-900">{mediaPesoLiquido.toFixed(2)} kg</div>
+            <p className="text-xs text-teal-600 mt-1">Por pesagem</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-lg border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Pesagens por Tipo</CardTitle>
+        <Card className="shadow-lg border-green-200">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <CardTitle className="text-green-900">Pesagens por Tipo</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -112,7 +217,7 @@ export default function Relatorios() {
                   dataKey="value"
                 >
                   {dadosPorTipo.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -121,28 +226,46 @@ export default function Relatorios() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Top 5 Produtos (Quantidade)</CardTitle>
+        <Card className="shadow-lg border-green-200">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <CardTitle className="text-green-900">Pesagens por Dia</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dadosPorDia}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="data" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="quantidade" stroke="#10b981" strokeWidth={2} name="Quantidade" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-green-200">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <CardTitle className="text-green-900">Top 5 Produtos (Quantidade)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dadosPorProduto}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="produto" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="quantidade" fill="#3b82f6" />
+                <Bar dataKey="quantidade" fill="#10b981" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Top 5 Produtos (Peso Líquido em kg)</CardTitle>
+        <Card className="shadow-lg border-green-200">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <CardTitle className="text-green-900">Top 5 Produtos (Peso Líquido)</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dadosPesoProduto}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -150,7 +273,7 @@ export default function Relatorios() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="peso" fill="#10b981" name="Peso Líquido (kg)" />
+                <Bar dataKey="peso" fill="#059669" name="Peso (kg)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

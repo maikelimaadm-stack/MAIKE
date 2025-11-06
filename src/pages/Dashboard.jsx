@@ -112,36 +112,36 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-blue-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total de Pesagens</CardTitle>
-            <Package className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
+            <Package className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{totalPesagens}</div>
-            <p className="text-xs text-slate-500 mt-1">Registros no sistema</p>
+            <div className="text-3xl font-bold text-green-900">{totalPesagens}</div>
+            <p className="text-xs text-green-600 mt-1">Registros no sistema</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-green-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-emerald-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Peso Total Líquido</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Peso Total Líquido</CardTitle>
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{totalPesoLiquido.toFixed(2)} kg</div>
-            <p className="text-xs text-slate-500 mt-1">Soma de todas as pesagens</p>
+            <div className="text-3xl font-bold text-emerald-900">{totalPesoLiquido.toFixed(2)} kg</div>
+            <p className="text-xs text-emerald-600 mt-1">Soma de todas as pesagens</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-purple-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-teal-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Pesagens Hoje</CardTitle>
-            <Truck className="h-5 w-5 text-purple-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Pesagens Hoje</CardTitle>
+            <Truck className="h-5 w-5 text-teal-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{pesagensHoje}</div>
-            <p className="text-xs text-slate-500 mt-1">Registros de hoje</p>
+            <div className="text-3xl font-bold text-teal-900">{pesagensHoje}</div>
+            <p className="text-xs text-teal-600 mt-1">Registros de hoje</p>
           </CardContent>
         </Card>
       </div>
@@ -151,7 +151,7 @@ export default function Dashboard() {
         <div className="flex justify-end">
           <Button
             onClick={handleNewPesagem}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 gap-2 shadow-lg"
+            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
             size="lg"
           >
             <Plus className="w-5 h-5" />
