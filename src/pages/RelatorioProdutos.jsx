@@ -270,7 +270,7 @@ export default function RelatorioProdutos() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 1cm;
+              margin: 0.5cm;
             }
             body * {
               visibility: hidden;
@@ -284,10 +284,21 @@ export default function RelatorioProdutos() {
               top: 0;
               width: 100%;
             }
+            .page-footer {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              height: 20px;
+              font-size: 9px;
+              display: flex;
+              justify-content: space-between;
+              padding: 0 0.5cm;
+            }
           }
         `}} />
         
-        <div className="print-area p-8">
+        <div className="print-area p-8 print:p-0">
           <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
             <img 
               src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
@@ -347,8 +358,10 @@ export default function RelatorioProdutos() {
             </TableBody>
           </Table>
 
-          <div className="mt-6 text-xs text-gray-500 text-right">
-            Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {/* Rodapé customizado */}
+          <div className="page-footer hidden print:flex">
+            <span>Página 1 de 1</span>
+            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
           </div>
         </div>
       </div>

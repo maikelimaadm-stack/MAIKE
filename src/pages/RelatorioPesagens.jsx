@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -47,18 +47,16 @@ export default function RelatorioPesagens() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("retrato");
+  const [agruparPor, setAgruparPor] = useState("nenhum");
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
   );
 
-  // Filtros multi-select
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
   const [placasSelecionadas, setPlacasSelecionadas] = useState([]);
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
   const [motoristasSelecionados, setMotoristasSelecionados] = useState([]);
   const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState([]);
-  
-  // Filtros de busca por texto
   const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
   const { data: pesagens, isLoading } = useQuery({
@@ -67,14 +65,12 @@ export default function RelatorioPesagens() {
     initialData: [],
   });
 
-  // Listas únicas para filtros
   const produtosUnicos = [...new Set(pesagens.map(p => p.produto))].filter(Boolean);
   const placasUnicas = [...new Set(pesagens.map(p => p.placa_caminhao))].filter(Boolean);
   const tiposUnicos = ['Entrada', 'Saída', 'Ambos'];
   const motoristasUnicos = [...new Set(pesagens.map(p => p.nome_motorista))].filter(Boolean);
   const fornecedoresUnicos = [...new Set(pesagens.map(p => p.fornecedor_destino))].filter(Boolean);
 
-  // Aplicar filtros
   const pesagensFiltradas = useMemo(() => {
     return pesagens.filter(p => {
       if (dataInicio && new Date(p.data_pesagem) < new Date(dataInicio)) return false;
@@ -88,6 +84,46 @@ export default function RelatorioPesagens() {
       return true;
     });
   }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados, motoristasSelecionados, fornecedoresSelecionados, buscaObservacoes]);
+
+  const pesagensAgrupadas = useMemo(() => {
+    if (agruparPor === "nenhum") {
+      return { "Todos os Registros": pesagensFiltradas };
+    }
+
+    const grupos = {};
+    pesagensFiltradas.forEach(p => {
+      let chave;
+      switch (agruparPor) {
+        case "placa":
+          chave = p.placa_caminhao || "Sem placa";
+          break;
+        case "tipo":
+          chave = p.tipo_pesagem || "Sem tipo";
+          break;
+        case "data":
+          chave = format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR });
+          break;
+        case "motorista":
+          chave = p.nome_motorista || "Sem motorista";
+          break;
+        case "produto":
+          chave = p.produto || "Sem produto";
+          break;
+        case "fornecedor":
+          chave = p.fornecedor_destino || "Sem fornecedor/destino";
+          break;
+        default:
+          chave = "Todos";
+      }
+      
+      if (!grupos[chave]) {
+        grupos[chave] = [];
+      }
+      grupos[chave].push(p);
+    });
+
+    return grupos;
+  }, [pesagensFiltradas, agruparPor]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -110,6 +146,7 @@ export default function RelatorioPesagens() {
     setMotoristasSelecionados([]);
     setFornecedoresSelecionados([]);
     setBuscaObservacoes("");
+    setAgruparPor("nenhum");
   };
 
   const imprimir = () => {
@@ -120,7 +157,7 @@ export default function RelatorioPesagens() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Controles - Ocultos na impressão */}
+      {/* Controles */}
       <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
@@ -143,7 +180,7 @@ export default function RelatorioPesagens() {
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Data Início</Label>
               <Input
@@ -171,9 +208,25 @@ export default function RelatorioPesagens() {
                 <option value="paisagem">Paisagem</option>
               </select>
             </div>
+            <div className="space-y-2">
+              <Label>Agrupar Por</Label>
+              <Select value={agruparPor} onValueChange={setAgruparPor}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhum">Sem agrupamento</SelectItem>
+                  <SelectItem value="data">Data</SelectItem>
+                  <SelectItem value="placa">Placa</SelectItem>
+                  <SelectItem value="tipo">Tipo</SelectItem>
+                  <SelectItem value="motorista">Motorista</SelectItem>
+                  <SelectItem value="produto">Produto</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedor/Destino</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Busca por Observações */}
           <div className="space-y-2">
             <Label>Buscar em Observações</Label>
             <Input
@@ -184,7 +237,7 @@ export default function RelatorioPesagens() {
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            {/* Filtro de Tipos */}
+            {/* Filtros existentes - mantidos */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -207,7 +260,6 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Filtro de Placas */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -230,7 +282,6 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Filtro de Motoristas */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -253,7 +304,6 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Filtro de Produtos */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -276,7 +326,6 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Filtro de Fornecedores/Destinos */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -299,7 +348,6 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Seletor de Colunas */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -333,7 +381,7 @@ export default function RelatorioPesagens() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 1cm;
+              margin: 0.5cm;
             }
             body * {
               visibility: hidden;
@@ -347,10 +395,21 @@ export default function RelatorioPesagens() {
               top: 0;
               width: 100%;
             }
+            .page-footer {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              height: 20px;
+              font-size: 9px;
+              display: flex;
+              justify-content: space-between;
+              padding: 0 0.5cm;
+            }
           }
         `}} />
         
-        <div className="print-area p-8">
+        <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
             <img 
@@ -365,7 +424,7 @@ export default function RelatorioPesagens() {
             </div>
           </div>
 
-          {/* Título do Relatório */}
+          {/* Título */}
           <div className="mb-6">
             <h2 className="text-xl font-bold">Relatório de Pesagens</h2>
             {(dataInicio || dataFim) && (
@@ -373,55 +432,83 @@ export default function RelatorioPesagens() {
                 Período: {dataInicio ? format(new Date(dataInicio), "dd/MM/yyyy", { locale: ptBR }) : "Início"} a {dataFim ? format(new Date(dataFim), "dd/MM/yyyy", { locale: ptBR }) : "Hoje"}
               </p>
             )}
-            {buscaObservacoes && (
+            {agruparPor !== "nenhum" && (
               <p className="text-sm text-gray-600">
-                Busca em Observações: "{buscaObservacoes}"
+                Agrupado por: <strong>{agruparPor.charAt(0).toUpperCase() + agruparPor.slice(1)}</strong>
               </p>
             )}
           </div>
 
-          {/* Tabela */}
-          <Table>
-            <TableHeader>
-              <TableRow className="border-black">
-                {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold">Data</TableHead>}
-                {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold">Tipo</TableHead>}
-                {colunasVisiveis.includes('placa') && <TableHead className="border border-black text-xs font-bold">Placa</TableHead>}
-                {colunasVisiveis.includes('motorista') && <TableHead className="border border-black text-xs font-bold">Motorista</TableHead>}
-                {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold">Produto</TableHead>}
-                {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold">Forn./Dest.</TableHead>}
-                {colunasVisiveis.includes('tara') && <TableHead className="border border-black text-xs font-bold text-right">Tara</TableHead>}
-                {colunasVisiveis.includes('bruto') && <TableHead className="border border-black text-xs font-bold text-right">Bruto</TableHead>}
-                {colunasVisiveis.includes('liquido') && <TableHead className="border border-black text-xs font-bold text-right">Líquido</TableHead>}
-                {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold">Observações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pesagensFiltradas.map((p) => (
-                <TableRow key={p.id}>
-                  {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs">{format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}</TableCell>}
-                  {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs">{p.tipo_pesagem}</TableCell>}
-                  {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase">{p.placa_caminhao}</TableCell>}
-                  {colunasVisiveis.includes('motorista') && <TableCell className="border border-gray-300 text-xs">{p.nome_motorista}</TableCell>}
-                  {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs">{p.produto}</TableCell>}
-                  {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs">{p.fornecedor_destino || '-'}</TableCell>}
-                  {colunasVisiveis.includes('tara') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_tara)}</TableCell>}
-                  {colunasVisiveis.includes('bruto') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_bruto)}</TableCell>}
-                  {colunasVisiveis.includes('liquido') && <TableCell className="border border-gray-300 text-xs text-right font-semibold">{formatarNumero(p.peso_liquido)}</TableCell>}
-                  {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap">{p.observacoes || '-'}</TableCell>}
-                </TableRow>
-              ))}
-              {/* Total */}
-              <TableRow className="bg-gray-100 font-bold">
-                <TableCell colSpan={colunasVisiveis.length - 1} className="border border-black text-xs">TOTAL</TableCell>
-                <TableCell className="border border-black text-xs text-right">{formatarNumero(totalPesoLiquido)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {/* Tabelas Agrupadas */}
+          {Object.entries(pesagensAgrupadas).map(([grupo, registros], idx) => {
+            const totalGrupo = registros.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
+            
+            return (
+              <div key={idx} className="mb-8">
+                {agruparPor !== "nenhum" && (
+                  <div className="bg-gray-200 px-3 py-2 mb-2">
+                    <h3 className="font-bold text-sm">{grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})</h3>
+                  </div>
+                )}
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-black">
+                      {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold">Data</TableHead>}
+                      {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold">Tipo</TableHead>}
+                      {colunasVisiveis.includes('placa') && <TableHead className="border border-black text-xs font-bold">Placa</TableHead>}
+                      {colunasVisiveis.includes('motorista') && <TableHead className="border border-black text-xs font-bold">Motorista</TableHead>}
+                      {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold">Produto</TableHead>}
+                      {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold">Forn./Dest.</TableHead>}
+                      {colunasVisiveis.includes('tara') && <TableHead className="border border-black text-xs font-bold text-right">Tara</TableHead>}
+                      {colunasVisiveis.includes('bruto') && <TableHead className="border border-black text-xs font-bold text-right">Bruto</TableHead>}
+                      {colunasVisiveis.includes('liquido') && <TableHead className="border border-black text-xs font-bold text-right">Líquido</TableHead>}
+                      {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold">Observações</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registros.map((p) => (
+                      <TableRow key={p.id}>
+                        {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs">{format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}</TableCell>}
+                        {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs">{p.tipo_pesagem}</TableCell>}
+                        {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase">{p.placa_caminhao}</TableCell>}
+                        {colunasVisiveis.includes('motorista') && <TableCell className="border border-gray-300 text-xs">{p.nome_motorista}</TableCell>}
+                        {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs">{p.produto}</TableCell>}
+                        {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs">{p.fornecedor_destino || '-'}</TableCell>}
+                        {colunasVisiveis.includes('tara') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_tara)}</TableCell>}
+                        {colunasVisiveis.includes('bruto') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_bruto)}</TableCell>}
+                        {colunasVisiveis.includes('liquido') && <TableCell className="border border-gray-300 text-xs text-right font-semibold">{formatarNumero(p.peso_liquido)}</TableCell>}
+                        {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs">{p.observacoes || '-'}</TableCell>}
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-gray-100 font-bold">
+                      <TableCell colSpan={colunasVisiveis.length - 1} className="border border-black text-xs">
+                        SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
+                      </TableCell>
+                      <TableCell className="border border-black text-xs text-right">{formatarNumero(totalGrupo)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
 
-          {/* Rodapé */}
-          <div className="mt-6 text-xs text-gray-500 text-right">
-            Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {/* Total Geral */}
+          <div className="mt-6 border-t-2 border-black pt-4">
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-bold">
+                TOTAL GERAL: {pesagensFiltradas.length} {pesagensFiltradas.length === 1 ? 'pesagem' : 'pesagens'}
+              </div>
+              <div className="text-sm font-bold">
+                Peso Líquido Total: {formatarNumero(totalPesoLiquido)} kg
+              </div>
+            </div>
+          </div>
+
+          {/* Rodapé customizado */}
+          <div className="page-footer hidden print:flex">
+            <span>Página 1 de 1</span>
+            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
           </div>
         </div>
       </div>
