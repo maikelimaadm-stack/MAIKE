@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -39,12 +40,13 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'tara', label: 'Tara (kg)', default: true },
   { id: 'bruto', label: 'Bruto (kg)', default: true },
   { id: 'liquido', label: 'Líquido (kg)', default: true },
+  { id: 'observacoes', label: 'Observações', default: false },
 ];
 
 export default function RelatorioPesagens() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [orientacao, setOrientacao] = useState("retrato"); // retrato ou paisagem
+  const [orientacao, setOrientacao] = useState("retrato");
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
   );
@@ -53,6 +55,11 @@ export default function RelatorioPesagens() {
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
   const [placasSelecionadas, setPlacasSelecionadas] = useState([]);
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
+  const [motoristasSelecionados, setMotoristasSelecionados] = useState([]);
+  const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState([]);
+  
+  // Filtros de busca por texto
+  const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
   const { data: pesagens, isLoading } = useQuery({
     queryKey: ['pesagens'],
@@ -64,6 +71,8 @@ export default function RelatorioPesagens() {
   const produtosUnicos = [...new Set(pesagens.map(p => p.produto))].filter(Boolean);
   const placasUnicas = [...new Set(pesagens.map(p => p.placa_caminhao))].filter(Boolean);
   const tiposUnicos = ['Entrada', 'Saída', 'Ambos'];
+  const motoristasUnicos = [...new Set(pesagens.map(p => p.nome_motorista))].filter(Boolean);
+  const fornecedoresUnicos = [...new Set(pesagens.map(p => p.fornecedor_destino))].filter(Boolean);
 
   // Aplicar filtros
   const pesagensFiltradas = useMemo(() => {
@@ -73,9 +82,12 @@ export default function RelatorioPesagens() {
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(p.produto)) return false;
       if (placasSelecionadas.length > 0 && !placasSelecionadas.includes(p.placa_caminhao)) return false;
       if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(p.tipo_pesagem)) return false;
+      if (motoristasSelecionados.length > 0 && !motoristasSelecionados.includes(p.nome_motorista)) return false;
+      if (fornecedoresSelecionados.length > 0 && !fornecedoresSelecionados.includes(p.fornecedor_destino)) return false;
+      if (buscaObservacoes && !p.observacoes?.toLowerCase().includes(buscaObservacoes.toLowerCase())) return false;
       return true;
     });
-  }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados]);
+  }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados, motoristasSelecionados, fornecedoresSelecionados, buscaObservacoes]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -95,6 +107,9 @@ export default function RelatorioPesagens() {
     setProdutosSelecionados([]);
     setPlacasSelecionadas([]);
     setTiposSelecionados([]);
+    setMotoristasSelecionados([]);
+    setFornecedoresSelecionados([]);
+    setBuscaObservacoes("");
   };
 
   const imprimir = () => {
@@ -158,24 +173,34 @@ export default function RelatorioPesagens() {
             </div>
           </div>
 
+          {/* Busca por Observações */}
+          <div className="space-y-2">
+            <Label>Buscar em Observações</Label>
+            <Input
+              placeholder="Digite para buscar nas observações..."
+              value={buscaObservacoes}
+              onChange={(e) => setBuscaObservacoes(e.target.value)}
+            />
+          </div>
+
           <div className="flex gap-3 flex-wrap">
-            {/* Filtro de Produtos */}
+            {/* Filtro de Tipos */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
-                  Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}
+                  Tipos {tiposSelecionados.length > 0 && `(${tiposSelecionados.length})`}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
+              <PopoverContent className="w-64">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Produtos</h4>
-                  {produtosUnicos.map(produto => (
-                    <div key={produto} className="flex items-center space-x-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Tipos</h4>
+                  {tiposUnicos.map(tipo => (
+                    <div key={tipo} className="flex items-center space-x-2">
                       <Checkbox
-                        checked={produtosSelecionados.includes(produto)}
-                        onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, produto)}
+                        checked={tiposSelecionados.includes(tipo)}
+                        onCheckedChange={() => toggleFiltro(tiposSelecionados, setTiposSelecionados, tipo)}
                       />
-                      <label className="text-sm cursor-pointer">{produto}</label>
+                      <label className="text-sm cursor-pointer">{tipo}</label>
                     </div>
                   ))}
                 </div>
@@ -205,23 +230,69 @@ export default function RelatorioPesagens() {
               </PopoverContent>
             </Popover>
 
-            {/* Filtro de Tipos */}
+            {/* Filtro de Motoristas */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
-                  Tipos {tiposSelecionados.length > 0 && `(${tiposSelecionados.length})`}
+                  Motoristas {motoristasSelecionados.length > 0 && `(${motoristasSelecionados.length})`}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64">
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Tipos</h4>
-                  {tiposUnicos.map(tipo => (
-                    <div key={tipo} className="flex items-center space-x-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Motoristas</h4>
+                  {motoristasUnicos.map(motorista => (
+                    <div key={motorista} className="flex items-center space-x-2">
                       <Checkbox
-                        checked={tiposSelecionados.includes(tipo)}
-                        onCheckedChange={() => toggleFiltro(tiposSelecionados, setTiposSelecionados, tipo)}
+                        checked={motoristasSelecionados.includes(motorista)}
+                        onCheckedChange={() => toggleFiltro(motoristasSelecionados, setMotoristasSelecionados, motorista)}
                       />
-                      <label className="text-sm cursor-pointer">{tipo}</label>
+                      <label className="text-sm cursor-pointer">{motorista}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Filtro de Produtos */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Produtos</h4>
+                  {produtosUnicos.map(produto => (
+                    <div key={produto} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={produtosSelecionados.includes(produto)}
+                        onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, produto)}
+                      />
+                      <label className="text-sm cursor-pointer">{produto}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Filtro de Fornecedores/Destinos */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Fornec./Dest. {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Fornecedores/Destinos</h4>
+                  {fornecedoresUnicos.map(fornecedor => (
+                    <div key={fornecedor} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={fornecedoresSelecionados.includes(fornecedor)}
+                        onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, fornecedor)}
+                      />
+                      <label className="text-sm cursor-pointer">{fornecedor}</label>
                     </div>
                   ))}
                 </div>
@@ -302,6 +373,11 @@ export default function RelatorioPesagens() {
                 Período: {dataInicio ? format(new Date(dataInicio), "dd/MM/yyyy", { locale: ptBR }) : "Início"} a {dataFim ? format(new Date(dataFim), "dd/MM/yyyy", { locale: ptBR }) : "Hoje"}
               </p>
             )}
+            {buscaObservacoes && (
+              <p className="text-sm text-gray-600">
+                Busca em Observações: "{buscaObservacoes}"
+              </p>
+            )}
           </div>
 
           {/* Tabela */}
@@ -317,6 +393,7 @@ export default function RelatorioPesagens() {
                 {colunasVisiveis.includes('tara') && <TableHead className="border border-black text-xs font-bold text-right">Tara</TableHead>}
                 {colunasVisiveis.includes('bruto') && <TableHead className="border border-black text-xs font-bold text-right">Bruto</TableHead>}
                 {colunasVisiveis.includes('liquido') && <TableHead className="border border-black text-xs font-bold text-right">Líquido</TableHead>}
+                {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold">Observações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -331,6 +408,7 @@ export default function RelatorioPesagens() {
                   {colunasVisiveis.includes('tara') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_tara)}</TableCell>}
                   {colunasVisiveis.includes('bruto') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.peso_bruto)}</TableCell>}
                   {colunasVisiveis.includes('liquido') && <TableCell className="border border-gray-300 text-xs text-right font-semibold">{formatarNumero(p.peso_liquido)}</TableCell>}
+                  {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap">{p.observacoes || '-'}</TableCell>}
                 </TableRow>
               ))}
               {/* Total */}

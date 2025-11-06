@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input"; // Added Input import
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -31,11 +33,13 @@ const formatarNumero = (numero) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'nome', label: 'Nome do Produto', default: true },
   { id: 'codigo', label: 'Código Interno', default: true },
+  { id: 'barras', label: 'Cód. Barras', default: false }, // Added new column
   { id: 'categoria', label: 'Categoria', default: true },
   { id: 'unidade', label: 'Unidade', default: true },
   { id: 'preco_custo', label: 'Preço Custo', default: true },
   { id: 'preco_venda', label: 'Preço Venda', default: true },
   { id: 'estoque', label: 'Estoque', default: true },
+  { id: 'estoque_min', label: 'Estoque Mínimo', default: false }, // Added new column
 ];
 
 export default function RelatorioProdutos() {
@@ -46,6 +50,12 @@ export default function RelatorioProdutos() {
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
+  const [unidadesSelecionadas, setUnidadesSelecionadas] = useState([]); // Added new state
+
+  // Filtros de busca por texto
+  const [buscaCodigo, setBuscaCodigo] = useState(""); // Added new state
+  const [buscaBarras, setBuscaBarras] = useState(""); // Added new state
+  const [buscaNome, setBuscaNome] = useState(""); // Added new state
 
   const { data: produtos, isLoading } = useQuery({
     queryKey: ['produtos'],
@@ -55,14 +65,19 @@ export default function RelatorioProdutos() {
 
   const categoriasUnicas = [...new Set(produtos.map(p => p.categoria))].filter(Boolean);
   const produtosUnicos = produtos.map(p => ({ id: p.id, nome: p.nome_produto }));
+  const unidadesUnicas = [...new Set(produtos.map(p => p.unidade_medida))].filter(Boolean); // Added new unique list
 
   const produtosFiltrados = useMemo(() => {
     return produtos.filter(p => {
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(p.categoria)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(p.id)) return false;
+      if (unidadesSelecionadas.length > 0 && !unidadesSelecionadas.includes(p.unidade_medida)) return false; // Added filter
+      if (buscaCodigo && !p.codigo_interno?.toLowerCase().includes(buscaCodigo.toLowerCase())) return false; // Added filter
+      if (buscaBarras && !p.codigo_barras?.includes(buscaBarras)) return false; // Added filter
+      if (buscaNome && !p.nome_produto?.toLowerCase().includes(buscaNome.toLowerCase())) return false; // Added filter
       return true;
     });
-  }, [produtos, categoriasSelecionadas, produtosSelecionados]);
+  }, [produtos, categoriasSelecionadas, produtosSelecionados, unidadesSelecionadas, buscaCodigo, buscaBarras, buscaNome]); // Added new dependencies
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -79,6 +94,10 @@ export default function RelatorioProdutos() {
   const limparFiltros = () => {
     setCategoriasSelecionadas([]);
     setProdutosSelecionados([]);
+    setUnidadesSelecionadas([]); // Added reset
+    setBuscaCodigo(""); // Added reset
+    setBuscaBarras(""); // Added reset
+    setBuscaNome(""); // Added reset
   };
 
   const imprimir = () => {
@@ -124,6 +143,34 @@ export default function RelatorioProdutos() {
             </div>
           </div>
 
+          {/* Buscas por texto */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Buscar por Nome</Label>
+              <Input
+                placeholder="Digite o nome..."
+                value={buscaNome}
+                onChange={(e) => setBuscaNome(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buscar por Código</Label>
+              <Input
+                placeholder="Digite o código interno..."
+                value={buscaCodigo}
+                onChange={(e) => setBuscaCodigo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buscar por Cód. Barras</Label>
+              <Input
+                placeholder="Digite o código de barras..."
+                value={buscaBarras}
+                onChange={(e) => setBuscaBarras(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="flex gap-3 flex-wrap">
             <Popover>
               <PopoverTrigger asChild>
@@ -163,6 +210,28 @@ export default function RelatorioProdutos() {
                         onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, categoria)}
                       />
                       <label className="text-sm cursor-pointer">{categoria}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Unidades {unidadesSelecionadas.length > 0 && `(${unidadesSelecionadas.length})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Unidades de Medida</h4>
+                  {unidadesUnicas.map(unidade => (
+                    <div key={unidade} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={unidadesSelecionadas.includes(unidade)}
+                        onCheckedChange={() => toggleFiltro(unidadesSelecionadas, setUnidadesSelecionadas, unidade)}
+                      />
+                      <label className="text-sm cursor-pointer">{unidade}</label>
                     </div>
                   ))}
                 </div>
@@ -241,11 +310,13 @@ export default function RelatorioProdutos() {
               <TableRow className="border-black">
                 {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold">Nome</TableHead>}
                 {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold">Código</TableHead>}
+                {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold">Cód. Barras</TableHead>} {/* Added header */}
                 {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold">Categoria</TableHead>}
                 {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold">UN</TableHead>}
                 {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right">Custo</TableHead>}
                 {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right">Venda</TableHead>}
                 {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right">Estoque</TableHead>}
+                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right">Est. Mínimo</TableHead>} {/* Added header */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -253,19 +324,22 @@ export default function RelatorioProdutos() {
                 <TableRow key={p.id}>
                   {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs">{p.nome_produto}</TableCell>}
                   {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs">{p.codigo_interno || '-'}</TableCell>}
+                  {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs">{p.codigo_barras || '-'}</TableCell>} {/* Added cell */}
                   {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs">{p.categoria || '-'}</TableCell>}
                   {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs">{p.unidade_medida}</TableCell>}
                   {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
                   {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
                   {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
+                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_minimo || 0)}</TableCell>} {/* Added cell */}
                 </TableRow>
               ))}
+              {/* This section for totals is preserved as per instructions, it automatically adjusts colSpan based on visible columns */}
               <TableRow className="bg-gray-100 font-bold">
                 <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('preco_custo') ? 1 : 0)} className="border border-black text-xs">
                   TOTAL: {produtosFiltrados.length} produtos
                 </TableCell>
                 {colunasVisiveis.includes('preco_custo') && (
-                  <TableCell colSpan={colunasVisiveis.includes('preco_venda') || colunasVisiveis.includes('estoque') ? 1 : undefined} className="border border-black text-xs text-right">
+                  <TableCell colSpan={colunasVisiveis.includes('preco_venda') || colunasVisiveis.includes('estoque') || colunasVisiveis.includes('estoque_min') ? 1 : undefined} className="border border-black text-xs text-right">
                     Valor Estoque: R$ {formatarNumero(valorTotalEstoque)}
                   </TableCell>
                 )}

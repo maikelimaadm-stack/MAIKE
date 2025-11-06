@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'email', label: 'E-mail', default: true },
   { id: 'cidade', label: 'Cidade', default: true },
   { id: 'estado', label: 'Estado', default: false },
+  { id: 'endereco', label: 'Endereço', default: false },
+  { id: 'cep', label: 'CEP', default: false },
 ];
 
 export default function RelatorioFornecedores() {
@@ -42,6 +45,12 @@ export default function RelatorioFornecedores() {
 
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
   const [cidadesSelecionadas, setCidadesSelecionadas] = useState([]);
+  const [estadosSelecionados, setEstadosSelecionados] = useState([]);
+  
+  // Filtros de busca por texto
+  const [buscaTelefone, setBuscaTelefone] = useState("");
+  const [buscaEmail, setBuscaEmail] = useState("");
+  const [buscaNome, setBuscaNome] = useState("");
 
   const { data: fornecedores, isLoading } = useQuery({
     queryKey: ['fornecedores'],
@@ -50,15 +59,20 @@ export default function RelatorioFornecedores() {
   });
 
   const cidadesUnicas = [...new Set(fornecedores.map(f => f.cidade))].filter(Boolean);
+  const estadosUnicos = [...new Set(fornecedores.map(f => f.estado))].filter(Boolean);
   const tiposUnicos = ['Física', 'Jurídica'];
 
   const fornecedoresFiltrados = useMemo(() => {
     return fornecedores.filter(f => {
       if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(f.tipo_pessoa)) return false;
       if (cidadesSelecionadas.length > 0 && !cidadesSelecionadas.includes(f.cidade)) return false;
+      if (estadosSelecionados.length > 0 && !estadosSelecionados.includes(f.estado)) return false;
+      if (buscaTelefone && !f.telefone?.includes(buscaTelefone)) return false;
+      if (buscaEmail && !f.email?.toLowerCase().includes(buscaEmail.toLowerCase())) return false;
+      if (buscaNome && !f.nome?.toLowerCase().includes(buscaNome.toLowerCase())) return false;
       return true;
     });
-  }, [fornecedores, tiposSelecionados, cidadesSelecionadas]);
+  }, [fornecedores, tiposSelecionados, cidadesSelecionadas, estadosSelecionados, buscaTelefone, buscaEmail, buscaNome]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -75,6 +89,10 @@ export default function RelatorioFornecedores() {
   const limparFiltros = () => {
     setTiposSelecionados([]);
     setCidadesSelecionadas([]);
+    setEstadosSelecionados([]);
+    setBuscaTelefone("");
+    setBuscaEmail("");
+    setBuscaNome("");
   };
 
   const imprimir = () => {
@@ -118,6 +136,34 @@ export default function RelatorioFornecedores() {
             </div>
           </div>
 
+          {/* Buscas por texto */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Buscar por Nome</Label>
+              <Input
+                placeholder="Digite o nome..."
+                value={buscaNome}
+                onChange={(e) => setBuscaNome(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buscar por Telefone</Label>
+              <Input
+                placeholder="Digite o telefone..."
+                value={buscaTelefone}
+                onChange={(e) => setBuscaTelefone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buscar por E-mail</Label>
+              <Input
+                placeholder="Digite o e-mail..."
+                value={buscaEmail}
+                onChange={(e) => setBuscaEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="flex gap-3 flex-wrap">
             <Popover>
               <PopoverTrigger asChild>
@@ -157,6 +203,28 @@ export default function RelatorioFornecedores() {
                         onCheckedChange={() => toggleFiltro(cidadesSelecionadas, setCidadesSelecionadas, cidade)}
                       />
                       <label className="text-sm cursor-pointer">{cidade}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Estados {estadosSelecionados.length > 0 && `(${estadosSelecionados.length})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-3">Selecione Estados</h4>
+                  {estadosUnicos.map(estado => (
+                    <div key={estado} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={estadosSelecionados.includes(estado)}
+                        onCheckedChange={() => toggleFiltro(estadosSelecionados, setEstadosSelecionados, estado)}
+                      />
+                      <label className="text-sm cursor-pointer uppercase">{estado}</label>
                     </div>
                   ))}
                 </div>
@@ -240,6 +308,8 @@ export default function RelatorioFornecedores() {
                 {colunasVisiveis.includes('email') && <TableHead className="border border-black text-xs font-bold">E-mail</TableHead>}
                 {colunasVisiveis.includes('cidade') && <TableHead className="border border-black text-xs font-bold">Cidade</TableHead>}
                 {colunasVisiveis.includes('estado') && <TableHead className="border border-black text-xs font-bold">Estado</TableHead>}
+                {colunasVisiveis.includes('endereco') && <TableHead className="border border-black text-xs font-bold">Endereço</TableHead>}
+                {colunasVisiveis.includes('cep') && <TableHead className="border border-black text-xs font-bold">CEP</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -252,6 +322,15 @@ export default function RelatorioFornecedores() {
                   {colunasVisiveis.includes('email') && <TableCell className="border border-gray-300 text-xs">{f.email || '-'}</TableCell>}
                   {colunasVisiveis.includes('cidade') && <TableCell className="border border-gray-300 text-xs">{f.cidade || '-'}</TableCell>}
                   {colunasVisiveis.includes('estado') && <TableCell className="border border-gray-300 text-xs uppercase">{f.estado || '-'}</TableCell>}
+                  {colunasVisiveis.includes('endereco') && <TableCell className="border border-gray-300 text-xs">
+                    {
+                      `${f.logradouro || ''}${f.numero ? `, ${f.numero}` : ''}${f.complemento ? ` - ${f.complemento}` : ''}${f.bairro ? ` - ${f.bairro}` : ''}`
+                      .replace(/^,\s*|-+\s*-+/, '') // Remove leading commas and multiple hyphens
+                      .trim()
+                      || '-'
+                    }
+                  </TableCell>}
+                  {colunasVisiveis.includes('cep') && <TableCell className="border border-gray-300 text-xs">{f.cep || '-'}</TableCell>}
                 </TableRow>
               ))}
               <TableRow className="bg-gray-100 font-bold">
