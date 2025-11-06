@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, TrendingUp, Users, LogOut } from "lucide-react";
+import { Scale, FileText, TrendingUp, Users, LogOut, Package, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +37,16 @@ const navigationItems = [
     icon: Scale,
   },
   {
+    title: "Fornecedores",
+    url: createPageUrl("Fornecedores"),
+    icon: Users,
+  },
+  {
+    title: "Produtos",
+    url: createPageUrl("Produtos"),
+    icon: Package,
+  },
+  {
     title: "Relatórios",
     url: createPageUrl("Relatorios"),
     icon: FileText,
@@ -43,7 +54,7 @@ const navigationItems = [
   {
     title: "Usuários",
     url: createPageUrl("Usuarios"),
-    icon: Users,
+    icon: Shield,
   },
 ];
 
