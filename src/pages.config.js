@@ -3,6 +3,7 @@ import Relatorios from './pages/Relatorios';
 import Usuarios from './pages/Usuarios';
 import Fornecedores from './pages/Fornecedores';
 import Produtos from './pages/Produtos';
+import RelatorioPesagens from './pages/RelatorioPesagens';
 import Layout from './Layout.jsx';
 
 
@@ -12,6 +13,7 @@ export const PAGES = {
     "Usuarios": Usuarios,
     "Fornecedores": Fornecedores,
     "Produtos": Produtos,
+    "RelatorioPesagens": RelatorioPesagens,
 }
 
 export const pagesConfig = {

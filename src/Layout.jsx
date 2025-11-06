@@ -48,8 +48,21 @@ const navigationItems = [
   },
   {
     title: "Relatórios",
-    url: createPageUrl("Relatorios"),
     icon: FileText,
+    submenu: [
+      {
+        title: "Relatório de Pesagens",
+        url: createPageUrl("RelatorioPesagens"),
+      },
+      {
+        title: "Lista de Fornecedores",
+        url: createPageUrl("RelatorioFornecedores"),
+      },
+      {
+        title: "Lista de Produtos",
+        url: createPageUrl("RelatorioProdutos"),
+      },
+    ],
   },
   {
     title: "Usuários",
@@ -63,6 +76,7 @@ export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   useEffect(() => {
     const loadUser = async () => {
@@ -78,6 +92,14 @@ export default function Layout({ children, currentPageName }) {
 
   const handleLogout = () => {
     base44.auth.logout();
+    navigate(createPageUrl("Login")); // Redirect to login page after logout
+  };
+
+  const toggleSubmenu = (title) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
   };
 
   return (
@@ -107,17 +129,53 @@ export default function Layout({ children, currentPageName }) {
                 <SidebarMenu>
                   {navigationItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
-                          location.pathname === item.url ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
-                        }`}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium">{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
+                      {item.submenu ? (
+                        <div>
+                          <SidebarMenuButton 
+                            onClick={() => toggleSubmenu(item.title)}
+                            className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
+                              Object.values(item.submenu).some(subitem => location.pathname === subitem.url) ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 px-4 py-3 w-full">
+                              <item.icon className="w-5 h-5" />
+                              <span className="font-medium flex-1">{item.title}</span>
+                              <span className={`transform transition-transform text-xs ${expandedMenus[item.title] ? 'rotate-90' : ''}`}>
+                                ▶
+                              </span>
+                            </div>
+                          </SidebarMenuButton>
+                          {expandedMenus[item.title] && (
+                            <div className="ml-6 space-y-1">
+                              {item.submenu.map((subitem) => (
+                                <Link 
+                                  key={subitem.title}
+                                  to={subitem.url}
+                                  className={`block px-4 py-2 text-sm rounded-lg transition-all ${
+                                    location.pathname === subitem.url 
+                                      ? 'bg-green-100 text-green-800 font-medium' 
+                                      : 'text-slate-600 hover:bg-green-50 hover:text-green-700'
+                                  }`}
+                                >
+                                  {subitem.title}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <SidebarMenuButton 
+                          asChild 
+                          className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
+                            location.pathname === item.url ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
+                          }`}
+                        >
+                          <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
+                            <item.icon className="w-5 h-5" />
+                            <span className="font-medium">{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
