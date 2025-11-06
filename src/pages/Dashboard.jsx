@@ -1,18 +1,16 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, Package, Truck, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import * as XLSX from 'xlsx';
 import { format } from "date-fns";
 
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
 import TicketPesagem from "../components/pesagens/TicketPesagem";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -40,9 +38,8 @@ export default function Dashboard() {
       setEditingPesagem(null);
       toast.success('Pesagem registrada com sucesso!');
     },
-    onError: (error) => {
-      console.error("Erro ao salvar pesagem:", error);
-      toast.error('Erro ao salvar pesagem. Tente novamente.');
+    onError: () => {
+      toast.error('Erro ao registrar pesagem. Tente novamente.');
     }
   });
 
@@ -54,8 +51,7 @@ export default function Dashboard() {
       setEditingPesagem(null);
       toast.success('Pesagem atualizada com sucesso!');
     },
-    onError: (error) => {
-      console.error("Erro ao atualizar pesagem:", error);
+    onError: () => {
       toast.error('Erro ao atualizar pesagem. Tente novamente.');
     }
   });
@@ -66,8 +62,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['pesagens'] });
       toast.success('Pesagem excluída com sucesso!');
     },
-    onError: (error) => {
-      console.error("Erro ao excluir pesagem:", error);
+    onError: () => {
       toast.error('Erro ao excluir pesagem. Tente novamente.');
     }
   });
@@ -106,23 +101,32 @@ export default function Dashboard() {
   };
 
   const handleExport = () => {
-    const dadosExcel = pesagens.map(p => ({
-      'Data': format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
-      'Tipo': p.tipo_pesagem,
-      'Placa': p.placa_caminhao,
-      'Motorista': p.nome_motorista,
-      'Produto': p.produto,
-      'Fornecedor/Destino': p.fornecedor_destino || '',
-      'Peso Tara (kg)': p.peso_tara,
-      'Peso Bruto (kg)': p.peso_bruto,
-      'Peso Líquido (kg)': p.peso_liquido,
-      'Observações': p.observacoes || ''
-    }));
+    const csvRows = [];
+    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    csvRows.push(headers.join(';'));
 
-    const ws = XLSX.utils.json_to_sheet(dadosExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Pesagens');
-    XLSX.writeFile(wb, `pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`);
+    pesagens.forEach(p => {
+      const row = [
+        format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
+        p.tipo_pesagem,
+        p.placa_caminhao,
+        p.nome_motorista,
+        p.produto,
+        p.fornecedor_destino || '',
+        p.peso_tara,
+        p.peso_bruto,
+        p.peso_liquido,
+        p.observacoes || ''
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
     toast.success('Dados exportados com sucesso!');
   };
 
@@ -133,127 +137,115 @@ export default function Dashboard() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        // raw: false to get formatted values (e.g., dates as strings), dateNF for specific date format
-        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false, dateNF: 'dd/MM/yyyy' });
-        
-        let importedCount = 0;
-        for (const row of jsonData) {
-          let parsedDate = null;
-          if (row['Data']) {
-              const dateStr = String(row['Data']);
-              const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // dd/MM/yyyy
-              if (parts) {
-                  parsedDate = `${parts[3]}-${parts[2]}-${parts[1]}`; // YYYY-MM-DD
-              } else {
-                  const d = new Date(dateStr);
-                  if (!isNaN(d.getTime())) {
-                      parsedDate = format(d, 'yyyy-MM-dd');
-                  }
-              }
-          }
+        const text = e.target.result;
+        const lines = text.split('\n');
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(';');
+          if (values.length < 9) continue;
 
           const pesagem = {
-            data_pesagem: parsedDate,
-            tipo_pesagem: row['Tipo'],
-            placa_caminhao: row['Placa'],
-            nome_motorista: row['Motorista'],
-            produto: row['Produto'],
-            fornecedor_destino: row['Fornecedor/Destino'] || null,
-            peso_tara: parseFloat(String(row['Peso Tara (kg)']).replace(',', '.')),
-            peso_bruto: parseFloat(String(row['Peso Bruto (kg)']).replace(',', '.')),
-            peso_liquido: parseFloat(String(row['Peso Líquido (kg)']).replace(',', '.')),
-            observacoes: row['Observações'] || null
+            data_pesagem: values[0],
+            tipo_pesagem: values[1],
+            placa_caminhao: values[2],
+            nome_motorista: values[3],
+            produto: values[4],
+            fornecedor_destino: values[5] || undefined,
+            peso_tara: parseFloat(values[6]),
+            peso_bruto: parseFloat(values[7]),
+            peso_liquido: parseFloat(values[8]),
+            observacoes: values[9] || undefined
           };
-
-          // Basic validation for required fields
-          if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
-            toast.warning(`Linha ignorada devido a dados inválidos ou incompletos: ${JSON.stringify(row)}`);
-            continue;
-          }
-
-          try {
-            await base44.entities.Pesagem.create(pesagem);
-            importedCount++;
-          } catch (createError) {
-            console.error("Erro ao criar pesagem na linha:", row, createError);
-            toast.error(`Falha ao importar pesagem: ${row['Placa']} - ${createError.message}`);
-          }
+          await base44.entities.Pesagem.create(pesagem);
         }
         queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-        toast.success(`${importedCount} pesagens importadas com sucesso!`);
+        toast.success(`Dados importados com sucesso!`);
       } catch (error) {
-        console.error('Erro ao importar dados:', error);
-        toast.error('Erro ao importar dados. Verifique o arquivo e o formato das colunas. ' + error.message);
+        toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   };
 
   const downloadTemplate = () => {
-    const template = [{
-      'Data': format(new Date(), 'dd/MM/yyyy'),
-      'Tipo': 'Entrada',
-      'Placa': 'ABC1234',
-      'Motorista': 'João Silva',
-      'Produto': 'Soja',
-      'Fornecedor/Destino': 'Fornecedor Exemplo',
-      'Peso Tara (kg)': 5000,
-      'Peso Bruto (kg)': 25000,
-      'Peso Líquido (kg)': 20000,
-      'Observações': 'Observações exemplo'
-    }];
+    const csvRows = [];
+    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    csvRows.push(headers.join(';'));
+    
+    const example = [
+      format(new Date(), 'dd/MM/yyyy'),
+      'Entrada',
+      'ABC1234',
+      'João Silva',
+      'Soja',
+      'Fornecedor Exemplo',
+      '5000',
+      '25000',
+      '20000',
+      'Observações exemplo'
+    ];
+    csvRows.push(example.join(';'));
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
-    XLSX.writeFile(wb, 'modelo_pesagens.xlsx');
-    toast.info('Modelo de importação baixado.');
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'modelo_pesagens.csv';
+    link.click();
   };
 
-  const totalPesoLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
   const totalPesagens = pesagens.length;
-  const pesagensHoje = pesagens.filter(p => {
-    const hoje = new Date().toISOString().split('T')[0];
-    return p.data_pesagem === hoje;
-  }).length;
+  const pesagensEntrada = pesagens.filter(p => p.tipo_pesagem === 'Entrada').length;
+  const pesagensSaida = pesagens.filter(p => p.tipo_pesagem === 'Saída').length;
+  const pesoTotalLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
 
   return (
     <div className="p-6 space-y-6">
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
-            <Package className="h-5 w-5 text-green-600" />
+            <Scale className="h-5 h-5 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-900">{totalPesagens}</div>
-            <p className="text-xs text-green-600 mt-1">Registros no sistema</p>
+            <p className="text-xs text-green-600 mt-1">Registros totais</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-emerald-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Peso Total Líquido</CardTitle>
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Entradas</CardTitle>
+            <TrendingDown className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-900">{formatarNumero(totalPesoLiquido)} kg</div>
-            <p className="text-xs text-emerald-600 mt-1">Soma de todas as pesagens</p>
+            <div className="text-3xl font-bold text-blue-900">{pesagensEntrada}</div>
+            <p className="text-xs text-blue-600 mt-1">Pesagens de entrada</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-teal-50">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-orange-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Pesagens Hoje</CardTitle>
-            <Truck className="h-5 w-5 text-teal-600" />
+            <CardTitle className="text-sm font-medium text-green-700">Saídas</CardTitle>
+            <TrendingUp className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-teal-900">{pesagensHoje}</div>
-            <p className="text-xs text-teal-600 mt-1">Registros de hoje</p>
+            <div className="text-3xl font-bold text-orange-900">{pesagensSaida}</div>
+            <p className="text-xs text-orange-600 mt-1">Pesagens de saída</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Peso Total</CardTitle>
+            <Package className="h-5 w-5 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-900">{formatarNumero(pesoTotalLiquido)}</div>
+            <p className="text-xs text-purple-600 mt-1">Kg líquidos totais</p>
           </CardContent>
         </Card>
       </div>
@@ -268,12 +260,12 @@ export default function Dashboard() {
               className="gap-2"
             >
               <Download className="w-4 h-4" />
-              Exportar Excel
+              Exportar CSV
             </Button>
             <div>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".csv"
                 onChange={handleImport}
                 className="hidden"
                 id="import-pesagens"
@@ -284,7 +276,7 @@ export default function Dashboard() {
                 className="gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Importar Excel
+                Importar CSV
               </Button>
             </div>
             <Button

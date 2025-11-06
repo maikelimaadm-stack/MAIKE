@@ -1,14 +1,12 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Building2, UserCircle, FileText, Package } from "lucide-react";
+import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from 'date-fns';
-import * as XLSX from 'xlsx'; // Added for Excel export/import
+import { format } from "date-fns";
 
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
@@ -83,13 +81,6 @@ export default function Fornecedores() {
     }
   };
 
-  const handleDuplicate = (fornecedor) => {
-    const { id, created_date, updated_date, created_by, ...dadosSemId } = fornecedor;
-    setEditingFornecedor(dadosSemId);
-    setShowForm(true);
-    toast.info('Registro duplicado. Edite e salve.');
-  };
-
   const handlePrint = (fornecedor) => {
     setFichaFornecedor(fornecedor);
   };
@@ -105,30 +96,38 @@ export default function Fornecedores() {
   };
 
   const handleExport = () => {
-    // Preparar dados para Excel
-    const dadosExcel = fornecedores.map(f => ({
-      'Tipo': f.tipo_pessoa,
-      'Nome': f.nome,
-      'CPF': f.cpf || '',
-      'RG': f.rg || '',
-      'Data Nascimento': f.data_nascimento || '',
-      'CNPJ': f.cnpj || '',
-      'Razão Social': f.razao_social || '',
-      'Inscrição Estadual': f.inscricao_estadual || '',
-      'Responsável': f.nome_responsavel || '',
-      'Telefone': f.telefone || '',
-      'Email': f.email || '',
-      'Endereço': f.endereco || '',
-      'Cidade': f.cidade || '',
-      'Estado': f.estado || '',
-      'CEP': f.cep || '',
-      'Observações': f.observacoes || ''
-    }));
+    const csvRows = [];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
+    csvRows.push(headers.join(';'));
 
-    const ws = XLSX.utils.json_to_sheet(dadosExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Fornecedores');
-    XLSX.writeFile(wb, `fornecedores_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`);
+    fornecedores.forEach(f => {
+      const row = [
+        f.tipo_pessoa,
+        f.nome,
+        f.cpf || '',
+        f.rg || '',
+        f.data_nascimento || '',
+        f.cnpj || '',
+        f.razao_social || '',
+        f.inscricao_estadual || '',
+        f.nome_responsavel || '',
+        f.telefone || '',
+        f.email || '',
+        f.endereco || '',
+        f.cidade || '',
+        f.estado || '',
+        f.cep || '',
+        f.observacoes || ''
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `fornecedores_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
     toast.success('Dados exportados com sucesso!');
   };
 
@@ -139,72 +138,57 @@ export default function Fornecedores() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const text = e.target.result;
+        const lines = text.split('\n');
 
-        for (const row of jsonData) {
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(';');
+          if (values.length < 2) continue;
+
           const fornecedor = {
-            tipo_pessoa: row['Tipo'],
-            nome: row['Nome'],
-            cpf: row['CPF'] || undefined,
-            rg: row['RG'] || undefined,
-            data_nascimento: row['Data Nascimento'] || undefined,
-            cnpj: row['CNPJ'] || undefined,
-            razao_social: row['Razão Social'] || undefined,
-            inscricao_estadual: row['Inscrição Estadual'] || undefined,
-            nome_responsavel: row['Responsável'] || undefined,
-            telefone: row['Telefone'] || undefined,
-            email: row['Email'] || undefined,
-            endereco: row['Endereço'] || undefined,
-            cidade: row['Cidade'] || undefined,
-            estado: row['Estado'] || undefined,
-            cep: row['CEP'] || undefined,
-            observacoes: row['Observações'] || undefined
+            tipo_pessoa: values[0],
+            nome: values[1],
+            cpf: values[2] || undefined,
+            rg: values[3] || undefined,
+            data_nascimento: values[4] || undefined,
+            cnpj: values[5] || undefined,
+            razao_social: values[6] || undefined,
+            inscricao_estadual: values[7] || undefined,
+            nome_responsavel: values[8] || undefined,
+            telefone: values[9] || undefined,
+            email: values[10] || undefined,
+            endereco: values[11] || undefined,
+            cidade: values[12] || undefined,
+            estado: values[13] || undefined,
+            cep: values[14] || undefined,
+            observacoes: values[15] || undefined
           };
-          // Filter out empty strings which might cause validation issues or unwanted data.
-          // Only include properties that have a defined value.
-          const cleanFornecedor = Object.fromEntries(
-            Object.entries(fornecedor).filter(([, value]) => value !== undefined && value !== '')
-          );
-          await base44.entities.Fornecedor.create(cleanFornecedor);
+          await base44.entities.Fornecedor.create(fornecedor);
         }
         queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-        toast.success(`${jsonData.length} fornecedores importados com sucesso!`);
+        toast.success(`Dados importados com sucesso!`);
       } catch (error) {
-        console.error("Error importing data:", error);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   };
 
   const downloadTemplate = () => {
-    const template = [{
-      'Tipo': 'Física',
-      'Nome': 'Exemplo Fornecedor',
-      'CPF': '000.000.000-00',
-      'RG': '00.000.000-0',
-      'Data Nascimento': '01/01/1990',
-      'CNPJ': '',
-      'Razão Social': '',
-      'Inscrição Estadual': '',
-      'Responsável': '',
-      'Telefone': '(00) 00000-0000',
-      'Email': 'exemplo@email.com',
-      'Endereço': 'Rua Exemplo, 123',
-      'Cidade': 'Vila Bela',
-      'Estado': 'MT',
-      'CEP': '00000-000',
-      'Observações': 'Exemplo de fornecedor'
-    }];
+    const csvRows = [];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
+    csvRows.push(headers.join(';'));
+    
+    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor'];
+    csvRows.push(example.join(';'));
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
-    XLSX.writeFile(wb, 'modelo_fornecedores.xlsx');
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'modelo_fornecedores.csv';
+    link.click();
   };
 
   const totalFornecedores = fornecedores.length;
@@ -258,13 +242,13 @@ export default function Fornecedores() {
               variant="outline"
               className="gap-2"
             >
-              <FileText className="w-4 h-4" />
-              Exportar Excel
+              <Download className="w-4 h-4" />
+              Exportar CSV
             </Button>
             <div>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".csv"
                 onChange={handleImport}
                 className="hidden"
                 id="import-fornecedores"
@@ -274,8 +258,8 @@ export default function Fornecedores() {
                 variant="outline"
                 className="gap-2"
               >
-                <Package className="w-4 h-4" />
-                Importar Excel
+                <Upload className="w-4 h-4" />
+                Importar CSV
               </Button>
             </div>
             <Button
@@ -283,6 +267,7 @@ export default function Fornecedores() {
               variant="outline"
               className="gap-2"
             >
+              <FileSpreadsheet className="w-4 h-4" />
               Baixar Modelo
             </Button>
           </div>
@@ -314,7 +299,6 @@ export default function Fornecedores() {
         fornecedores={fornecedores}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        // onDuplicate={handleDuplicate} // Removed onDuplicate as per outline - original was commented as 'Removed onDuplicate as per outline' too
         onPrint={handlePrint}
         isLoading={isLoading}
       />
