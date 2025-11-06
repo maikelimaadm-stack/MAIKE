@@ -1,33 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Edit, Trash2, Save, X, UserPlus, Shield, User as UserIcon } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { Users, Trash2, Shield, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 export default function Usuarios() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: "",
-    password: "",
-    role: "user"
-  });
-
   const queryClient = useQueryClient();
 
   const { data: usuarios, isLoading } = useQuery({
@@ -47,34 +28,6 @@ export default function Usuarios() {
     queryFn: () => base44.auth.me(),
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      // Para criar usuário, você precisará usar uma função de backend ou API específica
-      // Por enquanto, vamos simular o comportamento
-      toast.info("Funcionalidade de criação de usuário em desenvolvimento. Entre em contato com o suporte.");
-      return null;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      setShowForm(false);
-      resetForm();
-      toast.success('Usuário criado com sucesso!');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.User.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      setShowForm(false);
-      resetForm();
-      toast.success('Usuário atualizado com sucesso!');
-    },
-    onError: () => {
-      toast.error('Erro ao atualizar usuário.');
-    }
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.User.delete(id),
     onSuccess: () => {
@@ -85,41 +38,6 @@ export default function Usuarios() {
       toast.error('Erro ao excluir usuário.');
     }
   });
-
-  const resetForm = () => {
-    setFormData({
-      full_name: "",
-      email: "",
-      password: "",
-      role: "user"
-    });
-    setEditingUser(null);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (editingUser) {
-      const { password, ...updateData } = formData;
-      updateMutation.mutate({ 
-        id: editingUser.id, 
-        data: updateData 
-      });
-    } else {
-      createMutation.mutate(formData);
-    }
-  };
-
-  const handleEdit = (user) => {
-    setEditingUser(user);
-    setFormData({
-      full_name: user.full_name,
-      email: user.email,
-      password: "",
-      role: user.role
-    });
-    setShowForm(true);
-  };
 
   const handleDelete = (id) => {
     if (currentUser?.id === id) {
@@ -132,11 +50,6 @@ export default function Usuarios() {
     }
   };
 
-  const handleNew = () => {
-    resetForm();
-    setShowForm(true);
-  };
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -146,17 +59,10 @@ export default function Usuarios() {
             <Users className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Gestão de Usuários</h1>
-            <p className="text-slate-600">Gerencie os usuários do sistema</p>
+            <h1 className="text-3xl font-bold text-slate-900">Usuários do Sistema</h1>
+            <p className="text-slate-600">Visualize os usuários cadastrados</p>
           </div>
         </div>
-        <Button
-          onClick={handleNew}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 gap-2 shadow-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Usuário
-        </Button>
       </div>
 
       {/* Card de Estatísticas */}
@@ -258,15 +164,6 @@ export default function Usuarios() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEdit(user)}
-                            className="hover:bg-blue-50 hover:text-blue-700"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
                             onClick={() => handleDelete(user.id)}
                             className="hover:bg-red-50 hover:text-red-700"
                             title="Excluir"
@@ -284,82 +181,6 @@ export default function Usuarios() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Dialog de Formulário */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Nome Completo *</Label>
-              <Input
-                id="full_name"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                placeholder="Nome do usuário"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="email@exemplo.com"
-                required
-                disabled={!!editingUser}
-              />
-            </div>
-
-            {!editingUser && (
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Senha do usuário"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Perfil *</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o perfil" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Operador</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                <X className="w-4 h-4 mr-2" />
-                Cancelar
-              </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                <Save className="w-4 h-4 mr-2" />
-                {editingUser ? 'Atualizar' : 'Criar'} Usuário
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

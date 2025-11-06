@@ -8,6 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import * as XLSX from 'xlsx';
 
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
@@ -104,13 +105,24 @@ export default function Produtos() {
   };
 
   const handleExport = () => {
-    const dataStr = JSON.stringify(produtos, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
-    link.click();
+    const dadosExcel = produtos.map(p => ({
+      'Nome': p.nome_produto,
+      'Código Interno': p.codigo_interno || '',
+      'Código Barras': p.codigo_barras || '',
+      'Categoria': p.categoria || '',
+      'Descrição': p.descricao || '',
+      'Unidade': p.unidade_medida,
+      'Preço Custo': p.preco_custo || 0,
+      'Preço Venda': p.preco_venda || 0,
+      'Estoque Atual': p.estoque_atual || 0,
+      'Estoque Mínimo': p.estoque_minimo || 0,
+      'Observações': p.observacoes || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dadosExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    XLSX.writeFile(wb, `produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`);
     toast.success('Dados exportados com sucesso!');
   };
 
@@ -121,38 +133,57 @@ export default function Produtos() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = JSON.parse(e.target.result);
-        for (const produto of data) {
-          const { id, created_date, updated_date, created_by, ...dadosLimpos } = produto;
-          await base44.entities.Produto.create(dadosLimpos);
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        for (const row of jsonData) {
+          const produto = {
+            nome_produto: row['Nome'],
+            codigo_interno: row['Código Interno']?.toString() || undefined, // Ensure string or undefined
+            codigo_barras: row['Código Barras']?.toString() || undefined, // Ensure string or undefined
+            categoria: row['Categoria'] || undefined,
+            descricao: row['Descrição'] || undefined,
+            unidade_medida: row['Unidade'] || 'UN',
+            preco_custo: parseFloat(row['Preço Custo']) || 0,
+            preco_venda: parseFloat(row['Preço Venda']) || 0,
+            estoque_atual: parseFloat(row['Estoque Atual']) || 0,
+            estoque_minimo: parseFloat(row['Estoque Mínimo']) || 0,
+            observacoes: row['Observações'] || undefined
+          };
+          await base44.entities.Produto.create(produto);
         }
         queryClient.invalidateQueries({ queryKey: ['produtos'] });
-        toast.success(`${data.length} produtos importados com sucesso!`);
+        toast.success(`${jsonData.length} produtos importados com sucesso!`);
       } catch (error) {
-        toast.error('Erro ao importar dados. Verifique o arquivo.');
+        console.error("Erro ao importar:", error);
+        toast.error('Erro ao importar dados. Verifique o arquivo e o formato.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const downloadTemplate = () => {
     const template = [{
-      nome_produto: "Exemplo Produto",
-      codigo_interno: "001",
-      categoria: "Categoria Exemplo",
-      unidade_medida: "UN",
-      preco_custo: 10.50,
-      preco_venda: 15.00,
-      estoque_atual: 100,
-      estoque_minimo: 10
+      'Nome': 'Exemplo Produto',
+      'Código Interno': '001',
+      'Código Barras': '7891234567890',
+      'Categoria': 'Categoria Exemplo',
+      'Descrição': 'Descrição do produto',
+      'Unidade': 'UN',
+      'Preço Custo': 10.50,
+      'Preço Venda': 15.00,
+      'Estoque Atual': 100,
+      'Estoque Mínimo': 10,
+      'Observações': 'Observações do produto'
     }];
-    const dataStr = JSON.stringify(template, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'modelo_produtos.json';
-    link.click();
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
+    XLSX.writeFile(wb, 'modelo_produtos.xlsx');
   };
 
   const totalProdutos = produtos.length;
@@ -212,12 +243,12 @@ export default function Produtos() {
               className="gap-2"
             >
               <FileText className="w-4 h-4" />
-              Exportar
+              Exportar Excel
             </Button>
             <div>
               <input
                 type="file"
-                accept=".json"
+                accept=".xlsx,.xls"
                 onChange={handleImport}
                 className="hidden"
                 id="import-produtos"
@@ -228,7 +259,7 @@ export default function Produtos() {
                 className="gap-2"
               >
                 <Package className="w-4 h-4" />
-                Importar
+                Importar Excel
               </Button>
             </div>
             <Button
