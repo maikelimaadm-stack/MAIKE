@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default function FichaProduto({ produto, open, onClose }) {
             @media print {
               @page {
                 size: A4;
-                margin: 1cm;
+                margin: 0.5cm;
               }
               body * {
                 visibility: hidden;
@@ -55,6 +56,17 @@ export default function FichaProduto({ produto, open, onClose }) {
                 left: 0;
                 top: 0;
                 width: 100%;
+              }
+              .page-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 20px;
+                font-size: 9px;
+                display: flex;
+                justify-content: space-between;
+                padding: 0 0.5cm;
               }
             }
           `}} />
@@ -152,9 +164,10 @@ export default function FichaProduto({ produto, open, onClose }) {
             </div>
           )}
 
-          {/* Rodapé */}
-          <div className="text-center text-xs text-gray-500 mt-8 pt-4 border-t">
-            Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+          {/* Rodapé customizado */}
+          <div className="page-footer hidden print:flex">
+            <span>Página 1 de 1</span>
+            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
           </div>
         </div>
       </DialogContent>

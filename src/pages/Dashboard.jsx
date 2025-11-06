@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -83,13 +84,6 @@ export default function Dashboard() {
     if (window.confirm('Tem certeza que deseja excluir esta pesagem?')) {
       deleteMutation.mutate(id);
     }
-  };
-
-  const handleDuplicate = (pesagem) => {
-    const { id, created_date, updated_date, created_by, ...dadosSemId } = pesagem;
-    setEditingPesagem(dadosSemId);
-    setShowForm(true);
-    toast.info('Registro duplicado. Edite e salve.');
   };
 
   const handlePrint = (pesagem) => {
@@ -182,7 +176,6 @@ export default function Dashboard() {
         pesagens={pesagens}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onDuplicate={handleDuplicate}
         onPrint={handlePrint}
         isLoading={isLoading}
       />

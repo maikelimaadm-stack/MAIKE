@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Copy, Printer, Search, FileText, Settings } from "lucide-react";
+import { Edit, Trash2, Printer, Search, FileText, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +37,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false },
 ];
 
-export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate, onPrint, isLoading }) {
+export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
@@ -224,15 +225,6 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
                             title="Editar"
                           >
                             <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDuplicate(pesagem)}
-                            className="hover:bg-purple-50 hover:text-purple-700 transition-colors"
-                            title="Duplicar"
-                          >
-                            <Copy className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"

@@ -1,11 +1,13 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Building2, UserCircle } from "lucide-react";
+import { Plus, Users, Building2, UserCircle, FileText, Package } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from 'date-fns'; // Added for date formatting in filenames
 
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
@@ -101,6 +103,64 @@ export default function Fornecedores() {
     setEditingFornecedor(null);
   };
 
+  const handleExport = () => {
+    const dataStr = JSON.stringify(fornecedores, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `fornecedores_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+    link.click();
+    toast.success('Dados exportados com sucesso!');
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        for (const fornecedor of data) {
+          const { id, created_date, updated_date, created_by, ...dadosLimpos } = fornecedor;
+          // Ensure that base44.entities.Fornecedor.create can handle data without 'id', 'created_date', etc.
+          // And that it doesn't try to create existing records. For simplicity, this example creates all.
+          await base44.entities.Fornecedor.create(dadosLimpos);
+        }
+        queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+        toast.success(`${data.length} fornecedores importados com sucesso!`);
+      } catch (error) {
+        console.error("Error importing data:", error);
+        toast.error('Erro ao importar dados. Verifique o arquivo e o formato JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadTemplate = () => {
+    const template = [{
+      tipo_pessoa: "Física",
+      nome: "Exemplo Fornecedor",
+      cpf: "000.000.000-00",
+      cnpj: "", // Added for completeness, though template example is Physical Person
+      telefone: "(00) 00000-0000",
+      email: "exemplo@email.com",
+      endereco: "Rua Exemplo, 123",
+      cidade: "Vila Bela",
+      estado: "MT",
+      cep: "00000-000",
+      observacoes: "Este é um fornecedor de exemplo."
+    }];
+    const dataStr = JSON.stringify(template, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'modelo_fornecedores.json';
+    link.click();
+  };
+
   const totalFornecedores = fornecedores.length;
   const pessoasFisicas = fornecedores.filter(f => f.tipo_pessoa === 'Física').length;
   const pessoasJuridicas = fornecedores.filter(f => f.tipo_pessoa === 'Jurídica').length;
@@ -143,9 +203,43 @@ export default function Fornecedores() {
         </Card>
       </div>
 
-      {/* Botão Novo */}
+      {/* Botões */}
       {!showForm && (
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-3">
+            <Button
+              onClick={handleExport}
+              variant="outline"
+              className="gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Exportar
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+                id="import-fornecedores"
+              />
+              <Button
+                onClick={() => document.getElementById('import-fornecedores').click()}
+                variant="outline"
+                className="gap-2"
+              >
+                <Package className="w-4 h-4" />
+                Importar
+              </Button>
+            </div>
+            <Button
+              onClick={downloadTemplate}
+              variant="outline"
+              className="gap-2"
+            >
+              Baixar Modelo
+            </Button>
+          </div>
           <Button
             onClick={handleNew}
             className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
@@ -174,7 +268,7 @@ export default function Fornecedores() {
         fornecedores={fornecedores}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onDuplicate={handleDuplicate}
+        // Removed onDuplicate as per outline
         onPrint={handlePrint}
         isLoading={isLoading}
       />

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,7 +33,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'barras', label: 'Cód. Barras', default: false },
 ];
 
-export default function TabelaProdutos({ produtos, onEdit, onDelete, onDuplicate, onPrint, isLoading }) {
+export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
@@ -216,15 +217,6 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onDuplicate
                               title="Editar"
                             >
                               <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onDuplicate(produto)}
-                              className="hover:bg-purple-50 hover:text-purple-700 transition-colors"
-                              title="Duplicar"
-                            >
-                              <Copy className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"

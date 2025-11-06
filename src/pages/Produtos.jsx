@@ -1,11 +1,13 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingDown, AlertTriangle } from "lucide-react";
+import { Plus, Package, TrendingDown, AlertTriangle, FileText } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
 
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
@@ -101,6 +103,58 @@ export default function Produtos() {
     setEditingProduto(null);
   };
 
+  const handleExport = () => {
+    const dataStr = JSON.stringify(produtos, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+    link.click();
+    toast.success('Dados exportados com sucesso!');
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        for (const produto of data) {
+          const { id, created_date, updated_date, created_by, ...dadosLimpos } = produto;
+          await base44.entities.Produto.create(dadosLimpos);
+        }
+        queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        toast.success(`${data.length} produtos importados com sucesso!`);
+      } catch (error) {
+        toast.error('Erro ao importar dados. Verifique o arquivo.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadTemplate = () => {
+    const template = [{
+      nome_produto: "Exemplo Produto",
+      codigo_interno: "001",
+      categoria: "Categoria Exemplo",
+      unidade_medida: "UN",
+      preco_custo: 10.50,
+      preco_venda: 15.00,
+      estoque_atual: 100,
+      estoque_minimo: 10
+    }];
+    const dataStr = JSON.stringify(template, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'modelo_produtos.json';
+    link.click();
+  };
+
   const totalProdutos = produtos.length;
   const valorTotalEstoque = produtos.reduce((sum, p) => sum + ((p.preco_custo || 0) * (p.estoque_atual || 0)), 0);
   const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0)).length;
@@ -148,9 +202,43 @@ export default function Produtos() {
         </Card>
       </div>
 
-      {/* Botão Novo */}
+      {/* Botões */}
       {!showForm && (
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-3">
+            <Button
+              onClick={handleExport}
+              variant="outline"
+              className="gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Exportar
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+                id="import-produtos"
+              />
+              <Button
+                onClick={() => document.getElementById('import-produtos').click()}
+                variant="outline"
+                className="gap-2"
+              >
+                <Package className="w-4 h-4" />
+                Importar
+              </Button>
+            </div>
+            <Button
+              onClick={downloadTemplate}
+              variant="outline"
+              className="gap-2"
+            >
+              Baixar Modelo
+            </Button>
+          </div>
           <Button
             onClick={handleNew}
             className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
