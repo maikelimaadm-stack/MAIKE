@@ -4,18 +4,51 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Copy, Printer, Search, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Edit, Trash2, Copy, Printer, Search, FileText, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
   return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
+const COLUNAS_DISPONIVEIS = [
+  { id: 'data', label: 'Data', default: true },
+  { id: 'tipo', label: 'Tipo', default: true },
+  { id: 'placa', label: 'Placa', default: true },
+  { id: 'motorista', label: 'Motorista', default: true },
+  { id: 'produto', label: 'Produto', default: true },
+  { id: 'fornecedor', label: 'Fornecedor/Destino', default: true },
+  { id: 'tara', label: 'Tara (kg)', default: true },
+  { id: 'bruto', label: 'Bruto (kg)', default: true },
+  { id: 'liquido', label: 'Líquido (kg)', default: true },
+  { id: 'observacoes', label: 'Observações', default: false },
+];
+
 export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [colunasVisiveis, setColunasVisiveis] = useState(
+    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
+  );
+
+  const toggleColuna = (colunaId) => {
+    setColunasVisiveis(prev => 
+      prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId]
+    );
+  };
 
   const filteredPesagens = pesagens.filter(pesagem => {
     const searchLower = searchTerm.toLowerCase();
@@ -49,14 +82,39 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
               {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
             </Badge>
           </CardTitle>
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
-              placeholder="Buscar por placa, motorista, produto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
-            />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por placa, motorista, produto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
+              />
+            </div>
+            
+            {/* Seletor de Colunas */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 border-slate-300">
+                  <Settings className="w-4 h-4" />
+                  Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <DropdownMenuCheckboxItem
+                    key={coluna.id}
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onCheckedChange={() => toggleColuna(coluna.id)}
+                  >
+                    {coluna.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
@@ -65,15 +123,16 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="font-semibold text-slate-700">Data</TableHead>
-                <TableHead className="font-semibold text-slate-700">Tipo</TableHead>
-                <TableHead className="font-semibold text-slate-700">Placa</TableHead>
-                <TableHead className="font-semibold text-slate-700">Motorista</TableHead>
-                <TableHead className="font-semibold text-slate-700">Produto</TableHead>
-                <TableHead className="font-semibold text-slate-700">Fornecedor/Destino</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Tara (kg)</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Bruto (kg)</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Líquido (kg)</TableHead>
+                {colunasVisiveis.includes('data') && <TableHead className="font-semibold text-slate-700">Data</TableHead>}
+                {colunasVisiveis.includes('tipo') && <TableHead className="font-semibold text-slate-700">Tipo</TableHead>}
+                {colunasVisiveis.includes('placa') && <TableHead className="font-semibold text-slate-700">Placa</TableHead>}
+                {colunasVisiveis.includes('motorista') && <TableHead className="font-semibold text-slate-700">Motorista</TableHead>}
+                {colunasVisiveis.includes('produto') && <TableHead className="font-semibold text-slate-700">Produto</TableHead>}
+                {colunasVisiveis.includes('fornecedor') && <TableHead className="font-semibold text-slate-700">Fornecedor/Destino</TableHead>}
+                {colunasVisiveis.includes('tara') && <TableHead className="font-semibold text-slate-700 text-right">Tara (kg)</TableHead>}
+                {colunasVisiveis.includes('bruto') && <TableHead className="font-semibold text-slate-700 text-right">Bruto (kg)</TableHead>}
+                {colunasVisiveis.includes('liquido') && <TableHead className="font-semibold text-slate-700 text-right">Líquido (kg)</TableHead>}
+                {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
                 <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -82,21 +141,15 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
                 {isLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <TableRow key={i} className="animate-pulse">
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                      <TableCell><div className="h-6 bg-slate-200 rounded-full w-16"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-28"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-16 ml-auto"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-16 ml-auto"></div></TableCell>
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-16 ml-auto"></div></TableCell>
+                      {colunasVisiveis.map((col, idx) => (
+                        <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
+                      ))}
                       <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                     </TableRow>
                   ))
                 ) : filteredPesagens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <FileText className="w-12 h-12" />
                         <p className="text-lg font-medium">Nenhum registro encontrado</p>
@@ -115,29 +168,52 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
                       exit={{ opacity: 0 }}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
-                      <TableCell className="font-medium text-slate-700">
-                        {format(new Date(pesagem.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
-                          {pesagem.tipo_pesagem}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-900 uppercase">
-                        {pesagem.placa_caminhao}
-                      </TableCell>
-                      <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
-                      <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
-                      <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
-                      <TableCell className="text-right font-mono text-slate-700">
-                        {formatarNumero(pesagem.peso_tara)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-slate-700">
-                        {formatarNumero(pesagem.peso_bruto)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold text-green-700">
-                        {formatarNumero(pesagem.peso_liquido)}
-                      </TableCell>
+                      {colunasVisiveis.includes('data') && (
+                        <TableCell className="font-medium text-slate-700">
+                          {format(new Date(pesagem.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('tipo') && (
+                        <TableCell>
+                          <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
+                            {pesagem.tipo_pesagem}
+                          </Badge>
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('placa') && (
+                        <TableCell className="font-semibold text-slate-900 uppercase">
+                          {pesagem.placa_caminhao}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('motorista') && (
+                        <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('produto') && (
+                        <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('fornecedor') && (
+                        <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('tara') && (
+                        <TableCell className="text-right font-mono text-slate-700">
+                          {formatarNumero(pesagem.peso_tara)}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('bruto') && (
+                        <TableCell className="text-right font-mono text-slate-700">
+                          {formatarNumero(pesagem.peso_bruto)}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('liquido') && (
+                        <TableCell className="text-right font-mono font-bold text-green-700">
+                          {formatarNumero(pesagem.peso_liquido)}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('observacoes') && (
+                        <TableCell className="text-slate-600 max-w-xs truncate">
+                          {pesagem.observacoes || '-'}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
                           <Button

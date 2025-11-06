@@ -1,7 +1,8 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Scale, FileText, TrendingUp } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { Scale, FileText, TrendingUp, Users, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +17,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const navigationItems = [
   {
@@ -28,10 +40,34 @@ const navigationItems = [
     url: createPageUrl("Relatorios"),
     icon: FileText,
   },
+  {
+    title: "Usuários",
+    url: createPageUrl("Usuarios"),
+    icon: Users,
+  },
 ];
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Erro ao carregar usuário:", error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleLogout = () => {
+    base44.auth.logout();
+  };
 
   return (
     <SidebarProvider>
@@ -99,16 +135,30 @@ export default function Layout({ children, currentPageName }) {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-green-200 p-4">
+          <SidebarFooter className="border-t border-green-200 p-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
-                <span className="text-green-700 font-bold text-sm">U</span>
+                <span className="text-green-700 font-bold text-sm">
+                  {user?.full_name?.charAt(0).toUpperCase() || 'U'}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm truncate">Usuário</p>
-                <p className="text-xs text-green-600 truncate">Operador do Sistema</p>
+                <p className="font-semibold text-slate-900 text-sm truncate">
+                  {user?.full_name || 'Usuário'}
+                </p>
+                <p className="text-xs text-green-600 truncate">
+                  {user?.role === 'admin' ? 'Administrador' : 'Operador'}
+                </p>
               </div>
             </div>
+            <Button 
+              variant="outline" 
+              className="w-full gap-2 border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+              onClick={() => setShowLogoutDialog(true)}
+            >
+              <LogOut className="w-4 h-4" />
+              Sair do Sistema
+            </Button>
           </SidebarFooter>
         </Sidebar>
 
@@ -125,6 +175,23 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </main>
       </div>
+
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair do Sistema</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja sair do sistema? Você precisará fazer login novamente para acessar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
+              Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
