@@ -322,6 +322,7 @@ export default function Dashboard() {
   const totalPesagens = pesagens.length;
   const pesagensEntrada = pesagens.filter(p => p.tipo_pesagem === 'Entrada').length;
   const pesagensSaida = pesagens.filter(p => p.tipo_pesagem === 'Saída').length;
+  const pesagensAmbos = pesagens.filter(p => p.tipo_pesagem === 'Ambos').length; // Added new statistic
   const pesoTotalLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
 
   const progressPercentage = importProgress.total > 0 
@@ -331,7 +332,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6"> {/* Updated grid-cols from 4 to 5 */}
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
@@ -362,6 +363,18 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-orange-900">{pesagensSaida}</div>
             <p className="text-xs text-orange-600 mt-1">Pesagens de saída</p>
+          </CardContent>
+        </Card>
+
+        {/* New Card for 'Ambos' */}
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-indigo-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Ambos</CardTitle>
+            <Scale className="h-5 w-5 text-indigo-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-indigo-900">{pesagensAmbos}</div>
+            <p className="text-xs text-indigo-600 mt-1">Entrada e Saída</p>
           </CardContent>
         </Card>
 

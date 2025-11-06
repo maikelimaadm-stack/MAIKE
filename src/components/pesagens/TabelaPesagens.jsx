@@ -1,12 +1,10 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, FileText, Settings } from "lucide-react";
+import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,26 +16,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  // Ensure numero is a number before calling toFixed
   const num = typeof numero === 'string' ? parseFloat(numero) : numero;
-  if (isNaN(num)) return "0,00"; // Handle cases where conversion fails
+  if (isNaN(num)) return "0,00";
   return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'data', label: 'Data', default: true },
-  { id: 'tipo', label: 'Tipo', default: true },
-  { id: 'placa', label: 'Placa', default: true },
-  { id: 'motorista', label: 'Motorista', default: true },
-  { id: 'produto', label: 'Produto', default: true },
-  { id: 'fornecedor', label: 'Fornecedor/Destino', default: true },
-  { id: 'tara', label: 'Tara (kg)', default: true },
-  { id: 'bruto', label: 'Bruto (kg)', default: true },
-  { id: 'liquido', label: 'Líquido (kg)', default: true },
-  { id: 'observacoes', label: 'Observações', default: false },
+  { id: 'data', label: 'Data', default: true, sortable: true },
+  { id: 'tipo', label: 'Tipo', default: true, sortable: true },
+  { id: 'placa', label: 'Placa', default: true, sortable: true },
+  { id: 'motorista', label: 'Motorista', default: true, sortable: true },
+  { id: 'produto', label: 'Produto', default: true, sortable: true },
+  { id: 'fornecedor', label: 'Fornecedor/Destino', default: true, sortable: true },
+  { id: 'tara', label: 'Tara (kg)', default: true, sortable: true },
+  { id: 'bruto', label: 'Bruto (kg)', default: true, sortable: true },
+  { id: 'liquido', label: 'Líquido (kg)', default: true, sortable: true },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: false },
 ];
 
 export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, isLoading }) {
@@ -45,6 +49,10 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -52,6 +60,22 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
         ? prev.filter(id => id !== colunaId)
         : [...prev, colunaId]
     );
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-green-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-green-600" />;
   };
 
   const filteredPesagens = pesagens.filter(pesagem => {
@@ -64,13 +88,72 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     );
   });
 
+  // Ordenar pesagens
+  const sortedPesagens = [...filteredPesagens].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aValue, bValue;
+
+    switch (sortField) {
+      case 'data':
+        aValue = new Date(a.data_pesagem).getTime();
+        bValue = new Date(b.data_pesagem).getTime();
+        break;
+      case 'tipo':
+        aValue = a.tipo_pesagem;
+        bValue = b.tipo_pesagem;
+        break;
+      case 'placa':
+        aValue = a.placa_caminhao;
+        bValue = b.placa_caminhao;
+        break;
+      case 'motorista':
+        aValue = a.nome_motorista;
+        bValue = b.nome_motorista;
+        break;
+      case 'produto':
+        aValue = a.produto;
+        bValue = b.produto;
+        break;
+      case 'fornecedor':
+        aValue = a.fornecedor_destino || '';
+        bValue = b.fornecedor_destino || '';
+        break;
+      case 'tara':
+        aValue = a.peso_tara;
+        bValue = b.peso_tara;
+        break;
+      case 'bruto':
+        aValue = a.peso_bruto;
+        bValue = b.peso_bruto;
+        break;
+      case 'liquido':
+        aValue = a.peso_liquido;
+        bValue = b.peso_liquido;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Paginação
+  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedPesagens.length / itemsPerPage);
+  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+  const endIndex = itemsPerPage === -1 ? sortedPesagens.length : startIndex + itemsPerPage;
+  const paginatedPesagens = sortedPesagens.slice(startIndex, endIndex);
+
   const formatarData = (dataString) => {
     if (!dataString) return '-';
     try {
-      // Ensure dataString is parsed correctly, especially if it includes time and timezone info
-      // new Date(dataString) might interpret 'YYYY-MM-DD' as UTC. To ensure local time interpretation,
-      // it's sometimes better to parse it manually or ensure the string format is consistent.
-      // For simplicity, assuming `data_pesagem` is in a format `new Date()` can handle.
       const date = new Date(dataString);
       if (isNaN(date.getTime())) return '-';
       return format(date, "dd/MM/yyyy", { locale: ptBR });
@@ -86,6 +169,11 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
       'Ambos': 'bg-blue-100 text-blue-800 border-blue-300'
     };
     return colors[tipo] || 'bg-slate-100 text-slate-800 border-slate-300';
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value === 'all' ? -1 : parseInt(value));
+    setCurrentPage(1);
   };
 
   return (
@@ -112,7 +200,6 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
               />
             </div>
             
-            {/* Seletor de Colunas */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2 border-slate-300">
@@ -142,16 +229,108 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
-                {colunasVisiveis.includes('data') && <TableHead className="font-semibold text-slate-700">Data</TableHead>}
-                {colunasVisiveis.includes('tipo') && <TableHead className="font-semibold text-slate-700">Tipo</TableHead>}
-                {colunasVisiveis.includes('placa') && <TableHead className="font-semibold text-slate-700">Placa</TableHead>}
-                {colunasVisiveis.includes('motorista') && <TableHead className="font-semibold text-slate-700">Motorista</TableHead>}
-                {colunasVisiveis.includes('produto') && <TableHead className="font-semibold text-slate-700">Produto</TableHead>}
-                {colunasVisiveis.includes('fornecedor') && <TableHead className="font-semibold text-slate-700">Fornecedor/Destino</TableHead>}
-                {colunasVisiveis.includes('tara') && <TableHead className="font-semibold text-slate-700 text-right">Tara (kg)</TableHead>}
-                {colunasVisiveis.includes('bruto') && <TableHead className="font-semibold text-slate-700 text-right">Bruto (kg)</TableHead>}
-                {colunasVisiveis.includes('liquido') && <TableHead className="font-semibold text-slate-700 text-right">Líquido (kg)</TableHead>}
-                {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
+                {colunasVisiveis.includes('data') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('data')}
+                  >
+                    <div className="flex items-center">
+                      Data
+                      {getSortIcon('data')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('tipo') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('tipo')}
+                  >
+                    <div className="flex items-center">
+                      Tipo
+                      {getSortIcon('tipo')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('placa') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('placa')}
+                  >
+                    <div className="flex items-center">
+                      Placa
+                      {getSortIcon('placa')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('motorista') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('motorista')}
+                  >
+                    <div className="flex items-center">
+                      Motorista
+                      {getSortIcon('motorista')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('produto') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('produto')}
+                  >
+                    <div className="flex items-center">
+                      Produto
+                      {getSortIcon('produto')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('fornecedor') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('fornecedor')}
+                  >
+                    <div className="flex items-center">
+                      Fornecedor/Destino
+                      {getSortIcon('fornecedor')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('tara') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('tara')}
+                  >
+                    <div className="flex items-center justify-end">
+                      Tara (kg)
+                      {getSortIcon('tara')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('bruto') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('bruto')}
+                  >
+                    <div className="flex items-center justify-end">
+                      Bruto (kg)
+                      {getSortIcon('bruto')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('liquido') && (
+                  <TableHead 
+                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('liquido')}
+                  >
+                    <div className="flex items-center justify-end">
+                      Líquido (kg)
+                      {getSortIcon('liquido')}
+                    </div>
+                  </TableHead>
+                )}
+                {colunasVisiveis.includes('observacoes') && (
+                  <TableHead className="font-semibold text-slate-700">Observações</TableHead>
+                )}
                 <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -166,7 +345,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                       <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                     </TableRow>
                   ))
-                ) : filteredPesagens.length === 0 ? (
+                ) : paginatedPesagens.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -179,7 +358,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPesagens.map((pesagem) => (
+                  paginatedPesagens.map((pesagem) => (
                     <motion.tr
                       key={pesagem.id}
                       initial={{ opacity: 0 }}
@@ -271,6 +450,75 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
             </TableBody>
           </Table>
         </div>
+
+        {/* Controles de Paginação */}
+        {!isLoading && paginatedPesagens.length > 0 && (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <span>Mostrar</span>
+              <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>registros por página</span>
+            </div>
+
+            {itemsPerPage !== -1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                <div className="flex items-center gap-2 px-3 text-sm">
+                  <span className="text-slate-700 font-medium">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <span className="text-slate-500">
+                    ({startIndex + 1}-{Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length})
+                  </span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
