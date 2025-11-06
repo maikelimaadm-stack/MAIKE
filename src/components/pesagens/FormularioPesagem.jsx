@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,8 +10,23 @@ import { Scale, Save, X, Calculator, Calendar, TrendingDown, TrendingUp, Truck, 
 import { motion } from "framer-motion";
 
 export default function FormularioPesagem({ onSubmit, onCancel, initialData = null, isEditing = false }) {
+  const getDataAtual = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const getDataInicial = () => {
+    if (!initialData?.data_pesagem) return getDataAtual();
+    try {
+      const date = new Date(initialData.data_pesagem);
+      if (isNaN(date.getTime())) return getDataAtual();
+      return date.toISOString().split('T')[0];
+    } catch {
+      return getDataAtual();
+    }
+  };
+
   const [formData, setFormData] = useState({
-    data_pesagem: initialData?.data_pesagem || new Date().toISOString().split('T')[0],
+    data_pesagem: getDataInicial(),
     tipo_pesagem: initialData?.tipo_pesagem || "",
     placa_caminhao: initialData?.placa_caminhao || "",
     nome_motorista: initialData?.nome_motorista || "",

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,17 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
   };
 
   const romaneio = pesagem.id ? pesagem.id.substring(0, 8).toUpperCase() : '--------';
+
+  const formatarData = (dataString) => {
+    if (!dataString) return '--/--/----';
+    try {
+      const date = new Date(dataString);
+      if (isNaN(date.getTime())) return '--/--/----';
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return '--/--/----';
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -85,7 +97,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
               <div>ROMANEIO...: {romaneio}</div>
               <div className="break-words">Forn./Desti....: {pesagem.fornecedor_destino?.toUpperCase() || 'NÃO INFORMADO'}</div>
               <div className="break-words">Produto........: {pesagem.produto?.toUpperCase()}</div>
-              <div>Data...........: {format(new Date(pesagem.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}</div>
+              <div>Data...........: {formatarData(pesagem.data_pesagem)}</div>
               <div>Placa..........: {pesagem.placa_caminhao?.toUpperCase()}</div>
               <div>Motorista......: {pesagem.nome_motorista?.toUpperCase()}</div>
             </div>

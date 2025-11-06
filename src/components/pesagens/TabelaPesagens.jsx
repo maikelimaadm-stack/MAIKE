@@ -21,7 +21,10 @@ import {
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  // Ensure numero is a number before calling toFixed
+  const num = typeof numero === 'string' ? parseFloat(numero) : numero;
+  if (isNaN(num)) return "0,00"; // Handle cases where conversion fails
+  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const COLUNAS_DISPONIVEIS = [
@@ -60,6 +63,21 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
       pesagem.fornecedor_destino?.toLowerCase().includes(searchLower)
     );
   });
+
+  const formatarData = (dataString) => {
+    if (!dataString) return '-';
+    try {
+      // Ensure dataString is parsed correctly, especially if it includes time and timezone info
+      // new Date(dataString) might interpret 'YYYY-MM-DD' as UTC. To ensure local time interpretation,
+      // it's sometimes better to parse it manually or ensure the string format is consistent.
+      // For simplicity, assuming `data_pesagem` is in a format `new Date()` can handle.
+      const date = new Date(dataString);
+      if (isNaN(date.getTime())) return '-';
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return '-';
+    }
+  };
 
   const getTipoBadgeColor = (tipo) => {
     const colors = {
@@ -171,7 +189,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                     >
                       {colunasVisiveis.includes('data') && (
                         <TableCell className="font-medium text-slate-700">
-                          {format(new Date(pesagem.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}
+                          {formatarData(pesagem.data_pesagem)}
                         </TableCell>
                       )}
                       {colunasVisiveis.includes('tipo') && (

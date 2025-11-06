@@ -15,6 +15,17 @@ export default function FichaFornecedor({ fornecedor, open, onClose }) {
 
   const isPessoaFisica = fornecedor.tipo_pessoa === 'Física';
 
+  const formatarData = (dataString) => {
+    if (!dataString) return '-';
+    try {
+      const date = new Date(dataString);
+      if (isNaN(date.getTime())) return '-';
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return '-';
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0 print:max-w-full print:shadow-none print:border-0">
@@ -107,7 +118,7 @@ export default function FichaFornecedor({ fornecedor, open, onClose }) {
               <div>
                 <p className="text-xs text-gray-600 uppercase">Data de Nascimento</p>
                 <p className="font-semibold border-b border-gray-300">
-                  {fornecedor.data_nascimento ? format(new Date(fornecedor.data_nascimento), "dd/MM/yyyy", { locale: ptBR }) : '-'}
+                  {formatarData(fornecedor.data_nascimento)}
                 </p>
               </div>
             </div>
@@ -181,7 +192,6 @@ export default function FichaFornecedor({ fornecedor, open, onClose }) {
           )}
 
           {/* Rodapé customizado */}
-          {/* Replaced the previous Rodapé div with this new one as per outline */}
           <div className="page-footer hidden print:flex">
             <span>Página 1 de 1</span>
             <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>

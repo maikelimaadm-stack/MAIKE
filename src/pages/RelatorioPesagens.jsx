@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -71,10 +72,37 @@ export default function RelatorioPesagens() {
   const motoristasUnicos = [...new Set(pesagens.map(p => p.nome_motorista))].filter(Boolean);
   const fornecedoresUnicos = [...new Set(pesagens.map(p => p.fornecedor_destino))].filter(Boolean);
 
+  const formatarData = (dataString) => {
+    if (!dataString) return '--/--/----';
+    try {
+      const date = new Date(dataString);
+      if (isNaN(date.getTime())) return '--/--/----';
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return '--/--/----';
+    }
+  };
+
   const pesagensFiltradas = useMemo(() => {
     return pesagens.filter(p => {
-      if (dataInicio && new Date(p.data_pesagem) < new Date(dataInicio)) return false;
-      if (dataFim && new Date(p.data_pesagem) > new Date(dataFim)) return false;
+      if (dataInicio && p.data_pesagem) {
+        try {
+          const pDate = new Date(p.data_pesagem);
+          const iDate = new Date(dataInicio);
+          // Set to start of day for comparison to include full day
+          iDate.setHours(0, 0, 0, 0); 
+          if (!isNaN(pDate.getTime()) && !isNaN(iDate.getTime()) && pDate < iDate) return false;
+        } catch {}
+      }
+      if (dataFim && p.data_pesagem) {
+        try {
+          const pDate = new Date(p.data_pesagem);
+          const fDate = new Date(dataFim);
+          // Set to end of day for comparison to include full day
+          fDate.setHours(23, 59, 59, 999);
+          if (!isNaN(pDate.getTime()) && !isNaN(fDate.getTime()) && pDate > fDate) return false;
+        } catch {}
+      }
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(p.produto)) return false;
       if (placasSelecionadas.length > 0 && !placasSelecionadas.includes(p.placa_caminhao)) return false;
       if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(p.tipo_pesagem)) return false;
@@ -101,7 +129,7 @@ export default function RelatorioPesagens() {
           chave = p.tipo_pesagem || "Sem tipo";
           break;
         case "data":
-          chave = format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR });
+          chave = formatarData(p.data_pesagem);
           break;
         case "motorista":
           chave = p.nome_motorista || "Sem motorista";
@@ -429,7 +457,7 @@ export default function RelatorioPesagens() {
             <h2 className="text-xl font-bold">Relatório de Pesagens</h2>
             {(dataInicio || dataFim) && (
               <p className="text-sm text-gray-600">
-                Período: {dataInicio ? format(new Date(dataInicio), "dd/MM/yyyy", { locale: ptBR }) : "Início"} a {dataFim ? format(new Date(dataFim), "dd/MM/yyyy", { locale: ptBR }) : "Hoje"}
+                Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
               </p>
             )}
             {agruparPor !== "nenhum" && (
@@ -469,7 +497,7 @@ export default function RelatorioPesagens() {
                   <TableBody>
                     {registros.map((p) => (
                       <TableRow key={p.id}>
-                        {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs">{format(new Date(p.data_pesagem), "dd/MM/yyyy", { locale: ptBR })}</TableCell>}
+                        {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs">{formatarData(p.data_pesagem)}</TableCell>}
                         {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs">{p.tipo_pesagem}</TableCell>}
                         {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase">{p.placa_caminhao}</TableCell>}
                         {colunasVisiveis.includes('motorista') && <TableCell className="border border-gray-300 text-xs">{p.nome_motorista}</TableCell>}
@@ -482,10 +510,10 @@ export default function RelatorioPesagens() {
                       </TableRow>
                     ))}
                     <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={colunasVisiveis.length - 1} className="border border-black text-xs">
+                      <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('liquido') ? 1 : 0)} className="border border-black text-xs">
                         SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
                       </TableCell>
-                      <TableCell className="border border-black text-xs text-right">{formatarNumero(totalGrupo)}</TableCell>
+                      {colunasVisiveis.includes('liquido') && <TableCell className="border border-black text-xs text-right">{formatarNumero(totalGrupo)}</TableCell>}
                     </TableRow>
                   </TableBody>
                 </Table>
