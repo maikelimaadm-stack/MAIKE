@@ -4,10 +4,18 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Trash2, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
@@ -22,6 +30,8 @@ export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingPesagem, setEditingPesagem] = useState(null);
   const [ticketPesagem, setTicketPesagem] = useState(null);
+  const [showImportProgress, setShowImportProgress] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const queryClient = useQueryClient();
 
@@ -70,7 +80,6 @@ export default function Dashboard() {
 
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
-      // Delete all pesagens
       for (const pesagem of pesagens) {
         await base44.entities.Pesagem.delete(pesagem.id);
       }
@@ -127,13 +136,11 @@ export default function Dashboard() {
 
   const parseDecimalBR = (value) => {
     if (!value) return 0;
-    // Remove pontos de milhar e substitui vírgula por ponto
     return parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
   };
 
   const parseDateBR = (dateStr) => {
     if (!dateStr) return null;
-    // Tenta converter dd/MM/yyyy para yyyy-MM-dd
     const parts = dateStr.split('/');
     if (parts.length === 3) {
       const [day, month, year] = parts;
@@ -181,13 +188,14 @@ export default function Dashboard() {
       try {
         const text = e.target.result;
         const lines = text.split('\n');
-        let importedCount = 0;
+        const validRecords = [];
         let errorCount = 0;
 
+        // Parse todas as linhas primeiro
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 9) { // Ensure enough columns for required fields (at least up to peso_liquido)
+          if (values.length < 9) {
             errorCount++;
             continue;
           }
@@ -211,32 +219,77 @@ export default function Dashboard() {
               observacoes: values[9]?.trim() || undefined
             };
 
-            // Basic validation to ensure essential fields are present and valid numbers
-            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
-              throw new Error("Missing or invalid required data in row.");
+            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || 
+                !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || 
+                isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
+              throw new Error("Dados inválidos");
             }
             
-            await base44.entities.Pesagem.create(pesagem);
-            importedCount++;
+            validRecords.push(pesagem);
           } catch (err) {
             console.error(`Erro na linha ${i + 1}:`, err);
             errorCount++;
           }
         }
-        
-        queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-        
-        if (errorCount > 0) {
-          toast.success(`${importedCount} registros importados com sucesso! ${errorCount} registros com erro.`);
-        } else {
-          toast.success(`${importedCount} registros importados com sucesso!`);
+
+        if (validRecords.length === 0) {
+          toast.error('Nenhum registro válido encontrado no arquivo!');
+          return;
         }
+
+        // Mostrar progresso
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
+
+        // Importar em lotes de 10
+        const batchSize = 10;
+        let imported = 0;
+
+        for (let i = 0; i < validRecords.length; i += batchSize) {
+          const batch = validRecords.slice(i, i + batchSize);
+          
+          try {
+            // Assuming base44.entities.Pesagem.bulkCreate exists and handles an array of objects
+            await base44.entities.Pesagem.bulkCreate(batch);
+            imported += batch.length;
+          } catch (error) {
+            console.error('Erro no lote, tentando individualmente:', error);
+            // Fallback: try individual creation if bulk failed
+            for (const record of batch) {
+              try {
+                await base44.entities.Pesagem.create(record);
+                imported++;
+              } catch (e) {
+                errorCount++; // Increment error count for individual failures
+              }
+            }
+          }
+          
+          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+        }
+
+        // Atualizar dados
+        await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
+        
+        setTimeout(() => {
+          setShowImportProgress(false);
+          if (errorCount > 0) {
+            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          } else {
+            toast.success(`${imported} registros importados com sucesso!`);
+          }
+        }, 1000);
+
       } catch (error) {
         console.error('Erro ao importar:', error);
+        setShowImportProgress(false);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
     reader.readAsText(file);
+    
+    // Limpar o input para permitir reimportar o mesmo arquivo
+    event.target.value = '';
   };
 
   const downloadTemplate = () => {
@@ -248,7 +301,7 @@ export default function Dashboard() {
       '04/11/2025',
       'Entrada',
       'ABC1234',
-      'João Silva',
+      'JOÃO SILVA',
       'Soja',
       'Fornecedor Exemplo',
       '5.000,00',
@@ -270,6 +323,10 @@ export default function Dashboard() {
   const pesagensEntrada = pesagens.filter(p => p.tipo_pesagem === 'Entrada').length;
   const pesagensSaida = pesagens.filter(p => p.tipo_pesagem === 'Saída').length;
   const pesoTotalLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
+
+  const progressPercentage = importProgress.total > 0 
+    ? Math.round((importProgress.current / importProgress.total) * 100) 
+    : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -344,6 +401,7 @@ export default function Dashboard() {
                 onClick={() => document.getElementById('import-pesagens').click()}
                 variant="outline"
                 className="gap-2"
+                disabled={showImportProgress}
               >
                 <Upload className="w-4 h-4" />
                 Importar CSV
@@ -405,6 +463,49 @@ export default function Dashboard() {
         open={!!ticketPesagem}
         onClose={() => setTicketPesagem(null)}
       />
+
+      {/* Modal de Progresso de Importação */}
+      <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+              Importando Dados
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto importamos os registros. Isso pode levar alguns instantes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {importProgress.current} de {importProgress.total}
+                </span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-green-600">
+                {progressPercentage}%
+              </p>
+            </div>
+            
+            {importProgress.errors > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800">
+                  ⚠️ {importProgress.errors} registro(s) com erro
+                </p>
+              </div>
+            )}
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                💡 Dica: Registros são importados em lotes para maior velocidade.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
