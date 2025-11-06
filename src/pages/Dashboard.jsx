@@ -1,9 +1,10 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Trash2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -67,6 +68,22 @@ export default function Dashboard() {
     }
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      // Delete all pesagens
+      for (const pesagem of pesagens) {
+        await base44.entities.Pesagem.delete(pesagem.id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pesagens'] });
+      toast.success('Todos os registros foram excluídos!');
+    },
+    onError: () => {
+      toast.error('Erro ao excluir registros.');
+    }
+  });
+
   const handleSubmit = (data) => {
     if (editingPesagem) {
       updateMutation.mutate({ id: editingPesagem.id, data });
@@ -100,6 +117,31 @@ export default function Dashboard() {
     setEditingPesagem(null);
   };
 
+  const handleDeleteAll = () => {
+    if (window.confirm(`Tem certeza que deseja excluir TODAS as ${pesagens.length} pesagens? Esta ação não pode ser desfeita!`)) {
+      if (window.confirm('CONFIRME NOVAMENTE: Deseja realmente excluir TODOS os registros de pesagens?')) {
+        deleteAllMutation.mutate();
+      }
+    }
+  };
+
+  const parseDecimalBR = (value) => {
+    if (!value) return 0;
+    // Remove pontos de milhar e substitui vírgula por ponto
+    return parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+  };
+
+  const parseDateBR = (dateStr) => {
+    if (!dateStr) return null;
+    // Tenta converter dd/MM/yyyy para yyyy-MM-dd
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    return dateStr;
+  };
+
   const handleExport = () => {
     const csvRows = [];
     const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
@@ -113,9 +155,9 @@ export default function Dashboard() {
         p.nome_motorista,
         p.produto,
         p.fornecedor_destino || '',
-        p.peso_tara,
-        p.peso_bruto,
-        p.peso_liquido,
+        p.peso_tara.toString().replace('.', ','),
+        p.peso_bruto.toString().replace('.', ','),
+        p.peso_liquido.toString().replace('.', ','),
         p.observacoes || ''
       ];
       csvRows.push(row.join(';'));
@@ -139,30 +181,58 @@ export default function Dashboard() {
       try {
         const text = e.target.result;
         const lines = text.split('\n');
-        const data = [];
+        let importedCount = 0;
+        let errorCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 9) continue;
+          if (values.length < 9) { // Ensure enough columns for required fields (at least up to peso_liquido)
+            errorCount++;
+            continue;
+          }
 
-          const pesagem = {
-            data_pesagem: values[0],
-            tipo_pesagem: values[1],
-            placa_caminhao: values[2],
-            nome_motorista: values[3],
-            produto: values[4],
-            fornecedor_destino: values[5] || undefined,
-            peso_tara: parseFloat(values[6]),
-            peso_bruto: parseFloat(values[7]),
-            peso_liquido: parseFloat(values[8]),
-            observacoes: values[9] || undefined
-          };
-          await base44.entities.Pesagem.create(pesagem);
+          try {
+            const dataFormatada = parseDateBR(values[0].trim());
+            const pesoTara = parseDecimalBR(values[6]);
+            const pesoBruto = parseDecimalBR(values[7]);
+            const pesoLiquido = parseDecimalBR(values[8]);
+
+            const pesagem = {
+              data_pesagem: dataFormatada,
+              tipo_pesagem: values[1].trim(),
+              placa_caminhao: values[2].trim(),
+              nome_motorista: values[3].trim(),
+              produto: values[4].trim(),
+              fornecedor_destino: values[5].trim() || undefined,
+              peso_tara: pesoTara,
+              peso_bruto: pesoBruto,
+              peso_liquido: pesoLiquido,
+              observacoes: values[9]?.trim() || undefined
+            };
+
+            // Basic validation to ensure essential fields are present and valid numbers
+            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
+              throw new Error("Missing or invalid required data in row.");
+            }
+            
+            await base44.entities.Pesagem.create(pesagem);
+            importedCount++;
+          } catch (err) {
+            console.error(`Erro na linha ${i + 1}:`, err);
+            errorCount++;
+          }
         }
+        
         queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-        toast.success(`Dados importados com sucesso!`);
+        
+        if (errorCount > 0) {
+          toast.success(`${importedCount} registros importados com sucesso! ${errorCount} registros com erro.`);
+        } else {
+          toast.success(`${importedCount} registros importados com sucesso!`);
+        }
       } catch (error) {
+        console.error('Erro ao importar:', error);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
@@ -175,15 +245,15 @@ export default function Dashboard() {
     csvRows.push(headers.join(';'));
     
     const example = [
-      format(new Date(), 'dd/MM/yyyy'),
+      '04/11/2025',
       'Entrada',
       'ABC1234',
       'João Silva',
       'Soja',
       'Fornecedor Exemplo',
-      '5000',
-      '25000',
-      '20000',
+      '5.000,00',
+      '25.000,00',
+      '20.000,00',
       'Observações exemplo'
     ];
     csvRows.push(example.join(';'));
@@ -286,6 +356,15 @@ export default function Dashboard() {
             >
               <FileSpreadsheet className="w-4 h-4" />
               Baixar Modelo
+            </Button>
+            <Button
+              onClick={handleDeleteAll}
+              variant="outline"
+              className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
+              disabled={pesagens.length === 0}
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir Todos ({pesagens.length})
             </Button>
           </div>
           <Button
