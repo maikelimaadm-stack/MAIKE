@@ -9,6 +9,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 
+const formatarNumero = (numero) => {
+  if (!numero && numero !== 0) return "0,00";
+  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
 export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -33,14 +38,14 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
 
   return (
     <Card className="shadow-xl border-slate-200 bg-white">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+      <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <CardTitle className="flex items-center gap-3 text-slate-900">
             <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
             Registros de Pesagens
-            <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-700 border-blue-300">
+            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
               {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
             </Badge>
           </CardTitle>
@@ -50,7 +55,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
               placeholder="Buscar por placa, motorista, produto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+              className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
             />
           </div>
         </div>
@@ -125,13 +130,13 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onDuplicate
                       <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
                       <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
                       <TableCell className="text-right font-mono text-slate-700">
-                        {pesagem.peso_tara?.toFixed(2)}
+                        {formatarNumero(pesagem.peso_tara)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-slate-700">
-                        {pesagem.peso_bruto?.toFixed(2)}
+                        {formatarNumero(pesagem.peso_bruto)}
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-green-700">
-                        {pesagem.peso_liquido?.toFixed(2)}
+                        {formatarNumero(pesagem.peso_liquido)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">

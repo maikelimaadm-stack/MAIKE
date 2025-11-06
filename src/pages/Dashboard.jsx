@@ -11,6 +11,11 @@ import TabelaPesagens from "../components/pesagens/TabelaPesagens";
 import TicketPesagem from "../components/pesagens/TicketPesagem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const formatarNumero = (numero) => {
+  if (!numero && numero !== 0) return "0,00";
+  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingPesagem, setEditingPesagem] = useState(null);
@@ -129,7 +134,7 @@ export default function Dashboard() {
             <TrendingUp className="h-5 w-5 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-900">{totalPesoLiquido.toFixed(2)} kg</div>
+            <div className="text-3xl font-bold text-emerald-900">{formatarNumero(totalPesoLiquido)} kg</div>
             <p className="text-xs text-emerald-600 mt-1">Soma de todas as pesagens</p>
           </CardContent>
         </Card>
