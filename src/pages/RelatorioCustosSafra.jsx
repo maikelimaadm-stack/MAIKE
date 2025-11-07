@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -184,7 +183,6 @@ export default function RelatorioCustosSafra() {
 
   const custosAgrupados = useMemo(() => {
     if (tipoVisualizacao === 'detalhado') {
-      // Visualização detalhada - mostra todos os lançamentos
       if (agrupamentosAtivos.length === 0) {
         return { "Todos os Registros": custosFiltrados };
       }
@@ -218,12 +216,11 @@ export default function RelatorioCustosSafra() {
       });
       return grupos;
     } else {
-      // Visualização agrupada - soma valores por agrupamento
       const grupos = {};
       custosFiltrados.forEach(c => {
-        let chaveArray = [];
         let actualGroupingKeys = agrupamentosAtivos.length === 0 ? ['fornecedor', 'produto'] : agrupamentosAtivos;
         
+        let chaveArray = [];
         actualGroupingKeys.forEach(tipo => {
           let valor;
           switch (tipo) {
@@ -264,7 +261,6 @@ export default function RelatorioCustosSafra() {
         grupos[chave].registros.push(c);
       });
       
-      // Calcular valor unitário médio
       Object.keys(grupos).forEach(chave => {
         grupos[chave].valor_unitario_medio = grupos[chave].quantidade_total > 0 ? grupos[chave].valor_total / grupos[chave].quantidade_total : 0;
       });
@@ -315,7 +311,6 @@ export default function RelatorioCustosSafra() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Controles */}
       <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
@@ -332,7 +327,6 @@ export default function RelatorioCustosSafra() {
         </Button>
       </div>
 
-      {/* Filtros */}
       <Card className="shadow-lg border-green-200 print:hidden">
         <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
@@ -514,7 +508,6 @@ export default function RelatorioCustosSafra() {
         </CardContent>
       </Card>
 
-      {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
           @media print {
@@ -619,28 +612,7 @@ export default function RelatorioCustosSafra() {
                         );
                       })}
                       <TableRow className="bg-gray-100 font-bold">
-                        <TableCell 
-                          colSpan={
-                            (() => {
-                              const summaryColumnsOrder = ['quantidade', 'quantidade_entregue', 'quantidade_restante', 'unidade', 'valor_unitario', 'valor_total'];
-                              let firstSummaryColVisibleIndex = -1;
-                              for (const col of summaryColumnsOrder) {
-                                const index = colunasVisiveis.indexOf(col);
-                                if (index !== -1) {
-                                  firstSummaryColVisibleIndex = index;
-                                  break;
-                                }
-                              }
-                              // If no summary columns are visible, span all visible columns
-                              if (firstSummaryColVisibleIndex === -1) {
-                                return colunasVisiveis.length > 0 ? colunasVisiveis.length : 1;
-                              }
-                              // Otherwise, span up to the first visible summary column
-                              return Math.max(1, firstSummaryColVisibleIndex);
-                            })()
-                          } 
-                          className="border border-black text-xs py-1"
-                        >
+                        <TableCell colSpan={Math.max(1, colunasVisiveis.indexOf('quantidade') > -1 ? colunasVisiveis.indexOf('quantidade') : 0)} className="border border-black text-xs py-1">
                           SUBTOTAL ({registros.length} registro(s))
                         </TableCell>
                         {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdGrupo)}</TableCell>}
@@ -649,19 +621,9 @@ export default function RelatorioCustosSafra() {
                         {colunasVisiveis.includes('unidade') && <TableCell className="border border-black text-xs py-1">-</TableCell>}
                         {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(valorUnitarioMedio)}</TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
-                        {/* Filler cells for columns that might appear after 'valor_total' but are visible */}
-                        {
-                            COLUNAS_DISPONIVEIS.filter(colDef => {
-                                // Check if the column is visible
-                                if (!colunasVisiveis.includes(colDef.id)) return false;
-                                // Check if this column comes *after* 'valor_total' in the COLUNAS_DISPONIVEIS definition
-                                const valorTotalIndex = COLUNAS_DISPONIVEIS.findIndex(c => c.id === 'valor_total');
-                                const currentColIndex = COLUNAS_DISPONIVEIS.indexOf(colDef);
-                                return currentColIndex > valorTotalIndex;
-                            }).map((_, i) => (
-                                <TableCell key={`filler-${i}`} className="border border-black text-xs py-1">-</TableCell>
-                            ))
-                        }
+                        {colunasVisiveis.filter(c => !['quantidade', 'quantidade_entregue', 'quantidade_restante', 'unidade', 'valor_unitario', 'valor_total'].includes(c)).slice(colunasVisiveis.indexOf('valor_total') + 1).map((_, i) => (
+                          <TableCell key={i} className="border border-black text-xs py-1">-</TableCell>
+                        ))}
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -703,9 +665,9 @@ export default function RelatorioCustosSafra() {
             </div>
           )}
 
-          <div className="mt-4 pt-2 border-t-2 border-black">
+          <div className="mt-4 border-t-2 border-black pt-2">
             <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)}</div>
+              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)</div>
               <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValor)}</div>
             </div>
           </div>
