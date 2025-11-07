@@ -437,7 +437,7 @@ export default function RelatorioFornecedores() {
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-2 mb-3">
-            <div className="flex items-start gap-3">
+            <div className="flex items-center justify-between gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
@@ -451,8 +451,8 @@ export default function RelatorioFornecedores() {
                   className="h-24 w-24 object-contain"
                 />
               )}
-              <div className="flex-1">
-                <h1 className="text-base font-bold leading-tight">{empresaAtual?.nome || 'Empresa'}</h1>
+              <div className="flex-1 text-center">
+                <h1 className="text-base font-bold leading-tight uppercase">{empresaAtual?.nome || 'Empresa'}</h1>
                 {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
                   <p className="text-xs leading-tight">{empresaAtual.apelido}</p>
                 )}
