@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,20 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Função para obter próximo número de local
+const getNextLocalNumber = async () => {
+  try {
+    const locais = await base44.entities.LocalEstoque.list();
+    const numeros = locais
+      .map(l => parseInt(l.numero_local) || 0)
+      .filter(n => n > 0);
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número:', error);
+    return Date.now(); // Fallback to a unique timestamp on error
+  }
+};
 
 export default function LocaisEstoque() {
   const [showForm, setShowForm] = useState(false);
@@ -27,14 +42,60 @@ export default function LocaisEstoque() {
     initialData: [],
   });
 
+  // Numerar locais existentes automaticamente
+  React.useEffect(() => {
+    const numerarLocaisExistentes = async () => {
+      // Only proceed if not loading and locales data is available
+      if (isLoading || !locais || locais.length === 0) {
+        return;
+      }
+
+      const locaisSemNumero = locais.filter(l => !l.numero_local);
+
+      if (locaisSemNumero.length > 0) {
+        console.log(`Numerando ${locaisSemNumero.length} locais sem número...`);
+
+        for (const local of locaisSemNumero) {
+          try {
+            const proximoNumero = await getNextLocalNumber();
+            await base44.entities.LocalEstoque.update(local.id, {
+              ...local, // Preserve other properties
+              numero_local: String(proximoNumero)
+            });
+            console.log(`Local ${local.nome} (${local.id}) atualizado com numero_local: ${proximoNumero}`);
+          } catch (error) {
+            console.error(`Erro ao numerar local ${local.id}:`, error);
+            toast.error(`Falha ao numerar local ${local.nome}. Por favor, tente novamente ou verifique o console.`);
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
+        toast.success('Locais numerados automaticamente.');
+      }
+    };
+
+    // Run when 'locais' data changes or loading state changes
+    numerarLocaisExistentes();
+  }, [locais, queryClient, isLoading]);
+
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.LocalEstoque.create(data),
+    mutationFn: async (data) => {
+      const proximoNumero = await getNextLocalNumber();
+      return base44.entities.LocalEstoque.create({
+        ...data,
+        numero_local: String(proximoNumero)
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
       setShowForm(false);
       setFormData({ nome: "", descricao: "", capacidade: "" });
       toast.success('Local cadastrado com sucesso!');
     },
+    onError: (error) => {
+      console.error('Erro ao cadastrar local:', error);
+      toast.error('Erro ao cadastrar local. Por favor, tente novamente.');
+    }
   });
 
   const updateMutation = useMutation({
@@ -46,6 +107,10 @@ export default function LocaisEstoque() {
       setFormData({ nome: "", descricao: "", capacidade: "" });
       toast.success('Local atualizado com sucesso!');
     },
+    onError: (error) => {
+      console.error('Erro ao atualizar local:', error);
+      toast.error('Erro ao atualizar local. Por favor, tente novamente.');
+    }
   });
 
   const deleteMutation = useMutation({
@@ -54,6 +119,10 @@ export default function LocaisEstoque() {
       queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
       toast.success('Local excluído com sucesso!');
     },
+    onError: (error) => {
+      console.error('Erro ao excluir local:', error);
+      toast.error('Erro ao excluir local. Por favor, tente novamente.');
+    }
   });
 
   const handleSubmit = (e) => {
@@ -73,10 +142,10 @@ export default function LocaisEstoque() {
 
   const handleEdit = (item) => {
     setEditingItem(item);
-    setFormData({ 
-      nome: item.nome, 
-      descricao: item.descricao || "", 
-      capacidade: item.capacidade || "" 
+    setFormData({
+      nome: item.nome,
+      descricao: item.descricao || "",
+      capacidade: item.capacidade || ""
     });
     setShowForm(true);
   };
@@ -118,8 +187,9 @@ export default function LocaisEstoque() {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Nome do Local *</Label>
+                    <Label htmlFor="nome">Nome do Local *</Label>
                     <Input
+                      id="nome"
                       value={formData.nome}
                       onChange={(e) => setFormData({ ...formData, nome: e.target.value.toUpperCase() })}
                       placeholder="GALPÃO 1, DEPÓSITO A, ETC"
@@ -128,8 +198,9 @@ export default function LocaisEstoque() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Capacidade</Label>
+                    <Label htmlFor="capacidade">Capacidade</Label>
                     <Input
+                      id="capacidade"
                       value={formData.capacidade}
                       onChange={(e) => setFormData({ ...formData, capacidade: e.target.value.toUpperCase() })}
                       placeholder="EX: 500 SACAS, 10 TONELADAS"
@@ -137,8 +208,9 @@ export default function LocaisEstoque() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Descrição</Label>
+                    <Label htmlFor="descricao">Descrição</Label>
                     <Textarea
+                      id="descricao"
                       value={formData.descricao}
                       onChange={(e) => setFormData({ ...formData, descricao: e.target.value.toUpperCase() })}
                       placeholder="DESCRIÇÃO DO LOCAL (OPCIONAL)"
@@ -150,9 +222,10 @@ export default function LocaisEstoque() {
                       <X className="w-4 h-4 mr-2" />
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                    <Button type="submit" className="bg-green-600 hover:bg-green-700"
+                      disabled={createMutation.isPending || updateMutation.isPending}>
                       <Save className="w-4 h-4 mr-2" />
-                      Salvar
+                      {createMutation.isPending || updateMutation.isPending ? 'Salvando...' : 'Salvar'}
                     </Button>
                   </div>
                 </form>
@@ -168,6 +241,7 @@ export default function LocaisEstoque() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Número</TableHead> {/* Added Number column */}
                 <TableHead>Capacidade</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
@@ -176,11 +250,11 @@ export default function LocaisEstoque() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Carregando...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Carregando...</TableCell>
                 </TableRow>
               ) : locais.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-slate-400">
+                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
                     Nenhum local cadastrado
                   </TableCell>
                 </TableRow>
@@ -188,6 +262,7 @@ export default function LocaisEstoque() {
                 locais.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-bold">{item.nome}</TableCell>
+                    <TableCell>{item.numero_local || '-'}</TableCell> {/* Display numero_local */}
                     <TableCell>{item.capacidade || '-'}</TableCell>
                     <TableCell>{item.descricao || '-'}</TableCell>
                     <TableCell>

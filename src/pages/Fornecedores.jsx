@@ -21,21 +21,28 @@ import FormularioFornecedor from "../components/fornecedores/FormularioFornecedo
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
 import FichaFornecedor from "../components/fornecedores/FichaFornecedor";
 
-// Helper function to get the next sequential system number by querying existing records
-async function getNextSystemNumberHelper() {
+// Função global para obter próximo número único do sistema
+async function getNextSystemNumber() {
   try {
-    const allFornecedores = await base44.entities.Fornecedor.list();
-    const existingNumbers = allFornecedores
-      .map(f => parseInt(f.numero_cadastro, 10))
-      .filter(num => !isNaN(num));
+    const [pesagens, fornecedores, produtos] = await Promise.all([
+      base44.entities.Pesagem.list(),
+      base44.entities.Fornecedor.list(),
+      base44.entities.Produto.list()
+    ]);
 
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    return (maxNumber + 1).toString().padStart(6, '0');
+    const numeros = [
+      ...pesagens.map(p => parseInt(p.numero_registro, 10)).filter(n => !isNaN(n)),
+      ...fornecedores.map(f => parseInt(f.numero_cadastro, 10)).filter(n => !isNaN(n)),
+      ...produtos.map(p => parseInt(p.numero_produto, 10)).filter(n => !isNaN(n))
+    ];
+
+    const positiveNumbers = numeros.filter(n => n > 0);
+
+    return positiveNumbers.length > 0 ? Math.max(...positiveNumbers) + 1 : 1;
   } catch (error) {
-    console.error("Erro ao buscar números existentes para autogeração:", error);
-    // Fallback: If cannot fetch, generate a simple timestamp-based number
-    // This is a fallback and might not guarantee sequentiality across concurrent operations
-    return Date.now().toString().slice(-6); 
+    console.error("Erro ao buscar números existentes:", error);
+    // Fallback: If cannot fetch, return a timestamp for uniqueness, though not sequential
+    return Date.now(); 
   }
 }
 
@@ -119,36 +126,31 @@ export default function Fornecedores() {
   // Numerar cadastros existentes automaticamente
   useEffect(() => {
     const numerarCadastrosExistentes = async () => {
-      // Filter for items that are loaded and do not have a numero_cadastro
       const cadastrosSemNumero = fornecedores.filter(f => !f.numero_cadastro);
       
       if (cadastrosSemNumero.length > 0) {
         console.log(`[Fornecedores] Numerando ${cadastrosSemNumero.length} cadastros sem número...`);
-        let changesMade = false;
         
         // Iterate and update each record sequentially to ensure unique numbering for each
         for (const fornecedor of cadastrosSemNumero) {
           try {
-            const proximoNumero = await getNextSystemNumberHelper();
+            const proximoNumero = await getNextSystemNumber();
             await base44.entities.Fornecedor.update(fornecedor.id, {
               ...fornecedor, // Spread existing data to ensure full object update
-              numero_cadastro: proximoNumero
+              numero_cadastro: String(proximoNumero)
             });
-            changesMade = true;
           } catch (error) {
             console.error(`Erro ao numerar cadastro ${fornecedor.id}:`, error);
           }
         }
         
-        if (changesMade) {
-          queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-          toast.success(`Fornecedores sem número cadastral foram numerados automaticamente.`);
-        }
+        queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+        toast.success(`Fornecedores sem número cadastral foram numerados automaticamente.`);
       }
     };
 
-    // Trigger numbering only if `fornecedores` array is loaded, not empty, and contains items to number
-    if (fornecedores && fornecedores.length > 0 && fornecedores.some(f => !f.numero_cadastro)) {
+    // Trigger numbering only if `fornecedores` array is loaded and not empty
+    if (fornecedores && fornecedores.length > 0) {
       numerarCadastrosExistentes();
     }
   }, [fornecedores, queryClient]); // Dependencies: re-run if fornecedores data changes or queryClient instance changes
@@ -156,7 +158,8 @@ export default function Fornecedores() {
   const handleSubmit = async (data) => {
     // Gerar número único se for novo cadastro
     if (!editingFornecedor) {
-      data.numero_cadastro = await getNextSystemNumberHelper();
+      const proximoNumero = await getNextSystemNumber();
+      data.numero_cadastro = String(proximoNumero);
     }
     
     if (editingFornecedor) {
@@ -263,7 +266,7 @@ export default function Fornecedores() {
           'Estado': 'estado',
           'CEP': 'cep',
           'Observações': 'observacoes',
-          'Número Cadastro': 'numero_cadastro',
+          // Ignorar a coluna Número Cadastro - será gerada automaticamente
         };
 
         for (let i = 1; i < lines.length; i++) {
@@ -283,6 +286,11 @@ export default function Fornecedores() {
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
               throw new Error("Dados inválidos: Nome e Tipo de Pessoa são obrigatórios.");
             }
+            
+            // Gerar número automaticamente
+            const proximoNumero = await getNextSystemNumber();
+            fornecedor.numero_cadastro = String(proximoNumero);
+            
             validRecords.push(fornecedor);
           } catch (err) {
             console.error(`Erro na linha ${i + 1}:`, err.message, values);
@@ -298,36 +306,20 @@ export default function Fornecedores() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
 
-        const batchSize = 10;
         let imported = 0;
         let errorsInImport = 0; // Track errors during the actual import API call
 
-        for (let i = 0; i < validRecords.length; i += batchSize) {
-          const batch = validRecords.slice(i, i + batchSize);
-          
-          // Try to bulk create first
+        // Importar um por um para garantir numeração sequencial
+        for (const record of validRecords) {
           try {
-            await base44.entities.Fornecedor.bulkCreate(batch);
-            imported += batch.length;
+            await base44.entities.Fornecedor.create(record);
+            imported++;
+            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
           } catch (error) {
-            console.error('Erro no lote, tentando importação individual:', error);
-            // If bulkCreate fails, try individual creates to identify specific errors
-            for (const record of batch) {
-              try {
-                // Generate numero_cadastro if not provided in the CSV for individual creates
-                if (!record.numero_cadastro) {
-                  record.numero_cadastro = await getNextSystemNumberHelper();
-                }
-                await base44.entities.Fornecedor.create(record);
-                imported++;
-              } catch (e) {
-                errorsInImport++;
-                console.error(`Erro ao importar registro individual ${record.nome || record.razao_social}:`, e);
-              }
-            }
+            errorsInImport++;
+            console.error(`Erro ao importar registro individual ${record.nome || record.razao_social || "desconhecido"}:`, error);
+            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
           }
-          
-          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
         }
 
         // Invalidate queries after all imports are processed
@@ -337,7 +329,7 @@ export default function Fornecedores() {
           setShowImportProgress(false);
           const totalErrors = errorCount + errorsInImport;
           if (totalErrors > 0) {
-            toast.warning(`${imported} registros importados! ${totalErrors} com erro. Verifique o console para detalhes.`);
+            toast.warning(`${imported} registros importados! ${totalErrors} com erro.`);
           } else {
             toast.success(`${imported} registros importados com sucesso!`);
           }
@@ -529,7 +521,7 @@ export default function Fornecedores() {
             
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados em lotes para maior velocidade
+                💡 Dica: Registros são importados um a um para garantir numeração única.
               </p>
             </div>
           </div>

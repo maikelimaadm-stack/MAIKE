@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Função para obter próximo número de categoria
+const getNextCategoriaNumber = async () => {
+  try {
+    const categorias = await base44.entities.Categoria.list();
+    const numeros = categorias
+      .map(c => parseInt(c.numero_categoria) || 0)
+      .filter(n => n > 0);
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número:', error);
+    // As per outline, return Date.now() on error, although returning 1 might be more logical for sequencing.
+    // For now, adhering strictly to the provided outline.
+    return Date.now(); 
+  }
+};
+
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -22,13 +39,63 @@ export default function Categorias() {
     queryKey: ['categorias'],
     queryFn: async () => {
       const data = await base44.entities.Categoria.list();
-      return data.sort((a, b) => a.nome.localeCompare(b.nome));
+      // Ensure sorting takes numero_categoria into account first, then nome
+      return data.sort((a, b) => {
+        const numA = parseInt(a.numero_categoria) || 0;
+        const numB = parseInt(b.numero_categoria) || 0;
+        if (numA !== numB) {
+          return numA - numB;
+        }
+        return a.nome.localeCompare(b.nome);
+      });
     },
     initialData: [],
   });
 
+  // Numerar categorias existentes automaticamente
+  useEffect(() => {
+    const numerarCategoriasExistentes = async () => {
+      // Only proceed if categories are loaded and there are some
+      if (!categorias || categorias.length === 0 || isLoading) return;
+      
+      const categoriasSemNumero = categorias.filter(c => !c.numero_categoria);
+      
+      if (categoriasSemNumero.length > 0) {
+        console.log(`Numerando ${categoriasSemNumero.length} categorias sem número...`);
+        
+        // Using a sequential counter for assigning numbers to unnumbered categories
+        // based on the max existing number to avoid conflicts and ensure sequence.
+        let currentMaxNumber = Math.max(...categorias.map(c => parseInt(c.numero_categoria) || 0)) || 0;
+
+        for (const categoria of categoriasSemNumero) {
+          try {
+            currentMaxNumber++; // Increment for each unnumbered category
+            await base44.entities.Categoria.update(categoria.id, {
+              ...categoria, // Spread existing properties to ensure other fields are preserved
+              numero_categoria: String(currentMaxNumber)
+            });
+            console.log(`Categoria ${categoria.nome} (#${categoria.id}) numerada com sucesso como ${currentMaxNumber}`);
+          } catch (error) {
+            console.error(`Erro ao numerar categoria ${categoria.id}:`, error);
+          }
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['categorias'] });
+        toast.success('Categorias sem número foram numeradas automaticamente.');
+      }
+    };
+
+    numerarCategoriasExistentes();
+  }, [categorias, isLoading, queryClient]); // Add isLoading to dependencies to ensure it runs after data is loaded
+
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Categoria.create(data),
+    mutationFn: async (data) => {
+      const proximoNumero = await getNextCategoriaNumber();
+      return base44.entities.Categoria.create({
+        ...data,
+        numero_categoria: String(proximoNumero)
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
       setShowForm(false);
@@ -65,6 +132,8 @@ export default function Categorias() {
     };
 
     if (editingItem) {
+      // When editing, numero_categoria is not part of the form, it's auto-managed
+      // Only send the fields that are actually being edited.
       updateMutation.mutate({ id: editingItem.id, data: dataToSend });
     } else {
       createMutation.mutate(dataToSend);
@@ -169,6 +238,7 @@ export default function Categorias() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[100px]">Número</TableHead> {/* Added column for numero_categoria */}
                 <TableHead>Categoria</TableHead>
                 <TableHead>Subcategoria</TableHead>
                 <TableHead>Descrição</TableHead>
@@ -178,17 +248,18 @@ export default function Categorias() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Carregando...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Carregando...</TableCell> {/* Updated colspan */}
                 </TableRow>
               ) : categorias.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-slate-400">
+                  <TableCell colSpan={5} className="text-center py-8 text-slate-400"> {/* Updated colspan */}
                     Nenhuma categoria cadastrada
                   </TableCell>
                 </TableRow>
               ) : (
                 categorias.map((item) => (
                   <TableRow key={item.id}>
+                    <TableCell className="font-medium text-center">{item.numero_categoria || '-'}</TableCell> {/* Display numero_categoria */}
                     <TableCell className="font-bold">{item.nome}</TableCell>
                     <TableCell>{item.subcategoria || '-'}</TableCell>
                     <TableCell>{item.descricao || '-'}</TableCell>

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,23 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Função para obter próximo número de unidade
+const getNextUnidadeNumber = async () => {
+  try {
+    const unidades = await base44.entities.UnidadeMedida.list();
+    const numeros = unidades
+      .map(u => parseInt(u.numero_unidade) || 0) // Convert to int, default to 0 if not a number or null/undefined
+      .filter(n => n > 0); // Filter out 0 and negative numbers
+
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número:', error);
+    // As per instruction, fallback to Date.now() on error.
+    // This might generate non-sequential numbers but ensures a unique fallback in case of API issues.
+    return Date.now();
+  }
+};
 
 export default function UnidadesMedida() {
   const [showForm, setShowForm] = useState(false);
@@ -27,8 +45,58 @@ export default function UnidadesMedida() {
     initialData: [],
   });
 
+  // Numerar unidades existentes automaticamente
+  React.useEffect(() => {
+    const numerarUnidadesExistentes = async () => {
+      if (!unidades || unidades.length === 0) return;
+      
+      // Filter units that do not have a numero_unidade defined or it's an empty string
+      const unidadesSemNumero = unidades.filter(u => !u.numero_unidade || u.numero_unidade === "");
+      
+      if (unidadesSemNumero.length > 0) {
+        console.log(`Numerando ${unidadesSemNumero.length} unidades sem número...`);
+        
+        // Use a Set to keep track of used numbers to avoid immediate conflicts
+        // when assigning numbers in a quick succession if getNextUnidadeNumber is called rapidly.
+        // However, getNextUnidadeNumber itself already queries all existing units,
+        // so it should already return the next available global number.
+        // The sequential assignment below will ensure each gets a unique incremented number.
+        
+        let shouldInvalidate = false;
+        for (const unidade of unidadesSemNumero) {
+          try {
+            const proximoNumero = await getNextUnidadeNumber(); // Get the next global number
+            await base44.entities.UnidadeMedida.update(unidade.id, {
+              numero_unidade: String(proximoNumero)
+            });
+            shouldInvalidate = true; // Mark for invalidation if at least one update happened
+          } catch (error) {
+            console.error(`Erro ao numerar unidade ${unidade.id}:`, error);
+            toast.error(`Erro ao numerar unidade ${unidade.sigla}.`);
+          }
+        }
+        
+        if (shouldInvalidate) {
+          queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
+          toast.success('Unidades existentes numeradas automaticamente!');
+        }
+      }
+    };
+
+    // Only run this effect if units have been loaded and there are units to process
+    if (!isLoading && unidades.length > 0) {
+      numerarUnidadesExistentes();
+    }
+  }, [unidades, isLoading, queryClient]); // Add isLoading to dependencies to ensure it runs after data is fetched
+
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.UnidadeMedida.create(data),
+    mutationFn: async (data) => {
+      const proximoNumero = await getNextUnidadeNumber();
+      return base44.entities.UnidadeMedida.create({
+        ...data,
+        numero_unidade: String(proximoNumero)
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       setShowForm(false);
@@ -64,6 +132,8 @@ export default function UnidadesMedida() {
     };
 
     if (editingItem) {
+      // When editing, we do not re-assign numero_unidade, as it's already set.
+      // We only update sigla and descricao.
       updateMutation.mutate({ id: editingItem.id, data: dataToSend });
     } else {
       createMutation.mutate(dataToSend);
@@ -157,6 +227,7 @@ export default function UnidadesMedida() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Número</TableHead> {/* New column for numero_unidade */}
                 <TableHead>Sigla</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
@@ -165,17 +236,18 @@ export default function UnidadesMedida() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center">Carregando...</TableCell>
+                  <TableCell colSpan={4} className="text-center">Carregando...</TableCell> {/* Updated colSpan */}
                 </TableRow>
               ) : unidades.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-slate-400">
+                  <TableCell colSpan={4} className="text-center py-8 text-slate-400"> {/* Updated colSpan */}
                     Nenhuma unidade cadastrada
                   </TableCell>
                 </TableRow>
               ) : (
                 unidades.map((item) => (
                   <TableRow key={item.id}>
+                    <TableCell>{item.numero_unidade || 'N/A'}</TableCell> {/* Display numero_unidade */}
                     <TableCell className="font-bold">{item.sigla}</TableCell>
                     <TableCell>{item.descricao}</TableCell>
                     <TableCell>

@@ -21,24 +21,27 @@ import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
 
-// Helper function to calculate the next system number based on existing products.
-// This function will look for the highest existing numero_produto and increment it.
-// It is defined here, simulating the "imports through getNextSystemNumber" placeholder
-// which implied its existence as a utility.
-const getNextSystemNumber = (productsList) => {
-  if (!productsList || productsList.length === 0) {
-    return '000001'; // Start with 000001 if no products exist
+// Função global para obter próximo número único do sistema
+const getNextSystemNumber = async () => {
+  try {
+    const [pesagens, fornecedores, produtos] = await Promise.all([
+      base44.entities.Pesagem.list(),
+      base44.entities.Fornecedor.list(),
+      base44.entities.Produto.list()
+    ]);
+
+    const numeros = [
+      ...pesagens.map(p => parseInt(p.numero_registro) || 0),
+      ...fornecedores.map(f => parseInt(f.numero_cadastro) || 0),
+      ...produtos.map(p => parseInt(p.numero_produto) || 0)
+    ].filter(n => n > 0);
+
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número:', error);
+    // Fallback in case of error, providing a unique number but not necessarily sequential
+    return Date.now(); 
   }
-
-  // Find the maximum existing numeric `numero_produto`
-  const maxNumber = productsList.reduce((max, p) => {
-    // Attempt to parse the number, handling cases where it might be undefined, null, or non-numeric
-    const num = parseInt(p.numero_produto, 10);
-    return isNaN(num) ? max : Math.max(max, num);
-  }, 0); // Start with 0 if no valid numbers are found
-
-  // Increment the maximum number and pad with leading zeros
-  return (maxNumber + 1).toString().padStart(6, '0');
 };
 
 export default function Produtos() {
@@ -59,41 +62,31 @@ export default function Produtos() {
   // Numerar produtos existentes automaticamente
   React.useEffect(() => {
     const numerarProdutosExistentes = async () => {
-      // Filter products that don't have a numero_produto or it's an empty string
       const produtosSemNumero = produtos.filter(p => !p.numero_produto || p.numero_produto === '');
       
       if (produtosSemNumero.length > 0) {
         console.log(`Numerando ${produtosSemNumero.length} produtos sem número...`);
         
-        // Get the initial next number based on ALL current products to ensure uniqueness
-        // and sequential assignment for the backfilled items.
-        let currentNextNumber = parseInt(getNextSystemNumber(produtos), 10);
-
         for (const produto of produtosSemNumero) {
           try {
-            const proximoNumero = (currentNextNumber++).toString().padStart(6, '0');
+            const proximoNumero = await getNextSystemNumber();
             await base44.entities.Produto.update(produto.id, {
-              numero_produto: proximoNumero
+              numero_produto: String(proximoNumero)
             });
-            console.log(`Produto ${produto.id} numerado como ${proximoNumero}`);
           } catch (error) {
             console.error(`Erro ao numerar produto ${produto.id}:`, error);
-            toast.error(`Erro ao numerar produto ${produto.nome_produto}.`);
           }
         }
         
-        // Invalidate queries to re-fetch the products with their new numbers
         queryClient.invalidateQueries({ queryKey: ['produtos'] });
-        toast.success(`${produtosSemNumero.length} produtos numerados automaticamente.`);
+        toast.success('Produtos numerados automaticamente.');
       }
     };
 
-    // Only run this effect if products have been loaded, there are products in the list,
-    // and we are not currently loading (to avoid running on initial empty state).
     if (!isLoading && produtos && produtos.length > 0) {
       numerarProdutosExistentes();
     }
-  }, [produtos, queryClient, isLoading]); // Dependencies for the effect
+  }, [produtos, queryClient, isLoading]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -157,13 +150,9 @@ export default function Produtos() {
   });
 
   const handleSubmit = async (data) => {
-    // Gerar número único se for novo produto
     if (!editingProduto) {
-      // The original logic uses produtos.length + 1.
-      // Keeping this original logic as per "preserve all other features" instruction.
-      const totalProdutos = produtos.length;
-      const proximoNumero = (totalProdutos + 1).toString().padStart(6, '0');
-      data.numero_produto = `${proximoNumero}`;
+      const proximoNumero = await getNextSystemNumber();
+      data.numero_produto = String(proximoNumero);
     }
     
     if (editingProduto) {
@@ -239,19 +228,23 @@ export default function Produtos() {
       try {
         const text = e.target.result;
         const lines = text.split('\n');
-        const validRecords = [];
-        let errorCount = 0;
+        const recordsToProcess = [];
+        let initialParsingErrorCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
           if (values.length < 1) {
-            errorCount++;
+            initialParsingErrorCount++;
             continue;
           }
 
           try {
+            // Gerar número automaticamente para cada produto
+            const proximoNumero = await getNextSystemNumber();
+            
             const produto = {
+              numero_produto: String(proximoNumero),
               nome_produto: values[0].trim(),
               codigo_interno: values[1]?.trim() || undefined,
               codigo_barras: values[2]?.trim() || undefined,
@@ -266,61 +259,56 @@ export default function Produtos() {
             };
 
             if (!produto.nome_produto) {
-              throw new Error("Dados inválidos");
+              throw new Error("Dados inválidos: Nome do produto é obrigatório.");
             }
 
-            validRecords.push(produto);
+            recordsToProcess.push(produto);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1}:`, err);
-            errorCount++;
+            console.error(`Erro na linha ${i + 1} durante a validação ou numeração:`, err);
+            initialParsingErrorCount++;
           }
         }
 
-        if (validRecords.length === 0) {
-          toast.error('Nenhum registro válido encontrado no arquivo!');
+        if (recordsToProcess.length === 0 && initialParsingErrorCount > 0) {
+          toast.error('Nenhum registro válido encontrado no arquivo ou todos com erro de parsing!');
           return;
+        } else if (recordsToProcess.length === 0) {
+            toast.error('O arquivo CSV está vazio ou não contém dados de produto válidos.');
+            return;
         }
 
         setShowImportProgress(true);
-        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
+        setImportProgress({ current: 0, total: recordsToProcess.length, errors: initialParsingErrorCount });
 
-        const batchSize = 10;
         let imported = 0;
+        let finalErrorCount = initialParsingErrorCount; // Start with errors from initial parsing/num generation
 
-        for (let i = 0; i < validRecords.length; i += batchSize) {
-          const batch = validRecords.slice(i, i + batchSize);
-          
+        // Importar um por um para garantir numeração sequencial
+        for (let i = 0; i < recordsToProcess.length; i++) {
+          const record = recordsToProcess[i];
           try {
-            await base44.entities.Produto.bulkCreate(batch);
-            imported += batch.length;
+            await base44.entities.Produto.create(record);
+            imported++;
           } catch (error) {
-            console.error('Erro no lote:', error);
-            for (const record of batch) {
-              try {
-                await base44.entities.Produto.create(record);
-                imported++;
-              } catch (e) {
-                errorCount++;
-              }
-            }
+            finalErrorCount++;
+            console.error(`Erro ao importar produto '${record.nome_produto || 'sem nome'}':`, error);
           }
-          
-          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+          setImportProgress({ current: i + 1, total: recordsToProcess.length, errors: finalErrorCount });
         }
 
         await queryClient.invalidateQueries({ queryKey: ['produtos'] });
         
         setTimeout(() => {
           setShowImportProgress(false);
-          if (errorCount > 0) {
-            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          if (finalErrorCount > 0) {
+            toast.success(`${imported} registro(s) importado(s)! ${finalErrorCount} com erro(s).`);
           } else {
-            toast.success(`${imported} registros importados com sucesso!`);
+            toast.success(`${imported} registro(s) importado(s) com sucesso!`);
           }
         }, 1000);
 
       } catch (error) {
-        console.error('Erro ao importar:', error);
+        console.error('Erro geral ao importar:', error);
         setShowImportProgress(false);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
@@ -510,7 +498,7 @@ export default function Produtos() {
             
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados em lotes para maior velocidade
+                💡 Dica: Registros são importados individualmente para garantir numeração única
               </p>
             </div>
           </div>

@@ -29,6 +29,48 @@ const formatarNumero = (numero) => {
   return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
+// Função global para obter próximo número único do sistema
+const getNextSystemNumber = async () => {
+  try {
+    const [pesagens, fornecedores, produtos] = await Promise.all([
+      base44.entities.Pesagem.list(),
+      base44.entities.Fornecedor.list(),
+      base44.entities.Produto.list()
+    ]);
+
+    const allNumbers = [];
+
+    // Extract numbers from Pesagens
+    pesagens.forEach(p => {
+      const num = parseInt(p.numero_registro, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    // Extract numbers from Fornecedores
+    fornecedores.forEach(f => {
+      const num = parseInt(f.numero_cadastro, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    // Extract numbers from Produtos
+    produtos.forEach(p => {
+      const num = parseInt(p.numero_produto, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    return allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número sequencial:', error);
+    return Date.now(); // Fallback value as per outline
+  }
+};
+
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingPesagem, setEditingPesagem] = useState(null);
@@ -44,60 +86,28 @@ export default function Dashboard() {
     initialData: [],
   });
 
-  // Helper function to get the next sequential system number
-  // This function needs to be defined within the component scope to access 'pesagens'
-  const getNextSystemNumber = () => {
-    if (!pesagens || pesagens.length === 0) {
-      return "000001";
-    }
-    const maxNum = pesagens.reduce((max, p) => {
-      // Ensure p.numero_registro is treated as a number, handle null/undefined/empty
-      const num = parseInt(p.numero_registro, 10);
-      return !isNaN(num) ? Math.max(max, num) : max;
-    }, 0);
-    return String(maxNum + 1).padStart(6, '0');
-  };
-
   // Numerar registros existentes automaticamente
   useEffect(() => {
     const numerarRegistrosExistentes = async () => {
-      // Only process if pesagens are loaded, not loading, and not currently showing the form
       if (isLoading || !pesagens || pesagens.length === 0 || showForm) {
         return;
       }
 
-      // Filter for records that explicitly don't have a numero_registro or it's empty
       const registrosSemNumero = pesagens.filter(p => !p.numero_registro || p.numero_registro.trim() === '');
       
       if (registrosSemNumero.length > 0) {
         console.log(`Numerando ${registrosSemNumero.length} registros sem número...`);
         
-        let currentMaxNumber = pesagens.reduce((max, p) => {
-          const num = parseInt(p.numero_registro, 10);
-          return !isNaN(num) ? Math.max(max, num) : max;
-        }, 0);
-
-        const updates = [];
-        for (const pesagem of registrosSemNumero) {
-          // Increment the max number to ensure unique sequential numbers for backfilling
-          currentMaxNumber++;
-          const proximoNumero = String(currentMaxNumber).padStart(6, '0');
-          
-          updates.push({
-            id: pesagem.id,
-            numero_registro: proximoNumero
-          });
-        }
-
-        // Perform updates sequentially
         let updateCount = 0;
-        for (const update of updates) {
+        for (const pesagem of registrosSemNumero) {
           try {
-            // Direct API call to avoid triggering many mutation hooks and re-renders for batch update
-            await base44.entities.Pesagem.update(update.id, { numero_registro: update.numero_registro });
+            const proximoNumero = await getNextSystemNumber();
+            await base44.entities.Pesagem.update(pesagem.id, {
+              numero_registro: String(proximoNumero).padStart(6, '0') // Pad with zeros
+            });
             updateCount++;
           } catch (error) {
-            console.error(`Erro ao atualizar pesagem ${update.id} com número ${update.numero_registro}:`, error);
+            console.error(`Erro ao numerar registro ${pesagem.id}:`, error);
           }
         }
         
@@ -108,8 +118,6 @@ export default function Dashboard() {
       }
     };
 
-    // Run when pesagens data changes, isLoading status changes, or showForm status changes
-    // This ensures it runs after data is fetched and when the form is not active
     numerarRegistrosExistentes();
   }, [pesagens, queryClient, isLoading, showForm]);
 
@@ -153,8 +161,8 @@ export default function Dashboard() {
   const handleSubmit = async (data) => {
     // Gerar número único se for novo registro
     if (!editingPesagem) {
-      const proximoNumero = getNextSystemNumber(); // Use the robust numbering function
-      data.numero_registro = proximoNumero;
+      const proximoNumero = await getNextSystemNumber();
+      data.numero_registro = String(proximoNumero).padStart(6, '0'); // Pad with zeros
     }
     
     if (editingPesagem) {
@@ -248,30 +256,25 @@ export default function Dashboard() {
         const lines = text.split('\n');
         const validRecords = [];
         let errorCount = 0;
-        let nextNumberForImport = getNextSystemNumber(); // Get the current next system number for new imports
 
         // Parse all lines first, skipping the header (index 0)
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
           
-          // Determine column indices dynamically or assume a fixed structure
-          // For simplicity, let's assume the template downloaded from 'downloadTemplate' is used,
-          // which includes 'Numero Registro' as the first column.
-          // If the imported CSV has fewer columns (e.g., old template), we'll try to adapt.
-          const hasNumeroRegistroColumn = values.length >= 11; // Check if it matches the new template's column count
-          const dataIndex = hasNumeroRegistroColumn ? 1 : 0;
-          const tipoIndex = dataIndex + 1;
-          const placaIndex = dataIndex + 2;
-          const motoristaIndex = dataIndex + 3;
-          const produtoIndex = dataIndex + 4;
-          const fornecedorDestinoIndex = dataIndex + 5;
-          const pesoTaraIndex = dataIndex + 6;
-          const pesoBrutoIndex = dataIndex + 7;
-          const pesoLiquidoIndex = dataIndex + 8;
-          const observacoesIndex = dataIndex + 9;
+          // Ignorar a coluna de número (índice 0) - será gerada automaticamente
+          const dataIndex = 1; // Segunda coluna (após número)
+          const tipoIndex = 2;
+          const placaIndex = 3;
+          const motoristaIndex = 4;
+          const produtoIndex = 5;
+          const fornecedorDestinoIndex = 6;
+          const pesoTaraIndex = 7;
+          const pesoBrutoIndex = 8;
+          const pesoLiquidoIndex = 9;
+          const observacoesIndex = 10;
 
-          // Ensure minimum required columns are present (excluding optional 'Numero Registro' and 'Observacoes' for a strict check)
+          // Ensure minimum required columns are present up to peso_liquido
           if (values.length <= pesoLiquidoIndex) { 
             errorCount++;
             console.error(`Erro na linha ${i + 1}: Número insuficiente de colunas (${values.length}). Esperado no mínimo ${pesoLiquidoIndex + 1}.`);
@@ -284,12 +287,11 @@ export default function Dashboard() {
             const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
-            // Assign a generated number to ensure uniqueness for all imported items
-            const generatedNumeroRegistro = nextNumberForImport;
-            nextNumberForImport = String(parseInt(nextNumberForImport, 10) + 1).padStart(6, '0'); // Increment for the next record
+            // Gerar número automaticamente - não usar o da planilha
+            const proximoNumero = await getNextSystemNumber();
 
             const pesagem = {
-              numero_registro: generatedNumeroRegistro,
+              numero_registro: String(proximoNumero).padStart(6, '0'), // Use generated number, padded
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim(),
               placa_caminhao: values[placaIndex]?.trim(),
@@ -325,31 +327,19 @@ export default function Dashboard() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
 
-        const batchSize = 10;
         let imported = 0;
         let actualErrors = errorCount; // Keep track of errors during API calls
 
-        for (let i = 0; i < validRecords.length; i += batchSize) {
-          const batch = validRecords.slice(i, i + batchSize);
-          
+        // Importar um por um para garantir numeração sequencial
+        for (const record of validRecords) {
           try {
-            // Assuming base44.entities.Pesagem.bulkCreate exists and handles an array of objects
-            await base44.entities.Pesagem.bulkCreate(batch);
-            imported += batch.length;
+            await base44.entities.Pesagem.create(record);
+            imported++;
           } catch (error) {
-            console.error('Erro no lote, tentando individualmente:', error);
-            // Fallback: try individual creation if bulk failed
-            for (const record of batch) {
-              try {
-                await base44.entities.Pesagem.create(record);
-                imported++;
-              } catch (e) {
-                console.error(`Erro ao criar registro individualmente (num ${record.numero_registro}):`, e);
-                actualErrors++; // Increment error count for individual failures
-              }
-            }
+            console.error(`Erro ao criar registro individualmente (num ${record.numero_registro}):`, error);
+            actualErrors++; // Increment error count for individual failures
           }
-          
+          // Update progress after each record for better UX
           setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
         }
 
@@ -384,7 +374,7 @@ export default function Dashboard() {
     csvRows.push(headers.join(';'));
     
     const example = [
-      '000001', // Example for Numero Registro
+      '000001', // Example for Numero Registro (will be auto-generated on import)
       '04/11/2025',
       'Entrada',
       'ABC1234',
@@ -591,7 +581,7 @@ export default function Dashboard() {
             
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados em lotes para maior velocidade.
+                💡 Dica: Registros são importados individualmente para garantir a numeração sequencial.
               </p>
             </div>
           </div>
