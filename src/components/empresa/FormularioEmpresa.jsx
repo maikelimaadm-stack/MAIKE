@@ -1,110 +1,122 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Save, X, Upload, Loader2, Image as ImageIcon } from "lucide-react";
+import { Building2, Upload, X, Save } from "lucide-react";
 import { motion } from "framer-motion";
+import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
-export default function FormularioEmpresa({ onSubmit, onCancel, initialData = null, isEditing = false }) {
-  const [formData, setFormData] = useState({
-    apelido: initialData?.apelido?.toUpperCase() || "",
-    tipo_pessoa: initialData?.tipo_pessoa || "",
-    nome: initialData?.nome?.toUpperCase() || "",
-    cpf: initialData?.cpf || "",
-    rg: initialData?.rg || "",
-    data_nascimento: initialData?.data_nascimento || "",
-    cnpj: initialData?.cnpj || "",
-    razao_social: initialData?.razao_social?.toUpperCase() || "",
-    inscricao_estadual: initialData?.inscricao_estadual || "",
-    nome_responsavel: initialData?.nome_responsavel?.toUpperCase() || "",
-    logotipo_url: initialData?.logotipo_url || "",
-    telefone: initialData?.telefone || "",
-    email: initialData?.email || "",
-    endereco: initialData?.endereco?.toUpperCase() || "",
-    cidade: initialData?.cidade?.toUpperCase() || "",
-    estado: initialData?.estado?.toUpperCase() || "",
-    cep: initialData?.cep || "",
-    observacoes: initialData?.observacoes?.toUpperCase() || ""
+const ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+
+export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isEditing }) {
+  const [formData, setFormData] = useState(initialData || {
+    apelido: "",
+    nome: "",
+    tipo_pessoa: "Jurídica",
+    cpf: "",
+    rg: "",
+    cnpj: "",
+    inscricao_estadual: "",
+    telefone: "",
+    email: "",
+    endereco: "",
+    cidade: "",
+    estado: "MT",
+    cep: "",
+    observacoes: "",
+    logotipo_url: ""
   });
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
   const handleChange = (field, value) => {
-    let processedValue = value;
-    if (['apelido', 'nome', 'razao_social', 'nome_responsavel', 'endereco', 'cidade', 'estado', 'observacoes'].includes(field) && typeof value === 'string') {
-      processedValue = value.toUpperCase();
-    }
-    setFormData(prev => ({ ...prev, [field]: processedValue }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLogoUpload = async (event) => {
-    const file = event.target.files[0];
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
     if (!file) return;
-
-    // Validar tipo de arquivo
-    if (!file.type.startsWith('image/')) {
-      toast.error('Por favor, selecione uma imagem válida!');
-      return;
-    }
-
-    // Validar tamanho (máx 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5MB!');
-      return;
-    }
 
     setUploadingLogo(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       handleChange('logotipo_url', file_url);
-      toast.success('Logotipo carregado com sucesso!');
+      toast.success('Logotipo enviado com sucesso!');
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      toast.error('Erro ao fazer upload do logotipo. Tente novamente.');
+      toast.error('Erro ao enviar logotipo.');
     } finally {
       setUploadingLogo(false);
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Validações básicas
+    if (!formData.apelido || !formData.nome) {
+      toast.error('Preencha os campos obrigatórios!');
+      return;
+    }
+
+    if (formData.tipo_pessoa === 'Jurídica' && !formData.cnpj) {
+      toast.error('CNPJ é obrigatório para pessoa jurídica!');
+      return;
+    }
+
+    if (formData.tipo_pessoa === 'Física' && !formData.cpf) {
+      toast.error('CPF é obrigatório para pessoa física!');
+      return;
+    }
+
+    // Transformar tudo em maiúsculas
+    const dataToSubmit = {
+      ...formData,
+      apelido: formData.apelido.toUpperCase(),
+      nome: formData.nome.toUpperCase(),
+      cpf: formData.cpf?.toUpperCase(),
+      rg: formData.rg?.toUpperCase(),
+      cnpj: formData.cnpj?.toUpperCase(),
+      inscricao_estadual: formData.inscricao_estadual?.toUpperCase(),
+      telefone: formData.telefone?.toUpperCase(),
+      email: formData.email?.toLowerCase(),
+      endereco: formData.endereco?.toUpperCase(),
+      cidade: formData.cidade?.toUpperCase(),
+      estado: formData.estado?.toUpperCase(),
+      cep: formData.cep?.toUpperCase(),
+      observacoes: formData.observacoes?.toUpperCase(),
+    };
+
+    onSubmit(dataToSubmit);
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
-            {isEditing ? 'Editar Empresa' : 'Cadastrar Empresa'}
+      <Card className="shadow-xl border-green-200">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <Building2 className="w-5 h-5" />
+            {isEditing ? 'Editar Empresa' : 'Nova Empresa'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Upload de Logotipo */}
+            {/* Logotipo */}
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-purple-600" />
-                Logotipo da Empresa
-              </Label>
+              <Label>Logotipo</Label>
               <div className="flex items-center gap-4">
                 {formData.logotipo_url && (
                   <img 
                     src={formData.logotipo_url} 
-                    alt="Logotipo"
-                    className="h-20 object-contain border rounded-lg p-2"
+                    alt="Logo" 
+                    className="h-20 object-contain border rounded p-2"
                   />
                 )}
                 <div>
@@ -121,68 +133,61 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData = nu
                     variant="outline"
                     onClick={() => document.getElementById('logo-upload').click()}
                     disabled={uploadingLogo}
-                    className="gap-2"
                   >
-                    {uploadingLogo ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    )}
-                    {uploadingLogo ? 'Enviando...' : 'Carregar Logotipo'}
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingLogo ? 'Enviando...' : 'Enviar Logotipo'}
                   </Button>
-                  <p className="text-xs text-slate-500 mt-1">PNG, JPG ou JPEG (máx. 5MB)</p>
                 </div>
               </div>
             </div>
 
-            {/* Apelido e Tipo de Pessoa */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Dados Básicos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Apelido/Nome Fantasia *</Label>
                 <Input
                   value={formData.apelido}
-                  onChange={(e) => handleChange('apelido', e.target.value)}
+                  onChange={(e) => handleChange('apelido', e.target.value.toUpperCase())}
                   placeholder="FAZENDA PALMITAL"
                   required
-                  className="uppercase"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Tipo de Pessoa *</Label>
-                <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Física">Pessoa Física</SelectItem>
-                    <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Nome Completo/Razão Social *</Label>
+                <Input
+                  value={formData.nome}
+                  onChange={(e) => handleChange('nome', e.target.value.toUpperCase())}
+                  placeholder="MATEUS TONARQUE BERALDO"
+                  required
+                />
               </div>
             </div>
 
-            {/* Nome Completo/Razão Social */}
+            {/* Tipo de Pessoa */}
             <div className="space-y-2">
-              <Label>Nome Completo / Razão Social *</Label>
-              <Input
-                value={formData.nome}
-                onChange={(e) => handleChange('nome', e.target.value)}
-                placeholder={formData.tipo_pessoa === 'Física' ? 'NOME COMPLETO' : 'RAZÃO SOCIAL'}
-                required
-                className="uppercase"
-              />
+              <Label>Tipo de Pessoa *</Label>
+              <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Física">Pessoa Física</SelectItem>
+                  <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Campos específicos para Pessoa Física */}
+            {/* Documentos - Pessoa Física */}
             {formData.tipo_pessoa === 'Física' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>CPF</Label>
+                  <Label>CPF *</Label>
                   <Input
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
+                    required={formData.tipo_pessoa === 'Física'}
                   />
                 </div>
                 <div className="space-y-2">
@@ -193,52 +198,34 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData = nu
                     placeholder="00.000.000-0"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_nascimento}
-                    onChange={(e) => handleChange('data_nascimento', e.target.value)}
-                  />
-                </div>
               </div>
             )}
 
-            {/* Campos específicos para Pessoa Jurídica */}
+            {/* Documentos - Pessoa Jurídica */}
             {formData.tipo_pessoa === 'Jurídica' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>CNPJ</Label>
-                    <Input
-                      value={formData.cnpj}
-                      onChange={(e) => handleChange('cnpj', e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Inscrição Estadual</Label>
-                    <Input
-                      value={formData.inscricao_estadual}
-                      onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
-                      placeholder="000.000.000.000"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>CNPJ *</Label>
+                  <Input
+                    value={formData.cnpj}
+                    onChange={(e) => handleChange('cnpj', e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    required={formData.tipo_pessoa === 'Jurídica'}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Nome do Responsável</Label>
+                  <Label>Inscrição Estadual</Label>
                   <Input
-                    value={formData.nome_responsavel}
-                    onChange={(e) => handleChange('nome_responsavel', e.target.value)}
-                    placeholder="NOME DO RESPONSÁVEL PELA EMPRESA"
-                    className="uppercase"
+                    value={formData.inscricao_estadual}
+                    onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
+                    placeholder="000.000.000.000"
                   />
                 </div>
               </div>
             )}
 
             {/* Contato */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Telefone</Label>
                 <Input
@@ -263,31 +250,32 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData = nu
               <Label>Endereço Completo</Label>
               <Input
                 value={formData.endereco}
-                onChange={(e) => handleChange('endereco', e.target.value)}
-                placeholder="RUA, NÚMERO, COMPLEMENTO, BAIRRO"
-                className="uppercase"
+                onChange={(e) => handleChange('endereco', e.target.value.toUpperCase())}
+                placeholder="RUA, NÚMERO, BAIRRO"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Cidade</Label>
                 <Input
                   value={formData.cidade}
-                  onChange={(e) => handleChange('cidade', e.target.value)}
-                  placeholder="VILA BELA DA SANTISSIMA TRINDADE"
-                  className="uppercase"
+                  onChange={(e) => handleChange('cidade', e.target.value.toUpperCase())}
+                  placeholder="VILA BELA DA SS. TRINDADE"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Estado (UF)</Label>
-                <Input
-                  value={formData.estado}
-                  onChange={(e) => handleChange('estado', e.target.value)}
-                  placeholder="MT"
-                  maxLength={2}
-                  className="uppercase"
-                />
+                <Label>Estado</Label>
+                <Select value={formData.estado} onValueChange={(value) => handleChange('estado', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS.map(uf => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
@@ -304,22 +292,23 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData = nu
               <Label>Observações</Label>
               <Textarea
                 value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="OBSERVAÇÕES GERAIS SOBRE A EMPRESA..."
-                className="uppercase min-h-20"
+                onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
+                placeholder="OBSERVAÇÕES GERAIS..."
+                rows={3}
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            {/* Botões */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  <X className="w-4 h-4 mr-2" />
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
-                <Save className="w-4 h-4" />
-                {isEditing ? 'Atualizar' : 'Salvar'} Empresa
+              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                <Save className="w-4 h-4 mr-2" />
+                {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
           </form>
