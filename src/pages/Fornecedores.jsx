@@ -333,6 +333,7 @@ export default function Fornecedores() {
                 onClick={() => document.getElementById('import-fornecedores').click()}
                 variant="outline"
                 className="gap-2"
+                disabled={showImportProgress}
               >
                 <Upload className="w-4 h-4" />
                 Importar CSV

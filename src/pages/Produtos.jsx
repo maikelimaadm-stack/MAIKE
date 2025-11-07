@@ -1,12 +1,21 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
+import { format } = from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
@@ -16,6 +25,8 @@ export default function Produtos() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState(null);
   const [fichaProduto, setFichaProduto] = useState(null);
+  const [showImportProgress, setShowImportProgress] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const queryClient = useQueryClient();
 
@@ -135,34 +146,109 @@ export default function Produtos() {
       try {
         const text = e.target.result;
         const lines = text.split('\n');
+        const validRecords = [];
+        let errorCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 1) continue;
+          if (values.length < 1) {
+            errorCount++;
+            continue;
+          }
 
-          const produto = {
-            nome_produto: values[0],
-            codigo_interno: values[1] || undefined,
-            codigo_barras: values[2] || undefined,
-            categoria: values[3] || undefined,
-            descricao: values[4] || undefined,
-            unidade_medida: values[5] || 'UN',
-            preco_custo: parseFloat(values[6]) || 0,
-            preco_venda: parseFloat(values[7]) || 0,
-            estoque_atual: parseFloat(values[8]) || 0,
-            estoque_minimo: parseFloat(values[9]) || 0,
-            observacoes: values[10] || undefined
-          };
-          await base44.entities.Produto.create(produto);
+          try {
+            const produto = {
+              nome_produto: values[0].trim(),
+              codigo_interno: values[1]?.trim() || undefined,
+              codigo_barras: values[2]?.trim() || undefined,
+              categoria: values[3]?.trim() || undefined,
+              descricao: values[4]?.trim() || undefined,
+              unidade_medida: values[5]?.trim() || 'UN',
+              preco_custo: parseFloat(values[6].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
+              preco_venda: parseFloat(values[7].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
+              estoque_atual: parseFloat(values[8].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
+              estoque_minimo: parseFloat(values[9].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
+              observacoes: values[10]?.trim() || undefined
+            };
+
+            if (!produto.nome_produto) {
+              throw new Error("Nome do produto é obrigatório");
+            }
+
+            validRecords.push(produto);
+          } catch (err) {
+            console.error(`Erro na linha ${i + 1}:`, err);
+            errorCount++;
+          }
         }
-        queryClient.invalidateQueries({ queryKey: ['produtos'] });
-        toast.success(`Dados importados com sucesso!`);
+
+        if (validRecords.length === 0) {
+          toast.error('Nenhum registro válido encontrado no arquivo!');
+          return;
+        }
+
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
+
+        const batchSize = 10;
+        let imported = 0;
+
+        for (let i = 0; i < validRecords.length; i += batchSize) {
+          const batch = validRecords.slice(i, i + batchSize);
+          
+          try {
+            // Assuming base44.entities.Produto.bulkCreate exists and handles an array of product objects
+            // If bulkCreate is not available, fall back to individual creates
+            if (base44.entities.Produto.bulkCreate) {
+              await base44.entities.Produto.bulkCreate(batch);
+              imported += batch.length;
+            } else {
+              // Fallback for individual creation if bulkCreate is not implemented
+              for (const record of batch) {
+                try {
+                  await base44.entities.Produto.create(record);
+                  imported++;
+                } catch (e) {
+                  errorCount++;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Erro no lote:', error);
+            // If batch creation fails, try individual records
+            for (const record of batch) {
+              try {
+                await base44.entities.Produto.create(record);
+                imported++;
+              } catch (e) {
+                errorCount++;
+              }
+            }
+          }
+          
+          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        
+        setTimeout(() => {
+          setShowImportProgress(false);
+          if (errorCount > 0) {
+            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          } else {
+            toast.success(`${imported} registros importados com sucesso!`);
+          }
+        }, 1000);
+
       } catch (error) {
+        console.error('Erro ao importar:', error);
+        setShowImportProgress(false);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
     reader.readAsText(file);
+    event.target.value = ''; // Clear file input
   };
 
   const downloadTemplate = () => {
@@ -189,6 +275,10 @@ export default function Produtos() {
     if (!numero && numero !== 0) return "0,00";
     return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
+
+  const progressPercentage = importProgress.total > 0 
+    ? Math.round((importProgress.current / importProgress.total) * 100) 
+    : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -304,6 +394,49 @@ export default function Produtos() {
         open={!!fichaProduto}
         onClose={() => setFichaProduto(null)}
       />
+
+      {/* Modal de Progresso de Importação */}
+      <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+              Importando Produtos
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto importamos os registros...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {importProgress.current} de {importProgress.total}
+                </span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-green-600">
+                {progressPercentage}%
+              </p>
+            </div>
+            
+            {importProgress.errors > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800">
+                  ⚠️ {importProgress.errors} registro(s) com erro
+                </p>
+              </div>
+            )}
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                💡 Dica: Registros são importados em lotes para maior velocidade
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
