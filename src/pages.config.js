@@ -10,6 +10,7 @@ import UnidadesMedida from './pages/UnidadesMedida';
 import Categorias from './pages/Categorias';
 import LocaisEstoque from './pages/LocaisEstoque';
 import Empresa from './pages/Empresa';
+import CustosSafra from './pages/CustosSafra';
 import Layout from './Layout.jsx';
 
 
@@ -26,6 +27,7 @@ export const PAGES = {
     "Categorias": Categorias,
     "LocaisEstoque": LocaisEstoque,
     "Empresa": Empresa,
+    "CustosSafra": CustosSafra,
 }
 
 export const pagesConfig = {
