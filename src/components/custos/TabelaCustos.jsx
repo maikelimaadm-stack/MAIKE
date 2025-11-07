@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -54,7 +55,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
 ];
 
-export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, isLoading }) {
+export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLancarEntrega, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -506,6 +507,15 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, isLoad
                         )}
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onLancarEntrega(custo)}
+                              className="hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                              title="Lançar Entrega"
+                            >
+                              <Truck className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
