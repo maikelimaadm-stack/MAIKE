@@ -3,22 +3,23 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, DollarSign, Package, Users, ChevronRight, Calendar, CheckCircle, Clock, XCircle, Edit, Trash2, Layers } from "lucide-react";
+import { Plus, TrendingUp, DollarSign, Package, Users, ChevronRight, Calendar, CheckCircle, Clock, XCircle, Edit, Trash2, Layers, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import TabelaCustos from "../components/custos/TabelaCustos";
+import FormularioCusto from "../components/custos/FormularioCusto";
 
 export default function CustosSafra() {
   const [showSafraForm, setShowSafraForm] = useState(false);
   const [editingSafra, setEditingSafra] = useState(null);
   const [safraAtiva, setSafraAtiva] = useState(null);
-  const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
   const [showCustoForm, setShowCustoForm] = useState(false);
   const [editingCusto, setEditingCusto] = useState(null);
 
@@ -53,7 +54,7 @@ export default function CustosSafra() {
       const all = await base44.entities.Fornecedor.list();
       return all.filter(f => f.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId, // This was changed from !!empresaSelecionadaId && !!safraAtiva as it's needed for CustoForm when no product is selected yet.
+    enabled: !!empresaSelecionadaId,
   });
 
   // Buscar produtos
@@ -63,7 +64,7 @@ export default function CustosSafra() {
       const all = await base44.entities.Produto.list();
       return all.filter(p => p.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId, // This was changed from !!empresaSelecionadaId && !!fornecedorSelecionado as it's needed for CustoForm when no product is selected yet.
+    enabled: !!empresaSelecionadaId,
   });
 
   const createSafraMutation = useMutation({
@@ -141,30 +142,28 @@ export default function CustosSafra() {
     }
   };
 
-  const handleCustoSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const fornecedor = fornecedores.find(f => f.id === formData.get('fornecedor_id'));
-    const produto = produtos.find(p => p.id === formData.get('produto_id'));
-    const quantidade = parseFloat(formData.get('quantidade'));
-    const valorUnitario = parseFloat(formData.get('valor_unitario'));
+  const handleCustoSubmit = (formData) => {
+    const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
+    const produto = produtos.find(p => p.id === formData.produto_id);
+    const quantidade = parseFloat(formData.quantidade);
+    const valorUnitario = parseFloat(formData.valor_unitario);
 
     const data = {
       empresa_id: empresaSelecionadaId,
       safra_id: safraAtiva.id,
-      fornecedor_id: formData.get('fornecedor_id'),
+      fornecedor_id: formData.fornecedor_id,
       fornecedor_nome: fornecedor?.nome,
-      produto_id: formData.get('produto_id'),
+      produto_id: formData.produto_id,
       produto_nome: produto?.nome_produto,
       quantidade: quantidade,
       unidade_medida: produto?.unidade_medida,
       valor_unitario: valorUnitario,
       valor_total: quantidade * valorUnitario,
-      prazo_entrega: formData.get('prazo_entrega'),
-      data_entrega: formData.get('data_entrega') || undefined,
-      status_entrega: formData.get('status_entrega'),
-      forma_pagamento: formData.get('forma_pagamento')?.toUpperCase(),
-      observacoes: formData.get('observacoes')?.toUpperCase(),
+      prazo_entrega: formData.prazo_entrega || undefined,
+      data_entrega: formData.data_entrega || undefined,
+      status_entrega: formData.status_entrega,
+      forma_pagamento: formData.forma_pagamento,
+      observacoes: formData.observacoes,
     };
 
     if (editingCusto) {
@@ -172,6 +171,17 @@ export default function CustosSafra() {
     } else {
       createCustoMutation.mutate(data);
     }
+  };
+
+  const handleDeleteCusto = async (id, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('Deseja excluir este lançamento?')) {
+      deleteCustoMutation.mutate(id);
+    }
+  };
+
+  const handlePrintCusto = (custo) => {
+    // TODO: Implementar impressão de custo
+    console.log('Imprimir custo:', custo);
   };
 
   const formatarNumero = (numero) => {
@@ -198,7 +208,7 @@ export default function CustosSafra() {
     );
   };
 
-  // Agrupar custos por fornecedor
+  // Agrupar custos por fornecedor (still useful for stats)
   const custosPorFornecedor = custos.reduce((acc, custo) => {
     if (!acc[custo.fornecedor_id]) {
       acc[custo.fornecedor_id] = {
@@ -443,257 +453,7 @@ export default function CustosSafra() {
     );
   }
 
-  // Se tem fornecedor selecionado, mostrar custos do fornecedor
-  if (fornecedorSelecionado) {
-    const custosDoFornecedor = custos.filter(c => c.fornecedor_id === fornecedorSelecionado.fornecedor_id);
-    const totalFornecedor = custosDoFornecedor.reduce((sum, c) => sum + (c.valor_total || 0), 0);
-
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={() => setFornecedorSelecionado(null)} className="hover:bg-slate-100">
-            ← Voltar
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-slate-900">
-              {fornecedorSelecionado.fornecedor_nome}
-            </h1>
-            <p className="text-slate-600">
-              Safra {safraAtiva.ano_inicio}/{safraAtiva.ano_fim}
-            </p>
-          </div>
-          <Button onClick={() => {
-            setEditingCusto(null); // Ensure editingCusto is cleared when adding new
-            setShowCustoForm(true);
-          }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
-            <Plus className="w-5 h-5" />
-            Novo Lançamento
-          </Button>
-        </div>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-600" />
-              Total do Fornecedor
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-green-700">
-              R$ {formatarNumero(totalFornecedor)}
-            </div>
-            <p className="text-sm text-green-600 mt-1">{custosDoFornecedor.length} lançamento(s)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-xl border-slate-200">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
-            <CardTitle>Lançamentos</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {custosDoFornecedor.map((custo) => (
-                <Card key={custo.id} className="border-slate-200 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg text-slate-900 mb-2">{custo.produto_nome}</h3>
-                        <div className="space-y-1 text-sm text-slate-600">
-                          <p>Quantidade: <span className="font-semibold">{formatarNumero(custo.quantidade)} {custo.unidade_medida}</span></p>
-                          <p>Valor Unit.: <span className="font-semibold">R$ {formatarNumero(custo.valor_unitario)}</span></p>
-                          {custo.prazo_entrega && (
-                            <p>Prazo: <span className="font-semibold">{new Date(custo.prazo_entrega).toLocaleDateString('pt-BR')}</span></p>
-                          )}
-                          {custo.forma_pagamento && (
-                            <p>Pagamento: <span className="font-semibold">{custo.forma_pagamento}</span></p>
-                          )}
-                        </div>
-                        {custo.observacoes && (
-                          <p className="text-sm text-slate-500 mt-2 italic">{custo.observacoes}</p>
-                        )}
-                      </div>
-                      <div className="text-right space-y-3 ml-4">
-                        <div className="text-2xl font-bold text-green-700">
-                          R$ {formatarNumero(custo.valor_total)}
-                        </div>
-                        {getStatusBadge(custo.status_entrega)}
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCusto(custo);
-                              setShowCustoForm(true);
-                            }}
-                            className="hover:bg-blue-50 hover:text-blue-700"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              if (window.confirm('Deseja excluir este lançamento?')) {
-                                deleteCustoMutation.mutate(custo.id);
-                              }
-                            }}
-                            className="hover:bg-red-50 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {custosDoFornecedor.length === 0 && (
-                <div className="text-center py-12">
-                  <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-slate-400">Nenhum lançamento para este fornecedor</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Dialog Formulário Custo */}
-        <Dialog open={showCustoForm} onOpenChange={setShowCustoForm}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingCusto ? 'Editar' : 'Novo'} Lançamento</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCustoSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Fornecedor *</Label>
-                <Select
-                  name="fornecedor_id"
-                  defaultValue={editingCusto?.fornecedor_id || fornecedorSelecionado.fornecedor_id}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fornecedores.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Produto *</Label>
-                <Select name="produto_id" defaultValue={editingCusto?.produto_id} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {produtos.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nome_produto}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Quantidade *</Label>
-                  <Input
-                    name="quantidade"
-                    type="number"
-                    step="0.01"
-                    defaultValue={editingCusto?.quantidade}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor Unitário (R$) *</Label>
-                  <Input
-                    name="valor_unitario"
-                    type="number"
-                    step="0.01"
-                    defaultValue={editingCusto?.valor_unitario}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Prazo de Entrega</Label>
-                  <Input
-                    name="prazo_entrega"
-                    type="date"
-                    defaultValue={editingCusto?.prazo_entrega}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data da Entrega</Label>
-                  <Input
-                    name="data_entrega"
-                    type="date"
-                    defaultValue={editingCusto?.data_entrega}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Status Entrega</Label>
-                  <Select name="status_entrega" defaultValue={editingCusto?.status_entrega || 'Pendente'}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pendente">Pendente</SelectItem>
-                      <SelectItem value="Em Trânsito">Em Trânsito</SelectItem>
-                      <SelectItem value="Entregue">Entregue</SelectItem>
-                      <SelectItem value="Cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Forma de Pagamento</Label>
-                  <Input
-                    name="forma_pagamento"
-                    defaultValue={editingCusto?.forma_pagamento}
-                    placeholder="À VISTA, PRAZO, ETC"
-                    className="uppercase"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea
-                  name="observacoes"
-                  defaultValue={editingCusto?.observacoes}
-                  className="uppercase"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => {
-                  setShowCustoForm(false);
-                  setEditingCusto(null);
-                }}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Salvar</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  }
-
-  // Mostrar lista de fornecedores da safra
+  // Mostrar tabela de custos da safra
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
@@ -707,8 +467,7 @@ export default function CustosSafra() {
           <p className="text-slate-600">{safraAtiva.descricao}</p>
         </div>
         <Button onClick={() => {
-          setFornecedorSelecionado({ fornecedor_id: null, fornecedor_nome: 'Novo' });
-          setEditingCusto(null); // Ensure editingCusto is cleared when adding new
+          setEditingCusto(null);
           setShowCustoForm(true);
         }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
           <Plus className="w-5 h-5" />
@@ -716,7 +475,7 @@ export default function CustosSafra() {
         </Button>
       </div>
 
-      {/* Cards de Estatísticas da Safra */}
+      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -752,147 +511,38 @@ export default function CustosSafra() {
         </Card>
       </div>
 
-      {/* Lista de Fornecedores */}
-      <Card className="shadow-xl border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-green-600" />
-            Fornecedores da Safra
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            {Object.values(custosPorFornecedor).map((item) => (
-              <Card
-                key={item.fornecedor_id}
-                className="border-slate-200 hover:shadow-lg hover:border-green-300 cursor-pointer transition-all"
-                onClick={() => setFornecedorSelecionado(item)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
-                        <Users className="w-6 h-6 text-green-700" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-slate-900">{item.fornecedor_nome}</h3>
-                        <p className="text-sm text-slate-600">{item.custos.length} lançamento(s)</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-700">
-                          R$ {formatarNumero(item.total)}
-                        </div>
-                      </div>
-                      <ChevronRight className="w-6 h-6 text-slate-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {Object.keys(custosPorFornecedor).length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <p className="text-lg font-medium text-slate-400">Nenhum lançamento para esta safra</p>
-                <p className="text-sm text-slate-400 mt-2">Clique em "Novo Lançamento" para começar</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabela de Custos */}
+      <TabelaCustos
+        custos={custos}
+        onEdit={(custo) => {
+          setEditingCusto(custo);
+          setShowCustoForm(true);
+        }}
+        onDelete={handleDeleteCusto}
+        onPrint={handlePrintCusto}
+        isLoading={false}
+        formatarNumero={formatarNumero}
+        getStatusBadge={getStatusBadge}
+        fornecedores={fornecedores} // Pass fornecedores for filtering
+      />
 
-      {/* Dialog para criar novo custo */}
-      <Dialog open={showCustoForm} onOpenChange={setShowCustoForm}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Novo Lançamento</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCustoSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Fornecedor *</Label>
-              <Select name="fornecedor_id" required value={fornecedorSelecionado?.fornecedor_id || ''} onValueChange={(value) => setFornecedorSelecionado(fornecedores.find(f => f.id === value) || { fornecedor_id: value, fornecedor_nome: fornecedores.find(f => f.id === value)?.nome })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fornecedores.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Produto *</Label>
-              <Select name="produto_id" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {produtos.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome_produto}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Quantidade *</Label>
-                <Input name="quantidade" type="number" step="0.01" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Valor Unitário (R$) *</Label>
-                <Input name="valor_unitario" type="number" step="0.01" required />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prazo de Entrega</Label>
-                <Input name="prazo_entrega" type="date" />
-              </div>
-              <div className="space-y-2">
-                <Label>Status Entrega</Label>
-                <Select name="status_entrega" defaultValue="Pendente">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Em Trânsito">Em Trânsito</SelectItem>
-                    <SelectItem value="Entregue">Entregue</SelectItem>
-                    <SelectItem value="Cancelado">Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Forma de Pagamento</Label>
-              <Input name="forma_pagamento" placeholder="À VISTA, PRAZO, ETC" className="uppercase" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Observações</Label>
-              <Textarea name="observacoes" className="uppercase" />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => {
-                setShowCustoForm(false);
-                setFornecedorSelecionado(null);
-              }}>
-                Cancelar
-              </Button>
-              <Button type="submit">Salvar</Button>
-            </div>
-          </form>
+      {/* Dialog Formulário Custo */}
+      <Dialog open={showCustoForm} onOpenChange={(open) => {
+        setShowCustoForm(open);
+        if (!open) setEditingCusto(null);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <FormularioCusto
+            onSubmit={handleCustoSubmit}
+            onCancel={() => {
+              setShowCustoForm(false);
+              setEditingCusto(null);
+            }}
+            initialData={editingCusto}
+            isEditing={!!editingCusto}
+            fornecedores={fornecedores}
+            produtos={produtos}
+          />
         </DialogContent>
       </Dialog>
     </div>
