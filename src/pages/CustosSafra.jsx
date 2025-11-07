@@ -1,8 +1,9 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, DollarSign, Package, Users, ChevronRight, Calendar, CheckCircle, Clock, XCircle, Edit, Trash2 } from "lucide-react";
+import { Plus, TrendingUp, DollarSign, Package, Users, ChevronRight, Calendar, CheckCircle, Clock, XCircle, Edit, Trash2, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -52,7 +53,7 @@ export default function CustosSafra() {
       const all = await base44.entities.Fornecedor.list();
       return all.filter(f => f.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId && !!safraAtiva,
+    enabled: !!empresaSelecionadaId, // This was changed from !!empresaSelecionadaId && !!safraAtiva as it's needed for CustoForm when no product is selected yet.
   });
 
   // Buscar produtos
@@ -62,7 +63,7 @@ export default function CustosSafra() {
       const all = await base44.entities.Produto.list();
       return all.filter(p => p.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId && !!fornecedorSelecionado,
+    enabled: !!empresaSelecionadaId, // This was changed from !!empresaSelecionadaId && !!fornecedorSelecionado as it's needed for CustoForm when no product is selected yet.
   });
 
   const createSafraMutation = useMutation({
@@ -180,17 +181,17 @@ export default function CustosSafra() {
 
   const getStatusBadge = (status) => {
     const config = {
-      'Planejamento': { color: 'bg-blue-100 text-blue-800', icon: Clock },
-      'Em Andamento': { color: 'bg-yellow-100 text-yellow-800', icon: TrendingUp },
-      'Finalizada': { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-      'Pendente': { color: 'bg-orange-100 text-orange-800', icon: Clock },
-      'Em Trânsito': { color: 'bg-blue-100 text-blue-800', icon: TrendingUp },
-      'Entregue': { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-      'Cancelado': { color: 'bg-red-100 text-red-800', icon: XCircle },
+      'Planejamento': { color: 'bg-blue-100 text-blue-800 border-blue-300', icon: Clock },
+      'Em Andamento': { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: TrendingUp },
+      'Finalizada': { color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle },
+      'Pendente': { color: 'bg-orange-100 text-orange-800 border-orange-300', icon: Clock },
+      'Em Trânsito': { color: 'bg-blue-100 text-blue-800 border-blue-300', icon: TrendingUp },
+      'Entregue': { color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle },
+      'Cancelado': { color: 'bg-red-100 text-red-800 border-red-300', icon: XCircle },
     };
     const { color, icon: Icon } = config[status] || config['Pendente'];
     return (
-      <Badge className={`${color} flex items-center gap-1`}>
+      <Badge className={`${color} flex items-center gap-1 border`}>
         <Icon className="w-3 h-3" />
         {status}
       </Badge>
@@ -214,21 +215,77 @@ export default function CustosSafra() {
 
   const totalGeralSafra = Object.values(custosPorFornecedor).reduce((sum, f) => sum + f.total, 0);
 
+  // Estatísticas gerais
+  const totalSafras = safras.length;
+  const safrasAtivas = safras.filter(s => s.status === 'Em Andamento').length;
+  const safrasFinalizadas = safras.filter(s => s.status === 'Finalizada').length;
+
   // Se não tem safra ativa, mostrar lista de safras
   if (!safraAtiva) {
     return (
       <div className="p-6 space-y-6">
+        {/* Cards de Estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Total de Safras</CardTitle>
+              <Layers className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-900">{totalSafras}</div>
+              <p className="text-xs text-green-600 mt-1">Safras cadastradas</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-yellow-50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Em Andamento</CardTitle>
+              <TrendingUp className="h-5 w-5 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-yellow-900">{safrasAtivas}</div>
+              <p className="text-xs text-yellow-600 mt-1">Safras ativas</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Finalizadas</CardTitle>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-900">{safrasFinalizadas}</div>
+              <p className="text-xs text-green-600 mt-1">Safras concluídas</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Planejamento</CardTitle>
+              <Clock className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-900">
+                {safras.filter(s => s.status === 'Planejamento').length}
+              </div>
+              <p className="text-xs text-blue-600 mt-1">Em planejamento</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Botão e Título */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Custos de Safra</h1>
-            <p className="text-slate-600">Gerencie os custos por safra</p>
+            <h1 className="text-2xl font-bold text-slate-900">Gerenciar Safras</h1>
+            <p className="text-slate-600">Selecione uma safra para visualizar e gerenciar custos</p>
           </div>
-          <Button onClick={() => setShowSafraForm(true)} className="bg-green-600 hover:bg-green-700 gap-2">
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => setShowSafraForm(true)} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
+            <Plus className="w-5 h-5" />
             Nova Safra
           </Button>
         </div>
 
+        {/* Grid de Safras */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {safras.map((safra) => (
@@ -238,12 +295,17 @@ export default function CustosSafra() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-green-200">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">
-                        {safra.ano_inicio}/{safra.ano_fim}
-                      </CardTitle>
+                <Card className="hover:shadow-xl transition-all cursor-pointer border-slate-200 bg-white h-full">
+                  <CardHeader className="pb-3 bg-gradient-to-r from-slate-50 to-green-50">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <CardTitle className="text-xl font-bold text-slate-900">
+                          {safra.ano_inicio}/{safra.ano_fim}
+                        </CardTitle>
+                      </div>
                       <div className="flex gap-1">
                         <Button
                           size="icon"
@@ -253,6 +315,7 @@ export default function CustosSafra() {
                             setEditingSafra(safra);
                             setShowSafraForm(true);
                           }}
+                          className="hover:bg-blue-50 hover:text-blue-700"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -265,6 +328,7 @@ export default function CustosSafra() {
                               deleteSafraMutation.mutate(safra.id);
                             }
                           }}
+                          className="hover:bg-red-50 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -272,14 +336,14 @@ export default function CustosSafra() {
                     </div>
                     {getStatusBadge(safra.status)}
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-4">
                     {safra.descricao && (
-                      <p className="text-sm text-slate-600 mb-3">{safra.descricao}</p>
+                      <p className="text-sm text-slate-600 mb-4 line-clamp-2">{safra.descricao}</p>
                     )}
                     <Button
                       onClick={() => setSafraAtiva(safra)}
                       variant="outline"
-                      className="w-full gap-2"
+                      className="w-full gap-2 border-green-300 text-green-700 hover:bg-green-50"
                     >
                       Ver Custos
                       <ChevronRight className="w-4 h-4" />
@@ -289,13 +353,24 @@ export default function CustosSafra() {
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {safras.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <Layers className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <p className="text-lg font-medium text-slate-400">Nenhuma safra cadastrada</p>
+              <p className="text-sm text-slate-400 mt-2">Clique em "Nova Safra" para começar</p>
+            </div>
+          )}
         </div>
 
         {/* Dialog Formulário Safra */}
         <Dialog open={showSafraForm} onOpenChange={setShowSafraForm}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingSafra ? 'Editar' : 'Nova'} Safra</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-green-600" />
+                {editingSafra ? 'Editar' : 'Nova'} Safra
+              </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSafraSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -307,6 +382,7 @@ export default function CustosSafra() {
                     defaultValue={editingSafra?.ano_inicio}
                     required
                     placeholder="2025"
+                    className="border-slate-300 focus:border-green-500"
                   />
                 </div>
                 <div className="space-y-2">
@@ -317,6 +393,7 @@ export default function CustosSafra() {
                     defaultValue={editingSafra?.ano_fim}
                     required
                     placeholder="2026"
+                    className="border-slate-300 focus:border-green-500"
                   />
                 </div>
               </div>
@@ -326,13 +403,13 @@ export default function CustosSafra() {
                   name="descricao"
                   defaultValue={editingSafra?.descricao}
                   placeholder="SAFRA DE SOJA"
-                  className="uppercase"
+                  className="uppercase border-slate-300 focus:border-green-500"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select name="status" defaultValue={editingSafra?.status || 'Planejamento'}>
-                  <SelectTrigger>
+                  <SelectTrigger className="border-slate-300 focus:border-green-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -347,7 +424,7 @@ export default function CustosSafra() {
                 <Textarea
                   name="observacoes"
                   defaultValue={editingSafra?.observacoes}
-                  className="uppercase"
+                  className="uppercase border-slate-300 focus:border-green-500"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -357,7 +434,7 @@ export default function CustosSafra() {
                 }}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" className="bg-green-600 hover:bg-green-700">Salvar</Button>
               </div>
             </form>
           </DialogContent>
@@ -374,7 +451,7 @@ export default function CustosSafra() {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={() => setFornecedorSelecionado(null)}>
+          <Button variant="ghost" onClick={() => setFornecedorSelecionado(null)} className="hover:bg-slate-100">
             ← Voltar
           </Button>
           <div className="flex-1">
@@ -385,85 +462,96 @@ export default function CustosSafra() {
               Safra {safraAtiva.ano_inicio}/{safraAtiva.ano_fim}
             </p>
           </div>
-          <Button onClick={() => setShowCustoForm(true)} className="bg-green-600 hover:bg-green-700 gap-2">
-            <Plus className="w-4 h-4" />
+          <Button onClick={() => {
+            setEditingCusto(null); // Ensure editingCusto is cleared when adding new
+            setShowCustoForm(true);
+          }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
+            <Plus className="w-5 h-5" />
             Novo Lançamento
           </Button>
         </div>
 
-        <Card>
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader>
-            <CardTitle>Total do Fornecedor</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-600" />
+              Total do Fornecedor
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-700">
+            <div className="text-4xl font-bold text-green-700">
               R$ {formatarNumero(totalFornecedor)}
             </div>
+            <p className="text-sm text-green-600 mt-1">{custosDoFornecedor.length} lançamento(s)</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="shadow-xl border-slate-200">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
             <CardTitle>Lançamentos</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <div className="space-y-4">
               {custosDoFornecedor.map((custo) => (
-                <div key={custo.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg">{custo.produto_nome}</h3>
-                      <p className="text-sm text-slate-600">
-                        Quantidade: {formatarNumero(custo.quantidade)} {custo.unidade_medida}
-                      </p>
-                      <p className="text-sm text-slate-600">
-                        Valor Unit.: R$ {formatarNumero(custo.valor_unitario)}
-                      </p>
-                      {custo.prazo_entrega && (
-                        <p className="text-sm text-slate-600">
-                          Prazo: {new Date(custo.prazo_entrega).toLocaleDateString('pt-BR')}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right space-y-2">
-                      <div className="text-xl font-bold text-green-700">
-                        R$ {formatarNumero(custo.valor_total)}
+                <Card key={custo.id} className="border-slate-200 hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg text-slate-900 mb-2">{custo.produto_nome}</h3>
+                        <div className="space-y-1 text-sm text-slate-600">
+                          <p>Quantidade: <span className="font-semibold">{formatarNumero(custo.quantidade)} {custo.unidade_medida}</span></p>
+                          <p>Valor Unit.: <span className="font-semibold">R$ {formatarNumero(custo.valor_unitario)}</span></p>
+                          {custo.prazo_entrega && (
+                            <p>Prazo: <span className="font-semibold">{new Date(custo.prazo_entrega).toLocaleDateString('pt-BR')}</span></p>
+                          )}
+                          {custo.forma_pagamento && (
+                            <p>Pagamento: <span className="font-semibold">{custo.forma_pagamento}</span></p>
+                          )}
+                        </div>
+                        {custo.observacoes && (
+                          <p className="text-sm text-slate-500 mt-2 italic">{custo.observacoes}</p>
+                        )}
                       </div>
-                      {getStatusBadge(custo.status_entrega)}
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingCusto(custo);
-                            setShowCustoForm(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            if (window.confirm('Deseja excluir este lançamento?')) {
-                              deleteCustoMutation.mutate(custo.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <div className="text-right space-y-3 ml-4">
+                        <div className="text-2xl font-bold text-green-700">
+                          R$ {formatarNumero(custo.valor_total)}
+                        </div>
+                        {getStatusBadge(custo.status_entrega)}
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingCusto(custo);
+                              setShowCustoForm(true);
+                            }}
+                            className="hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              if (window.confirm('Deseja excluir este lançamento?')) {
+                                deleteCustoMutation.mutate(custo.id);
+                              }
+                            }}
+                            className="hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {custo.observacoes && (
-                    <p className="text-sm text-slate-500 mt-2">{custo.observacoes}</p>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               ))}
               {custosDoFornecedor.length === 0 && (
-                <p className="text-center text-slate-400 py-8">
-                  Nenhum lançamento para este fornecedor
-                </p>
+                <div className="text-center py-12">
+                  <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-slate-400">Nenhum lançamento para este fornecedor</p>
+                </div>
               )}
             </div>
           </CardContent>
@@ -609,7 +697,7 @@ export default function CustosSafra() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={() => setSafraAtiva(null)}>
+        <Button variant="ghost" onClick={() => setSafraAtiva(null)} className="hover:bg-slate-100">
           ← Voltar
         </Button>
         <div className="flex-1">
@@ -620,78 +708,95 @@ export default function CustosSafra() {
         </div>
         <Button onClick={() => {
           setFornecedorSelecionado({ fornecedor_id: null, fornecedor_nome: 'Novo' });
+          setEditingCusto(null); // Ensure editingCusto is cleared when adding new
           setShowCustoForm(true);
-        }} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Plus className="w-4 h-4" />
+        }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
+          <Plus className="w-5 h-5" />
           Novo Lançamento
         </Button>
       </div>
 
+      {/* Cards de Estatísticas da Safra */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-600">Total da Safra</CardTitle>
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Total da Safra</CardTitle>
+            <DollarSign className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">
-              R$ {formatarNumero(totalGeralSafra)}
-            </div>
+            <div className="text-3xl font-bold text-green-900">R$ {formatarNumero(totalGeralSafra)}</div>
+            <p className="text-xs text-green-600 mt-1">Valor total investido</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-600">Fornecedores</CardTitle>
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Fornecedores</CardTitle>
+            <Users className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700">
-              {Object.keys(custosPorFornecedor).length}
-            </div>
+            <div className="text-3xl font-bold text-blue-900">{Object.keys(custosPorFornecedor).length}</div>
+            <p className="text-xs text-blue-600 mt-1">Fornecedores ativos</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-600">Lançamentos</CardTitle>
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Lançamentos</CardTitle>
+            <Package className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-700">
-              {custos.length}
-            </div>
+            <div className="text-3xl font-bold text-purple-900">{custos.length}</div>
+            <p className="text-xs text-purple-600 mt-1">Custos registrados</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fornecedores</CardTitle>
+      {/* Lista de Fornecedores */}
+      <Card className="shadow-xl border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-green-600" />
+            Fornecedores da Safra
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="space-y-3">
             {Object.values(custosPorFornecedor).map((item) => (
-              <div
+              <Card
                 key={item.fornecedor_id}
-                className="border rounded-lg p-4 hover:bg-slate-50 cursor-pointer transition-colors"
+                className="border-slate-200 hover:shadow-lg hover:border-green-300 cursor-pointer transition-all"
                 onClick={() => setFornecedorSelecionado(item)}
               >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-lg">{item.fornecedor_nome}</h3>
-                    <p className="text-sm text-slate-600">{item.custos.length} lançamento(s)</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-green-700">
-                      R$ {formatarNumero(item.total)}
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
+                        <Users className="w-6 h-6 text-green-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-slate-900">{item.fornecedor_nome}</h3>
+                        <p className="text-sm text-slate-600">{item.custos.length} lançamento(s)</p>
+                      </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-400 ml-auto" />
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-green-700">
+                          R$ {formatarNumero(item.total)}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-6 h-6 text-slate-400" />
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
             {Object.keys(custosPorFornecedor).length === 0 && (
-              <p className="text-center text-slate-400 py-8">
-                Nenhum lançamento para esta safra
-              </p>
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <p className="text-lg font-medium text-slate-400">Nenhum lançamento para esta safra</p>
+                <p className="text-sm text-slate-400 mt-2">Clique em "Novo Lançamento" para começar</p>
+              </div>
             )}
           </div>
         </CardContent>
@@ -706,7 +811,7 @@ export default function CustosSafra() {
           <form onSubmit={handleCustoSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Fornecedor *</Label>
-              <Select name="fornecedor_id" required>
+              <Select name="fornecedor_id" required value={fornecedorSelecionado?.fornecedor_id || ''} onValueChange={(value) => setFornecedorSelecionado(fornecedores.find(f => f.id === value) || { fornecedor_id: value, fornecedor_nome: fornecedores.find(f => f.id === value)?.nome })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o fornecedor" />
                 </SelectTrigger>
