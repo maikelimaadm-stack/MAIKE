@@ -447,8 +447,8 @@ export default function RelatorioProdutos() {
         
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
-          <div className="border-b-2 border-black pb-2 mb-3">
-            <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="border-b-2 border-black pb-1 mb-2">
+            <div className="flex items-center justify-between gap-3 mb-1">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
@@ -481,7 +481,7 @@ export default function RelatorioProdutos() {
             </div>
             
             {/* Título do Relatório */}
-            <div className="mt-2">
+            <div className="mt-1">
               <h2 className="text-base font-bold">Lista de Produtos</h2>
             </div>
           </div>
