@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -16,6 +16,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
 
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
@@ -73,6 +81,9 @@ export default function Dashboard() {
   const [ticketPesagem, setTicketPesagem] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -256,19 +267,15 @@ export default function Dashboard() {
           return;
         }
 
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
-
-        let proximoNumero = await getNextSystemNumber();
+        let currentNextSystemNumber = await getNextSystemNumber(); // Get the starting number for the import batch
         
         const validRecords = [];
-        let errorCount = 0;
+        const errors = [];
 
-        for (let i = 1; i < lines.length; i++) {
+        for (let i = 1; i < lines.length; i++) { // Start from 1 to skip header
           const values = lines[i].split(';');
           
-          // Índices do CSV com numeração: Número Registro, Data, Tipo, Placa, etc
-          const numeroRegistroIndex = 0; // NOVO: Índice para número do registro
+          const numeroRegistroIndex = 0;
           const dataIndex = 1;
           const tipoIndex = 2;
           const placaIndex = 3;
@@ -280,26 +287,60 @@ export default function Dashboard() {
           const pesoLiquidoIndex = 9;
           const observacoesIndex = 10;
 
-          if (values.length < 10) { // Changed from 9 to 10 for the new column
-            errorCount++;
-            console.error(`Linha ${i + 1}: Colunas insuficientes`);
+          const errosLinha = [];
+
+          if (values.length < 10) { // Minimum 10 columns (from "Número Registro" to "Peso Líquido (kg)")
+            errors.push({
+              linha: i + 1,
+              erro: 'Número insuficiente de colunas (mínimo 10 colunas: "Número Registro" a "Peso Líquido (kg)")',
+              dados: values.join(';')
+            });
             continue;
           }
 
           try {
+            // Validar campos obrigatórios
             const dataFormatada = parseDateBR(values[dataIndex]?.trim());
-            const pesoTara = parseDecimalBR(values[pesoTaraIndex]);
-            const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
-            const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
+            if (!dataFormatada) {
+              errosLinha.push('Data inválida ou ausente (formato DD/MM/AAAA)');
+            }
 
-            // USAR O NÚMERO DO CSV SE FORNECIDO, SENÃO GERAR AUTOMATICAMENTE
+            const tipoValue = values[tipoIndex]?.trim();
+            if (!tipoValue || !['Entrada', 'Saída', 'Ambos'].includes(tipoValue)) {
+              errosLinha.push('Tipo de pesagem inválido ou ausente (deve ser: Entrada, Saída ou Ambos)');
+            }
+
+            const pesoTara = parseDecimalBR(values[pesoTaraIndex]);
+            if (isNaN(pesoTara)) {
+              errosLinha.push('Peso Tara inválido');
+            }
+
+            const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
+            if (isNaN(pesoBruto)) {
+              errosLinha.push('Peso Bruto inválido');
+            }
+
+            const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
+            if (isNaN(pesoLiquido)) {
+              errosLinha.push('Peso Líquido inválido');
+            }
+
+            if (errosLinha.length > 0) {
+              errors.push({
+                linha: i + 1,
+                erro: errosLinha.join(', '),
+                dados: values.join(';')
+              });
+              continue;
+            }
+
             const numeroFornecido = values[numeroRegistroIndex]?.trim();
-            const numeroRegistro = numeroFornecido && numeroFornecido !== '' ? numeroFornecido : String(proximoNumero);
+            const numeroRegistro = numeroFornecido && numeroFornecido !== '' ? numeroFornecido : String(currentNextSystemNumber);
 
             const pesagem = {
               numero_registro: numeroRegistro,
               data_pesagem: dataFormatada,
-              tipo_pesagem: values[tipoIndex]?.trim() || undefined,
+              tipo_pesagem: tipoValue,
               placa_caminhao: values[placaIndex]?.trim()?.toUpperCase() || undefined,
               nome_motorista: values[motoristaIndex]?.trim()?.toUpperCase() || undefined,
               produto: values[produtoIndex]?.trim()?.toUpperCase() || undefined,
@@ -310,64 +351,88 @@ export default function Dashboard() {
               observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined
             };
 
-            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || isNaN(pesagem.peso_tara) || isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
-              throw new Error("Dados obrigatórios ausentes");
-            }
-            
             validRecords.push(pesagem);
             
-            // Só incrementar se não foi fornecido número no CSV
             if (!numeroFornecido || numeroFornecido === '') {
-              proximoNumero++;
+              currentNextSystemNumber++; // Increment only if we assigned a new number
             }
           } catch (err) {
-            console.error(`Erro linha ${i + 1}:`, err.message);
-            errorCount++;
+            errors.push({
+              linha: i + 1,
+              erro: err.message || 'Erro desconhecido',
+              dados: values.join(';')
+            });
           }
         }
 
-        if (validRecords.length === 0) {
-          setShowImportProgress(false);
-          toast.error('Nenhum registro válido encontrado!');
+        // Se houver erros, mostrar diálogo
+        if (errors.length > 0) {
+          setImportErrors(errors);
+          setValidRecordsToImport(validRecords);
+          setShowErrorDialog(true);
           return;
         }
 
-        let imported = 0;
-        let actualErrors = errorCount;
-
-        for (const record of validRecords) {
-          try {
-            await base44.entities.Pesagem.create(record);
-            imported++;
-            setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
-          } catch (error) {
-            console.error(`Erro ao criar registro:`, error);
-            actualErrors++;
-            setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
-          }
+        // Se não houver erros, importar diretamente
+        if (validRecords.length === 0) {
+          toast.error('Nenhum registro válido encontrado para importação!');
+          return;
         }
-        
-        await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-        
-        setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
 
-        setTimeout(() => {
-          setShowImportProgress(false);
-          if (actualErrors > 0) {
-            toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
-          } else {
-            toast.success(`${imported} registros importados com sucesso!`);
-          }
-        }, 1000);
+        await executarImportacao(validRecords);
 
       } catch (error) {
         console.error('Erro geral ao importar:', error);
-        setShowImportProgress(false);
-        toast.error('Erro ao importar. Verifique o arquivo.');
+        toast.error('Erro ao processar arquivo. Verifique o formato.');
       }
     };
     reader.readAsText(file, 'UTF-8');
     event.target.value = '';
+  };
+
+  const executarImportacao = async (validRecords) => {
+    setShowImportProgress(true);
+    setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
+
+    let imported = 0;
+    let actualErrors = 0;
+
+    for (const record of validRecords) {
+      try {
+        await base44.entities.Pesagem.create(record);
+        imported++;
+        setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
+      } catch (error) {
+        console.error(`Erro ao criar registro:`, error);
+        actualErrors++;
+        setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
+      }
+    }
+    
+    await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
+    
+    setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
+
+    setTimeout(() => {
+      setShowImportProgress(false);
+      if (actualErrors > 0) {
+        toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
+      } else {
+        toast.success(`${imported} registros importados com sucesso!`);
+      }
+    }, 1000);
+  };
+
+  const confirmarImportacaoComErros = async () => {
+    setShowErrorDialog(false);
+    await executarImportacao(validRecordsToImport);
+  };
+
+  const cancelarImportacao = () => {
+    setShowErrorDialog(false);
+    setImportErrors([]);
+    setValidRecordsToImport([]);
+    toast.info('Importação cancelada. Corrija os erros e tente novamente.');
   };
 
   const downloadTemplate = () => {
@@ -376,7 +441,7 @@ export default function Dashboard() {
     csvRows.push(headers.join(';'));
     
     const example = [
-      '000001', // Número do Registro
+      '', // Número Registro (deixe em branco para gerar automaticamente, ou preencha se quiser um número específico)
       '04/11/2025',
       'Entrada',
       'ABC1234',
@@ -545,6 +610,80 @@ export default function Dashboard() {
         open={!!ticketPesagem}
         onClose={() => setTicketPesagem(null)}
       />
+
+      {/* Modal de Erros de Validação */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700">
+              <AlertCircle className="w-6 h-6" />
+              Erros Encontrados na Importação
+            </DialogTitle>
+            <DialogDescription>
+              Foram encontrados {importErrors.length} erro(s) no arquivo. 
+              {validRecordsToImport.length > 0 && ` ${validRecordsToImport.length} registro(s) estão válidos e podem ser importados.`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10">
+                <TableRow>
+                  <TableHead className="w-20">Linha</TableHead>
+                  <TableHead>Erro</TableHead>
+                  <TableHead>Dados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importErrors.map((erro, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-bold text-orange-700">
+                      {erro.linha}
+                    </TableCell>
+                    <TableCell className="text-red-600">
+                      {erro.erro}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-slate-600">
+                      {erro.dados}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4 border-t">
+            {validRecordsToImport.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>{validRecordsToImport.length} registro(s) válido(s)</strong> podem ser importados mesmo com os erros acima.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-3">
+              <Button 
+                variant="outline" 
+                onClick={cancelarImportacao}
+                className="gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancelar e Corrigir
+              </Button>
+              
+              {validRecordsToImport.length > 0 && (
+                <Button 
+                  onClick={confirmarImportacaoComErros}
+                  className="bg-orange-600 hover:bg-orange-700 gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Importar {validRecordsToImport.length} Válido(s)
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Progresso de Importação */}
       <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
