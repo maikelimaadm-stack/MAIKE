@@ -39,18 +39,20 @@ async function getNextSystemNumber() {
     ]);
 
     const numeros = [
-      ...pesagens.map(p => parseInt(p.numero_registro, 10)).filter(n => !isNaN(n)),
-      ...fornecedores.map(f => parseInt(f.numero_cadastro, 10)).filter(n => !isNaN(n)),
-      ...produtos.map(p => parseInt(p.numero_produto, 10)).filter(n => !isNaN(n))
+      ...pesagens.map(p => parseInt(p.numero_registro, 10)).filter(n => !isNaN(n) && n > 0 && n < 1000000000),
+      ...fornecedores.map(f => parseInt(f.numero_cadastro, 10)).filter(n => !isNaN(n) && n > 0 && n < 1000000000),
+      ...produtos.map(p => parseInt(p.numero_produto, 10)).filter(n => !isNaN(n) && n > 0 && n < 1000000000)
     ];
 
     const positiveNumbers = numeros.filter(n => n > 0);
-
-    return positiveNumbers.length > 0 ? Math.max(...positiveNumbers) + 1 : 1;
+    const nextNumber = positiveNumbers.length > 0 ? Math.max(...positiveNumbers) + 1 : 1;
+    
+    console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', positiveNumbers.length, 'registros)');
+    return nextNumber;
   } catch (error) {
-    console.error("Erro ao buscar números existentes:", error);
-    // Fallback: If cannot fetch, return a timestamp for uniqueness, though not sequential
-    return Date.now(); 
+    console.error("❌ Erro ao buscar números existentes:", error);
+    // Em caso de erro, retornar 1 ao invés de timestamp
+    return 1;
   }
 }
 

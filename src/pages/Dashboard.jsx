@@ -49,29 +49,32 @@ const getNextSystemNumber = async () => {
 
     pesagens.forEach(p => {
       const num = parseInt(p.numero_registro, 10);
-      if (!isNaN(num) && num > 0) {
+      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
         allNumbers.push(num);
       }
     });
 
     fornecedores.forEach(f => {
       const num = parseInt(f.numero_cadastro, 10);
-      if (!isNaN(num) && num > 0) {
+      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
         allNumbers.push(num);
       }
     });
 
     produtos.forEach(p => {
       const num = parseInt(p.numero_produto, 10);
-      if (!isNaN(num) && num > 0) {
+      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
         allNumbers.push(num);
       }
     });
 
-    return allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
+    const nextNumber = allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
+    console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', allNumbers.length, 'registros)');
+    return nextNumber;
   } catch (error) {
-    console.error('Erro ao obter próximo número sequencial:', error);
-    return Date.now(); // Fallback to a unique timestamp
+    console.error('❌ Erro ao obter próximo número sequencial:', error);
+    // Em caso de erro, retornar 1 ao invés de timestamp
+    return 1;
   }
 };
 

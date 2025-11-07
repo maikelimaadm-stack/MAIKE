@@ -43,13 +43,15 @@ const getNextSystemNumber = async () => {
       ...pesagens.map(p => parseInt(p.numero_registro) || 0),
       ...fornecedores.map(f => parseInt(f.numero_cadastro) || 0),
       ...produtos.map(p => parseInt(p.numero_produto) || 0)
-    ].filter(n => n > 0);
+    ].filter(n => n > 0 && n < 1000000000); // Filtrar timestamps acidentais
 
-    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+    const nextNumber = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+    console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', numeros.length, 'registros)');
+    return nextNumber;
   } catch (error) {
-    console.error('Erro ao obter próximo número:', error);
-    // Fallback in case of error, providing a unique number but not necessarily sequential
-    return Date.now(); 
+    console.error('❌ Erro ao obter próximo número:', error);
+    // Em caso de erro, retornar 1 ao invés de timestamp
+    return 1;
   }
 };
 
