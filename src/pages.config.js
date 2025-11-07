@@ -11,6 +11,8 @@ import Categorias from './pages/Categorias';
 import LocaisEstoque from './pages/LocaisEstoque';
 import Empresa from './pages/Empresa';
 import CustosSafra from './pages/CustosSafra';
+import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
+import RelatorioEstoque from './pages/RelatorioEstoque';
 import Layout from './Layout.jsx';
 
 
@@ -28,6 +30,8 @@ export const PAGES = {
     "LocaisEstoque": LocaisEstoque,
     "Empresa": Empresa,
     "CustosSafra": CustosSafra,
+    "RelatorioCustosSafra": RelatorioCustosSafra,
+    "RelatorioEstoque": RelatorioEstoque,
 }
 
 export const pagesConfig = {

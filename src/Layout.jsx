@@ -88,6 +88,14 @@ const navigationItems = [
         url: createPageUrl("RelatorioPesagens"),
       },
       {
+        title: "Relatório de Custos Safra",
+        url: createPageUrl("RelatorioCustosSafra"),
+      },
+      {
+        title: "Relatório de Estoque",
+        url: createPageUrl("RelatorioEstoque"),
+      },
+      {
         title: "Lista de Fornecedores",
         url: createPageUrl("RelatorioFornecedores"),
       },
