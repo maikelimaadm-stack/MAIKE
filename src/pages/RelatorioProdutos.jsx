@@ -441,33 +441,33 @@ export default function RelatorioProdutos() {
         
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho Novo Formato */}
-          <div className="border-b-2 border-black pb-4 mb-6">
-            <div className="flex items-start gap-4">
+          <div className="border-b-2 border-black pb-2 mb-3">
+            <div className="flex items-start gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
                   alt={empresaAtual.apelido}
-                  className="h-24 w-24 object-contain"
+                  className="h-16 w-16 object-contain"
                 />
               ) : (
                 <img 
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
                   alt="Logo"
-                  className="h-24 w-24 object-contain"
+                  className="h-16 w-16 object-contain"
                 />
               )}
               <div className="flex-1">
-                <h1 className="text-xl font-bold">{empresaAtual?.nome || 'Empresa'}</h1>
+                <h1 className="text-base font-bold leading-tight">{empresaAtual?.nome || 'Empresa'}</h1>
                 {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
-                  <p className="text-sm">{empresaAtual.apelido}</p>
+                  <p className="text-xs leading-tight">{empresaAtual.apelido}</p>
                 )}
                 {empresaAtual?.endereco && (
-                  <p className="text-sm">
+                  <p className="text-xs leading-tight">
                     {empresaAtual.endereco}
                     {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
                   </p>
                 )}
-                <p className="text-sm">
+                <p className="text-xs leading-tight">
                   {empresaAtual?.telefone && `Telefone: ${empresaAtual.telefone}`}
                   {empresaAtual?.email && ` E-mail: ${empresaAtual.email}`}
                 </p>
@@ -475,44 +475,44 @@ export default function RelatorioProdutos() {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-xl font-bold">Lista de Produtos</h2>
+          <div className="mb-3">
+            <h2 className="text-base font-bold">Lista de Produtos</h2>
           </div>
 
           <Table>
             <TableHeader>
               <TableRow className="border-black">
-                {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold">Nome</TableHead>}
-                {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold">Código</TableHead>}
-                {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold">Cód. Barras</TableHead>}
-                {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold">Categoria</TableHead>}
-                {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold">UN</TableHead>}
-                {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right">Custo</TableHead>}
-                {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right">Venda</TableHead>}
-                {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right">Estoque</TableHead>}
-                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right">Est. Mínimo</TableHead>}
+                {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome</TableHead>}
+                {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
+                {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold py-1">Cód. Barras</TableHead>}
+                {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
+                {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
+                {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo</TableHead>}
+                {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right py-1">Venda</TableHead>}
+                {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
+                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right py-1">Est. Mínimo</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {produtosFiltrados.map((p) => (
                 <TableRow key={p.id}>
-                  {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs">{p.nome_produto}</TableCell>}
-                  {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs">{p.codigo_interno || '-'}</TableCell>}
-                  {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs">{p.codigo_barras || '-'}</TableCell>}
-                  {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs">{p.categoria || '-'}</TableCell>}
-                  {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs">{p.unidade_medida}</TableCell>}
-                  {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
-                  {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
-                  {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
-                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
+                  {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
+                  {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
+                  {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_barras || '-'}</TableCell>}
+                  {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
+                  {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
+                  {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
+                  {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
+                  {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
+                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
                 </TableRow>
               ))}
               <TableRow className="bg-gray-100 font-bold">
-                <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('preco_custo') ? 1 : 0)} className="border border-black text-xs">
+                <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('preco_custo') ? 1 : 0)} className="border border-black text-xs py-1">
                   TOTAL: {produtosFiltrados.length} produtos
                 </TableCell>
                 {colunasVisiveis.includes('preco_custo') && (
-                  <TableCell colSpan={colunasVisiveis.includes('preco_venda') || colunasVisiveis.includes('estoque') || colunasVisiveis.includes('estoque_min') ? 1 : undefined} className="border border-black text-xs text-right">
+                  <TableCell colSpan={colunasVisiveis.includes('preco_venda') || colunasVisiveis.includes('estoque') || colunasVisiveis.includes('estoque_min') ? 1 : undefined} className="border border-black text-xs text-right py-1">
                     Valor Estoque: R$ {formatarNumero(valorTotalEstoque)}
                   </TableCell>
                 )}
@@ -521,7 +521,7 @@ export default function RelatorioProdutos() {
           </Table>
 
           {/* Rodapé */}
-          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
+          <div className="mt-6 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
             <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           </div>
         </div>

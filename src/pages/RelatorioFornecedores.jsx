@@ -411,7 +411,7 @@ export default function RelatorioFornecedores() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 1.5cm 1cm 2cm 1cm; /* Adjust margins for better printing */
+              margin: 1.5cm 1cm 2cm 1cm;
             }
             body * {
               visibility: hidden;
@@ -429,37 +429,34 @@ export default function RelatorioFornecedores() {
         `}} />
         
         <div className="print-area p-8 print:p-0">
-          {/* Cabeçalho com dados da empresa */}
-          <div className="border-b-2 border-black pb-4 mb-6">
-            <div className="flex items-start gap-4">
+          {/* Cabeçalho Novo Formato */}
+          <div className="border-b-2 border-black pb-2 mb-3">
+            <div className="flex items-start gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
                   alt={empresaAtual.apelido || "Logo da Empresa"}
-                  className="h-24 w-24 object-contain"
+                  className="h-16 w-16 object-contain"
                 />
               ) : (
                 <img 
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
                   alt="Logo Padrão"
-                  className="h-24 w-24 object-contain"
+                  className="h-16 w-16 object-contain"
                 />
               )}
               <div className="flex-1">
-                <h1 className="text-xl font-bold">{empresaAtual?.nome || 'Empresa'}</h1>
+                <h1 className="text-base font-bold leading-tight">{empresaAtual?.nome || 'Empresa'}</h1>
                 {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
-                  <p className="text-sm">{empresaAtual.apelido}</p>
+                  <p className="text-xs leading-tight">{empresaAtual.apelido}</p>
                 )}
                 {empresaAtual?.endereco && (
-                  <p className="text-sm">
-                    {empresaAtual.logradouro || ''}
-                    {empresaAtual.numero ? `, ${empresaAtual.numero}` : ''}
-                    {empresaAtual.complemento ? ` - ${empresaAtual.complemento}` : ''}
-                    {empresaAtual.bairro ? ` - ${empresaAtual.bairro}` : ''}
+                  <p className="text-xs leading-tight">
+                    {empresaAtual.endereco}
                     {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
                   </p>
                 )}
-                <p className="text-sm">
+                <p className="text-xs leading-tight">
                   {empresaAtual?.telefone && `Telefone: ${empresaAtual.telefone}`}
                   {empresaAtual?.email && ` E-mail: ${empresaAtual.email}`}
                 </p>
@@ -467,47 +464,40 @@ export default function RelatorioFornecedores() {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-xl font-bold">Lista de Fornecedores</h2>
+          <div className="mb-3">
+            <h2 className="text-base font-bold">Lista de Fornecedores</h2>
           </div>
 
           <Table>
             <TableHeader>
               <TableRow className="border-black">
-                {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold">Nome</TableHead>}
-                {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold">Tipo</TableHead>}
-                {colunasVisiveis.includes('documento') && <TableHead className="border border-black text-xs font-bold">CPF/CNPJ</TableHead>}
-                {colunasVisiveis.includes('telefone') && <TableHead className="border border-black text-xs font-bold">Telefone</TableHead>}
-                {colunasVisiveis.includes('email') && <TableHead className="border border-black text-xs font-bold">E-mail</TableHead>}
-                {colunasVisiveis.includes('cidade') && <TableHead className="border border-black text-xs font-bold">Cidade</TableHead>}
-                {colunasVisiveis.includes('estado') && <TableHead className="border border-black text-xs font-bold">Estado</TableHead>}
-                {colunasVisiveis.includes('endereco') && <TableHead className="border border-black text-xs font-bold">Endereço</TableHead>}
-                {colunasVisiveis.includes('cep') && <TableHead className="border border-black text-xs font-bold">CEP</TableHead>}
+                {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome</TableHead>}
+                {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
+                {colunasVisiveis.includes('documento') && <TableHead className="border border-black text-xs font-bold py-1">CPF/CNPJ</TableHead>}
+                {colunasVisiveis.includes('telefone') && <TableHead className="border border-black text-xs font-bold py-1">Telefone</TableHead>}
+                {colunasVisiveis.includes('email') && <TableHead className="border border-black text-xs font-bold py-1">E-mail</TableHead>}
+                {colunasVisiveis.includes('cidade') && <TableHead className="border border-black text-xs font-bold py-1">Cidade</TableHead>}
+                {colunasVisiveis.includes('estado') && <TableHead className="border border-black text-xs font-bold py-1">Estado</TableHead>}
+                {colunasVisiveis.includes('endereco') && <TableHead className="border border-black text-xs font-bold py-1">Endereço</TableHead>}
+                {colunasVisiveis.includes('cep') && <TableHead className="border border-black text-xs font-bold py-1">CEP</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {fornecedoresFiltrados.map((f) => (
                 <TableRow key={f.id}>
-                  {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs">{f.nome}</TableCell>}
-                  {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs">{f.tipo_pessoa}</TableCell>}
-                  {colunasVisiveis.includes('documento') && <TableCell className="border border-gray-300 text-xs">{f.tipo_pessoa === 'Física' ? f.cpf || '-' : f.cnpj || '-'}</TableCell>}
-                  {colunasVisiveis.includes('telefone') && <TableCell className="border border-gray-300 text-xs">{f.telefone || '-'}</TableCell>}
-                  {colunasVisiveis.includes('email') && <TableCell className="border border-gray-300 text-xs">{f.email || '-'}</TableCell>}
-                  {colunasVisiveis.includes('cidade') && <TableCell className="border border-gray-300 text-xs">{f.cidade || '-'}</TableCell>}
-                  {colunasVisiveis.includes('estado') && <TableCell className="border border-gray-300 text-xs uppercase">{f.estado || '-'}</TableCell>}
-                  {colunasVisiveis.includes('endereco') && <TableCell className="border border-gray-300 text-xs">
-                    {
-                      `${f.logradouro || ''}${f.numero ? `, ${f.numero}` : ''}${f.complemento ? ` - ${f.complemento}` : ''}${f.bairro ? ` - ${f.bairro}` : ''}`
-                      .replace(/^,\s*|-+\s*-+/, '') // Remove leading commas and multiple hyphens
-                      .trim()
-                      || '-'
-                    }
-                  </TableCell>}
-                  {colunasVisiveis.includes('cep') && <TableCell className="border border-gray-300 text-xs">{f.cep || '-'}</TableCell>}
+                  {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{f.nome}</TableCell>}
+                  {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{f.tipo_pessoa}</TableCell>}
+                  {colunasVisiveis.includes('documento') && <TableCell className="border border-gray-300 text-xs py-1">{f.tipo_pessoa === 'Física' ? f.cpf || '-' : f.cnpj || '-'}</TableCell>}
+                  {colunasVisiveis.includes('telefone') && <TableCell className="border border-gray-300 text-xs py-1">{f.telefone || '-'}</TableCell>}
+                  {colunasVisiveis.includes('email') && <TableCell className="border border-gray-300 text-xs py-1">{f.email || '-'}</TableCell>}
+                  {colunasVisiveis.includes('cidade') && <TableCell className="border border-gray-300 text-xs py-1">{f.cidade || '-'}</TableCell>}
+                  {colunasVisiveis.includes('estado') && <TableCell className="border border-gray-300 text-xs uppercase py-1">{f.estado || '-'}</TableCell>}
+                  {colunasVisiveis.includes('endereco') && <TableCell className="border border-gray-300 text-xs py-1">{f.endereco || '-'}</TableCell>}
+                  {colunasVisiveis.includes('cep') && <TableCell className="border border-gray-300 text-xs py-1">{f.cep || '-'}</TableCell>}
                 </TableRow>
               ))}
               <TableRow className="bg-gray-100 font-bold">
-                <TableCell colSpan={colunasVisiveis.length} className="border border-black text-xs">
+                <TableCell colSpan={colunasVisiveis.length} className="border border-black text-xs py-1">
                   TOTAL: {fornecedoresFiltrados.length} cadastros
                 </TableCell>
               </TableRow>
@@ -515,7 +505,7 @@ export default function RelatorioFornecedores() {
           </Table>
 
           {/* Rodapé customizado */}
-          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
+          <div className="mt-6 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
             <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           </div>
         </div>
