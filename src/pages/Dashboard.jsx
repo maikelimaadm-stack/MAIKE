@@ -259,29 +259,28 @@ export default function Dashboard() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
 
-        let proximoNumero = await getNextSystemNumber(); // Get the starting number for the import batch
+        let proximoNumero = await getNextSystemNumber();
         
         const validRecords = [];
         let errorCount = 0;
 
-        for (let i = 1; i < lines.length; i++) { // Start from 1 to skip header
+        for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(';');
           
-          // Updated indices to accommodate 'Número Registro' if it were in the import template
-          // For now, let's assume the template remains the same (without numero_registro)
-          // and we assign it automatically.
-          const dataIndex = 0;
-          const tipoIndex = 1;
-          const placaIndex = 2;
-          const motoristaIndex = 3;
-          const produtoIndex = 4;
-          const fornecedorDestinoIndex = 5;
-          const pesoTaraIndex = 6;
-          const pesoBrutoIndex = 7;
-          const pesoLiquidoIndex = 8;
-          const observacoesIndex = 9;
+          // Índices do CSV com numeração: Número Registro, Data, Tipo, Placa, etc
+          const numeroRegistroIndex = 0; // NOVO: Índice para número do registro
+          const dataIndex = 1;
+          const tipoIndex = 2;
+          const placaIndex = 3;
+          const motoristaIndex = 4;
+          const produtoIndex = 5;
+          const fornecedorDestinoIndex = 6;
+          const pesoTaraIndex = 7;
+          const pesoBrutoIndex = 8;
+          const pesoLiquidoIndex = 9;
+          const observacoesIndex = 10;
 
-          if (values.length < 9) { // Still checking for minimum 9 expected values
+          if (values.length < 10) { // Changed from 9 to 10 for the new column
             errorCount++;
             console.error(`Linha ${i + 1}: Colunas insuficientes`);
             continue;
@@ -293,8 +292,12 @@ export default function Dashboard() {
             const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
+            // USAR O NÚMERO DO CSV SE FORNECIDO, SENÃO GERAR AUTOMATICAMENTE
+            const numeroFornecido = values[numeroRegistroIndex]?.trim();
+            const numeroRegistro = numeroFornecido && numeroFornecido !== '' ? numeroFornecido : String(proximoNumero);
+
             const pesagem = {
-              numero_registro: String(proximoNumero), // Assign the generated number
+              numero_registro: numeroRegistro,
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim() || undefined,
               placa_caminhao: values[placaIndex]?.trim()?.toUpperCase() || undefined,
@@ -312,7 +315,11 @@ export default function Dashboard() {
             }
             
             validRecords.push(pesagem);
-            proximoNumero++; // Increment for the next record
+            
+            // Só incrementar se não foi fornecido número no CSV
+            if (!numeroFornecido || numeroFornecido === '') {
+              proximoNumero++;
+            }
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
@@ -332,17 +339,16 @@ export default function Dashboard() {
           try {
             await base44.entities.Pesagem.create(record);
             imported++;
-            setImportProgress(prev => ({ ...prev, current: prev.current + 1 })); // Update current count for progress
+            setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
           } catch (error) {
             console.error(`Erro ao criar registro:`, error);
             actualErrors++;
-            setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 })); // Update error count for progress
+            setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
           }
         }
         
         await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
         
-        // Final update for progress bar and toast message
         setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
 
         setTimeout(() => {
@@ -366,10 +372,11 @@ export default function Dashboard() {
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    const headers = ['Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
     
     const example = [
+      '000001', // Número do Registro
       '04/11/2025',
       'Entrada',
       'ABC1234',

@@ -41,6 +41,10 @@ const navigationItems = [
     icon: FolderOpen,
     submenu: [
       {
+        title: "Empresa",
+        url: createPageUrl("Empresa"),
+      },
+      {
         title: "Fornecedores/Clientes",
         url: createPageUrl("Fornecedores"),
       },
