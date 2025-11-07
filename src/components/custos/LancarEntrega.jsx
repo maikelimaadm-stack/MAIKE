@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Truck, Package, Calendar, CheckCircle, FileText } from "lucide-react";
+import { Truck, Package, Calendar, CheckCircle, FileText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
@@ -49,14 +49,14 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
       const novaQuantidadeEntregue = qtdJaEntregue + qtdEntrega;
       const statusEntrega = novaQuantidadeEntregue >= custo.quantidade ? 'Entregue' : 'Em Trânsito';
 
-      // Atualizar o custo com nova quantidade entregue
+      // 1. Atualizar o custo com nova quantidade entregue
       await base44.entities.CustoSafra.update(custo.id, {
         quantidade_entregue: novaQuantidadeEntregue,
         data_entrega: dataEntrega,
         status_entrega: statusEntrega
       });
 
-      // Criar registro no histórico de entregas
+      // 2. Criar registro no histórico de entregas
       await base44.entities.HistoricoEntrega.create({
         empresa_id: custo.empresa_id,
         custo_safra_id: custo.id,
@@ -74,7 +74,29 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
         observacoes: observacoes?.toUpperCase() || undefined
       });
 
-      toast.success(`Entrega de ${formatarNumero(qtdEntrega)} ${custo.unidade_medida} lançada com sucesso!`);
+      // 3. DAR ENTRADA NO ESTOQUE DO PRODUTO
+      try {
+        const produto = await base44.entities.Produto.list();
+        const produtoEncontrado = produto.find(p => p.id === custo.produto_id);
+        
+        if (produtoEncontrado) {
+          const estoqueAtual = produtoEncontrado.estoque_atual || 0;
+          const novoEstoque = estoqueAtual + qtdEntrega;
+          
+          await base44.entities.Produto.update(custo.produto_id, {
+            estoque_atual: novoEstoque
+          });
+          
+          toast.success(`✅ Entrega lançada! Estoque atualizado: ${formatarNumero(novoEstoque)} ${custo.unidade_medida}`);
+        } else {
+          toast.success(`✅ Entrega de ${formatarNumero(qtdEntrega)} ${custo.unidade_medida} lançada!`);
+          toast.warning('⚠️ Produto não encontrado para atualizar estoque.');
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar estoque:', error);
+        toast.success(`✅ Entrega de ${formatarNumero(qtdEntrega)} ${custo.unidade_medida} lançada!`);
+        toast.warning('⚠️ Erro ao atualizar estoque do produto.');
+      }
       
       // Limpar formulário
       setQuantidadeEntregue("");
@@ -109,6 +131,15 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Alerta sobre atualização de estoque */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <p className="font-semibold">Atualização Automática de Estoque</p>
+              <p>A quantidade entregue será automaticamente adicionada ao estoque do produto.</p>
+            </div>
+          </div>
+
           {/* Informações do Pedido */}
           <Card className="bg-slate-50 border-slate-200">
             <CardContent className="p-4 space-y-3">
