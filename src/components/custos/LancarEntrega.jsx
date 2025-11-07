@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Truck, Package, Calendar, CheckCircle } from "lucide-react";
+import { Truck, Package, Calendar, CheckCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
@@ -19,6 +20,10 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
   const [dataEntrega, setDataEntrega] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
+  const [numeroNfe, setNumeroNfe] = useState("");
+  const [chaveNfe, setChaveNfe] = useState("");
+  const [observacoesNfe, setObservacoesNfe] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -44,13 +49,40 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
       const novaQuantidadeEntregue = qtdJaEntregue + qtdEntrega;
       const statusEntrega = novaQuantidadeEntregue >= custo.quantidade ? 'Entregue' : 'Em Trânsito';
 
+      // Atualizar o custo com nova quantidade entregue
       await base44.entities.CustoSafra.update(custo.id, {
         quantidade_entregue: novaQuantidadeEntregue,
         data_entrega: dataEntrega,
         status_entrega: statusEntrega
       });
 
+      // Criar registro no histórico de entregas
+      await base44.entities.HistoricoEntrega.create({
+        empresa_id: custo.empresa_id,
+        custo_safra_id: custo.id,
+        safra_id: custo.safra_id,
+        fornecedor_id: custo.fornecedor_id,
+        fornecedor_nome: custo.fornecedor_nome,
+        produto_id: custo.produto_id,
+        produto_nome: custo.produto_nome,
+        quantidade_entregue: qtdEntrega,
+        unidade_medida: custo.unidade_medida,
+        data_entrega: dataEntrega,
+        numero_nfe: numeroNfe?.toUpperCase() || undefined,
+        chave_nfe: chaveNfe || undefined,
+        observacoes_nfe: observacoesNfe?.toUpperCase() || undefined,
+        observacoes: observacoes?.toUpperCase() || undefined
+      });
+
       toast.success(`Entrega de ${formatarNumero(qtdEntrega)} ${custo.unidade_medida} lançada com sucesso!`);
+      
+      // Limpar formulário
+      setQuantidadeEntregue("");
+      setNumeroNfe("");
+      setChaveNfe("");
+      setObservacoesNfe("");
+      setObservacoes("");
+      
       onSuccess();
     } catch (error) {
       console.error('Erro ao lançar entrega:', error);
@@ -68,7 +100,7 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-green-600" />
@@ -160,6 +192,65 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
                   disabled={isSubmitting}
                 />
               </div>
+            </div>
+
+            {/* Dados da NF-e */}
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-600" />
+                Dados da Nota Fiscal
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Número da NF-e</Label>
+                  <Input
+                    value={numeroNfe}
+                    onChange={(e) => setNumeroNfe(e.target.value)}
+                    placeholder="000000"
+                    className="border-slate-300 focus:border-green-500 uppercase"
+                    style={{ textTransform: 'uppercase' }}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Chave de Acesso NF-e</Label>
+                  <Input
+                    value={chaveNfe}
+                    onChange={(e) => setChaveNfe(e.target.value)}
+                    placeholder="44 dígitos"
+                    maxLength={44}
+                    className="border-slate-300 focus:border-green-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <Label>Observações da NF-e</Label>
+                <Textarea
+                  value={observacoesNfe}
+                  onChange={(e) => setObservacoesNfe(e.target.value)}
+                  placeholder="INFORMAÇÕES SOBRE A NOTA FISCAL..."
+                  className="border-slate-300 focus:border-green-500 min-h-16 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Observações Gerais */}
+            <div className="space-y-2">
+              <Label>Observações da Entrega</Label>
+              <Textarea
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                placeholder="OBSERVAÇÕES GERAIS SOBRE ESTA ENTREGA..."
+                className="border-slate-300 focus:border-green-500 min-h-16 uppercase"
+                style={{ textTransform: 'uppercase' }}
+                disabled={isSubmitting}
+              />
             </div>
 
             {qtdRestante <= 0 && (
