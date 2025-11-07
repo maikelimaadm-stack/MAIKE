@@ -1,10 +1,9 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Trash2, Loader2 } from "lucide-react";
+import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -23,52 +22,9 @@ import TicketPesagem from "../components/pesagens/TicketPesagem";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  // Convert to number before toFixed to handle potential string inputs
   const num = parseFloat(numero);
-  if (isNaN(num)) return "0,00"; // Handle cases where conversion fails
+  if (isNaN(num)) return "0,00";
   return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-};
-
-// Função global para obter próximo número único do sistema
-const getNextSystemNumber = async () => {
-  try {
-    const [pesagens, fornecedores, produtos] = await Promise.all([
-      base44.entities.Pesagem.list(),
-      base44.entities.Fornecedor.list(),
-      base44.entities.Produto.list()
-    ]);
-
-    const allNumbers = [];
-
-    // Extract numbers from Pesagens
-    pesagens.forEach(p => {
-      const num = parseInt(p.numero_registro, 10);
-      if (!isNaN(num) && num > 0) {
-        allNumbers.push(num);
-      }
-    });
-
-    // Extract numbers from Fornecedores
-    fornecedores.forEach(f => {
-      const num = parseInt(f.numero_cadastro, 10);
-      if (!isNaN(num) && num > 0) {
-        allNumbers.push(num);
-      }
-    });
-
-    // Extract numbers from Produtos
-    produtos.forEach(p => {
-      const num = parseInt(p.numero_produto, 10);
-      if (!isNaN(num) && num > 0) {
-        allNumbers.push(num);
-      }
-    });
-
-    return allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
-  } catch (error) {
-    console.error('Erro ao obter próximo número sequencial:', error);
-    return Date.now(); // Fallback value as per outline
-  }
 };
 
 export default function Dashboard() {
@@ -85,41 +41,6 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Pesagem.list('-created_date'),
     initialData: [],
   });
-
-  // Numerar registros existentes automaticamente
-  useEffect(() => {
-    const numerarRegistrosExistentes = async () => {
-      if (isLoading || !pesagens || pesagens.length === 0 || showForm) {
-        return;
-      }
-
-      const registrosSemNumero = pesagens.filter(p => !p.numero_registro || p.numero_registro.trim() === '');
-      
-      if (registrosSemNumero.length > 0) {
-        console.log(`Numerando ${registrosSemNumero.length} registros sem número...`);
-        
-        let updateCount = 0;
-        for (const pesagem of registrosSemNumero) {
-          try {
-            const proximoNumero = await getNextSystemNumber();
-            await base44.entities.Pesagem.update(pesagem.id, {
-              numero_registro: String(proximoNumero)
-            });
-            updateCount++;
-          } catch (error) {
-            console.error(`Erro ao numerar registro ${pesagem.id}:`, error);
-          }
-        }
-        
-        if (updateCount > 0) {
-          queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-          toast.info(`${updateCount} registros foram numerados automaticamente.`);
-        }
-      }
-    };
-
-    numerarRegistrosExistentes();
-  }, [pesagens, queryClient, isLoading, showForm]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Pesagem.create(data),
@@ -159,12 +80,6 @@ export default function Dashboard() {
   });
 
   const handleSubmit = async (data) => {
-    // Gerar número único se for novo registro
-    if (!editingPesagem) {
-      const proximoNumero = await getNextSystemNumber();
-      data.numero_registro = String(proximoNumero);
-    }
-    
     if (editingPesagem) {
       updateMutation.mutate({ id: editingPesagem.id, data });
     } else {
@@ -260,8 +175,6 @@ export default function Dashboard() {
 
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
-
-        let proximoNumero = await getNextSystemNumber();
         
         const validRecords = [];
         let errorCount = 0;
@@ -293,7 +206,6 @@ export default function Dashboard() {
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
             const pesagem = {
-              numero_registro: String(proximoNumero),
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim(),
               placa_caminhao: values[placaIndex]?.trim().toUpperCase(),
@@ -313,7 +225,6 @@ export default function Dashboard() {
             }
             
             validRecords.push(pesagem);
-            proximoNumero++;
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
@@ -334,7 +245,6 @@ export default function Dashboard() {
             await base44.entities.Pesagem.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
-            await new Promise(resolve => setTimeout(resolve, 50));
           } catch (error) {
             console.error(`Erro ao criar registro:`, error);
             actualErrors++;
@@ -437,7 +347,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* New Card for 'Ambos' */}
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-indigo-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-green-700">Ambos</CardTitle>
@@ -572,12 +481,6 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados individualmente para garantir a numeração sequencial.
-              </p>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
