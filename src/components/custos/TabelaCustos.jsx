@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +29,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import toast from "react-hot-toast"; // Added toast import
+import { format } from "date-fns"; // Added date-fns format
+import { ptBR } from "date-fns/locale"; // Added date-fns locale
+import * as base44 from '@/lib/base44'; // Assuming base44 is imported from this path, adjust if necessary
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -86,6 +91,10 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [fornecedorDetalhes, setFornecedorDetalhes] = useState(null);
+  const [historicoEntregas, setHistoricoEntregas] = useState(null);
+  const [showHistoricoDialog, setShowHistoricoDialog] = useState(false);
+
+  const empresaSelecionadaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -168,6 +177,20 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
     if (custo) {
       const fornecedor = fornecedores.find(f => f.id === custo.fornecedor_id);
       setFornecedorDetalhes(fornecedor);
+    }
+  };
+
+  const handleVerHistorico = async (custoId) => {
+    try {
+      const allHistorico = await base44.entities.HistoricoEntrega.list({
+        custo_safra_id: custoId,
+        empresa_id: empresaSelecionadaId
+      }, '-created_date'); // Filter by custo_safra_id and empresa_id
+      setHistoricoEntregas(allHistorico);
+      setShowHistoricoDialog(true);
+    } catch (error) {
+      console.error('Erro ao buscar histórico:', error);
+      toast.error('Erro ao buscar histórico de entregas');
     }
   };
 
@@ -546,7 +569,20 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                             </TableCell>
                           )}
                           {colunasVisiveis.includes('produto') && (
-                            <TableCell className="text-slate-700">{custo.produto_nome}</TableCell>
+                            <TableCell className="text-slate-700">
+                              <div className="flex items-center gap-2">
+                                {custo.produto_nome}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleVerHistorico(custo.id)}
+                                  title="Ver histórico de entregas"
+                                >
+                                  <Truck className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
                           )}
                           {colunasVisiveis.includes('quantidade') && (
                             <TableCell className="text-right font-mono text-slate-700">
@@ -732,6 +768,86 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   <p className="font-semibold text-slate-900">{fornecedorDetalhes.observacoes}</p>
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Histórico de Entregas */}
+      <Dialog open={showHistoricoDialog} onOpenChange={() => setShowHistoricoDialog(false)}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-green-600" />
+              Histórico de Entregas
+            </DialogTitle>
+          </DialogHeader>
+          {historicoEntregas && historicoEntregas.length > 0 ? (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Total de {historicoEntregas.length} entrega(s) registrada(s)
+              </p>
+              <div className="space-y-3">
+                {historicoEntregas.map((entrega, idx) => (
+                  <Card key={entrega.id} className="border-slate-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700">Entrega #{idx + 1}</p>
+                          <p className="text-xs text-slate-500">
+                            {format(new Date(entrega.created_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-green-700">
+                            {formatarNumero(entrega.quantidade_entregue)} {entrega.unidade_medida}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                           Data da Entrega: {formatarData(entrega.data_entrega)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        {entrega.numero_nfe && (
+                          <div>
+                            <p className="text-slate-600">Nº NF-e</p>
+                            <p className="font-semibold text-slate-900">{entrega.numero_nfe}</p>
+                          </div>
+                        )}
+                        {entrega.chave_nfe && (
+                          <div>
+                            <p className="text-slate-600">Chave NF-e</p>
+                            <p className="font-mono text-xs text-slate-900 break-all">{entrega.chave_nfe}</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {(entrega.observacoes_nfe || entrega.observacoes) && (
+                        <div className="mt-3 space-y-2">
+                          {entrega.observacoes_nfe && (
+                            <div>
+                              <p className="text-xs text-slate-600">Obs. NF-e:</p>
+                              <p className="text-sm text-slate-900">{entrega.observacoes_nfe}</p>
+                            </div>
+                          )}
+                          {entrega.observacoes && (
+                            <div>
+                              <p className="text-xs text-slate-600">Observações:</p>
+                              <p className="text-sm text-slate-900">{entrega.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <Truck className="w-12 h-12 mx-auto mb-3" />
+              <p>Nenhuma entrega registrada para este lançamento</p>
             </div>
           )}
         </DialogContent>

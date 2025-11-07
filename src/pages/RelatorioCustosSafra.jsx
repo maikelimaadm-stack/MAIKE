@@ -250,25 +250,14 @@ export default function RelatorioCustosSafra() {
           grupos[chave] = {
             chave,
             quantidade_total: 0,
-            quantidade_entregue_total: 0,
-            quantidade_restante_total: 0,
-            valor_unitario_medio: 0,
             valor_total: 0,
             registros: []
           };
         }
         grupos[chave].quantidade_total += c.quantidade || 0;
-        grupos[chave].quantidade_entregue_total += c.quantidade_entregue || 0;
-        grupos[chave].quantidade_restante_total += (c.quantidade || 0) - (c.quantidade_entregue || 0);
         grupos[chave].valor_total += c.valor_total || 0;
         grupos[chave].registros.push(c);
       });
-      
-      // Calcular valor unitário médio
-      Object.keys(grupos).forEach(chave => {
-        grupos[chave].valor_unitario_medio = grupos[chave].quantidade_total > 0 ? grupos[chave].valor_total / grupos[chave].quantidade_total : 0;
-      });
-      
       return grupos;
     }
   }, [custosFiltrados, agrupamentosAtivos, tipoVisualizacao]);
@@ -303,6 +292,9 @@ export default function RelatorioCustosSafra() {
   const imprimir = () => window.print();
 
   const totalValor = custosFiltrados.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+  const totalQuantidade = custosFiltrados.reduce((sum, c) => sum + (c.quantidade || 0), 0);
+  const totalQuantidadeEntregue = custosFiltrados.reduce((sum, c) => sum + (c.quantidade_entregue || 0), 0);
+  const totalQuantidadeRestante = totalQuantidade - totalQuantidadeEntregue;
 
   const selecionarTodosSafras = () => setSafrasSelecionadas(safrasUnicas);
   const desmarcarTodosSafras = () => setSafrasSelecionadas([]);
@@ -561,11 +553,10 @@ export default function RelatorioCustosSafra() {
 
           {tipoVisualizacao === 'detalhado' ? (
             Object.entries(custosAgrupados).map(([grupo, registros], idx) => {
-              const totalGrupo = registros.reduce((sum, c) => sum + (c.valor_total || 0), 0);
-              const totalQtdGrupo = registros.reduce((sum, c) => sum + (c.quantidade || 0), 0);
-              const totalQtdEntregueGrupo = registros.reduce((sum, c) => sum + (c.quantidade_entregue || 0), 0);
-              const totalQtdRestanteGrupo = registros.reduce((sum, c) => sum + ((c.quantidade || 0) - (c.quantidade_entregue || 0)), 0);
-              const valorUnitarioMedio = totalQtdGrupo > 0 ? totalGrupo / totalQtdGrupo : 0;
+              const totalGrupoValor = registros.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+              const totalGrupoQtd = registros.reduce((sum, c) => sum + (c.quantidade || 0), 0);
+              const totalGrupoQtdEntregue = registros.reduce((sum, c) => sum + (c.quantidade_entregue || 0), 0);
+              const totalGrupoQtdRestante = totalGrupoQtd - totalGrupoQtdEntregue;
               
               return (
                 <div key={idx} className="mb-4">
@@ -621,47 +612,20 @@ export default function RelatorioCustosSafra() {
                       <TableRow className="bg-gray-100 font-bold">
                         <TableCell 
                           colSpan={
-                            (() => {
-                              const summaryColumnsOrder = ['quantidade', 'quantidade_entregue', 'quantidade_restante', 'unidade', 'valor_unitario', 'valor_total'];
-                              let firstSummaryColVisibleIndex = -1;
-                              for (const col of summaryColumnsOrder) {
-                                const index = colunasVisiveis.indexOf(col);
-                                if (index !== -1) {
-                                  firstSummaryColVisibleIndex = index;
-                                  break;
-                                }
-                              }
-                              // If no summary columns are visible, span all visible columns
-                              if (firstSummaryColVisibleIndex === -1) {
-                                return colunasVisiveis.length > 0 ? colunasVisiveis.length : 1;
-                              }
-                              // Otherwise, span up to the first visible summary column
-                              return Math.max(1, firstSummaryColVisibleIndex);
-                            })()
-                          } 
+                            colunasVisiveis.length -
+                            (colunasVisiveis.includes('quantidade') ? 1 : 0) -
+                            (colunasVisiveis.includes('quantidade_entregue') ? 1 : 0) -
+                            (colunasVisiveis.includes('quantidade_restante') ? 1 : 0) -
+                            (colunasVisiveis.includes('valor_total') ? 1 : 0)
+                          }
                           className="border border-black text-xs py-1"
                         >
-                          SUBTOTAL ({registros.length} registro(s))
+                          SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
                         </TableCell>
-                        {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdGrupo)}</TableCell>}
-                        {colunasVisiveis.includes('quantidade_entregue') && <TableCell className="border border-black text-xs text-right py-1 text-blue-700">{formatarNumero(totalQtdEntregueGrupo)}</TableCell>}
-                        {colunasVisiveis.includes('quantidade_restante') && <TableCell className="border border-black text-xs text-right py-1 text-orange-700">{formatarNumero(totalQtdRestanteGrupo)}</TableCell>}
-                        {colunasVisiveis.includes('unidade') && <TableCell className="border border-black text-xs py-1">-</TableCell>}
-                        {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(valorUnitarioMedio)}</TableCell>}
-                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
-                        {/* Filler cells for columns that might appear after 'valor_total' but are visible */}
-                        {
-                            COLUNAS_DISPONIVEIS.filter(colDef => {
-                                // Check if the column is visible
-                                if (!colunasVisiveis.includes(colDef.id)) return false;
-                                // Check if this column comes *after* 'valor_total' in the COLUNAS_DISPONIVEIS definition
-                                const valorTotalIndex = COLUNAS_DISPONIVEIS.findIndex(c => c.id === 'valor_total');
-                                const currentColIndex = COLUNAS_DISPONIVEIS.indexOf(colDef);
-                                return currentColIndex > valorTotalIndex;
-                            }).map((_, i) => (
-                                <TableCell key={`filler-${i}`} className="border border-black text-xs py-1">-</TableCell>
-                            ))
-                        }
+                        {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalGrupoQtd)}</TableCell>}
+                        {colunasVisiveis.includes('quantidade_entregue') && <TableCell className="border border-black text-xs text-right py-1 font-semibold text-blue-700">{formatarNumero(totalGrupoQtdEntregue)}</TableCell>}
+                        {colunasVisiveis.includes('quantidade_restante') && <TableCell className="border border-black text-xs text-right py-1 font-semibold text-orange-700">{formatarNumero(totalGrupoQtdRestante)}</TableCell>}
+                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupoValor)}</TableCell>}
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -678,24 +642,30 @@ export default function RelatorioCustosSafra() {
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Comprada</TableHead>
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Entregue</TableHead>
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Restante</TableHead>
-                    <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit. Médio</TableHead>
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(custosAgrupados).map(([grupo, dados], idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.registros.length}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarNumero(dados.quantidade_total)}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-blue-700">{formatarNumero(dados.quantidade_entregue_total)}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-orange-700">{formatarNumero(dados.quantidade_restante_total)}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(dados.valor_unitario_medio)}</TableCell>
-                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-green-700">R$ {formatarNumero(dados.valor_total)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(custosAgrupados).map(([grupo, dados], idx) => {
+                    const qtdEntregue = dados.registros.reduce((sum, c) => sum + (c.quantidade_entregue || 0), 0);
+                    const qtdRestante = dados.quantidade_total - qtdEntregue;
+                    
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo}</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.registros.length}</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarNumero(dados.quantidade_total)}</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-blue-700">{formatarNumero(qtdEntregue)}</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-orange-700">{formatarNumero(qtdRestante)}</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-green-700">R$ {formatarNumero(dados.valor_total)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                   <TableRow className="bg-gray-100 font-bold">
-                    <TableCell colSpan={6} className="border border-black text-xs py-1">TOTAL GERAL ({custosFiltrados.length} lançamento(s))</TableCell>
+                    <TableCell colSpan={2} className="border border-black text-xs py-1">TOTAL GERAL ({custosFiltrados.length} lançamento(s))</TableCell>
+                    <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQuantidade)}</TableCell>
+                    <TableCell className="border border-black text-xs text-right py-1 text-blue-700">{formatarNumero(totalQuantidadeEntregue)}</TableCell>
+                    <TableCell className="border border-black text-xs text-right py-1 text-orange-700">{formatarNumero(totalQuantidadeRestante)}</TableCell>
                     <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalValor)}</TableCell>
                   </TableRow>
                 </TableBody>
@@ -705,7 +675,12 @@ export default function RelatorioCustosSafra() {
 
           <div className="mt-4 pt-2 border-t-2 border-black">
             <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)</div>
+              <div className="text-xs font-bold">
+                TOTAL GERAL: {custosFiltrados.length} lançamento(s) • 
+                Qtd: {formatarNumero(totalQuantidade)} • 
+                Entregue: {formatarNumero(totalQuantidadeEntregue)} • 
+                Restante: {formatarNumero(totalQuantidadeRestante)}
+              </div>
               <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValor)}</div>
             </div>
           </div>
