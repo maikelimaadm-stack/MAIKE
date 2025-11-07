@@ -410,6 +410,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
               <p className="text-center text-sm font-medium text-red-600">
                 {deleteProgressPercentage}%
               </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
