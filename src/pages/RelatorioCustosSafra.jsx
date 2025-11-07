@@ -250,14 +250,25 @@ export default function RelatorioCustosSafra() {
           grupos[chave] = {
             chave,
             quantidade_total: 0,
+            quantidade_entregue_total: 0,
+            quantidade_restante_total: 0,
+            valor_unitario_medio: 0,
             valor_total: 0,
             registros: []
           };
         }
         grupos[chave].quantidade_total += c.quantidade || 0;
+        grupos[chave].quantidade_entregue_total += c.quantidade_entregue || 0;
+        grupos[chave].quantidade_restante_total += (c.quantidade || 0) - (c.quantidade_entregue || 0);
         grupos[chave].valor_total += c.valor_total || 0;
         grupos[chave].registros.push(c);
       });
+      
+      // Calcular valor unitário médio
+      Object.keys(grupos).forEach(chave => {
+        grupos[chave].valor_unitario_medio = grupos[chave].quantidade_total > 0 ? grupos[chave].valor_total / grupos[chave].quantidade_total : 0;
+      });
+      
       return grupos;
     }
   }, [custosFiltrados, agrupamentosAtivos, tipoVisualizacao]);
@@ -382,7 +393,7 @@ export default function RelatorioCustosSafra() {
             </div>
             {agrupamentosAtivos.length > 0 && (
               <p className="text-xs text-slate-600">
-                <strong>Ordem:</strong> {agrupamentosAtativos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
+                <strong>Ordem:</strong> {agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
               </p>
             )}
           </div>
@@ -551,6 +562,11 @@ export default function RelatorioCustosSafra() {
           {tipoVisualizacao === 'detalhado' ? (
             Object.entries(custosAgrupados).map(([grupo, registros], idx) => {
               const totalGrupo = registros.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+              const totalQtdGrupo = registros.reduce((sum, c) => sum + (c.quantidade || 0), 0);
+              const totalQtdEntregueGrupo = registros.reduce((sum, c) => sum + (c.quantidade_entregue || 0), 0);
+              const totalQtdRestanteGrupo = registros.reduce((sum, c) => sum + ((c.quantidade || 0) - (c.quantidade_entregue || 0)), 0);
+              const valorUnitarioMedio = totalQtdGrupo > 0 ? totalGrupo / totalQtdGrupo : 0;
+              
               return (
                 <div key={idx} className="mb-4">
                   {agrupamentosAtivos.length > 0 && (
@@ -603,10 +619,49 @@ export default function RelatorioCustosSafra() {
                         );
                       })}
                       <TableRow className="bg-gray-100 font-bold">
-                        <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
-                          SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
+                        <TableCell 
+                          colSpan={
+                            (() => {
+                              const summaryColumnsOrder = ['quantidade', 'quantidade_entregue', 'quantidade_restante', 'unidade', 'valor_unitario', 'valor_total'];
+                              let firstSummaryColVisibleIndex = -1;
+                              for (const col of summaryColumnsOrder) {
+                                const index = colunasVisiveis.indexOf(col);
+                                if (index !== -1) {
+                                  firstSummaryColVisibleIndex = index;
+                                  break;
+                                }
+                              }
+                              // If no summary columns are visible, span all visible columns
+                              if (firstSummaryColVisibleIndex === -1) {
+                                return colunasVisiveis.length > 0 ? colunasVisiveis.length : 1;
+                              }
+                              // Otherwise, span up to the first visible summary column
+                              return Math.max(1, firstSummaryColVisibleIndex);
+                            })()
+                          } 
+                          className="border border-black text-xs py-1"
+                        >
+                          SUBTOTAL ({registros.length} registro(s))
                         </TableCell>
+                        {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdGrupo)}</TableCell>}
+                        {colunasVisiveis.includes('quantidade_entregue') && <TableCell className="border border-black text-xs text-right py-1 text-blue-700">{formatarNumero(totalQtdEntregueGrupo)}</TableCell>}
+                        {colunasVisiveis.includes('quantidade_restante') && <TableCell className="border border-black text-xs text-right py-1 text-orange-700">{formatarNumero(totalQtdRestanteGrupo)}</TableCell>}
+                        {colunasVisiveis.includes('unidade') && <TableCell className="border border-black text-xs py-1">-</TableCell>}
+                        {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(valorUnitarioMedio)}</TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
+                        {/* Filler cells for columns that might appear after 'valor_total' but are visible */}
+                        {
+                            COLUNAS_DISPONIVEIS.filter(colDef => {
+                                // Check if the column is visible
+                                if (!colunasVisiveis.includes(colDef.id)) return false;
+                                // Check if this column comes *after* 'valor_total' in the COLUNAS_DISPONIVEIS definition
+                                const valorTotalIndex = COLUNAS_DISPONIVEIS.findIndex(c => c.id === 'valor_total');
+                                const currentColIndex = COLUNAS_DISPONIVEIS.indexOf(colDef);
+                                return currentColIndex > valorTotalIndex;
+                            }).map((_, i) => (
+                                <TableCell key={`filler-${i}`} className="border border-black text-xs py-1">-</TableCell>
+                            ))
+                        }
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -620,7 +675,10 @@ export default function RelatorioCustosSafra() {
                   <TableRow className="border-black">
                     <TableHead className="border border-black text-xs font-bold py-1">Agrupamento</TableHead>
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Lançamentos</TableHead>
-                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Total</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Comprada</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Entregue</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Restante</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit. Médio</TableHead>
                     <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -630,11 +688,14 @@ export default function RelatorioCustosSafra() {
                       <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo}</TableCell>
                       <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.registros.length}</TableCell>
                       <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarNumero(dados.quantidade_total)}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-blue-700">{formatarNumero(dados.quantidade_entregue_total)}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-orange-700">{formatarNumero(dados.quantidade_restante_total)}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(dados.valor_unitario_medio)}</TableCell>
                       <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-green-700">R$ {formatarNumero(dados.valor_total)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-gray-100 font-bold">
-                    <TableCell colSpan={3} className="border border-black text-xs py-1">TOTAL GERAL ({custosFiltrados.length} lançamento(s))</TableCell>
+                    <TableCell colSpan={6} className="border border-black text-xs py-1">TOTAL GERAL ({custosFiltrados.length} lançamento(s))</TableCell>
                     <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalValor)}</TableCell>
                   </TableRow>
                 </TableBody>
