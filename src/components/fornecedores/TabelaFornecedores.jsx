@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, Users, Settings, CheckSquare } from "lucide-react";
+import { Edit, Trash2, Printer, Search, Users, Settings, CheckSquare, Loader2 } from "lucide-react"; // Added Loader2
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -15,6 +16,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"; // Added Dialog components
+import { Progress } from "@/components/ui/progress"; // Added Progress component
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true },
@@ -35,9 +44,11 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
   );
   const [selectedItems, setSelectedItems] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false); // New state
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 }); // New state
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
+    setColunasVisiveis(prev =>
       prev.includes(colunaId)
         ? prev.filter(id => id !== colunaId)
         : [...prev, colunaId]
@@ -58,11 +69,29 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
     );
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} cadastro(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      selectedItems.forEach(id => onDelete(id));
-      setSelectedItems([]);
-      setShowBulkActions(false);
+      setIsDeletingBulk(true);
+      setDeleteProgress({ current: 0, total: selectedItems.length });
+
+      let deleted = 0;
+      for (const id of selectedItems) {
+        try {
+          await onDelete(id, true); // Assuming onDelete can handle an optional `isBulk` flag
+          deleted++;
+          setDeleteProgress({ current: deleted, total: selectedItems.length });
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+          // Optionally, handle individual item deletion failure, e.g., show a toast.
+        }
+      }
+
+      // Give a small delay for UX before closing the dialog
+      setTimeout(() => {
+        setIsDeletingBulk(false);
+        setSelectedItems([]);
+        setShowBulkActions(false);
+      }, 500);
     }
   };
 
@@ -86,222 +115,257 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
     );
   });
 
+  const deleteProgressPercentage = deleteProgress.total > 0
+    ? Math.round((deleteProgress.current / deleteProgress.total) * 100)
+    : 0;
+
   return (
-    <Card className="shadow-xl border-slate-200 bg-white">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
-            </div>
-            Lista de Fornecedores/Clientes
-            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-              {filteredFornecedores.length} {filteredFornecedores.length === 1 ? 'cadastro' : 'cadastros'}
-            </Badge>
-            {selectedItems.length > 0 && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
-                {selectedItems.length} selecionados
+    <>
+      <Card className="shadow-xl border-slate-200 bg-white">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <CardTitle className="flex items-center gap-3 text-slate-900">
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              Lista de Fornecedores/Clientes
+              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
+                {filteredFornecedores.length} {filteredFornecedores.length === 1 ? 'cadastro' : 'cadastros'}
               </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            {selectedItems.length > 0 && (
-              <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+              {selectedItems.length > 0 && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
+                  {selectedItems.length} selecionados
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {selectedItems.length > 0 && (
+                <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
+                      <CheckSquare className="w-4 h-4" />
+                      Ações em Massa
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir Todos
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir Todos
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <div className="relative flex-1 md:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder="Buscar por nº, nome, documento, cidade..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
-                    <CheckSquare className="w-4 h-4" />
-                    Ações em Massa
+                  <Button variant="outline" className="gap-2 border-slate-300">
+                    <Settings className="w-4 h-4" />
+                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Imprimir Todos
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Excluir Todos
-                  </DropdownMenuCheckboxItem>
+                  {COLUNAS_DISPONIVEIS.map((coluna) => (
+                    <DropdownMenuCheckboxItem
+                      key={coluna.id}
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onCheckedChange={() => toggleColuna(coluna.id)}
+                    >
+                      {coluna.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-            
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Buscar por nº, nome, documento, cidade..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
-              />
             </div>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-slate-300">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedItems.length === filteredFornecedores.length && filteredFornecedores.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </TableHead>
-                {colunasVisiveis.includes('numero') && <TableHead className="font-semibold text-slate-700">Nº</TableHead>}
-                {colunasVisiveis.includes('nome') && <TableHead className="font-semibold text-slate-700">Nome</TableHead>}
-                {colunasVisiveis.includes('tipo') && <TableHead className="font-semibold text-slate-700">Tipo</TableHead>}
-                {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">CPF/CNPJ</TableHead>}
-                {colunasVisiveis.includes('telefone') && <TableHead className="font-semibold text-slate-700">Telefone</TableHead>}
-                {colunasVisiveis.includes('email') && <TableHead className="font-semibold text-slate-700">E-mail</TableHead>}
-                {colunasVisiveis.includes('cidade') && <TableHead className="font-semibold text-slate-700">Cidade</TableHead>}
-                {colunasVisiveis.includes('estado') && <TableHead className="font-semibold text-slate-700">Estado</TableHead>}
-                {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
-                <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  Array(5).fill(0).map((_, i) => (
-                    <TableRow key={i} className="animate-pulse">
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
-                      {colunasVisiveis.map((col, idx) => (
-                        <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                      ))}
-                      <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredFornecedores.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3 text-slate-400">
-                        <Users className="w-12 h-12" />
-                        <p className="text-lg font-medium">Nenhum cadastro encontrado</p>
-                        <p className="text-sm">
-                          {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando um novo fornecedor/cliente'}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredFornecedores.map((fornecedor) => (
-                    <motion.tr
-                      key={fornecedor.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedItems.includes(fornecedor.id)}
-                          onCheckedChange={() => toggleSelectItem(fornecedor.id)}
-                        />
-                      </TableCell>
-                      {colunasVisiveis.includes('numero') && (
-                        <TableCell className="font-bold text-slate-900">
-                          {fornecedor.numero_cadastro || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('nome') && (
-                        <TableCell className="font-semibold text-slate-900">
-                          {fornecedor.nome}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('tipo') && (
-                        <TableCell>
-                          <Badge className={fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
-                            {fornecedor.tipo_pessoa}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('documento') && (
-                        <TableCell className="font-mono text-slate-700">
-                          {fornecedor.tipo_pessoa === 'Física' ? fornecedor.cpf || '-' : fornecedor.cnpj || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('telefone') && (
-                        <TableCell className="text-slate-700">{fornecedor.telefone || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('email') && (
-                        <TableCell className="text-slate-700">{fornecedor.email || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('cidade') && (
-                        <TableCell className="text-slate-700">{fornecedor.cidade || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('estado') && (
-                        <TableCell className="text-slate-700 uppercase">{fornecedor.estado || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('observacoes') && (
-                        <TableCell className="text-slate-600 max-w-xs truncate">
-                          {fornecedor.observacoes || '-'}
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit(fornecedor)}
-                            className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onPrint(fornecedor)}
-                            className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                            title="Imprimir Ficha"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDelete(fornecedor.id)}
-                            className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 hover:bg-slate-50">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedItems.length === filteredFornecedores.length && filteredFornecedores.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  {colunasVisiveis.includes('numero') && <TableHead className="font-semibold text-slate-700">Nº</TableHead>}
+                  {colunasVisiveis.includes('nome') && <TableHead className="font-semibold text-slate-700">Nome</TableHead>}
+                  {colunasVisiveis.includes('tipo') && <TableHead className="font-semibold text-slate-700">Tipo</TableHead>}
+                  {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">CPF/CNPJ</TableHead>}
+                  {colunasVisiveis.includes('telefone') && <TableHead className="font-semibold text-slate-700">Telefone</TableHead>}
+                  {colunasVisiveis.includes('email') && <TableHead className="font-semibold text-slate-700">E-mail</TableHead>}
+                  {colunasVisiveis.includes('cidade') && <TableHead className="font-semibold text-slate-700">Cidade</TableHead>}
+                  {colunasVisiveis.includes('estado') && <TableHead className="font-semibold text-slate-700">Estado</TableHead>}
+                  {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
+                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <AnimatePresence mode="wait">
+                  {isLoading ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
+                        {colunasVisiveis.map((col, idx) => (
+                          <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
+                        ))}
+                        <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredFornecedores.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-3 text-slate-400">
+                          <Users className="w-12 h-12" />
+                          <p className="text-lg font-medium">Nenhum cadastro encontrado</p>
+                          <p className="text-sm">
+                            {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando um novo fornecedor/cliente'}
+                          </p>
                         </div>
                       </TableCell>
-                    </motion.tr>
-                  ))
-                )}
-              </AnimatePresence>
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+                    </TableRow>
+                  ) : (
+                    filteredFornecedores.map((fornecedor) => (
+                      <motion.tr
+                        key={fornecedor.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.includes(fornecedor.id)}
+                            onCheckedChange={() => toggleSelectItem(fornecedor.id)}
+                          />
+                        </TableCell>
+                        {colunasVisiveis.includes('numero') && (
+                          <TableCell className="font-bold text-slate-900">
+                            {fornecedor.numero_cadastro || '-'}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('nome') && (
+                          <TableCell className="font-semibold text-slate-900">
+                            {fornecedor.nome}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('tipo') && (
+                          <TableCell>
+                            <Badge className={fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
+                              {fornecedor.tipo_pessoa}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('documento') && (
+                          <TableCell className="font-mono text-slate-700">
+                            {fornecedor.tipo_pessoa === 'Física' ? fornecedor.cpf || '-' : fornecedor.cnpj || '-'}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('telefone') && (
+                          <TableCell className="text-slate-700">{fornecedor.telefone || '-'}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('email') && (
+                          <TableCell className="text-slate-700">{fornecedor.email || '-'}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('cidade') && (
+                          <TableCell className="text-slate-700">{fornecedor.cidade || '-'}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('estado') && (
+                          <TableCell className="text-slate-700 uppercase">{fornecedor.estado || '-'}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('observacoes') && (
+                          <TableCell className="text-slate-600 max-w-xs truncate">
+                            {fornecedor.observacoes || '-'}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onEdit(fornecedor)}
+                              className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onPrint(fornecedor)}
+                              className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                              title="Imprimir Ficha"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDelete(fornecedor.id)}
+                              className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </motion.tr>
+                    ))
+                  )}
+                </AnimatePresence>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal de Progresso de Exclusão */}
+      <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-red-600" />
+              Excluindo Cadastros
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto excluímos os cadastros selecionados...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {deleteProgress.current} de {deleteProgress.total}
+                </span>
+              </div>
+              <Progress value={deleteProgressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-red-600">
+                {deleteProgressPercentage}%
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

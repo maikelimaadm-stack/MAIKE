@@ -55,30 +55,52 @@ export default function Fornecedores() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Fornecedor.create(data),
+    mutationFn: async (data) => {
+      // Validar se já existe fornecedor com mesmo nome
+      const existente = fornecedores.find(f => 
+        f.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
+        (!editingFornecedor || f.id !== editingFornecedor.id)
+      );
+      
+      if (existente) {
+        throw new Error('Já existe um fornecedor/cliente cadastrado com este nome.');
+      }
+      
+      return base44.entities.Fornecedor.create(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       setShowForm(false);
       setEditingFornecedor(null);
-      toast.success('Fornecedor cadastrado com sucesso!');
+      toast.success('Fornecedor/Cliente cadastrado com sucesso!');
     },
     onError: (error) => {
-      console.error("Erro ao criar fornecedor:", error);
-      toast.error('Erro ao salvar fornecedor. Tente novamente.');
+      toast.error(error.message || 'Erro ao salvar. Tente novamente.');
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Fornecedor.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      // Validar se já existe fornecedor com mesmo nome
+      const existente = fornecedores.find(f => 
+        f.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
+        f.id !== id
+      );
+      
+      if (existente) {
+        throw new Error('Já existe um fornecedor/cliente cadastrado com este nome.');
+      }
+      
+      return base44.entities.Fornecedor.update(id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       setShowForm(false);
       setEditingFornecedor(null);
-      toast.success('Fornecedor atualizado com sucesso!');
+      toast.success('Fornecedor/Cliente atualizado com sucesso!');
     },
     onError: (error) => {
-      console.error("Erro ao atualizar fornecedor:", error);
-      toast.error('Erro ao atualizar fornecedor. Tente novamente.');
+      toast.error(error.message || 'Erro ao atualizar. Tente novamente.');
     }
   });
 
@@ -86,11 +108,11 @@ export default function Fornecedores() {
     mutationFn: (id) => base44.entities.Fornecedor.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-      toast.success('Fornecedor excluído com sucesso!');
+      toast.success('Fornecedor/Cliente excluído com sucesso!');
     },
     onError: (error) => {
       console.error("Erro ao excluir fornecedor:", error);
-      toast.error('Erro ao excluir fornecedor. Tente novamente.');
+      toast.error('Erro ao excluir fornecedor/cliente. Tente novamente.');
     }
   });
 
@@ -149,10 +171,11 @@ export default function Fornecedores() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este fornecedor/cliente? Esta ação não pode ser desfeita.')) {
-      deleteMutation.mutate(id);
+  const handleDelete = (id, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este fornecedor/cliente? Esta ação não pode ser desfeita.')) {
+      return deleteMutation.mutateAsync(id);
     }
+    return Promise.reject('Cancelado');
   };
 
   const handlePrint = (fornecedor) => {

@@ -169,10 +169,11 @@ export default function Dashboard() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta pesagem? Esta ação não pode ser desfeita.')) {
-      deleteMutation.mutate(id);
+  const handleDelete = (id, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta pesagem? Esta ação não pode ser desfeita.')) {
+      return deleteMutation.mutateAsync(id);
     }
+    return Promise.reject('Cancelado');
   };
 
   const handlePrint = (pesagem) => {

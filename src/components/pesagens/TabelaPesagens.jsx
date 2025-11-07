@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
+import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -58,6 +66,8 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -156,10 +166,10 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   });
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0) {
+    if (selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(sortedPesagens.map(p => p.id));
+      setSelectedItems(paginatedPesagens.map(p => p.id));
     }
   };
 
@@ -169,11 +179,28 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     );
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} registro(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      selectedItems.forEach(id => onDelete(id));
-      setSelectedItems([]);
-      setShowBulkActions(false);
+      setIsDeletingBulk(true);
+      setDeleteProgress({ current: 0, total: selectedItems.length });
+      
+      let deleted = 0;
+      for (const id of selectedItems) {
+        try {
+          await onDelete(id, true); // Pass true to skip individual confirmation
+          deleted++;
+          setDeleteProgress({ current: deleted, total: selectedItems.length });
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+        }
+      }
+      
+      // Allow a brief moment for the progress bar to show 100%
+      setTimeout(() => {
+        setIsDeletingBulk(false);
+        setSelectedItems([]);
+        setShowBulkActions(false);
+      }, 500);
     }
   };
 
@@ -216,406 +243,441 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     setCurrentPage(1);
   };
 
+  const deleteProgressPercentage = deleteProgress.total > 0 
+    ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
+    : 0;
+
   return (
-    <Card className="shadow-xl border-slate-200 bg-white">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            Registros de Pesagens
-            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-              {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
-            </Badge>
-            {selectedItems.length > 0 && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
-                {selectedItems.length} selecionados
+    <>
+      <Card className="shadow-xl border-slate-200 bg-white">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <CardTitle className="flex items-center gap-3 text-slate-900">
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              Registros de Pesagens
+              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
+                {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
               </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            {selectedItems.length > 0 && (
-              <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+              {selectedItems.length > 0 && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
+                  {selectedItems.length} selecionados
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {selectedItems.length > 0 && (
+                <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
+                      <CheckSquare className="w-4 h-4" />
+                      Ações em Massa
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir Todos
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir Todos
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              
+              <div className="relative flex-1 md:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder="Buscar por nº, placa, motorista, produto..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+              
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
-                    <CheckSquare className="w-4 h-4" />
-                    Ações em Massa
+                  <Button variant="outline" className="gap-2 border-slate-300">
+                    <Settings className="w-4 h-4" />
+                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Imprimir Todos
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Excluir Todos
-                  </DropdownMenuCheckboxItem>
+                  {COLUNAS_DISPONIVEIS.map((coluna) => (
+                    <DropdownMenuCheckboxItem
+                      key={coluna.id}
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onCheckedChange={() => toggleColuna(coluna.id)}
+                    >
+                      {coluna.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-            
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Buscar por nº, placa, motorista, produto..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
-              />
             </div>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-slate-300">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </TableHead>
-                {colunasVisiveis.includes('numero') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('numero')}
-                  >
-                    <div className="flex items-center">
-                      Nº
-                      {getSortIcon('numero')}
-                    </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 hover:bg-slate-50">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
                   </TableHead>
-                )}
-                {colunasVisiveis.includes('data') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('data')}
-                  >
-                    <div className="flex items-center">
-                      Data
-                      {getSortIcon('data')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('tipo') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('tipo')}
-                  >
-                    <div className="flex items-center">
-                      Tipo
-                      {getSortIcon('tipo')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('placa') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('placa')}
-                  >
-                    <div className="flex items-center">
-                      Placa
-                      {getSortIcon('placa')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('motorista') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('motorista')}
-                  >
-                    <div className="flex items-center">
-                      Motorista
-                      {getSortIcon('motorista')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('produto') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('produto')}
-                  >
-                    <div className="flex items-center">
-                      Produto
-                      {getSortIcon('produto')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('fornecedor') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('fornecedor')}
-                  >
-                    <div className="flex items-center">
-                      Fornecedor/Destino
-                      {getSortIcon('fornecedor')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('tara') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('tara')}
-                  >
-                    <div className="flex items-center justify-end">
-                      Tara (kg)
-                      {getSortIcon('tara')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('bruto') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('bruto')}
-                  >
-                    <div className="flex items-center justify-end">
-                      Bruto (kg)
-                      {getSortIcon('bruto')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('liquido') && (
-                  <TableHead 
-                    className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
-                    onClick={() => handleSort('liquido')}
-                  >
-                    <div className="flex items-center justify-end">
-                      Líquido (kg)
-                      {getSortIcon('liquido')}
-                    </div>
-                  </TableHead>
-                )}
-                {colunasVisiveis.includes('observacoes') && (
-                  <TableHead className="font-semibold text-slate-700">Observações</TableHead>
-                )}
-                <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  Array(5).fill(0).map((_, i) => (
-                    <TableRow key={i} className="animate-pulse">
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
-                      {colunasVisiveis.map((col, idx) => (
-                        <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                      ))}
-                      <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
-                    </TableRow>
-                  ))
-                ) : paginatedPesagens.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3 text-slate-400">
-                        <FileText className="w-12 h-12" />
-                        <p className="text-lg font-medium">Nenhum registro encontrado</p>
-                        <p className="text-sm">
-                          {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando uma nova pesagem'}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedPesagens.map((pesagem) => (
-                    <motion.tr
-                      key={pesagem.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  {colunasVisiveis.includes('numero') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('numero')}
                     >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedItems.includes(pesagem.id)}
-                          onCheckedChange={() => toggleSelectItem(pesagem.id)}
-                        />
-                      </TableCell>
-                      {colunasVisiveis.includes('numero') && (
-                        <TableCell className="font-bold text-slate-900">
-                          {pesagem.numero_registro || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('data') && (
-                        <TableCell className="font-medium text-slate-700">
-                          {formatarData(pesagem.data_pesagem)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('tipo') && (
-                        <TableCell>
-                          <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
-                            {pesagem.tipo_pesagem}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('placa') && (
-                        <TableCell className="font-semibold text-slate-900 uppercase">
-                          {pesagem.placa_caminhao}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('motorista') && (
-                        <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('produto') && (
-                        <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('fornecedor') && (
-                        <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('tara') && (
-                        <TableCell className="text-right font-mono text-slate-700">
-                          {formatarNumero(pesagem.peso_tara)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('bruto') && (
-                        <TableCell className="text-right font-mono text-slate-700">
-                          {formatarNumero(pesagem.peso_bruto)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('liquido') && (
-                        <TableCell className="text-right font-mono font-bold text-green-700">
-                          {formatarNumero(pesagem.peso_liquido)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('observacoes') && (
-                        <TableCell className="text-slate-600 max-w-xs truncate">
-                          {pesagem.observacoes || '-'}
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit(pesagem)}
-                            className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onPrint(pesagem)}
-                            className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                            title="Imprimir Ticket"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDelete(pesagem.id)}
-                            className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                      <div className="flex items-center">
+                        Nº
+                        {getSortIcon('numero')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('data') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('data')}
+                    >
+                      <div className="flex items-center">
+                        Data
+                        {getSortIcon('data')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('tipo') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('tipo')}
+                    >
+                      <div className="flex items-center">
+                        Tipo
+                        {getSortIcon('tipo')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('placa') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('placa')}
+                    >
+                      <div className="flex items-center">
+                        Placa
+                        {getSortIcon('placa')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('motorista') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('motorista')}
+                    >
+                      <div className="flex items-center">
+                        Motorista
+                        {getSortIcon('motorista')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('produto') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('produto')}
+                    >
+                      <div className="flex items-center">
+                        Produto
+                        {getSortIcon('produto')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('fornecedor') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('fornecedor')}
+                    >
+                      <div className="flex items-center">
+                        Fornecedor/Destino
+                        {getSortIcon('fornecedor')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('tara') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('tara')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Tara (kg)
+                        {getSortIcon('tara')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('bruto') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('bruto')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Bruto (kg)
+                        {getSortIcon('bruto')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('liquido') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('liquido')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Líquido (kg)
+                        {getSortIcon('liquido')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('observacoes') && (
+                    <TableHead className="font-semibold text-slate-700">Observações</TableHead>
+                  )}
+                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <AnimatePresence mode="wait">
+                  {isLoading ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
+                        {colunasVisiveis.map((col, idx) => (
+                          <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
+                        ))}
+                        <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
+                      </TableRow>
+                    ))
+                  ) : paginatedPesagens.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-3 text-slate-400">
+                          <FileText className="w-12 h-12" />
+                          <p className="text-lg font-medium">Nenhum registro encontrado</p>
+                          <p className="text-sm">
+                            {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando uma nova pesagem'}
+                          </p>
                         </div>
                       </TableCell>
-                    </motion.tr>
-                  ))
-                )}
-              </AnimatePresence>
-            </TableBody>
-          </Table>
-        </div>
-
-        {!isLoading && paginatedPesagens.length > 0 && (
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span>Mostrar</span>
-              <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="200">200</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
-                </SelectContent>
-              </Select>
-              <span>registros por página</span>
-            </div>
-
-            {itemsPerPage !== -1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                
-                <div className="flex items-center gap-2 px-3 text-sm">
-                  <span className="text-slate-700 font-medium">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                  <span className="text-slate-500">
-                    ({startIndex + 1}-{Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length})
-                  </span>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
+                    </TableRow>
+                  ) : (
+                    paginatedPesagens.map((pesagem) => (
+                      <motion.tr
+                        key={pesagem.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.includes(pesagem.id)}
+                            onCheckedChange={() => toggleSelectItem(pesagem.id)}
+                          />
+                        </TableCell>
+                        {colunasVisiveis.includes('numero') && (
+                          <TableCell className="font-bold text-slate-900">
+                            {pesagem.numero_registro || '-'}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('data') && (
+                          <TableCell className="font-medium text-slate-700">
+                            {formatarData(pesagem.data_pesagem)}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('tipo') && (
+                          <TableCell>
+                            <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
+                              {pesagem.tipo_pesagem}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('placa') && (
+                          <TableCell className="font-semibold text-slate-900 uppercase">
+                            {pesagem.placa_caminhao}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('motorista') && (
+                          <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('produto') && (
+                          <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('fornecedor') && (
+                          <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
+                        )}
+                        {colunasVisiveis.includes('tara') && (
+                          <TableCell className="text-right font-mono text-slate-700">
+                            {formatarNumero(pesagem.peso_tara)}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('bruto') && (
+                          <TableCell className="text-right font-mono text-slate-700">
+                            {formatarNumero(pesagem.peso_bruto)}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('liquido') && (
+                          <TableCell className="text-right font-mono font-bold text-green-700">
+                            {formatarNumero(pesagem.peso_liquido)}
+                          </TableCell>
+                        )}
+                        {colunasVisiveis.includes('observacoes') && (
+                          <TableCell className="text-slate-600 max-w-xs truncate">
+                            {pesagem.observacoes || '-'}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onEdit(pesagem)}
+                              className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onPrint(pesagem)}
+                              className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                              title="Imprimir Ticket"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDelete(pesagem.id)}
+                              className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </motion.tr>
+                    ))
+                  )}
+                </AnimatePresence>
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {!isLoading && paginatedPesagens.length > 0 && (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <span>Mostrar</span>
+                <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span>registros por página</span>
+              </div>
+
+              {itemsPerPage !== -1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-2 px-3 text-sm">
+                    <span className="text-slate-700 font-medium">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <span className="text-slate-500">
+                      ({startIndex + 1}-{Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length})
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de Progresso de Exclusão */}
+      <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-red-600" />
+              Excluindo Registros
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto excluímos os registros selecionados...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {deleteProgress.current} de {deleteProgress.total}
+                </span>
+              </div>
+              <Progress value={deleteProgressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-red-600">
+                {deleteProgressPercentage}%
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

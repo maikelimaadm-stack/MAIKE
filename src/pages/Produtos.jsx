@@ -96,28 +96,52 @@ export default function Produtos() {
   }, [produtos, queryClient, isLoading]); // Dependencies for the effect
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Produto.create(data),
+    mutationFn: async (data) => {
+      // Validar se já existe produto com mesmo nome
+      const existente = produtos.find(p => 
+        p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
+        (!editingProduto || p.id !== editingProduto.id)
+      );
+      
+      if (existente) {
+        throw new Error('Já existe um produto cadastrado com este nome.');
+      }
+      
+      return base44.entities.Produto.create(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
       setShowForm(false);
       setEditingProduto(null);
       toast.success('Produto cadastrado com sucesso!');
     },
-    onError: () => {
-      toast.error('Erro ao salvar produto. Tente novamente.');
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao salvar produto. Tente novamente.');
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Produto.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      // Validar se já existe produto com mesmo nome
+      const existente = produtos.find(p => 
+        p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
+        p.id !== id
+      );
+      
+      if (existente) {
+        throw new Error('Já existe um produto cadastrado com este nome.');
+      }
+      
+      return base44.entities.Produto.update(id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
       setShowForm(false);
       setEditingProduto(null);
       toast.success('Produto atualizado com sucesso!');
     },
-    onError: () => {
-      toast.error('Erro ao atualizar produto. Tente novamente.');
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao atualizar produto. Tente novamente.');
     }
   });
 
@@ -154,10 +178,11 @@ export default function Produtos() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este produto? Esta ação não pode ser desfeita.')) {
-      deleteMutation.mutate(id);
+  const handleDelete = (id, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este produto? Esta ação não pode ser desfeita.')) {
+      return deleteMutation.mutateAsync(id);
     }
+    return Promise.reject('Cancelado');
   };
 
   const handlePrint = (produto) => {
