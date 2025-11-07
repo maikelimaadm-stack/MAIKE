@@ -69,6 +69,13 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
+  // This function is added to make the requested onOpenChange={setShowImportProgress} functional.
+  // It effectively maps to setIsDeletingBulk for this specific dialog.
+  // Typically, a progress dialog is not user-closable, but this satisfies the prop requirement.
+  const setShowImportProgress = (isOpen) => {
+    setIsDeletingBulk(isOpen);
+  };
+
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
       const novasColunas = prev.includes(colunaId)
@@ -387,7 +394,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
       </Card>
 
       {/* Modal de Progresso de Exclusão */}
-      <Dialog open={isDeletingBulk}>
+      <Dialog open={isDeletingBulk} onOpenChange={setShowImportProgress}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
