@@ -437,7 +437,7 @@ export default function RelatorioFornecedores() {
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-2 mb-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
@@ -468,10 +468,11 @@ export default function RelatorioFornecedores() {
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="mb-3">
-            <h2 className="text-base font-bold">Lista de Fornecedores</h2>
+            
+            {/* Título do Relatório */}
+            <div className="mt-2">
+              <h2 className="text-base font-bold">Lista de Fornecedores</h2>
+            </div>
           </div>
 
           <Table>

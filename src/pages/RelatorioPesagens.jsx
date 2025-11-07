@@ -650,7 +650,7 @@ export default function RelatorioPesagens() {
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-2 mb-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
@@ -681,16 +681,16 @@ export default function RelatorioPesagens() {
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Título do Relatório */}
-          <div className="mb-3">
-            <h2 className="text-base font-bold">Relatório de Pesagens</h2>
-            {(dataInicio || dataFim) && (
-              <p className="text-xs text-gray-600">
-                Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
-              </p>
-            )}
+            
+            {/* Título do Relatório */}
+            <div className="mt-2">
+              <h2 className="text-base font-bold">Relatório de Pesagens</h2>
+              {(dataInicio || dataFim) && (
+                <p className="text-xs text-gray-600">
+                  Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Tabelas Agrupadas */}
