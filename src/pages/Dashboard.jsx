@@ -476,27 +476,44 @@ export default function Dashboard() {
   };
 
   const downloadErrosImportacao = () => {
-    const csvRows = [];
-    const headers = ['Linha', 'Erro', 'Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
-    csvRows.push(headers.join(';'));
+    console.log('📥 Iniciando download de erros...', { totalErros: importErrors.length });
+    
+    try {
+      const csvRows = [];
+      const headers = ['Linha', 'Erro', 'Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+      csvRows.push(headers.join(';'));
 
-    importErrors.forEach(erro => {
-      const dados = erro.dados.split(';');
-      const row = [
-        erro.linha,
-        erro.erro,
-        ...dados
-      ];
-      csvRows.push(row.join(';'));
-    });
+      importErrors.forEach(erro => {
+        const dados = erro.dados.split(';');
+        const row = [
+          erro.linha,
+          `"${erro.erro}"`, // Colocar erro entre aspas para evitar problemas com ponto e vírgula
+          ...dados
+        ];
+        csvRows.push(row.join(';'));
+      });
 
-    const csvString = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `erros_importacao_pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
-    link.click();
-    toast.success('Planilha de erros baixada com sucesso!');
+      const csvString = csvRows.join('\n');
+      const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `erros_importacao_pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+      
+      // Adicionar ao DOM, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpar URL objeto
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      console.log('✅ Download iniciado com sucesso!');
+      toast.success('Planilha de erros baixada com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao baixar planilha:', error);
+      toast.error('Erro ao baixar planilha de erros. Tente novamente.');
+    }
   };
 
   const totalPesagens = pesagens.length;
