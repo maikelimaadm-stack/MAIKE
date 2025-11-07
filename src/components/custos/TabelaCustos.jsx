@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck } from "lucide-react";
+import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -24,6 +23,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -45,7 +49,9 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true, sortable: true },
   { id: 'fornecedor', label: 'Fornecedor', default: true, sortable: true },
   { id: 'produto', label: 'Produto', default: true, sortable: true },
-  { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
+  { id: 'quantidade', label: 'Qtd Comprada', default: true, sortable: true },
+  { id: 'quantidade_entregue', label: 'Qtd Entregue', default: true, sortable: true },
+  { id: 'quantidade_restante', label: 'Qtd Restante', default: true, sortable: true },
   { id: 'unidade', label: 'Unidade', default: true, sortable: false },
   { id: 'valor_unitario', label: 'Valor Unit.', default: true, sortable: true },
   { id: 'valor_total', label: 'Valor Total', default: true, sortable: true },
@@ -56,7 +62,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
 ];
 
-export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLancarEntrega, isLoading }) {
+export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDelete, onPrint, onLancarEntrega, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -79,6 +85,7 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  const [fornecedorDetalhes, setFornecedorDetalhes] = useState(null);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -156,14 +163,21 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
     setShowBulkActions(false);
   };
 
+  const handleVerFornecedor = (custoId) => {
+    const custo = custos.find(c => c.id === custoId);
+    if (custo) {
+      const fornecedor = fornecedores.find(f => f.id === custo.fornecedor_id);
+      setFornecedorDetalhes(fornecedor);
+    }
+  };
+
   const filteredCustos = custos.filter(custo => {
     const searchLower = searchTerm.toLowerCase();
     return (
       custo.fornecedor_nome?.toLowerCase().includes(searchLower) ||
       custo.produto_nome?.toLowerCase().includes(searchLower) ||
       custo.status_entrega?.toLowerCase().includes(searchLower) ||
-      custo.forma_pagamento?.toLowerCase().includes(searchLower) ||
-      custo.numero_lancamento?.toString().includes(searchLower) // Added search by numero_lancamento
+      custo.forma_pagamento?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -188,6 +202,14 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
       case 'quantidade':
         aValue = a.quantidade;
         bValue = b.quantidade;
+        break;
+      case 'quantidade_entregue':
+        aValue = a.quantidade_entregue || 0;
+        bValue = b.quantidade_entregue || 0;
+        break;
+      case 'quantidade_restante':
+        aValue = a.quantidade - (a.quantidade_entregue || 0);
+        bValue = b.quantidade - (b.quantidade_entregue || 0);
         break;
       case 'valor_unitario':
         aValue = a.valor_unitario;
@@ -283,7 +305,7 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
               <div className="relative flex-1 md:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por fornecedor, produto, status, Nº..."
+                  placeholder="Buscar por fornecedor, produto, status..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -364,8 +386,30 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
                       onClick={() => handleSort('quantidade')}
                     >
                       <div className="flex items-center justify-end">
-                        Quantidade
+                        Qtd Comprada
                         {getSortIcon('quantidade')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('quantidade_entregue') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('quantidade_entregue')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Qtd Entregue
+                        {getSortIcon('quantidade_entregue')}
+                      </div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('quantidade_restante') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('quantidade_restante')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Qtd Restante
+                        {getSortIcon('quantidade_restante')}
                       </div>
                     </TableHead>
                   )}
@@ -461,114 +505,153 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedCustos.map((custo) => (
-                      <motion.tr
-                        key={custo.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedItems.includes(custo.id)}
-                            onCheckedChange={() => toggleSelectItem(custo.id)}
-                          />
-                        </TableCell>
-                        {colunasVisiveis.includes('numero') && (
-                          <TableCell className="font-bold text-slate-900">
-                            {custo.numero_lancamento || '-'}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('fornecedor') && (
-                          <TableCell className="font-semibold text-slate-900">
-                            {custo.fornecedor_nome}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('produto') && (
-                          <TableCell className="text-slate-700">{custo.produto_nome}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('quantidade') && (
-                          <TableCell className="text-right font-mono text-slate-700">
-                            {formatarNumero(custo.quantidade)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('unidade') && (
-                          <TableCell className="text-slate-700">{custo.unidade_medida}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('valor_unitario') && (
-                          <TableCell className="text-right font-mono text-slate-700">
-                            R$ {formatarNumero(custo.valor_unitario)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('valor_total') && (
-                          <TableCell className="text-right font-mono font-bold text-green-700">
-                            R$ {formatarNumero(custo.valor_total)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('prazo_entrega') && (
-                          <TableCell className="text-slate-700">{formatarData(custo.prazo_entrega)}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('data_entrega') && (
-                          <TableCell className="text-slate-700">{formatarData(custo.data_entrega)}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('status') && (
+                    sortedCustos.map((custo) => {
+                      const qtdEntregue = custo.quantidade_entregue || 0;
+                      const qtdRestante = custo.quantidade - qtdEntregue;
+                      const percentualEntregue = (qtdEntregue / custo.quantidade) * 100;
+
+                      return (
+                        <motion.tr
+                          key={custo.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                        >
                           <TableCell>
-                            <Badge className={`${getStatusBadge(custo.status_entrega)} border`}>
-                              {custo.status_entrega}
-                            </Badge>
+                            <Checkbox
+                              checked={selectedItems.includes(custo.id)}
+                              onCheckedChange={() => toggleSelectItem(custo.id)}
+                            />
                           </TableCell>
-                        )}
-                        {colunasVisiveis.includes('forma_pagamento') && (
-                          <TableCell className="text-slate-600">{custo.forma_pagamento || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('observacoes') && (
-                          <TableCell className="text-slate-600 max-w-xs truncate">
-                            {custo.observacoes || '-'}
+                          {colunasVisiveis.includes('numero') && (
+                            <TableCell className="font-bold text-slate-900">
+                              {custo.numero_lancamento || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('fornecedor') && (
+                            <TableCell className="font-semibold text-slate-900">
+                              <div className="flex items-center gap-2">
+                                {custo.fornecedor_nome}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleVerFornecedor(custo.id)}
+                                  title="Ver detalhes do fornecedor"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('produto') && (
+                            <TableCell className="text-slate-700">{custo.produto_nome}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('quantidade') && (
+                            <TableCell className="text-right font-mono text-slate-700">
+                              {formatarNumero(custo.quantidade)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('quantidade_entregue') && (
+                            <TableCell className="text-right">
+                              <div className="space-y-1">
+                                <div className="font-mono text-blue-700 font-semibold">
+                                  {formatarNumero(qtdEntregue)}
+                                </div>
+                                {qtdEntregue > 0 && (
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-blue-600 h-1.5 rounded-full" 
+                                      style={{ width: `${percentualEntregue}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('quantidade_restante') && (
+                            <TableCell className="text-right font-mono font-bold text-orange-700">
+                              {formatarNumero(qtdRestante)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('unidade') && (
+                            <TableCell className="text-slate-700">{custo.unidade_medida}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('valor_unitario') && (
+                            <TableCell className="text-right font-mono text-slate-700">
+                              R$ {formatarNumero(custo.valor_unitario)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('valor_total') && (
+                            <TableCell className="text-right font-mono font-bold text-green-700">
+                              R$ {formatarNumero(custo.valor_total)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('prazo_entrega') && (
+                            <TableCell className="text-slate-700">{formatarData(custo.prazo_entrega)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('data_entrega') && (
+                            <TableCell className="text-slate-700">{formatarData(custo.data_entrega)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('status') && (
+                            <TableCell>
+                              <Badge className={`${getStatusBadge(custo.status_entrega)} border`}>
+                                {custo.status_entrega}
+                              </Badge>
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('forma_pagamento') && (
+                            <TableCell className="text-slate-600">{custo.forma_pagamento || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('observacoes') && (
+                            <TableCell className="text-slate-600 max-w-xs truncate">
+                              {custo.observacoes || '-'}
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onLancarEntrega(custo)}
+                                className="hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                                title="Lançar Entrega"
+                              >
+                                <Truck className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit(custo)}
+                                className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onPrint(custo)}
+                                className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                                title="Imprimir"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onDelete(custo.id)}
+                                className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
-                        )}
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onLancarEntrega(custo)}
-                              className="hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                              title="Lançar Entrega"
-                            >
-                              <Truck className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onEdit(custo)}
-                              className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onPrint(custo)}
-                              className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                              title="Imprimir"
-                            >
-                              <Printer className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onDelete(custo.id)}
-                              className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
-                    ))
+                        </motion.tr>
+                      );
+                    })
                   )}
                 </AnimatePresence>
               </TableBody>
@@ -576,6 +659,83 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Detalhes do Fornecedor */}
+      <Dialog open={!!fornecedorDetalhes} onOpenChange={() => setFornecedorDetalhes(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-900">
+              Detalhes do Fornecedor
+            </DialogTitle>
+          </DialogHeader>
+          {fornecedorDetalhes && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-slate-600">Nome/Razão Social</p>
+                  <p className="font-semibold text-slate-900">{fornecedorDetalhes.nome}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Tipo</p>
+                  <p className="font-semibold text-slate-900">Pessoa {fornecedorDetalhes.tipo_pessoa}</p>
+                </div>
+              </div>
+
+              {fornecedorDetalhes.tipo_pessoa === 'Física' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-slate-600">CPF</p>
+                    <p className="font-mono font-semibold text-slate-900">{fornecedorDetalhes.cpf || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">RG</p>
+                    <p className="font-mono font-semibold text-slate-900">{fornecedorDetalhes.rg || '-'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-slate-600">CNPJ</p>
+                    <p className="font-mono font-semibold text-slate-900">{fornecedorDetalhes.cnpj || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-600">Inscrição Estadual</p>
+                    <p className="font-mono font-semibold text-slate-900">{fornecedorDetalhes.inscricao_estadual || '-'}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-slate-600">Telefone</p>
+                  <p className="font-semibold text-slate-900">{fornecedorDetalhes.telefone || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Email</p>
+                  <p className="font-semibold text-slate-900">{fornecedorDetalhes.email || '-'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-slate-600">Endereço</p>
+                <p className="font-semibold text-slate-900">
+                  {fornecedorDetalhes.endereco || '-'}
+                  {fornecedorDetalhes.cidade && `, ${fornecedorDetalhes.cidade}`}
+                  {fornecedorDetalhes.estado && `-${fornecedorDetalhes.estado}`}
+                  {fornecedorDetalhes.cep && ` - CEP: ${fornecedorDetalhes.cep}`}
+                </p>
+              </div>
+
+              {fornecedorDetalhes.observacoes && (
+                <div>
+                  <p className="text-sm text-slate-600">Observações</p>
+                  <p className="font-semibold text-slate-900">{fornecedorDetalhes.observacoes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Progresso de Exclusão */}
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
