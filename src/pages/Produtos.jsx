@@ -53,15 +53,25 @@ export default function Produtos() {
 
   const queryClient = useQueryClient();
 
+  // Pegar empresa selecionada
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
   const { data: produtos, isLoading } = useQuery({
-    queryKey: ['produtos'],
-    queryFn: () => base44.entities.Produto.list('-created_date'),
+    queryKey: ['produtos', empresaSelecionadaId],
+    queryFn: async () => {
+      const allProdutos = await base44.entities.Produto.list('-created_date');
+      // Filtrar apenas produtos da empresa selecionada
+      return allProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
     initialData: [],
+    enabled: !!empresaSelecionadaId,
   });
 
   // Numerar produtos existentes automaticamente
   React.useEffect(() => {
     const numerarProdutosExistentes = async () => {
+      if (!empresaSelecionadaId) return; // Ensure we have a selected company
+
       const produtosSemNumero = produtos.filter(p => !p.numero_produto || p.numero_produto === '');
       
       if (produtosSemNumero.length > 0) {
@@ -78,32 +88,33 @@ export default function Produtos() {
           }
         }
         
-        queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
         toast.success('Produtos numerados automaticamente.');
       }
     };
 
-    if (!isLoading && produtos && produtos.length > 0) {
+    if (!isLoading && produtos && produtos.length > 0 && empresaSelecionadaId) {
       numerarProdutosExistentes();
     }
-  }, [produtos, queryClient, isLoading]);
+  }, [produtos, queryClient, isLoading, empresaSelecionadaId]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      // Validar se já existe produto com mesmo nome
+      // Validar se já existe produto com mesmo nome E mesma empresa
       const existente = produtos.find(p => 
         p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
+        p.empresa_id === empresaSelecionadaId &&
         (!editingProduto || p.id !== editingProduto.id)
       );
       
       if (existente) {
-        throw new Error('Já existe um produto cadastrado com este nome.');
+        throw new Error('Já existe um produto cadastrado com este nome para esta empresa.');
       }
       
       return base44.entities.Produto.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
       setEditingProduto(null);
       toast.success('Produto cadastrado com sucesso!');
@@ -115,20 +126,21 @@ export default function Produtos() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      // Validar se já existe produto com mesmo nome
+      // Validar se já existe produto com mesmo nome E mesma empresa
       const existente = produtos.find(p => 
         p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
+        p.empresa_id === empresaSelecionadaId &&
         p.id !== id
       );
       
       if (existente) {
-        throw new Error('Já existe um produto cadastrado com este nome.');
+        throw new Error('Já existe um produto cadastrado com este nome para esta empresa.');
       }
       
       return base44.entities.Produto.update(id, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
       setEditingProduto(null);
       toast.success('Produto atualizado com sucesso!');
@@ -141,7 +153,7 @@ export default function Produtos() {
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Produto.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       toast.success('Produto excluído com sucesso!');
     },
     onError: () => {
@@ -151,6 +163,9 @@ export default function Produtos() {
 
   const handleSubmit = async (data) => {
     try {
+      // Adicionar empresa_id aos dados
+      data.empresa_id = empresaSelecionadaId;
+      
       if (!editingProduto) {
         const proximoNumero = await getNextSystemNumber();
         data.numero_produto = String(proximoNumero);
@@ -257,6 +272,7 @@ export default function Produtos() {
 
           try {
             const produto = {
+              empresa_id: empresaSelecionadaId, // Add empresa_id here for import
               numero_produto: String(proximoNumero),
               nome_produto: values[0]?.trim()?.toUpperCase(),
               codigo_interno: values[1]?.trim()?.toUpperCase() || undefined,
@@ -305,7 +321,7 @@ export default function Produtos() {
           }
         }
 
-        await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        await queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
         
         setTimeout(() => {
           setShowImportProgress(false);

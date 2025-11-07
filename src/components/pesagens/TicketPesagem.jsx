@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -11,133 +13,172 @@ const formatarNumero = (numero) => {
 };
 
 export default function TicketPesagem({ pesagem, open, onClose }) {
-  if (!pesagem) return null;
+  // Buscar dados da empresa
+  const { data: empresaAtual } = useQuery({
+    queryKey: ['empresa-ticket', pesagem?.empresa_id],
+    queryFn: async () => {
+      if (!pesagem?.empresa_id) return null;
+      const empresas = await base44.entities.Empresa.list();
+      return empresas.find(e => e.id === pesagem.empresa_id) || null;
+    },
+    enabled: !!pesagem?.empresa_id,
+  });
 
   const handlePrint = () => {
     window.print();
   };
 
-  // Usar numero_registro para o romaneio (formato: 000001)
-  const romaneio = pesagem.numero_registro ? String(pesagem.numero_registro).padStart(6, '0') : '------';
-
-  const formatarData = (dataString) => {
-    if (!dataString) return '--/--/----';
-    try {
-      const date = new Date(dataString);
-      if (isNaN(date.getTime())) return '--/--/----';
-      return format(date, "dd/MM/yyyy", { locale: ptBR });
-    } catch {
-      return '--/--/----';
-    }
-  };
+  if (!pesagem) return null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[280px] p-0">
-        <style dangerouslySetInnerHTML={{__html: `
-          @media print {
-            @page {
-              size: 60mm auto;
-              margin: 0;
-            }
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              width: 60mm !important;
-            }
-            body * {
-              visibility: hidden !important;
-            }
-            #ticket-print-area,
-            #ticket-print-area * {
-              visibility: visible !important;
-            }
-            #ticket-print-area {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 60mm !important;
-              margin: 0 !important;
-              padding: 2mm !important;
-            }
-          }
-        `}} />
-        
-        <div className="print:hidden flex justify-end gap-2 p-3 border-b">
-          <Button onClick={handlePrint} size="sm" className="gap-2 bg-green-600 hover:bg-green-700">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+        <div className="print:hidden flex justify-end gap-2 mb-4">
+          <Button onClick={handlePrint} className="gap-2">
             <Printer className="w-4 h-4" />
             Imprimir
           </Button>
-          <Button variant="outline" onClick={onClose} size="sm" className="gap-2">
+          <Button onClick={onClose} variant="outline" className="gap-2">
             <X className="w-4 h-4" />
             Fechar
           </Button>
         </div>
 
-        <div id="ticket-print-area" className="p-4 print:p-0">
-          {/* Ticket Térmico 60mm */}
-          <div className="bg-white font-mono text-xs leading-tight" style={{ width: '60mm', fontFamily: 'Courier New, monospace', fontSize: '10px' }}>
-            {/* Logo e Cabeçalho */}
-            <div className="text-center mb-2">
-              <img 
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                alt="Fazenda Palmital"
-                className="mx-auto mb-1"
-                style={{ maxWidth: '80px', height: 'auto' }}
-              />
-              <div className="font-bold text-xs">FAZENDA PALMITAL</div>
-              <div className="text-[9px]" style={{ lineHeight: '1.2' }}>
-                fazendapalmital@gmail.com<br/>
-                Insc. Est. 13.261.179-1<br/>
-                CPF 705.881.208-04<br/>
-                (65) 9 9916-3376<br/>
-                Vila Bela da Santissima Trindade-MT
+        <div className="bg-white p-8 print:p-4">
+          <style dangerouslySetInnerHTML={{__html: `
+            @media print {
+              @page {
+                size: A4;
+                margin: 1cm;
+              }
+              body * {
+                visibility: hidden;
+              }
+              .ticket-print, .ticket-print * {
+                visibility: visible;
+              }
+              .ticket-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+              }
+            }
+          `}} />
+
+          <div className="ticket-print">
+            {/* Cabeçalho com dados da empresa */}
+            <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido}
+                  className="h-20 object-contain"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center">
+                  <span className="text-xs text-gray-500">Logo</span>
+                </div>
+              )}
+              <div className="text-right">
+                <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Empresa'}</h1>
+                <p className="text-base">{empresaAtual?.nome || ''}</p>
+                {empresaAtual?.endereco && <p className="text-sm">{empresaAtual.endereco}</p>}
+                {empresaAtual?.cidade && empresaAtual?.estado && (
+                  <p className="text-sm">{empresaAtual.cidade} - {empresaAtual.estado}</p>
+                )}
+                {empresaAtual?.telefone && <p className="text-sm">Tel: {empresaAtual.telefone}</p>}
+                {empresaAtual?.email && <p className="text-sm">E-mail: {empresaAtual.email}</p>}
               </div>
             </div>
 
-            {/* Linha separadora */}
-            <div className="border-t-2 border-dashed border-black my-1"></div>
-
-            {/* Dados Principais */}
-            <div className="space-y-0.5 mb-1 text-[9px]">
-              <div><strong>ROMANEIO:</strong> {romaneio}</div>
-              <div className="break-words"><strong>Forn/Dest:</strong> {pesagem.fornecedor_destino?.toUpperCase() || 'NAO INFORMADO'}</div>
-              <div className="break-words"><strong>Produto:</strong> {pesagem.produto?.toUpperCase() || 'NAO INFORMADO'}</div>
-              <div><strong>Data:</strong> {formatarData(pesagem.data_pesagem)}</div>
-              <div><strong>Placa:</strong> {pesagem.placa_caminhao?.toUpperCase() || 'NAO INFORMADO'}</div>
-              <div className="break-words"><strong>Motorista:</strong> {pesagem.nome_motorista?.toUpperCase() || 'NAO INFORMADO'}</div>
+            {/* Título */}
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold">TICKET DE PESAGEM</h2>
+              <p className="text-lg mt-2">Nº {pesagem.numero_registro}</p>
             </div>
-
-            {/* Linha separadora */}
-            <div className="border-t-2 border-dashed border-black my-1"></div>
 
             {/* Dados da Pesagem */}
-            <div className="text-center font-bold mb-0.5 text-[9px]">DADOS PESAGEM</div>
-            <div className="space-y-0.5 mb-1 text-[9px]">
-              <div><strong>Tara:</strong> {formatarNumero(pesagem.peso_tara)} kg</div>
-              <div><strong>Bruto:</strong> {formatarNumero(pesagem.peso_bruto)} kg</div>
-              <div><strong>Liquido:</strong> {formatarNumero(pesagem.peso_liquido)} kg</div>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Data:</p>
+                  <p className="text-lg font-bold">
+                    {pesagem.data_pesagem ? format(new Date(pesagem.data_pesagem), "dd/MM/yyyy", { locale: ptBR }) : '-'}
+                  </p>
+                </div>
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Tipo:</p>
+                  <p className="text-lg font-bold">{pesagem.tipo_pesagem}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Placa:</p>
+                  <p className="text-lg font-bold uppercase">{pesagem.placa_caminhao || '-'}</p>
+                </div>
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Motorista:</p>
+                  <p className="text-lg font-bold">{pesagem.nome_motorista || '-'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Produto:</p>
+                  <p className="text-lg font-bold">{pesagem.produto || '-'}</p>
+                </div>
+                <div className="border-b border-gray-300 pb-2">
+                  <p className="text-sm text-gray-600">Fornecedor/Destino:</p>
+                  <p className="text-lg font-bold">{pesagem.fornecedor_destino || '-'}</p>
+                </div>
+              </div>
+
+              {/* Pesos */}
+              <div className="bg-gray-100 p-4 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-gray-600">Peso Tara</p>
+                    <p className="text-2xl font-bold text-blue-600">{formatarNumero(pesagem.peso_tara)} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Peso Bruto</p>
+                    <p className="text-2xl font-bold text-purple-600">{formatarNumero(pesagem.peso_bruto)} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Peso Líquido</p>
+                    <p className="text-3xl font-bold text-green-600">{formatarNumero(pesagem.peso_liquido)} kg</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Observações */}
+              {pesagem.observacoes && (
+                <div className="border-t border-gray-300 pt-4">
+                  <p className="text-sm text-gray-600 mb-2">Observações:</p>
+                  <p className="text-base">{pesagem.observacoes}</p>
+                </div>
+              )}
+
+              {/* Assinaturas */}
+              <div className="grid grid-cols-2 gap-8 mt-12">
+                <div className="text-center">
+                  <div className="border-t border-black pt-2">
+                    <p className="text-sm">Operador</p>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="border-t border-black pt-2">
+                    <p className="text-sm">Responsável</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Linha separadora */}
-            <div className="border-t-2 border-dashed border-black my-1"></div>
-
-            {/* Observação */}
-            {pesagem.observacoes && (
-              <>
-                <div className="text-center font-bold mb-0.5 text-[9px]">OBSERVACAO</div>
-                <div className="break-words mb-1 text-[9px]">{pesagem.observacoes?.toUpperCase()}</div>
-                <div className="border-t-2 border-dashed border-black my-1"></div>
-              </>
-            )}
-
             {/* Rodapé */}
-            <div className="text-center text-[8px]">
-              Impresso em: {format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+            <div className="mt-8 text-center text-xs text-gray-500">
+              <p>Emitido em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
             </div>
           </div>
         </div>

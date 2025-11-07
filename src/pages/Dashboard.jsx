@@ -87,17 +87,25 @@ export default function Dashboard() {
 
   const queryClient = useQueryClient();
 
+  // Pegar empresa selecionada
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
   const { data: pesagens, isLoading } = useQuery({
-    queryKey: ['pesagens'],
-    queryFn: () => base44.entities.Pesagem.list('-created_date'),
+    queryKey: ['pesagens', empresaSelecionadaId],
+    queryFn: async () => {
+      const allPesagens = await base44.entities.Pesagem.list('-created_date');
+      // Filtrar apenas pesagens da empresa selecionada
+      return allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
     initialData: [],
+    enabled: !!empresaSelecionadaId, // Only run query if an company is selected
   });
 
   // Numerar registros existentes automaticamente
   useEffect(() => {
     const numerarRegistrosExistentes = async () => {
       // Only run if data is loaded, there are pesagens, and form is not open
-      if (isLoading || !pesagens || pesagens.length === 0 || showForm) {
+      if (isLoading || !pesagens || pesagens.length === 0 || showForm || !empresaSelecionadaId) {
         return;
       }
 
@@ -127,7 +135,7 @@ export default function Dashboard() {
     };
 
     numerarRegistrosExistentes();
-  }, [pesagens, queryClient, isLoading, showForm]);
+  }, [pesagens, queryClient, isLoading, showForm, empresaSelecionadaId]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Pesagem.create(data),
@@ -167,6 +175,9 @@ export default function Dashboard() {
   });
 
   const handleSubmit = async (data) => {
+    // Adicionar empresa_id aos dados
+    data.empresa_id = empresaSelecionadaId;
+    
     if (!editingPesagem) {
       const proximoNumero = await getNextSystemNumber();
       data.numero_registro = String(proximoNumero);
@@ -348,7 +359,8 @@ export default function Dashboard() {
               peso_tara: pesoTara,
               peso_bruto: pesoBruto,
               peso_liquido: pesoLiquido,
-              observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined
+              observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined,
+              empresa_id: empresaSelecionadaId, // Add empresa_id to imported records
             };
 
             validRecords.push(pesagem);

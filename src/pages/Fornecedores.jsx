@@ -55,10 +55,18 @@ export default function Fornecedores() {
 
   const queryClient = useQueryClient();
 
+  // Pegar empresa selecionada
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
   const { data: fornecedores, isLoading } = useQuery({
-    queryKey: ['fornecedores'],
-    queryFn: () => base44.entities.Fornecedor.list('-created_date'),
+    queryKey: ['fornecedores', empresaSelecionadaId],
+    queryFn: async () => {
+      const allFornecedores = await base44.entities.Fornecedor.list('-created_date');
+      // Filtrar apenas fornecedores da empresa selecionada
+      return allFornecedores.filter(f => f.empresa_id === empresaSelecionadaId);
+    },
     initialData: [],
+    enabled: !!empresaSelecionadaId,
   });
 
   const createMutation = useMutation({
@@ -156,6 +164,9 @@ export default function Fornecedores() {
   }, [fornecedores, queryClient]); // Dependencies: re-run if fornecedores data changes or queryClient instance changes
 
   const handleSubmit = async (data) => {
+    // Adicionar empresa_id aos dados
+    data.empresa_id = empresaSelecionadaId;
+    
     // Gerar número único se for novo cadastro
     if (!editingFornecedor) {
       const proximoNumero = await getNextSystemNumber();
@@ -294,6 +305,7 @@ export default function Fornecedores() {
             
             fornecedor.numero_cadastro = String(proximoNumero);
             proximoNumero++; // Incrementar localmente
+            fornecedor.empresa_id = empresaSelecionadaId; // Assign current company ID
             
             validRecords.push(fornecedor);
           } catch (err) {

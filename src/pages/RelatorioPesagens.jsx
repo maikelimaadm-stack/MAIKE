@@ -72,10 +72,28 @@ export default function RelatorioPesagens() {
   const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState([]);
   const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
+  // Pegar empresa selecionada
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
   const { data: pesagens, isLoading } = useQuery({
-    queryKey: ['pesagens'],
-    queryFn: () => base44.entities.Pesagem.list('-data_pesagem'),
+    queryKey: ['pesagens', empresaSelecionadaId],
+    queryFn: async () => {
+      const allPesagens = await base44.entities.Pesagem.list('-data_pesagem');
+      return allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
     initialData: [],
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Buscar dados da empresa selecionada
+  const { data: empresaAtual } = useQuery({
+    queryKey: ['empresa-atual-relatorio', empresaSelecionadaId],
+    queryFn: async () => {
+      if (!empresaSelecionadaId) return null;
+      const empresas = await base44.entities.Empresa.list();
+      return empresas.find(e => e.id === empresaSelecionadaId) || null;
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   const produtosUnicos = [...new Set(pesagens.map(p => p.produto))].filter(Boolean);
@@ -570,17 +588,30 @@ export default function RelatorioPesagens() {
         `}} />
 
         <div className="print-area p-8 print:p-0">
-          {/* Cabeçalho */}
+          {/* Cabeçalho com dados da empresa */}
           <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            <img
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
-              alt="Fazenda Palmital"
-              className="h-20"
-            />
+            {empresaAtual?.logotipo_url ? (
+              <img 
+                src={empresaAtual.logotipo_url} 
+                alt={empresaAtual.apelido || "Logo da Empresa"}
+                className="h-20 object-contain"
+              />
+            ) : (
+              <img
+                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
+                alt="Logo Padrão"
+                className="h-20"
+              />
+            )}
             <div className="text-right">
-              <h1 className="text-2xl font-bold">Fazenda Palmital</h1>
-              <p className="text-base">Antonio Lemos Beraldo</p>
-              <p className="text-sm">Vila Bela da Ss. Trindade - MT</p>
+              <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Empresa'}</h1>
+              <p className="text-base">{empresaAtual?.nome || ''}</p>
+              {empresaAtual?.endereco && <p className="text-sm">{empresaAtual.endereco}</p>}
+              {empresaAtual?.cidade && empresaAtual?.estado && (
+                <p className="text-sm">{empresaAtual.cidade} - {empresaAtual.estado}</p>
+              )}
+              {empresaAtual?.telefone && <p className="text-sm">Tel: {empresaAtual.telefone}</p>}
+              {empresaAtual?.email && <p className="text-sm">E-mail: {empresaAtual.email}</p>}
             </div>
           </div>
 
