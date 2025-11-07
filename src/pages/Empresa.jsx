@@ -2,30 +2,39 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Building2, Upload, Loader2 } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
+import TabelaEmpresas from "../components/empresa/TabelaEmpresas";
 
 export default function Empresa() {
   const [showForm, setShowForm] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const queryClient = useQueryClient();
 
   const { data: empresas, isLoading } = useQuery({
     queryKey: ['empresas'],
-    queryFn: () => base44.entities.Empresa.list(),
+    queryFn: () => base44.entities.Empresa.list('-created_date'),
     initialData: [],
   });
 
-  // Normalmente só teremos 1 empresa cadastrada
-  const empresaAtual = empresas.length > 0 ? empresas[0] : null;
-
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Empresa.create(data),
+    mutationFn: async (data) => {
+      // Validar se já existe empresa com mesmo nome
+      const existente = empresas.find(e => 
+        e.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
+        (!editingEmpresa || e.id !== editingEmpresa.id)
+      );
+      
+      if (existente) {
+        throw new Error('Já existe uma empresa cadastrada com este nome.');
+      }
+      
+      return base44.entities.Empresa.create(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
@@ -38,7 +47,19 @@ export default function Empresa() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Empresa.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      // Validar se já existe empresa com mesmo nome
+      const existente = empresas.find(e => 
+        e.nome.toUpperCase().trim() === data.nome.toUpperCase().trim() && 
+        e.id !== id
+      );
+      
+      if (existente) {
+        throw new Error('Já existe uma empresa cadastrada com este nome.');
+      }
+      
+      return base44.entities.Empresa.update(id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
@@ -50,17 +71,35 @@ export default function Empresa() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.Empresa.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['empresas'] });
+      toast.success('Empresa excluída com sucesso!');
+    },
+    onError: () => {
+      toast.error('Erro ao excluir empresa. Tente novamente.');
+    }
+  });
+
   const handleSubmit = async (data) => {
-    if (editingEmpresa || empresaAtual) {
-      updateMutation.mutate({ id: (editingEmpresa || empresaAtual).id, data });
+    if (editingEmpresa) {
+      updateMutation.mutate({ id: editingEmpresa.id, data });
     } else {
       createMutation.mutate(data);
     }
   };
 
-  const handleEdit = () => {
-    setEditingEmpresa(empresaAtual);
+  const handleEdit = (empresa) => {
+    setEditingEmpresa(empresa);
     setShowForm(true);
+  };
+
+  const handleDelete = (id, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta empresa? Esta ação não pode ser desfeita.')) {
+      return deleteMutation.mutateAsync(id);
+    }
+    return Promise.reject('Cancelado');
   };
 
   const handleNew = () => {
@@ -73,112 +112,60 @@ export default function Empresa() {
     setEditingEmpresa(null);
   };
 
+  const totalEmpresas = empresas.length;
+  const pessoasFisicas = empresas.filter(e => e.tipo_pessoa === 'Física').length;
+  const pessoasJuridicas = empresas.filter(e => e.tipo_pessoa === 'Jurídica').length;
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <Building2 className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Dados da Empresa</h1>
-            <p className="text-green-700">Configure as informações da sua empresa</p>
-          </div>
-        </div>
-        
-        {!showForm && (
+      {/* Cards de Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Total de Empresas</CardTitle>
+            <Building2 className="h-5 w-5 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-900">{totalEmpresas}</div>
+            <p className="text-xs text-green-600 mt-1">Empresas cadastradas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Pessoas Físicas</CardTitle>
+            <Building2 className="h-5 w-5 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-900">{pessoasFisicas}</div>
+            <p className="text-xs text-blue-600 mt-1">CPF cadastrados</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Pessoas Jurídicas</CardTitle>
+            <Building2 className="h-5 w-5 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-900">{pessoasJuridicas}</div>
+            <p className="text-xs text-purple-600 mt-1">CNPJ cadastrados</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Botão Nova Empresa */}
+      {!showForm && (
+        <div className="flex justify-end">
           <Button
-            onClick={empresaAtual ? handleEdit : handleNew}
+            onClick={handleNew}
             className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
             size="lg"
           >
             <Plus className="w-5 h-5" />
-            {empresaAtual ? 'Editar Empresa' : 'Cadastrar Empresa'}
+            Nova Empresa
           </Button>
-        )}
-      </div>
-
-      {/* Visualização da Empresa Atual */}
-      {!showForm && empresaAtual && (
-        <Card className="shadow-lg border-green-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-            <CardTitle className="text-green-900">Empresa Cadastrada</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {empresaAtual.logotipo_url && (
-                <div className="col-span-2">
-                  <img 
-                    src={empresaAtual.logotipo_url} 
-                    alt="Logotipo"
-                    className="h-24 object-contain"
-                  />
-                </div>
-              )}
-              
-              <div>
-                <label className="text-sm font-medium text-slate-600">Apelido/Nome Fantasia</label>
-                <p className="text-lg font-bold text-slate-900">{empresaAtual.apelido}</p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-slate-600">Nome Completo/Razão Social</label>
-                <p className="text-lg font-bold text-slate-900">{empresaAtual.nome}</p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-slate-600">Tipo de Pessoa</label>
-                <p className="text-slate-900">{empresaAtual.tipo_pessoa}</p>
-              </div>
-              
-              {empresaAtual.tipo_pessoa === 'Física' && empresaAtual.cpf && (
-                <div>
-                  <label className="text-sm font-medium text-slate-600">CPF</label>
-                  <p className="text-slate-900">{empresaAtual.cpf}</p>
-                </div>
-              )}
-              
-              {empresaAtual.tipo_pessoa === 'Jurídica' && empresaAtual.cnpj && (
-                <div>
-                  <label className="text-sm font-medium text-slate-600">CNPJ</label>
-                  <p className="text-slate-900">{empresaAtual.cnpj}</p>
-                </div>
-              )}
-              
-              {empresaAtual.telefone && (
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Telefone</label>
-                  <p className="text-slate-900">{empresaAtual.telefone}</p>
-                </div>
-              )}
-              
-              {empresaAtual.email && (
-                <div>
-                  <label className="text-sm font-medium text-slate-600">E-mail</label>
-                  <p className="text-slate-900">{empresaAtual.email}</p>
-                </div>
-              )}
-              
-              {empresaAtual.cidade && (
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Cidade</label>
-                  <p className="text-slate-900">{empresaAtual.cidade} - {empresaAtual.estado}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mensagem se não há empresa */}
-      {!showForm && !empresaAtual && (
-        <Card className="shadow-lg border-orange-200 bg-orange-50">
-          <CardContent className="p-8 text-center">
-            <Building2 className="w-16 h-16 text-orange-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-orange-900 mb-2">Nenhuma empresa cadastrada</h3>
-            <p className="text-orange-700 mb-4">Cadastre os dados da sua empresa para começar</p>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {/* Formulário */}
@@ -187,11 +174,19 @@ export default function Empresa() {
           <FormularioEmpresa
             onSubmit={handleSubmit}
             onCancel={handleCancelForm}
-            initialData={editingEmpresa || empresaAtual}
-            isEditing={!!(editingEmpresa || empresaAtual)}
+            initialData={editingEmpresa}
+            isEditing={!!editingEmpresa}
           />
         )}
       </AnimatePresence>
+
+      {/* Tabela */}
+      <TabelaEmpresas
+        empresas={empresas}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
