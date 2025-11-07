@@ -240,15 +240,18 @@ export default function Fornecedores() {
     reader.onload = async (e) => {
       try {
         const text = e.target.result;
-        const lines = text.split('\n');
-        const validRecords = [];
-        let errorCount = 0;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) { // includes header line
+          toast.error('O arquivo está vazio ou contém apenas o cabeçalho!');
+          setShowImportProgress(false); // Ensure progress dialog is closed
+          return;
+        }
 
-        // Headers are at line 0, data starts from line 1
-        // Expected header format: 'Tipo;Nome;CPF;RG;Data Nascimento;CNPJ;Razão Social;Inscrição Estadual;Responsável;Telefone;Email;Endereço;Cidade;Estado;CEP;Observações;Número Cadastro'
-        const headers = lines[0].split(';'); // Read headers for mapping
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 }); // Total records to process, excluding header
 
-        // Mapping CSV column names to object keys
+        const headers = lines[0].split(';');
         const headerMap = {
           'Tipo': 'tipo_pessoa',
           'Nome': 'nome',
@@ -266,11 +269,12 @@ export default function Fornecedores() {
           'Estado': 'estado',
           'CEP': 'cep',
           'Observações': 'observacoes',
-          // Ignorar a coluna Número Cadastro - será gerada automaticamente
         };
 
-        for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue; // Skip empty lines
+        const validRecords = [];
+        let errorCount = 0;
+
+        for (let i = 1; i < lines.length; i++) { // Start from second line (data)
           const values = lines[i].split(';');
           
           let fornecedor = {};
@@ -282,39 +286,35 @@ export default function Fornecedores() {
           }
 
           try {
-            // Basic validation
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
               throw new Error("Dados inválidos: Nome e Tipo de Pessoa são obrigatórios.");
             }
             
-            // Gerar número automaticamente
             const proximoNumero = await getNextSystemNumber();
             fornecedor.numero_cadastro = String(proximoNumero);
             
             validRecords.push(fornecedor);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1}:`, err.message, values);
+            console.error(`Erro na linha ${i + 1}:`, err.message);
             errorCount++;
           }
         }
 
         if (validRecords.length === 0) {
+          setShowImportProgress(false);
           toast.error('Nenhum registro válido encontrado no arquivo!');
           return;
         }
 
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
-
         let imported = 0;
-        let errorsInImport = 0; // Track errors during the actual import API call
+        let errorsInImport = 0;
 
-        // Importar um por um para garantir numeração sequencial
         for (const record of validRecords) {
           try {
             await base44.entities.Fornecedor.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UI update
           } catch (error) {
             errorsInImport++;
             console.error(`Erro ao importar registro individual ${record.nome || record.razao_social || "desconhecido"}:`, error);
@@ -322,7 +322,6 @@ export default function Fornecedores() {
           }
         }
 
-        // Invalidate queries after all imports are processed
         await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
         
         setTimeout(() => {
@@ -341,7 +340,7 @@ export default function Fornecedores() {
         toast.error('Erro ao importar dados. Verifique o arquivo e o formato.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8'); // Specify UTF-8 encoding
     event.target.value = ''; // Clear file input
   };
 

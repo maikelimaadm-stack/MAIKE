@@ -103,7 +103,7 @@ export default function Dashboard() {
           try {
             const proximoNumero = await getNextSystemNumber();
             await base44.entities.Pesagem.update(pesagem.id, {
-              numero_registro: String(proximoNumero).padStart(6, '0') // Pad with zeros
+              numero_registro: String(proximoNumero)
             });
             updateCount++;
           } catch (error) {
@@ -162,7 +162,7 @@ export default function Dashboard() {
     // Gerar número único se for novo registro
     if (!editingPesagem) {
       const proximoNumero = await getNextSystemNumber();
-      data.numero_registro = String(proximoNumero).padStart(6, '0'); // Pad with zeros
+      data.numero_registro = String(proximoNumero);
     }
     
     if (editingPesagem) {
@@ -253,13 +253,21 @@ export default function Dashboard() {
     reader.onload = async (e) => {
       try {
         const text = e.target.result;
-        const lines = text.split('\n');
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) {
+          toast.error('O arquivo está vazio ou não contém dados válidos!');
+          return;
+        }
+
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
+
         const validRecords = [];
         let errorCount = 0;
 
         // Parse all lines first, skipping the header (index 0)
         for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
           
           // Ignorar a coluna de número (índice 0) - será gerada automaticamente
@@ -277,7 +285,7 @@ export default function Dashboard() {
           // Ensure minimum required columns are present up to peso_liquido
           if (values.length <= pesoLiquidoIndex) { 
             errorCount++;
-            console.error(`Erro na linha ${i + 1}: Número insuficiente de colunas (${values.length}). Esperado no mínimo ${pesoLiquidoIndex + 1}.`);
+            console.error(`Linha ${i + 1}: Colunas insuficientes`);
             continue;
           }
 
@@ -291,41 +299,38 @@ export default function Dashboard() {
             const proximoNumero = await getNextSystemNumber();
 
             const pesagem = {
-              numero_registro: String(proximoNumero).padStart(6, '0'), // Use generated number, padded
+              numero_registro: String(proximoNumero), // Use generated number
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim(),
-              placa_caminhao: values[placaIndex]?.trim(),
-              nome_motorista: values[motoristaIndex]?.trim(),
-              produto: values[produtoIndex]?.trim(),
-              fornecedor_destino: values[fornecedorDestinoIndex]?.trim() || undefined,
+              placa_caminhao: values[placaIndex]?.trim().toUpperCase(),
+              nome_motorista: values[motoristaIndex]?.trim().toUpperCase(),
+              produto: values[produtoIndex]?.trim().toUpperCase(),
+              fornecedor_destino: values[fornecedorDestinoIndex]?.trim()?.toUpperCase() || undefined,
               peso_tara: pesoTara,
               peso_bruto: pesoBruto,
               peso_liquido: pesoLiquido,
-              observacoes: values[observacoesIndex]?.trim() || undefined
+              observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined
             };
 
             // Basic validation for critical fields
             if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || 
                 !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || 
                 isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
-              throw new Error("Dados obrigatórios ausentes ou inválidos.");
+              throw new Error("Dados obrigatórios ausentes");
             }
             
             validRecords.push(pesagem);
           } catch (err) {
-            console.error(`Erro ao processar linha ${i + 1}:`, err.message);
+            console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
           }
         }
 
         if (validRecords.length === 0) {
-          toast.error('Nenhum registro válido encontrado no arquivo para importar!');
+          setShowImportProgress(false);
+          toast.error('Nenhum registro válido encontrado!');
           return;
         }
-
-        // Show progress dialog
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
 
         let imported = 0;
         let actualErrors = errorCount; // Keep track of errors during API calls
@@ -335,12 +340,13 @@ export default function Dashboard() {
           try {
             await base44.entities.Pesagem.create(record);
             imported++;
+            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UX
           } catch (error) {
-            console.error(`Erro ao criar registro individualmente (num ${record.numero_registro}):`, error);
+            console.error(`Erro ao criar registro:`, error);
             actualErrors++; // Increment error count for individual failures
+            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors }); // Update progress even on error
           }
-          // Update progress after each record for better UX
-          setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
         }
 
         // Invalidate queries to re-fetch and update the UI after import
@@ -358,10 +364,10 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Erro geral ao importar:', error);
         setShowImportProgress(false);
-        toast.error('Erro ao importar dados. Verifique o formato do arquivo e tente novamente.');
+        toast.error('Erro ao importar. Verifique o arquivo.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
     
     // Clear the input to allow re-importing the same file
     event.target.value = '';

@@ -227,93 +227,97 @@ export default function Produtos() {
     reader.onload = async (e) => {
       try {
         const text = e.target.result;
-        const lines = text.split('\n');
-        const recordsToProcess = [];
-        let initialParsingErrorCount = 0;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) {
+          toast.error('O arquivo está vazio!');
+          return;
+        }
+
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
+
+        const validRecords = [];
+        let errorCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
+          
           if (values.length < 1) {
-            initialParsingErrorCount++;
+            errorCount++;
             continue;
           }
 
           try {
-            // Gerar número automaticamente para cada produto
             const proximoNumero = await getNextSystemNumber();
             
             const produto = {
               numero_produto: String(proximoNumero),
-              nome_produto: values[0].trim(),
-              codigo_interno: values[1]?.trim() || undefined,
+              nome_produto: values[0]?.trim()?.toUpperCase(),
+              codigo_interno: values[1]?.trim()?.toUpperCase() || undefined,
               codigo_barras: values[2]?.trim() || undefined,
-              categoria: values[3]?.trim() || undefined,
-              descricao: values[4]?.trim() || undefined,
-              unidade_medida: values[5]?.trim() || 'UN',
+              categoria: values[3]?.trim()?.toUpperCase() || undefined,
+              descricao: values[4]?.trim()?.toUpperCase() || undefined,
+              unidade_medida: values[5]?.trim()?.toUpperCase() || 'UN',
               preco_custo: parseFloat(values[6]) || 0,
               preco_venda: parseFloat(values[7]) || 0,
               estoque_atual: parseFloat(values[8]) || 0,
               estoque_minimo: parseFloat(values[9]) || 0,
-              observacoes: values[10]?.trim() || undefined
+              observacoes: values[10]?.trim()?.toUpperCase() || undefined
             };
 
             if (!produto.nome_produto) {
-              throw new Error("Dados inválidos: Nome do produto é obrigatório.");
+              throw new Error("Nome obrigatório");
             }
 
-            recordsToProcess.push(produto);
+            validRecords.push(produto);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1} durante a validação ou numeração:`, err);
-            initialParsingErrorCount++;
+            console.error(`Erro linha ${i + 1}:`, err);
+            errorCount++;
           }
         }
 
-        if (recordsToProcess.length === 0 && initialParsingErrorCount > 0) {
-          toast.error('Nenhum registro válido encontrado no arquivo ou todos com erro de parsing!');
+        if (validRecords.length === 0) {
+          setShowImportProgress(false);
+          toast.error('Nenhum registro válido encontrado!');
           return;
-        } else if (recordsToProcess.length === 0) {
-            toast.error('O arquivo CSV está vazio ou não contém dados de produto válidos.');
-            return;
         }
 
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: recordsToProcess.length, errors: initialParsingErrorCount });
-
         let imported = 0;
-        let finalErrorCount = initialParsingErrorCount; // Start with errors from initial parsing/num generation
+        let errorsInImport = 0;
 
-        // Importar um por um para garantir numeração sequencial
-        for (let i = 0; i < recordsToProcess.length; i++) {
-          const record = recordsToProcess[i];
+        for (const record of validRecords) {
           try {
             await base44.entities.Produto.create(record);
             imported++;
+            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UI update
           } catch (error) {
-            finalErrorCount++;
-            console.error(`Erro ao importar produto '${record.nome_produto || 'sem nome'}':`, error);
+            errorsInImport++;
+            console.error('Erro ao importar produto:', error);
+            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
           }
-          setImportProgress({ current: i + 1, total: recordsToProcess.length, errors: finalErrorCount });
         }
 
         await queryClient.invalidateQueries({ queryKey: ['produtos'] });
         
         setTimeout(() => {
           setShowImportProgress(false);
-          if (finalErrorCount > 0) {
-            toast.success(`${imported} registro(s) importado(s)! ${finalErrorCount} com erro(s).`);
+          const totalErrors = errorCount + errorsInImport;
+          if (totalErrors > 0) {
+            toast.success(`${imported} registros importados! ${totalErrors} com erro.`);
           } else {
-            toast.success(`${imported} registro(s) importado(s) com sucesso!`);
+            toast.success(`${imported} registros importados com sucesso!`);
           }
         }, 1000);
 
       } catch (error) {
-        console.error('Erro geral ao importar:', error);
+        console.error('Erro ao importar:', error);
         setShowImportProgress(false);
-        toast.error('Erro ao importar dados. Verifique o arquivo.');
+        toast.error('Erro ao importar. Verifique o arquivo.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
     event.target.value = '';
   };
 
