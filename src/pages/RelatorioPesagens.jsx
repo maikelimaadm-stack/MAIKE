@@ -636,8 +636,6 @@ export default function RelatorioPesagens() {
             @page {
               @bottom-center {
                 content: "Página " counter(page) " de " counter(pages);
-                font-size: 9px; /* This was kept from previous version, not in diff */
-                color: #555; /* This was kept from previous version, not in diff */
               }
             }
           }
@@ -651,13 +649,13 @@ export default function RelatorioPesagens() {
                 <img 
                   src={empresaAtual.logotipo_url} 
                   alt={empresaAtual.apelido || "Logo"}
-                  className="h-16 w-16 object-contain"
+                  className="h-20 w-20 object-contain"
                 />
               ) : (
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
                   alt="Logo"
-                  className="h-16 w-16 object-contain"
+                  className="h-20 w-20 object-contain"
                 />
               )}
               <div className="flex-1">
