@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
@@ -50,6 +59,10 @@ export default function Produtos() {
   const [fichaProduto, setFichaProduto] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
+
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -227,7 +240,7 @@ export default function Produtos() {
         p.estoque_minimo || 0,
         p.observacoes || ''
       ];
-      csvRows.push(row.join(';'));
+      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
     });
 
     const csvString = csvRows.join('\n');
@@ -237,6 +250,63 @@ export default function Produtos() {
     link.download = `produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
     link.click();
     toast.success('Dados exportados com sucesso!');
+  };
+
+  const downloadErrosImportacao = () => {
+    const csvRows = [];
+    const headers = ['Linha', 'Erro', 'Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
+    csvRows.push(headers.join(';'));
+
+    importErrors.forEach(erro => {
+      const row = [
+        erro.linha,
+        erro.erro,
+        ...erro.dados.split(';')
+      ];
+      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `erros_importacao_produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    toast.success('Planilha de erros baixada com sucesso!');
+  };
+
+  const executarImportacao = async (validRecords) => {
+    setShowImportProgress(true);
+    setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
+
+    let imported = 0;
+    let actualErrors = 0;
+
+    for (const record of validRecords) {
+      try {
+        await base44.entities.Produto.create(record);
+        imported++;
+        setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error('Erro ao importar produto:', error);
+        actualErrors++;
+        setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
+    
+    setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
+
+    setTimeout(() => {
+      setShowImportProgress(false);
+      if (actualErrors > 0) {
+        toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
+      } else {
+        toast.success(`${imported} registros importados com sucesso!`);
+      }
+    }, 1000);
   };
 
   const handleImport = async (event) => {
@@ -254,19 +324,20 @@ export default function Produtos() {
           return;
         }
 
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
-
         let proximoNumero = await getNextSystemNumber();
 
         const validRecords = [];
-        let errorCount = 0;
+        const errors = [];
 
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(';');
           
           if (values.length < 1) {
-            errorCount++;
+            errors.push({
+              linha: i + 1,
+              erro: 'Número insuficiente de colunas',
+              dados: lines[i]
+            });
             continue;
           }
 
@@ -280,10 +351,10 @@ export default function Produtos() {
               categoria: values[3]?.trim()?.toUpperCase() || undefined,
               descricao: values[4]?.trim()?.toUpperCase() || undefined,
               unidade_medida: values[5]?.trim()?.toUpperCase() || 'UN',
-              preco_custo: parseFloat(values[6]) || 0,
-              preco_venda: parseFloat(values[7]) || 0,
-              estoque_atual: parseFloat(values[8]) || 0,
-              estoque_minimo: parseFloat(values[9]) || 0,
+              preco_custo: parseFloat(values[6]?.replace(',', '.')) || 0,
+              preco_venda: parseFloat(values[7]?.replace(',', '.')) || 0,
+              estoque_atual: parseFloat(values[8]?.replace(',', '.')) || 0,
+              estoque_minimo: parseFloat(values[9]?.replace(',', '.')) || 0,
               observacoes: values[10]?.trim()?.toUpperCase() || undefined
             };
 
@@ -294,48 +365,32 @@ export default function Produtos() {
             validRecords.push(produto);
             proximoNumero++;
           } catch (err) {
-            console.error(`Erro linha ${i + 1}:`, err);
-            errorCount++;
+            errors.push({
+              linha: i + 1,
+              erro: err.message || 'Erro desconhecido',
+              dados: lines[i]
+            });
           }
         }
 
+        // Se houver erros, mostrar diálogo
+        if (errors.length > 0) {
+          setImportErrors(errors);
+          setValidRecordsToImport(validRecords);
+          setShowErrorDialog(true);
+          return;
+        }
+
+        // Se não houver erros, importar diretamente
         if (validRecords.length === 0) {
-          setShowImportProgress(false);
           toast.error('Nenhum registro válido encontrado!');
           return;
         }
 
-        let imported = 0;
-        let errorsInImport = 0;
-
-        for (const record of validRecords) {
-          try {
-            await base44.entities.Produto.create(record);
-            imported++;
-            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-            await new Promise(resolve => setTimeout(resolve, 50));
-          } catch (error) {
-            errorsInImport++;
-            console.error('Erro ao importar produto:', error);
-            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-          }
-        }
-
-        await queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-        
-        setTimeout(() => {
-          setShowImportProgress(false);
-          const totalErrors = errorCount + errorsInImport;
-          if (totalErrors > 0) {
-            toast.success(`${imported} registros importados! ${totalErrors} com erro.`);
-          } else {
-            toast.success(`${imported} registros importados com sucesso!`);
-          }
-        }, 1000);
+        await executarImportacao(validRecords);
 
       } catch (error) {
         console.error('Erro ao importar:', error);
-        setShowImportProgress(false);
         toast.error('Erro ao importar. Verifique o arquivo.');
       }
     };
@@ -343,13 +398,25 @@ export default function Produtos() {
     event.target.value = '';
   };
 
+  const confirmarImportacaoComErros = async () => {
+    setShowErrorDialog(false);
+    await executarImportacao(validRecordsToImport);
+  };
+
+  const cancelarImportacao = () => {
+    setShowErrorDialog(false);
+    setImportErrors([]);
+    setValidRecordsToImport([]);
+    toast.info('Importação cancelada. Corrija os erros e tente novamente.');
+  };
+
   const downloadTemplate = () => {
     const csvRows = [];
     const headers = ['Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
     csvRows.push(headers.join(';'));
     
-    const example = ['EXEMPLO PRODUTO', '001', '7891234567890', 'CATEGORIA EXEMPLO', 'DESCRIÇÃO DO PRODUTO', 'UN', '10.50', '15.00', '100', '10', 'OBSERVAÇÕES DO PRODUTO'];
-    csvRows.push(example.join(';'));
+    const example = ['EXEMPLO PRODUTO', '001', '7891234567890', 'CATEGORIA EXEMPLO', 'DESCRIÇÃO DO PRODUTO', 'UN', '10,50', '15,00', '100', '10', 'OBSERVAÇÕES DO PRODUTO'];
+    csvRows.push(example.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
 
     const csvString = csvRows.join('\n');
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
@@ -487,6 +554,91 @@ export default function Produtos() {
         open={!!fichaProduto}
         onClose={() => setFichaProduto(null)}
       />
+
+      {/* Modal de Erros de Validação */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700">
+              <AlertCircle className="w-6 h-6" />
+              Erros Encontrados na Importação
+            </DialogTitle>
+            <DialogDescription>
+              Foram encontrados {importErrors.length} erro(s) no arquivo. 
+              {validRecordsToImport.length > 0 && ` ${validRecordsToImport.length} registro(s) estão válidos e podem ser importados.`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10">
+                <TableRow>
+                  <TableHead className="w-20">Linha</TableHead>
+                  <TableHead>Erro</TableHead>
+                  <TableHead>Dados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importErrors.map((erro, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-bold text-orange-700">
+                      {erro.linha}
+                    </TableCell>
+                    <TableCell className="text-red-600">
+                      {erro.erro}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-slate-600">
+                      {erro.dados}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4 border-t">
+            {validRecordsToImport.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>{validRecordsToImport.length} registro(s) válido(s)</strong> podem ser importados mesmo com os erros acima.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-between items-center gap-3">
+              <Button 
+                variant="outline"
+                onClick={downloadErrosImportacao}
+                className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+              >
+                <Download className="w-4 h-4" />
+                Baixar Planilha de Erros
+              </Button>
+
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={cancelarImportacao}
+                  className="gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Cancelar e Corrigir
+                </Button>
+                
+                {validRecordsToImport.length > 0 && (
+                  <Button 
+                    onClick={confirmarImportacaoComErros}
+                    className="bg-orange-600 hover:bg-orange-700 gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Importar {validRecordsToImport.length} Válido(s)
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Progresso de Importação */}
       <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>

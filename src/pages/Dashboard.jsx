@@ -475,6 +475,30 @@ export default function Dashboard() {
     link.click();
   };
 
+  const downloadErrosImportacao = () => {
+    const csvRows = [];
+    const headers = ['Linha', 'Erro', 'Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    csvRows.push(headers.join(';'));
+
+    importErrors.forEach(erro => {
+      const dados = erro.dados.split(';');
+      const row = [
+        erro.linha,
+        erro.erro,
+        ...dados
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `erros_importacao_pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    toast.success('Planilha de erros baixada com sucesso!');
+  };
+
   const totalPesagens = pesagens.length;
   const pesagensEntrada = pesagens.filter(p => p.tipo_pesagem === 'Entrada').length;
   const pesagensSaida = pesagens.filter(p => p.tipo_pesagem === 'Saída').length;
@@ -673,25 +697,36 @@ export default function Dashboard() {
               </div>
             )}
             
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-between items-center gap-3">
               <Button 
-                variant="outline" 
-                onClick={cancelarImportacao}
-                className="gap-2"
+                variant="outline"
+                onClick={downloadErrosImportacao}
+                className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
               >
-                <X className="w-4 h-4" />
-                Cancelar e Corrigir
+                <Download className="w-4 h-4" />
+                Baixar Planilha de Erros
               </Button>
-              
-              {validRecordsToImport.length > 0 && (
+
+              <div className="flex gap-3">
                 <Button 
-                  onClick={confirmarImportacaoComErros}
-                  className="bg-orange-600 hover:bg-orange-700 gap-2"
+                  variant="outline" 
+                  onClick={cancelarImportacao}
+                  className="gap-2"
                 >
-                  <Upload className="w-4 h-4" />
-                  Importar {validRecordsToImport.length} Válido(s)
+                  <X className="w-4 h-4" />
+                  Cancelar e Corrigir
                 </Button>
-              )}
+                
+                {validRecordsToImport.length > 0 && (
+                  <Button 
+                    onClick={confirmarImportacaoComErros}
+                    className="bg-orange-600 hover:bg-orange-700 gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Importar {validRecordsToImport.length} Válido(s)
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>

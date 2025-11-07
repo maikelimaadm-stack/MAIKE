@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"; // Added table components
 
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
@@ -52,6 +60,10 @@ export default function Fornecedores() {
   const [fichaFornecedor, setFichaFornecedor] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
+
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -242,6 +254,66 @@ export default function Fornecedores() {
     toast.success('Dados exportados com sucesso!');
   };
 
+  const downloadErrosImportacao = () => {
+    const csvRows = [];
+    const headers = ['Linha', 'Erro', 'Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
+    csvRows.push(headers.join(';'));
+
+    importErrors.forEach(erro => {
+      // Reconstitui a linha original dos dados para o CSV de erros
+      const originalValues = erro.dados; // erro.dados já é a string 'valor1;valor2;...'
+      const row = [
+        erro.linha,
+        erro.erro,
+        ...originalValues.split(';') // Espalha os valores da linha original
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `erros_importacao_fornecedores_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    toast.success('Planilha de erros baixada com sucesso!');
+  };
+
+  const executarImportacao = async (validRecords) => {
+    setShowImportProgress(true);
+    setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
+
+    let imported = 0;
+    let actualErrors = 0;
+
+    for (const record of validRecords) {
+      try {
+        await base44.entities.Fornecedor.create(record);
+        imported++;
+        setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UI update
+      } catch (error) {
+        console.error(`Erro ao criar registro:`, error);
+        actualErrors++;
+        setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+    
+    // Final update to ensure total and errors are reflected accurately after loop
+    setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
+
+    setTimeout(() => {
+      setShowImportProgress(false);
+      if (actualErrors > 0) {
+        toast.warning(`${imported} registros importados! ${actualErrors} com erro.`);
+      } else {
+        toast.success(`${imported} registros importados com sucesso!`);
+      }
+    }, 1000);
+  };
+
   const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -254,14 +326,10 @@ export default function Fornecedores() {
         
         if (lines.length <= 1) { // includes header line
           toast.error('O arquivo está vazio!');
-          setShowImportProgress(false); // Ensure progress dialog is closed
           return;
         }
 
-        setShowImportProgress(true);
-        setImportProgress({ current: 0, total: lines.length - 1, errors: 0 }); // Total records to process, excluding header
-
-        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
+        // Buscar o maior número UMA VEZ antes do loop de parsing
         let proximoNumero = await getNextSystemNumber();
 
         const headers = lines[0].split(';');
@@ -285,12 +353,13 @@ export default function Fornecedores() {
         };
 
         const validRecords = [];
-        let errorCount = 0;
+        const errors = [];
 
         for (let i = 1; i < lines.length; i++) { // Start from second line (data)
           const values = lines[i].split(';');
           
           let fornecedor = {};
+          let hasErrorInRow = false;
           for (let j = 0; j < headers.length; j++) {
             const propName = headerMap[headers[j]?.trim()];
             if (propName && values[j]) {
@@ -300,62 +369,63 @@ export default function Fornecedores() {
 
           try {
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
-              throw new Error("Dados inválidos");
+              throw new Error("Nome e Tipo de Pessoa são obrigatórios");
             }
             
             fornecedor.numero_cadastro = String(proximoNumero);
-            proximoNumero++; // Incrementar localmente
+            proximoNumero++; // Incrementar localmente para garantir unicidade sequencial
             fornecedor.empresa_id = empresaSelecionadaId; // Assign current company ID
             
             validRecords.push(fornecedor);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1}:`, err.message);
-            errorCount++;
+            errors.push({
+              linha: i + 1,
+              erro: err.message || 'Erro desconhecido',
+              dados: lines[i].trim() // Store the original line for error report
+            });
+            hasErrorInRow = true;
           }
         }
 
+        // Se houver erros, mostrar diálogo de erros
+        if (errors.length > 0) {
+          setImportErrors(errors);
+          setValidRecordsToImport(validRecords); // Still allow importing valid ones
+          setShowErrorDialog(true);
+          return; // Stop here, user decides next action
+        }
+
+        // Se não houver erros e existirem registros válidos, importar diretamente
         if (validRecords.length === 0) {
-          setShowImportProgress(false);
-          toast.error('Nenhum registro válido encontrado!');
+          toast.error('Nenhum registro válido encontrado no arquivo para importação.');
           return;
         }
 
-        let imported = 0;
-        let errorsInImport = 0;
-
-        for (const record of validRecords) {
-          try {
-            await base44.entities.Fornecedor.create(record);
-            imported++;
-            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UI update
-          } catch (error) {
-            errorsInImport++;
-            console.error(`Erro ao importar registro:`, error);
-            setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-          }
-        }
-
-        await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-        
-        setTimeout(() => {
-          setShowImportProgress(false);
-          const totalErrors = errorCount + errorsInImport;
-          if (totalErrors > 0) {
-            toast.warning(`${imported} registros importados! ${totalErrors} com erro.`);
-          } else {
-            toast.success(`${imported} registros importados com sucesso!`);
-          }
-        }, 1000);
+        await executarImportacao(validRecords);
 
       } catch (error) {
         console.error('Erro geral ao importar:', error);
-        setShowImportProgress(false);
         toast.error('Erro ao importar. Verifique o arquivo.');
       }
     };
     reader.readAsText(file, 'UTF-8'); // Specify UTF-8 encoding
     event.target.value = ''; // Clear file input
+  };
+
+  const confirmarImportacaoComErros = async () => {
+    setShowErrorDialog(false);
+    if (validRecordsToImport.length > 0) {
+      await executarImportacao(validRecordsToImport);
+    } else {
+      toast.info('Nenhum registro válido para importar.');
+    }
+  };
+
+  const cancelarImportacao = () => {
+    setShowErrorDialog(false);
+    setImportErrors([]);
+    setValidRecordsToImport([]);
+    toast.info('Importação cancelada. Corrija os erros e tente novamente.');
   };
 
   const downloadTemplate = () => {
@@ -444,7 +514,7 @@ export default function Fornecedores() {
                 onClick={() => document.getElementById('import-fornecedores').click()}
                 variant="outline"
                 className="gap-2"
-                disabled={showImportProgress}
+                disabled={showImportProgress || showErrorDialog}
               >
                 <Upload className="w-4 h-4" />
                 Importar CSV
@@ -498,6 +568,91 @@ export default function Fornecedores() {
         onClose={() => setFichaFornecedor(null)}
       />
 
+      {/* Modal de Erros de Validação */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700">
+              <AlertCircle className="w-6 h-6" />
+              Erros Encontrados na Importação
+            </DialogTitle>
+            <DialogDescription>
+              Foram encontrados {importErrors.length} erro(s) no arquivo. 
+              {validRecordsToImport.length > 0 && ` ${validRecordsToImport.length} registro(s) estão válidos e podem ser importados.`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10">
+                <TableRow>
+                  <TableHead className="w-20">Linha</TableHead>
+                  <TableHead>Erro</TableHead>
+                  <TableHead>Dados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importErrors.map((erro, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-bold text-orange-700">
+                      {erro.linha}
+                    </TableCell>
+                    <TableCell className="text-red-600">
+                      {erro.erro}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-slate-600">
+                      {erro.dados}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4 border-t">
+            {validRecordsToImport.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>{validRecordsToImport.length} registro(s) válido(s)</strong> podem ser importados mesmo com os erros acima.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-between items-center gap-3">
+              <Button 
+                variant="outline"
+                onClick={downloadErrosImportacao}
+                className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+              >
+                <Download className="w-4 h-4" />
+                Baixar Planilha de Erros
+              </Button>
+
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={cancelarImportacao}
+                  className="gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Cancelar e Corrigir
+                </Button>
+                
+                {validRecordsToImport.length > 0 && (
+                  <Button 
+                    onClick={confirmarImportacaoComErros}
+                    className="bg-orange-600 hover:bg-orange-700 gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Importar {validRecordsToImport.length} Válido(s)
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Progresso de Importação */}
       <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
         <DialogContent className="sm:max-w-md">
@@ -527,7 +682,7 @@ export default function Fornecedores() {
             {importProgress.errors > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <p className="text-sm text-orange-800">
-                  ⚠️ {importProgress.errors} registro(s) com erro
+                  ⚠️ {importProgress.errors} registro(s) com erro ao salvar.
                 </p>
               </div>
             )}
