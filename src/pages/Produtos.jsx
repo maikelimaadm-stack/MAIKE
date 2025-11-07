@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +6,7 @@ import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSprea
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } = from "date-fns";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -165,15 +164,15 @@ export default function Produtos() {
               categoria: values[3]?.trim() || undefined,
               descricao: values[4]?.trim() || undefined,
               unidade_medida: values[5]?.trim() || 'UN',
-              preco_custo: parseFloat(values[6].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
-              preco_venda: parseFloat(values[7].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
-              estoque_atual: parseFloat(values[8].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
-              estoque_minimo: parseFloat(values[9].replace(',', '.')) || 0, // Ensure float parsing for comma decimals
+              preco_custo: parseFloat(values[6]) || 0,
+              preco_venda: parseFloat(values[7]) || 0,
+              estoque_atual: parseFloat(values[8]) || 0,
+              estoque_minimo: parseFloat(values[9]) || 0,
               observacoes: values[10]?.trim() || undefined
             };
 
             if (!produto.nome_produto) {
-              throw new Error("Nome do produto é obrigatório");
+              throw new Error("Dados inválidos");
             }
 
             validRecords.push(produto);
@@ -198,25 +197,10 @@ export default function Produtos() {
           const batch = validRecords.slice(i, i + batchSize);
           
           try {
-            // Assuming base44.entities.Produto.bulkCreate exists and handles an array of product objects
-            // If bulkCreate is not available, fall back to individual creates
-            if (base44.entities.Produto.bulkCreate) {
-              await base44.entities.Produto.bulkCreate(batch);
-              imported += batch.length;
-            } else {
-              // Fallback for individual creation if bulkCreate is not implemented
-              for (const record of batch) {
-                try {
-                  await base44.entities.Produto.create(record);
-                  imported++;
-                } catch (e) {
-                  errorCount++;
-                }
-              }
-            }
+            await base44.entities.Produto.bulkCreate(batch);
+            imported += batch.length;
           } catch (error) {
             console.error('Erro no lote:', error);
-            // If batch creation fails, try individual records
             for (const record of batch) {
               try {
                 await base44.entities.Produto.create(record);
@@ -248,7 +232,7 @@ export default function Produtos() {
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Clear file input
+    event.target.value = '';
   };
 
   const downloadTemplate = () => {
@@ -302,7 +286,7 @@ export default function Produtos() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-900">R$ {formatarNumero(valorTotalEstoque)}</div>
-            <p className="text-xs text-blue-600 mt-1">Valor total (preço de custo)</p>
+            <p className="text-xs text-blue-600 mt-1">Valor total (custo)</p>
           </CardContent>
         </Card>
 
@@ -342,6 +326,7 @@ export default function Produtos() {
                 onClick={() => document.getElementById('import-produtos').click()}
                 variant="outline"
                 className="gap-2"
+                disabled={showImportProgress}
               >
                 <Upload className="w-4 h-4" />
                 Importar CSV
