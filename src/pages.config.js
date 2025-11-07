@@ -6,6 +6,9 @@ import Produtos from './pages/Produtos';
 import RelatorioPesagens from './pages/RelatorioPesagens';
 import RelatorioFornecedores from './pages/RelatorioFornecedores';
 import RelatorioProdutos from './pages/RelatorioProdutos';
+import UnidadesMedida from './pages/UnidadesMedida';
+import Categorias from './pages/Categorias';
+import LocaisEstoque from './pages/LocaisEstoque';
 import Layout from './Layout.jsx';
 
 
@@ -18,6 +21,9 @@ export const PAGES = {
     "RelatorioPesagens": RelatorioPesagens,
     "RelatorioFornecedores": RelatorioFornecedores,
     "RelatorioProdutos": RelatorioProdutos,
+    "UnidadesMedida": UnidadesMedida,
+    "Categorias": Categorias,
+    "LocaisEstoque": LocaisEstoque,
 }
 
 export const pagesConfig = {

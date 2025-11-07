@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -46,6 +47,18 @@ const navigationItems = [
       {
         title: "Produtos",
         url: createPageUrl("Produtos"),
+      },
+      {
+        title: "Unidades de Medida",
+        url: createPageUrl("UnidadesMedida"),
+      },
+      {
+        title: "Categorias",
+        url: createPageUrl("Categorias"),
+      },
+      {
+        title: "Locais de Estoque",
+        url: createPageUrl("LocaisEstoque"),
       },
     ],
   },
