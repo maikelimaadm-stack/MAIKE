@@ -197,7 +197,7 @@ export default function Fornecedores() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações', 'Número Cadastro'];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
     csvRows.push(headers.join(';'));
 
     fornecedores.forEach(f => {
@@ -217,8 +217,7 @@ export default function Fornecedores() {
         f.cidade || '',
         f.estado || '',
         f.cep || '',
-        f.observacoes || '',
-        f.numero_cadastro || ''
+        f.observacoes || ''
       ];
       csvRows.push(row.join(';'));
     });
@@ -349,10 +348,10 @@ export default function Fornecedores() {
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações', 'Número Cadastro'];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
     csvRows.push(headers.join(';'));
     
-    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor', '000001'];
+    const example = ['Física', 'EXEMPLO FORNECEDOR', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'RUA EXEMPLO, 123', 'VILA BELA', 'MT', '00000-000', 'EXEMPLO DE FORNECEDOR'];
     csvRows.push(example.join(';'));
 
     const csvString = csvRows.join('\n');

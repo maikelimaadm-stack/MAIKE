@@ -215,13 +215,11 @@ export default function Dashboard() {
 
   const handleExport = () => {
     const csvRows = [];
-    // Added 'Numero Registro' to headers
-    const headers = ['Numero Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
 
     pesagens.forEach(p => {
       const row = [
-        p.numero_registro || '', // Include numero_registro, defaulting to empty string if not present
         format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
         p.tipo_pesagem,
         p.placa_caminhao,
@@ -263,7 +261,6 @@ export default function Dashboard() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
 
-        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
         let proximoNumero = await getNextSystemNumber();
         
         const validRecords = [];
@@ -272,20 +269,18 @@ export default function Dashboard() {
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(';');
           
-          // Ignorar a coluna de número (índice 0) - será gerada automaticamente
-          const dataIndex = 1; // Segunda coluna (após número)
-          const tipoIndex = 2;
-          const placaIndex = 3;
-          const motoristaIndex = 4;
-          const produtoIndex = 5;
-          const fornecedorDestinoIndex = 6;
-          const pesoTaraIndex = 7;
-          const pesoBrutoIndex = 8;
-          const pesoLiquidoIndex = 9;
-          const observacoesIndex = 10;
+          const dataIndex = 0;
+          const tipoIndex = 1;
+          const placaIndex = 2;
+          const motoristaIndex = 3;
+          const produtoIndex = 4;
+          const fornecedorDestinoIndex = 5;
+          const pesoTaraIndex = 6;
+          const pesoBrutoIndex = 7;
+          const pesoLiquidoIndex = 8;
+          const observacoesIndex = 9;
 
-          // Ensure minimum required columns are present up to peso_liquido
-          if (values.length <= pesoLiquidoIndex) { 
+          if (values.length < 9) {
             errorCount++;
             console.error(`Linha ${i + 1}: Colunas insuficientes`);
             continue;
@@ -298,7 +293,7 @@ export default function Dashboard() {
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
             const pesagem = {
-              numero_registro: String(proximoNumero), // Use generated number
+              numero_registro: String(proximoNumero),
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim(),
               placa_caminhao: values[placaIndex]?.trim().toUpperCase(),
@@ -311,7 +306,6 @@ export default function Dashboard() {
               observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined
             };
 
-            // Basic validation for critical fields
             if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || 
                 !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || 
                 isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
@@ -319,7 +313,7 @@ export default function Dashboard() {
             }
             
             validRecords.push(pesagem);
-            proximoNumero++; // Incrementar localmente para o próximo registro
+            proximoNumero++;
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
@@ -333,23 +327,21 @@ export default function Dashboard() {
         }
 
         let imported = 0;
-        let actualErrors = errorCount; // Keep track of errors during API calls
+        let actualErrors = errorCount;
 
-        // Importar um por um para garantir numeração sequencial
         for (const record of validRecords) {
           try {
             await base44.entities.Pesagem.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UX
+            await new Promise(resolve => setTimeout(resolve, 50));
           } catch (error) {
             console.error(`Erro ao criar registro:`, error);
-            actualErrors++; // Increment error count for individual failures
-            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors }); // Update progress even on error
+            actualErrors++;
+            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
           }
         }
 
-        // Invalidate queries to re-fetch and update the UI after import
         await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
         
         setTimeout(() => {
@@ -368,29 +360,25 @@ export default function Dashboard() {
       }
     };
     reader.readAsText(file, 'UTF-8');
-    
-    // Clear the input to allow re-importing the same file
     event.target.value = '';
   };
 
   const downloadTemplate = () => {
     const csvRows = [];
-    // Added 'Numero Registro' to headers
-    const headers = ['Numero Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
     
     const example = [
-      '000001', // Example for Numero Registro (will be auto-generated on import)
       '04/11/2025',
       'Entrada',
       'ABC1234',
       'JOÃO SILVA',
-      'Soja',
-      'Fornecedor Exemplo',
-      '5.000,00',
-      '25.000,00',
-      '20.000,00',
-      'Observações exemplo'
+      'SOJA',
+      'FORNECEDOR EXEMPLO',
+      '5000.00',
+      '25000.00',
+      '20000.00',
+      'OBSERVAÇÕES EXEMPLO'
     ];
     csvRows.push(example.join(';'));
 

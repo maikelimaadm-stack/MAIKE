@@ -237,7 +237,6 @@ export default function Produtos() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
 
-        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
         let proximoNumero = await getNextSystemNumber();
 
         const validRecords = [];
@@ -272,7 +271,7 @@ export default function Produtos() {
             }
 
             validRecords.push(produto);
-            proximoNumero++; // Incrementar localmente
+            proximoNumero++;
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err);
             errorCount++;
@@ -328,7 +327,7 @@ export default function Produtos() {
     const headers = ['Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
     csvRows.push(headers.join(';'));
     
-    const example = ['Exemplo Produto', '001', '7891234567890', 'Categoria Exemplo', 'Descrição do produto', 'UN', '10.50', '15.00', '100', '10', 'Observações do produto'];
+    const example = ['EXEMPLO PRODUTO', '001', '7891234567890', 'CATEGORIA EXEMPLO', 'DESCRIÇÃO DO PRODUTO', 'UN', '10.50', '15.00', '100', '10', 'OBSERVAÇÕES DO PRODUTO'];
     csvRows.push(example.join(';'));
 
     const csvString = csvRows.join('\n');
