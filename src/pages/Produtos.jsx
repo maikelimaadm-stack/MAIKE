@@ -150,15 +150,20 @@ export default function Produtos() {
   });
 
   const handleSubmit = async (data) => {
-    if (!editingProduto) {
-      const proximoNumero = await getNextSystemNumber();
-      data.numero_produto = String(proximoNumero);
-    }
-    
-    if (editingProduto) {
-      updateMutation.mutate({ id: editingProduto.id, data });
-    } else {
-      createMutation.mutate(data);
+    try {
+      if (!editingProduto) {
+        const proximoNumero = await getNextSystemNumber();
+        data.numero_produto = String(proximoNumero);
+      }
+      
+      if (editingProduto) {
+        await updateMutation.mutateAsync({ id: editingProduto.id, data });
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error);
+      toast.error(error.message || 'Erro ao salvar produto.');
     }
   };
 

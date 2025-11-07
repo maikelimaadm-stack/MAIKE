@@ -116,7 +116,16 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
       return;
     }
 
-    onSubmit(formData);
+    // Garantir que os campos numéricos estão no formato correto
+    const dataToSubmit = {
+      ...formData,
+      preco_custo: parseFloat(formData.preco_custo) || 0,
+      preco_venda: parseFloat(formData.preco_venda) || 0,
+      estoque_atual: parseFloat(formData.estoque_atual) || 0,
+      estoque_minimo: parseFloat(formData.estoque_minimo) || 0
+    };
+
+    onSubmit(dataToSubmit);
   };
 
   const handleChange = (field, value) => {

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,8 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
     window.print();
   };
 
-  const romaneio = pesagem.id ? pesagem.id.substring(0, 8).toUpperCase() : '--------';
+  // Usar numero_registro ao invés do id para o romaneio
+  const romaneio = pesagem.numero_registro ? String(pesagem.numero_registro).padStart(6, '0') : '------';
 
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
@@ -33,7 +33,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md p-0 print:max-w-full print:shadow-none print:border-0">
+      <DialogContent className="max-w-md p-0 print:max-w-full print:shadow-none print:border-0 print:p-0">
         <div className="print:hidden flex justify-end gap-2 p-4 border-b">
           <Button onClick={handlePrint} size="sm" className="gap-2 bg-green-600 hover:bg-green-700">
             <Printer className="w-4 h-4" />
@@ -45,12 +45,16 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
           </Button>
         </div>
 
-        <div id="ticket-content" className="p-6 print:p-0">
+        <div id="ticket-content" className="p-6 print:p-2">
           <style dangerouslySetInnerHTML={{__html: `
             @media print {
               @page {
                 size: 80mm auto;
                 margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
               }
               body * {
                 visibility: hidden;
@@ -64,7 +68,11 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
                 left: 0;
                 top: 0;
                 width: 80mm;
-                padding: 5mm;
+                padding: 3mm;
+                margin: 0;
+              }
+              .print\\:hidden {
+                display: none !important;
               }
             }
           `}} />
@@ -96,10 +104,10 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             <div className="space-y-1 mb-2">
               <div>ROMANEIO...: {romaneio}</div>
               <div className="break-words">Forn./Desti....: {pesagem.fornecedor_destino?.toUpperCase() || 'NÃO INFORMADO'}</div>
-              <div className="break-words">Produto........: {pesagem.produto?.toUpperCase()}</div>
+              <div className="break-words">Produto........: {pesagem.produto?.toUpperCase() || 'NÃO INFORMADO'}</div>
               <div>Data...........: {formatarData(pesagem.data_pesagem)}</div>
-              <div>Placa..........: {pesagem.placa_caminhao?.toUpperCase()}</div>
-              <div>Motorista......: {pesagem.nome_motorista?.toUpperCase()}</div>
+              <div>Placa..........: {pesagem.placa_caminhao?.toUpperCase() || 'NÃO INFORMADO'}</div>
+              <div>Motorista......: {pesagem.nome_motorista?.toUpperCase() || 'NÃO INFORMADO'}</div>
             </div>
 
             {/* Linha separadora */}
@@ -108,9 +116,9 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             {/* Dados da Pesagem */}
             <div className="text-center font-bold mb-1">Dados Pesagem</div>
             <div className="space-y-1 mb-2">
-              <div>Tara...........: {formatarNumero(pesagem.peso_tara)}</div>
-              <div>Bruto..........: {formatarNumero(pesagem.peso_bruto)}</div>
-              <div>Líquido........: {formatarNumero(pesagem.peso_liquido)}</div>
+              <div>Tara...........: {formatarNumero(pesagem.peso_tara)} kg</div>
+              <div>Bruto..........: {formatarNumero(pesagem.peso_bruto)} kg</div>
+              <div>Líquido........: {formatarNumero(pesagem.peso_liquido)} kg</div>
             </div>
 
             {/* Linha separadora */}
