@@ -243,13 +243,16 @@ export default function Fornecedores() {
         const lines = text.split('\n').filter(line => line.trim());
         
         if (lines.length <= 1) { // includes header line
-          toast.error('O arquivo está vazio ou contém apenas o cabeçalho!');
+          toast.error('O arquivo está vazio!');
           setShowImportProgress(false); // Ensure progress dialog is closed
           return;
         }
 
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 }); // Total records to process, excluding header
+
+        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
+        let proximoNumero = await getNextSystemNumber();
 
         const headers = lines[0].split(';');
         const headerMap = {
@@ -287,11 +290,11 @@ export default function Fornecedores() {
 
           try {
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
-              throw new Error("Dados inválidos: Nome e Tipo de Pessoa são obrigatórios.");
+              throw new Error("Dados inválidos");
             }
             
-            const proximoNumero = await getNextSystemNumber();
             fornecedor.numero_cadastro = String(proximoNumero);
+            proximoNumero++; // Incrementar localmente
             
             validRecords.push(fornecedor);
           } catch (err) {
@@ -302,7 +305,7 @@ export default function Fornecedores() {
 
         if (validRecords.length === 0) {
           setShowImportProgress(false);
-          toast.error('Nenhum registro válido encontrado no arquivo!');
+          toast.error('Nenhum registro válido encontrado!');
           return;
         }
 
@@ -314,10 +317,10 @@ export default function Fornecedores() {
             await base44.entities.Fornecedor.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UI update
+            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UI update
           } catch (error) {
             errorsInImport++;
-            console.error(`Erro ao importar registro individual ${record.nome || record.razao_social || "desconhecido"}:`, error);
+            console.error(`Erro ao importar registro:`, error);
             setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
           }
         }
@@ -337,7 +340,7 @@ export default function Fornecedores() {
       } catch (error) {
         console.error('Erro geral ao importar:', error);
         setShowImportProgress(false);
-        toast.error('Erro ao importar dados. Verifique o arquivo e o formato.');
+        toast.error('Erro ao importar. Verifique o arquivo.');
       }
     };
     reader.readAsText(file, 'UTF-8'); // Specify UTF-8 encoding

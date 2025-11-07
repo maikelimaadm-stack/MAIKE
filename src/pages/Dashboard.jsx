@@ -263,10 +263,12 @@ export default function Dashboard() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
 
+        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
+        let proximoNumero = await getNextSystemNumber();
+        
         const validRecords = [];
         let errorCount = 0;
 
-        // Parse all lines first, skipping the header (index 0)
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(';');
           
@@ -295,9 +297,6 @@ export default function Dashboard() {
             const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
-            // Gerar número automaticamente - não usar o da planilha
-            const proximoNumero = await getNextSystemNumber();
-
             const pesagem = {
               numero_registro: String(proximoNumero), // Use generated number
               data_pesagem: dataFormatada,
@@ -320,6 +319,7 @@ export default function Dashboard() {
             }
             
             validRecords.push(pesagem);
+            proximoNumero++; // Incrementar localmente para o próximo registro
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
@@ -341,7 +341,7 @@ export default function Dashboard() {
             await base44.entities.Pesagem.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UX
+            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UX
           } catch (error) {
             console.error(`Erro ao criar registro:`, error);
             actualErrors++; // Increment error count for individual failures

@@ -237,6 +237,9 @@ export default function Produtos() {
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
 
+        // CORREÇÃO: Buscar o maior número UMA VEZ antes do loop
+        let proximoNumero = await getNextSystemNumber();
+
         const validRecords = [];
         let errorCount = 0;
 
@@ -249,8 +252,6 @@ export default function Produtos() {
           }
 
           try {
-            const proximoNumero = await getNextSystemNumber();
-            
             const produto = {
               numero_produto: String(proximoNumero),
               nome_produto: values[0]?.trim()?.toUpperCase(),
@@ -271,6 +272,7 @@ export default function Produtos() {
             }
 
             validRecords.push(produto);
+            proximoNumero++; // Incrementar localmente
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err);
             errorCount++;
@@ -291,7 +293,7 @@ export default function Produtos() {
             await base44.entities.Produto.create(record);
             imported++;
             setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for UI update
+            await new Promise(resolve => setTimeout(resolve, 50));
           } catch (error) {
             errorsInImport++;
             console.error('Erro ao importar produto:', error);
