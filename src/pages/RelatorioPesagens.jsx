@@ -633,6 +633,12 @@ export default function RelatorioPesagens() {
               top: 0;
               width: 100%;
             }
+            header, nav, .no-print {
+              display: none !important;
+            }
+            body::before, body::after {
+              content: none !important;
+            }
             @page {
               @bottom-center {
                 content: "Página " counter(page) " de " counter(pages);
@@ -642,20 +648,20 @@ export default function RelatorioPesagens() {
         `}} />
 
         <div className="print-area p-8 print:p-0">
-          {/* Cabeçalho Novo Formato */}
+          {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-2 mb-3">
             <div className="flex items-start gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
                   src={empresaAtual.logotipo_url} 
                   alt={empresaAtual.apelido || "Logo"}
-                  className="h-20 w-20 object-contain"
+                  className="h-24 w-24 object-contain"
                 />
               ) : (
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
                   alt="Logo"
-                  className="h-20 w-20 object-contain"
+                  className="h-24 w-24 object-contain"
                 />
               )}
               <div className="flex-1">
@@ -683,16 +689,6 @@ export default function RelatorioPesagens() {
             {(dataInicio || dataFim) && (
               <p className="text-xs text-gray-600">
                 Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
-              </p>
-            )}
-            {agrupamentosAtivos.length > 0 && (
-              <p className="text-xs text-gray-600">
-                Agrupado por: <strong>{agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}</strong>
-              </p>
-            )}
-            {ordenacao && (
-              <p className="text-xs text-gray-600">
-                Ordenado por: <strong>{ORDENACAO_OPCOES.find(opt => opt.value === ordenacao)?.label}</strong>
               </p>
             )}
           </div>
