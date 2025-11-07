@@ -49,9 +49,21 @@ export default function RelatorioPesagens() {
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("retrato");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_relatorio_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fallback to default if parsing fails
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    // Default initial columns if nothing in localStorage
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
 
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
   const [placasSelecionadas, setPlacasSelecionadas] = useState([]);
@@ -202,9 +214,16 @@ export default function RelatorioPesagens() {
   }, [pesagensFiltradas, agrupamentosAtivos]);
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev =>
-      prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId]
-    );
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      localStorage.setItem('colunas_relatorio_pesagens', JSON.stringify(novasColunas));
+      
+      return novasColunas;
+    });
   };
 
   const toggleFiltro = (lista, setLista, valor) => {

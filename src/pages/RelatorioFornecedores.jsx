@@ -39,9 +39,19 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function RelatorioFornecedores() {
   const [orientacao, setOrientacao] = useState("retrato");
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_relatorio_fornecedores');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
 
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
   const [cidadesSelecionadas, setCidadesSelecionadas] = useState([]);
@@ -75,9 +85,14 @@ export default function RelatorioFornecedores() {
   }, [fornecedores, tiposSelecionados, cidadesSelecionadas, estadosSelecionados, buscaTelefone, buscaEmail, buscaNome]);
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
-      prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId]
-    );
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      localStorage.setItem('colunas_relatorio_fornecedores', JSON.stringify(novasColunas));
+      
+      return novasColunas;
+    });
   };
 
   const toggleFiltro = (lista, setLista, valor) => {

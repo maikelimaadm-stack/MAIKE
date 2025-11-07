@@ -46,20 +46,42 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    if (typeof window !== 'undefined') { // Check if window is defined (for SSR compatibility)
+      const saved = localStorage.getItem('colunas_produtos');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, fall back to default
+          return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        }
+      }
+    }
+    // If no saved data or in SSR context, return default
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+  
   const [selectedItems, setSelectedItems] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
-      prev.includes(colunaId)
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
         ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId]
-    );
+        : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('colunas_produtos', JSON.stringify(novasColunas));
+      }
+      
+      return novasColunas;
+    });
   };
 
   const toggleSelectAll = () => {
@@ -388,7 +410,6 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
               <p className="text-center text-sm font-medium text-red-600">
                 {deleteProgressPercentage}%
               </p>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

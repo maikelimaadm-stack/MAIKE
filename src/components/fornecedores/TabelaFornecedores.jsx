@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, Users, Settings, CheckSquare, Loader2 } from "lucide-react"; // Added Loader2
+import { Edit, Trash2, Printer, Search, Users, Settings, CheckSquare, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -22,8 +22,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"; // Added Dialog components
-import { Progress } from "@/components/ui/progress"; // Added Progress component
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true },
@@ -39,20 +39,48 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    if (typeof window !== 'undefined') { // Ensure localStorage is available (client-side)
+      const saved = localStorage.getItem('colunas_fornecedores');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Filter out any IDs that are no longer available in COLUNAS_DISPONIVEIS
+          // and ensure all parsed IDs are valid.
+          const validParsed = parsed.filter(id => COLUNAS_DISPONIVEIS.some(c => c.id === id));
+          // If all saved columns are valid, use them. Otherwise, default.
+          if (validParsed.length === parsed.length && validParsed.length > 0) {
+            return validParsed;
+          }
+        } catch (error) {
+          console.error("Failed to parse 'colunas_fornecedores' from localStorage:", error);
+          // Fallback to default if parsing fails
+        }
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+  
   const [selectedItems, setSelectedItems] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false); // New state
-  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 }); // New state
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev =>
-      prev.includes(colunaId)
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
         ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId]
-    );
+        : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('colunas_fornecedores', JSON.stringify(novasColunas));
+      }
+      
+      return novasColunas;
+    });
   };
 
   const toggleSelectAll = () => {

@@ -48,8 +48,6 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
               margin: 0 !important;
               padding: 0 !important;
               width: 60mm !important;
-              height: auto !important;
-              overflow: visible !important;
             }
             body * {
               visibility: hidden !important;

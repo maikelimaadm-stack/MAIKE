@@ -57,9 +57,21 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fallback if parsing fails (e.g., corrupted data)
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
@@ -70,11 +82,16 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
-      prev.includes(colunaId)
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
         ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId]
-    );
+        : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      localStorage.setItem('colunas_pesagens', JSON.stringify(novasColunas));
+      
+      return novasColunas;
+    });
   };
 
   const handleSort = (field) => {

@@ -44,9 +44,21 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function RelatorioProdutos() {
   const [orientacao, setOrientacao] = useState("retrato");
-  const [colunasVisiveis, setColunasVisiveis] = useState(
-    COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
-  );
+  
+  // Carregar configuração de colunas do localStorage
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_relatorio_produtos');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // Fallback to default if parsing fails (e.g., malformed JSON)
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    // Fallback to default if nothing saved
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
@@ -80,9 +92,16 @@ export default function RelatorioProdutos() {
   }, [produtos, categoriasSelecionadas, produtosSelecionados, unidadesSelecionadas, buscaCodigo, buscaBarras, buscaNome]); // Added new dependencies
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
-      prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId]
-    );
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId];
+      
+      // Salvar no localStorage
+      localStorage.setItem('colunas_relatorio_produtos', JSON.stringify(novasColunas));
+      
+      return novasColunas;
+    });
   };
 
   const toggleFiltro = (lista, setLista, valor) => {
