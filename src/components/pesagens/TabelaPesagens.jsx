@@ -90,7 +90,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
       pesagem.nome_motorista?.toLowerCase().includes(searchLower) ||
       pesagem.produto?.toLowerCase().includes(searchLower) ||
       pesagem.fornecedor_destino?.toLowerCase().includes(searchLower) ||
-      pesagem.numero_registro?.toString().toLowerCase().includes(searchLower) // Added numero_registro to search
+      pesagem.numero_registro?.toString().toLowerCase().includes(searchLower)
     );
   });
 
@@ -101,7 +101,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     let aValue, bValue;
 
     switch (sortField) {
-      case 'numero': // Added case for numero
+      case 'numero':
         aValue = parseInt(a.numero_registro) || 0;
         bValue = parseInt(b.numero_registro) || 0;
         break;
@@ -170,7 +170,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   };
 
   const handleBulkDelete = () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Deseja realmente excluir ${selectedItems.length} registro(s) selecionado(s)? Esta ação não pode ser desfeita.`)) {
+    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} registro(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
       selectedItems.forEach(id => onDelete(id));
       setSelectedItems([]);
       setShowBulkActions(false);
@@ -261,7 +261,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
             <div className="relative flex-1 md:w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                placeholder="Buscar por nº, placa, motorista, produto..." // Updated placeholder
+                placeholder="Buscar por nº, placa, motorista, produto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -297,13 +297,13 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="w-12"> {/* New column for checkboxes */}
+                <TableHead className="w-12">
                   <Checkbox
                     checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                {colunasVisiveis.includes('numero') && ( // New column header
+                {colunasVisiveis.includes('numero') && (
                   <TableHead 
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('numero')}
@@ -424,7 +424,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                 {isLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <TableRow key={i} className="animate-pulse">
-                      <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell> {/* Placeholder for checkbox */}
+                      <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
                       {colunasVisiveis.map((col, idx) => (
                         <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
                       ))}
@@ -433,7 +433,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                   ))
                 ) : paginatedPesagens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12"> {/* Updated colSpan */}
+                    <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <FileText className="w-12 h-12" />
                         <p className="text-lg font-medium">Nenhum registro encontrado</p>
@@ -452,13 +452,13 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                       exit={{ opacity: 0 }}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
-                      <TableCell> {/* New column for individual checkboxes */}
+                      <TableCell>
                         <Checkbox
                           checked={selectedItems.includes(pesagem.id)}
                           onCheckedChange={() => toggleSelectItem(pesagem.id)}
                         />
                       </TableCell>
-                      {colunasVisiveis.includes('numero') && ( // New column cell
+                      {colunasVisiveis.includes('numero') && (
                         <TableCell className="font-bold text-slate-900">
                           {pesagem.numero_registro || '-'}
                         </TableCell>

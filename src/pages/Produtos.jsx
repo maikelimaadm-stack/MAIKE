@@ -155,7 +155,7 @@ export default function Produtos() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este produto? Esta ação não pode ser desfeita.')) {
       deleteMutation.mutate(id);
     }
   };

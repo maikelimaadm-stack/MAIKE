@@ -150,7 +150,7 @@ export default function Fornecedores() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Tem certeza que deseja excluir este fornecedor/cliente?')) {
+    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este fornecedor/cliente? Esta ação não pode ser desfeita.')) {
       deleteMutation.mutate(id);
     }
   };

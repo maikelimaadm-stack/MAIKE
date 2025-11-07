@@ -35,9 +35,8 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
   };
 
   const handleChange = (field, value) => {
-    // Converter para maiúsculo campos de texto específicos
-    const upperCaseFields = ['nome', 'razao_social', 'nome_responsavel', 'endereco', 'cidade', 'estado'];
-    if (upperCaseFields.includes(field) && typeof value === 'string') {
+    // Converter para maiúsculas campos de texto
+    if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone'].includes(field)) {
       value = value.toUpperCase();
     }
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -91,7 +90,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 placeholder={isPessoaFisica ? "Nome completo" : "Nome fantasia"}
                 required
                 className="border-slate-300 focus:border-green-500 uppercase"
-                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
@@ -151,7 +149,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                       onChange={(e) => handleChange('razao_social', e.target.value)}
                       placeholder="Razão social da empresa"
                       className="border-slate-300 focus:border-green-500 uppercase"
-                      style={{ textTransform: 'uppercase' }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -190,7 +187,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                       onChange={(e) => handleChange('nome_responsavel', e.target.value)}
                       placeholder="Nome do responsável legal"
                       className="border-slate-300 focus:border-green-500 uppercase"
-                      style={{ textTransform: 'uppercase' }}
                     />
                   </div>
                 </div>
@@ -237,7 +233,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 onChange={(e) => handleChange('endereco', e.target.value)}
                 placeholder="Rua, número, bairro"
                 className="border-slate-300 focus:border-green-500 uppercase"
-                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
@@ -252,7 +247,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   onChange={(e) => handleChange('cidade', e.target.value)}
                   placeholder="Cidade"
                   className="border-slate-300 focus:border-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="space-y-2">
@@ -266,7 +260,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   placeholder="UF"
                   maxLength={2}
                   className="border-slate-300 focus:border-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="space-y-2">
@@ -291,10 +284,9 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               </Label>
               <Textarea
                 value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
+                onChange={(e) => handleChange('observacoes', e.target.value)}
                 placeholder="Informações adicionais..."
                 className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                style={{ textTransform: 'uppercase' }}
               />
             </div>
 

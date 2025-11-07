@@ -150,23 +150,6 @@ export default function Dashboard() {
     }
   });
 
-  const deleteAllMutation = useMutation({
-    mutationFn: async () => {
-      // It's safer to fetch the latest list before deleting all, in case 'pesagens' state is stale
-      const currentPesagens = await base44.entities.Pesagem.list(); // Fetch fresh list
-      for (const pesagem of currentPesagens) {
-        await base44.entities.Pesagem.delete(pesagem.id);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-      toast.success('Todos os registros foram excluídos!');
-    },
-    onError: () => {
-      toast.error('Erro ao excluir registros.');
-    }
-  });
-
   const handleSubmit = async (data) => {
     // Gerar número único se for novo registro
     if (!editingPesagem) {
@@ -187,7 +170,7 @@ export default function Dashboard() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Tem certeza que deseja excluir esta pesagem?')) {
+    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta pesagem? Esta ação não pode ser desfeita.')) {
       deleteMutation.mutate(id);
     }
   };
@@ -204,14 +187,6 @@ export default function Dashboard() {
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingPesagem(null);
-  };
-
-  const handleDeleteAll = () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Deseja realmente excluir TODAS as ${pesagens.length} pesagens? Esta ação não pode ser desfeita!`)) {
-      if (window.confirm('⚠️ CONFIRME NOVAMENTE: Deseja realmente excluir TODOS os registros de pesagens?')) {
-        deleteAllMutation.mutate();
-      }
-    }
   };
 
   const parseDecimalBR = (value) => {
@@ -433,7 +408,7 @@ export default function Dashboard() {
   const totalPesagens = pesagens.length;
   const pesagensEntrada = pesagens.filter(p => p.tipo_pesagem === 'Entrada').length;
   const pesagensSaida = pesagens.filter(p => p.tipo_pesagem === 'Saída').length;
-  const pesagensAmbos = pesagens.filter(p => p.tipo_pesagem === 'Ambos').length; // Added new statistic
+  const pesagensAmbos = pesagens.filter(p => p.tipo_pesagem === 'Ambos').length;
   const pesoTotalLiquido = pesagens.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
 
   const progressPercentage = importProgress.total > 0 
