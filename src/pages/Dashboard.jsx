@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,45 @@ const formatarNumero = (numero) => {
   return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
+// Função global para obter próximo número único do sistema
+const getNextSystemNumber = async () => {
+  try {
+    const [pesagens, fornecedores, produtos] = await Promise.all([
+      base44.entities.Pesagem.list(),
+      base44.entities.Fornecedor.list(),
+      base44.entities.Produto.list()
+    ]);
+
+    const allNumbers = [];
+
+    pesagens.forEach(p => {
+      const num = parseInt(p.numero_registro, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    fornecedores.forEach(f => {
+      const num = parseInt(f.numero_cadastro, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    produtos.forEach(p => {
+      const num = parseInt(p.numero_produto, 10);
+      if (!isNaN(num) && num > 0) {
+        allNumbers.push(num);
+      }
+    });
+
+    return allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
+  } catch (error) {
+    console.error('Erro ao obter próximo número sequencial:', error);
+    return Date.now(); // Fallback to a unique timestamp
+  }
+};
+
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingPesagem, setEditingPesagem] = useState(null);
@@ -42,6 +81,42 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Pesagem.list('-created_date'),
     initialData: [],
   });
+
+  // Numerar registros existentes automaticamente
+  useEffect(() => {
+    const numerarRegistrosExistentes = async () => {
+      // Only run if data is loaded, there are pesagens, and form is not open
+      if (isLoading || !pesagens || pesagens.length === 0 || showForm) {
+        return;
+      }
+
+      const registrosSemNumero = pesagens.filter(p => !p.numero_registro || String(p.numero_registro).trim() === '');
+      
+      if (registrosSemNumero.length > 0) {
+        console.log(`Numerando ${registrosSemNumero.length} registros sem número...`);
+        
+        let updateCount = 0;
+        for (const pesagem of registrosSemNumero) {
+          try {
+            const proximoNumero = await getNextSystemNumber();
+            await base44.entities.Pesagem.update(pesagem.id, {
+              numero_registro: String(proximoNumero)
+            });
+            updateCount++;
+          } catch (error) {
+            console.error(`Erro ao numerar registro ${pesagem.id}:`, error);
+          }
+        }
+        
+        if (updateCount > 0) {
+          queryClient.invalidateQueries({ queryKey: ['pesagens'] });
+          toast.info(`${updateCount} registros foram numerados automaticamente.`);
+        }
+      }
+    };
+
+    numerarRegistrosExistentes();
+  }, [pesagens, queryClient, isLoading, showForm]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Pesagem.create(data),
@@ -81,6 +156,11 @@ export default function Dashboard() {
   });
 
   const handleSubmit = async (data) => {
+    if (!editingPesagem) {
+      const proximoNumero = await getNextSystemNumber();
+      data.numero_registro = String(proximoNumero);
+    }
+    
     if (editingPesagem) {
       updateMutation.mutate({ id: editingPesagem.id, data });
     } else {
@@ -131,11 +211,13 @@ export default function Dashboard() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    // Ensure 'numero_registro' is included in export if it's new
+    const headers = ['Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
 
     pesagens.forEach(p => {
       const row = [
+        p.numero_registro || '', // Include numero_registro
         format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
         p.tipo_pesagem,
         p.placa_caminhao || '',
@@ -176,13 +258,18 @@ export default function Dashboard() {
 
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: lines.length - 1, errors: 0 });
+
+        let proximoNumero = await getNextSystemNumber(); // Get the starting number for the import batch
         
         const validRecords = [];
         let errorCount = 0;
 
-        for (let i = 1; i < lines.length; i++) {
+        for (let i = 1; i < lines.length; i++) { // Start from 1 to skip header
           const values = lines[i].split(';');
           
+          // Updated indices to accommodate 'Número Registro' if it were in the import template
+          // For now, let's assume the template remains the same (without numero_registro)
+          // and we assign it automatically.
           const dataIndex = 0;
           const tipoIndex = 1;
           const placaIndex = 2;
@@ -194,7 +281,7 @@ export default function Dashboard() {
           const pesoLiquidoIndex = 8;
           const observacoesIndex = 9;
 
-          if (values.length < 9) {
+          if (values.length < 9) { // Still checking for minimum 9 expected values
             errorCount++;
             console.error(`Linha ${i + 1}: Colunas insuficientes`);
             continue;
@@ -207,6 +294,7 @@ export default function Dashboard() {
             const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
 
             const pesagem = {
+              numero_registro: String(proximoNumero), // Assign the generated number
               data_pesagem: dataFormatada,
               tipo_pesagem: values[tipoIndex]?.trim() || undefined,
               placa_caminhao: values[placaIndex]?.trim()?.toUpperCase() || undefined,
@@ -224,6 +312,7 @@ export default function Dashboard() {
             }
             
             validRecords.push(pesagem);
+            proximoNumero++; // Increment for the next record
           } catch (err) {
             console.error(`Erro linha ${i + 1}:`, err.message);
             errorCount++;
@@ -243,16 +332,19 @@ export default function Dashboard() {
           try {
             await base44.entities.Pesagem.create(record);
             imported++;
-            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
+            setImportProgress(prev => ({ ...prev, current: prev.current + 1 })); // Update current count for progress
           } catch (error) {
             console.error(`Erro ao criar registro:`, error);
             actualErrors++;
-            setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
+            setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 })); // Update error count for progress
           }
         }
-
+        
         await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
         
+        // Final update for progress bar and toast message
+        setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
+
         setTimeout(() => {
           setShowImportProgress(false);
           if (actualErrors > 0) {
