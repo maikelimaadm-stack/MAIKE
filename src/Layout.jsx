@@ -58,6 +58,10 @@ const navigationItems = [
         url: createPageUrl("Empresa"),
       },
       {
+        title: "Safras",
+        url: createPageUrl("GerenciarSafras"),
+      },
+      {
         title: "Fornecedores/Clientes",
         url: createPageUrl("Fornecedores"),
       },
@@ -94,6 +98,10 @@ const navigationItems = [
       {
         title: "Relatório de Estoque",
         url: createPageUrl("RelatorioEstoque"),
+      },
+      {
+        title: "Histórico de Entregas",
+        url: createPageUrl("RelatorioHistoricoEntregas"),
       },
       {
         title: "Lista de Fornecedores",
