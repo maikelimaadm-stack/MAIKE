@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -108,6 +109,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validação antes de enviar
+    if (!formData.nome_produto || !formData.nome_produto.trim()) {
+      toast.error('Nome do produto é obrigatório!');
+      return;
+    }
+
     onSubmit(formData);
   };
 
@@ -120,6 +128,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
 
   const handleSaveUnidade = (e) => {
     e.preventDefault();
+    if (!newUnidade.sigla || !newUnidade.descricao) {
+      toast.error('Preencha todos os campos obrigatórios!');
+      return;
+    }
     const dataToSend = {
       sigla: newUnidade.sigla.toUpperCase(),
       descricao: newUnidade.descricao.toUpperCase()
@@ -129,6 +141,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
 
   const handleSaveCategoria = (e) => {
     e.preventDefault();
+    if (!newCategoria.nome) {
+      toast.error('Nome da categoria é obrigatório!');
+      return;
+    }
     const dataToSend = {
       nome: newCategoria.nome.toUpperCase(),
       subcategoria: newCategoria.subcategoria?.toUpperCase() || undefined,
@@ -139,6 +155,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
 
   const handleSaveLocal = (e) => {
     e.preventDefault();
+    if (!newLocal.nome) {
+      toast.error('Nome do local é obrigatório!');
+      return;
+    }
     const dataToSend = {
       nome: newLocal.nome.toUpperCase(),
       descricao: newLocal.descricao?.toUpperCase() || undefined,
@@ -222,7 +242,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                       <SelectContent>
                         {categorias.map((cat) => (
                           <SelectItem key={cat.id} value={cat.nome}>
-                            {cat.nome}
+                            {cat.nome}{cat.subcategoria ? ` - ${cat.subcategoria}` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -430,7 +450,9 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowUnidadeDialog(false)}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit" disabled={createUnidadeMutation.isPending}>
+                {createUnidadeMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -455,17 +477,28 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
               />
             </div>
             <div className="space-y-2">
-              <Label>Subcategoria</Label>
+              <Label>Subcategoria (Opcional)</Label>
               <Input
                 value={newCategoria.subcategoria}
                 onChange={(e) => setNewCategoria({ ...newCategoria, subcategoria: e.target.value.toUpperCase() })}
-                placeholder="SUBCATEGORIA (OPCIONAL)"
+                placeholder="EX: HERBICIDAS, FUNGICIDAS"
+                className="uppercase"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição (Opcional)</Label>
+              <Textarea
+                value={newCategoria.descricao}
+                onChange={(e) => setNewCategoria({ ...newCategoria, descricao: e.target.value.toUpperCase() })}
+                placeholder="DESCRIÇÃO DA CATEGORIA"
                 className="uppercase"
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowCategoriaDialog(false)}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit" disabled={createCategoriaMutation.isPending}>
+                {createCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -500,7 +533,9 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowLocalDialog(false)}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit" disabled={createLocalMutation.isPending}>
+                {createLocalMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </form>
         </DialogContent>

@@ -112,14 +112,13 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
               <div className="space-y-2">
                 <Label htmlFor="placa_caminhao" className="text-slate-700 font-medium flex items-center gap-2">
                   <Truck className="w-4 h-4 text-orange-600" />
-                  Placa do Caminhão *
+                  Placa do Caminhão
                 </Label>
                 <Input
                   id="placa_caminhao"
                   value={formData.placa_caminhao}
                   onChange={(e) => handleChange('placa_caminhao', e.target.value)}
                   placeholder="ABC-1234"
-                  required
                   className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -130,14 +129,13 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
               <div className="space-y-2">
                 <Label htmlFor="nome_motorista" className="text-slate-700 font-medium flex items-center gap-2">
                   <User className="w-4 h-4 text-indigo-600" />
-                  Nome do Motorista *
+                  Nome do Motorista
                 </Label>
                 <Input
                   id="nome_motorista"
                   value={formData.nome_motorista}
                   onChange={(e) => handleChange('nome_motorista', e.target.value)}
                   placeholder="NOME COMPLETO"
-                  required
                   className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -146,14 +144,13 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
               <div className="space-y-2">
                 <Label htmlFor="produto" className="text-slate-700 font-medium flex items-center gap-2">
                   <Package className="w-4 h-4 text-amber-600" />
-                  Produto/Insumo *
+                  Produto/Insumo
                 </Label>
                 <Input
                   id="produto"
                   value={formData.produto}
                   onChange={(e) => handleChange('produto', e.target.value)}
                   placeholder="EX: SOJA, MILHO, ADUBO"
-                  required
                   className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />

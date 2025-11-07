@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Users, Save, X, User, Building2, Phone, Mail, MapPin, FileText, Calenda
 import { motion } from "framer-motion";
 
 export default function FormularioFornecedor({ onSubmit, onCancel, initialData = null, isEditing = false }) {
+  const [tipoPessoa, setTipoPessoa] = useState(initialData?.tipo_pessoa || "Física");
   const [formData, setFormData] = useState({
     tipo_pessoa: initialData?.tipo_pessoa || "Física",
     nome: initialData?.nome || "",
@@ -35,14 +35,17 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
   };
 
   const handleChange = (field, value) => {
-    // Converter para maiúsculas campos de texto
+    if (field === 'tipo_pessoa') {
+      setTipoPessoa(value);
+    }
+    
     if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone'].includes(field)) {
       value = value.toUpperCase();
     }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const isPessoaFisica = formData.tipo_pessoa === "Física";
+  const isPessoaFisica = tipoPessoa === "Física";
 
   return (
     <motion.div
@@ -67,7 +70,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 <User className="w-4 h-4 text-green-600" />
                 Tipo de Pessoa *
               </Label>
-              <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)} required>
+              <Select value={tipoPessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)} required>
                 <SelectTrigger className="border-slate-300 focus:border-green-500">
                   <SelectValue />
                 </SelectTrigger>

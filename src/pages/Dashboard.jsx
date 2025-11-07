@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -137,9 +138,9 @@ export default function Dashboard() {
       const row = [
         format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
         p.tipo_pesagem,
-        p.placa_caminhao,
-        p.nome_motorista,
-        p.produto,
+        p.placa_caminhao || '',
+        p.nome_motorista || '',
+        p.produto || '',
         p.fornecedor_destino || '',
         p.peso_tara.toString().replace('.', ','),
         p.peso_bruto.toString().replace('.', ','),
@@ -207,10 +208,10 @@ export default function Dashboard() {
 
             const pesagem = {
               data_pesagem: dataFormatada,
-              tipo_pesagem: values[tipoIndex]?.trim(),
-              placa_caminhao: values[placaIndex]?.trim().toUpperCase(),
-              nome_motorista: values[motoristaIndex]?.trim().toUpperCase(),
-              produto: values[produtoIndex]?.trim().toUpperCase(),
+              tipo_pesagem: values[tipoIndex]?.trim() || undefined,
+              placa_caminhao: values[placaIndex]?.trim()?.toUpperCase() || undefined,
+              nome_motorista: values[motoristaIndex]?.trim()?.toUpperCase() || undefined,
+              produto: values[produtoIndex]?.trim()?.toUpperCase() || undefined,
               fornecedor_destino: values[fornecedorDestinoIndex]?.trim()?.toUpperCase() || undefined,
               peso_tara: pesoTara,
               peso_bruto: pesoBruto,
@@ -218,9 +219,7 @@ export default function Dashboard() {
               observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined
             };
 
-            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || 
-                !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || 
-                isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
+            if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || isNaN(pesagem.peso_tara) || isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
               throw new Error("Dados obrigatórios ausentes");
             }
             
