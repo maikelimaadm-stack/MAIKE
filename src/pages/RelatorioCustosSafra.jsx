@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +48,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'fornecedor', label: 'Fornecedor', default: true },
   { id: 'produto', label: 'Produto', default: true },
   { id: 'quantidade', label: 'Quantidade', default: true },
+  { id: 'quantidade_entregue', label: 'Qtd Entregue', default: true },
+  { id: 'quantidade_restante', label: 'Qtd Restante', default: true },
   { id: 'unidade', label: 'Unidade', default: true },
   { id: 'valor_unitario', label: 'Valor Unit.', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
@@ -74,6 +77,7 @@ export default function RelatorioCustosSafra() {
   const [orientacao, setOrientacao] = useState("paisagem");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('numero_desc');
+  const [tipoVisualizacao, setTipoVisualizacao] = useState('detalhado');
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_custos_safra');
@@ -179,39 +183,84 @@ export default function RelatorioCustosSafra() {
   }, [custosComSafra, safrasSelecionadas, fornecedoresSelecionados, produtosSelecionados, statusSelecionados, buscaObservacoes, ordenacao]);
 
   const custosAgrupados = useMemo(() => {
-    if (agrupamentosAtivos.length === 0) {
-      return { "Todos os Registros": custosFiltrados };
-    }
+    if (tipoVisualizacao === 'detalhado') {
+      // Visualização detalhada - mostra todos os lançamentos
+      if (agrupamentosAtivos.length === 0) {
+        return { "Todos os Registros": custosFiltrados };
+      }
 
-    const grupos = {};
-    custosFiltrados.forEach(c => {
-      let chaveArray = [];
-      agrupamentosAtivos.forEach(tipo => {
-        let valor;
-        switch (tipo) {
-          case "safra":
-            valor = c.safra_nome || "Sem safra";
-            break;
-          case "fornecedor":
-            valor = c.fornecedor_nome || "Sem fornecedor";
-            break;
-          case "produto":
-            valor = c.produto_nome || "Sem produto";
-            break;
-          case "status":
-            valor = c.status_entrega || "Sem status";
-            break;
-          default:
-            valor = "Sem classificação";
-        }
-        chaveArray.push(valor);
+      const grupos = {};
+      custosFiltrados.forEach(c => {
+        let chaveArray = [];
+        agrupamentosAtivos.forEach(tipo => {
+          let valor;
+          switch (tipo) {
+            case "safra":
+              valor = c.safra_nome || "Sem safra";
+              break;
+            case "fornecedor":
+              valor = c.fornecedor_nome || "Sem fornecedor";
+              break;
+            case "produto":
+              valor = c.produto_nome || "Sem produto";
+              break;
+            case "status":
+              valor = c.status_entrega || "Sem status";
+              break;
+            default:
+              valor = "Sem classificação";
+          }
+          chaveArray.push(valor);
+        });
+        const chave = chaveArray.join(" → ");
+        if (!grupos[chave]) grupos[chave] = [];
+        grupos[chave].push(c);
       });
-      const chave = chaveArray.join(" → ");
-      if (!grupos[chave]) grupos[chave] = [];
-      grupos[chave].push(c);
-    });
-    return grupos;
-  }, [custosFiltrados, agrupamentosAtivos]);
+      return grupos;
+    } else {
+      // Visualização agrupada - soma valores por agrupamento
+      const grupos = {};
+      custosFiltrados.forEach(c => {
+        let chaveArray = [];
+        let actualGroupingKeys = agrupamentosAtivos.length === 0 ? ['fornecedor', 'produto'] : agrupamentosAtivos;
+        
+        actualGroupingKeys.forEach(tipo => {
+          let valor;
+          switch (tipo) {
+            case "safra":
+              valor = c.safra_nome || "Sem safra";
+              break;
+            case "fornecedor":
+              valor = c.fornecedor_nome || "Sem fornecedor";
+              break;
+            case "produto":
+              valor = c.produto_nome || "Sem produto";
+              break;
+            case "status":
+              valor = c.status_entrega || "Sem status";
+              break;
+            default:
+              valor = "Sem classificação";
+          }
+          chaveArray.push(valor);
+        });
+        const chave = chaveArray.join(" → ");
+        
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            chave,
+            quantidade_total: 0,
+            valor_total: 0,
+            registros: []
+          };
+        }
+        grupos[chave].quantidade_total += c.quantidade || 0;
+        grupos[chave].valor_total += c.valor_total || 0;
+        grupos[chave].registros.push(c);
+      });
+      return grupos;
+    }
+  }, [custosFiltrados, agrupamentosAtivos, tipoVisualizacao]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -237,6 +286,7 @@ export default function RelatorioCustosSafra() {
     setBuscaObservacoes("");
     setAgrupamentosAtivos([]);
     setOrdenacao('numero_desc');
+    setTipoVisualizacao('detalhado');
   };
 
   const imprimir = () => window.print();
@@ -277,13 +327,25 @@ export default function RelatorioCustosSafra() {
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Orientação</Label>
               <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
                 <option value="retrato">Retrato</option>
                 <option value="paisagem">Paisagem</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Visualização</Label>
+              <Select value={tipoVisualizacao} onValueChange={setTipoVisualizacao}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="detalhado">Detalhado (Todos Lançamentos)</SelectItem>
+                  <SelectItem value="agrupado">Agrupado (Soma Valores)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Ordenar Por</Label>
@@ -320,7 +382,7 @@ export default function RelatorioCustosSafra() {
             </div>
             {agrupamentosAtivos.length > 0 && (
               <p className="text-xs text-slate-600">
-                <strong>Ordem:</strong> {agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
+                <strong>Ordem:</strong> {agrupamentosAtativos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
               </p>
             )}
           </div>
@@ -482,68 +544,105 @@ export default function RelatorioCustosSafra() {
               </div>
             </div>
             <div>
-              <h2 className="text-base font-bold">Relatório de Custos de Safra</h2>
+              <h2 className="text-base font-bold">Relatório de Custos de Safra - {tipoVisualizacao === 'agrupado' ? 'AGRUPADO' : 'DETALHADO'}</h2>
             </div>
           </div>
 
-          {Object.entries(custosAgrupados).map(([grupo, registros], idx) => {
-            const totalGrupo = registros.reduce((sum, c) => sum + (c.valor_total || 0), 0);
-            return (
-              <div key={idx} className="mb-4">
-                {agrupamentosAtivos.length > 0 && (
-                  <div className="bg-gray-200 px-2 py-1 mb-1">
-                    <h3 className="font-bold text-xs">{grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})</h3>
-                  </div>
-                )}
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-black">
-                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
-                      {colunasVisiveis.includes('safra') && <TableHead className="border border-black text-xs font-bold py-1">Safra</TableHead>}
-                      {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornecedor</TableHead>}
-                      {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
-                      {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
-                      {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
-                      {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit.</TableHead>}
-                      {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Total</TableHead>}
-                      {colunasVisiveis.includes('prazo_entrega') && <TableHead className="border border-black text-xs font-bold py-1">Prazo</TableHead>}
-                      {colunasVisiveis.includes('data_entrega') && <TableHead className="border border-black text-xs font-bold py-1">Data Entr.</TableHead>}
-                      {colunasVisiveis.includes('status') && <TableHead className="border border-black text-xs font-bold py-1">Status</TableHead>}
-                      {colunasVisiveis.includes('forma_pagamento') && <TableHead className="border border-black text-xs font-bold py-1">Forma Pgto</TableHead>}
-                      {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registros.map((c) => (
-                      <TableRow key={c.id}>
-                        {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{c.numero_lancamento || '-'}</TableCell>}
-                        {colunasVisiveis.includes('safra') && <TableCell className="border border-gray-300 text-xs py-1">{c.safra_nome}</TableCell>}
-                        {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{c.fornecedor_nome}</TableCell>}
-                        {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{c.produto_nome}</TableCell>}
-                        {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(c.quantidade)}</TableCell>}
-                        {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{c.unidade_medida}</TableCell>}
-                        {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(c.valor_unitario)}</TableCell>}
-                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">R$ {formatarNumero(c.valor_total)}</TableCell>}
-                        {colunasVisiveis.includes('prazo_entrega') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(c.prazo_entrega)}</TableCell>}
-                        {colunasVisiveis.includes('data_entrega') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(c.data_entrega)}</TableCell>}
-                        {colunasVisiveis.includes('status') && <TableCell className="border border-gray-300 text-xs py-1">{c.status_entrega}</TableCell>}
-                        {colunasVisiveis.includes('forma_pagamento') && <TableCell className="border border-gray-300 text-xs py-1">{c.forma_pagamento || '-'}</TableCell>}
-                        {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1">{c.observacoes || '-'}</TableCell>}
+          {tipoVisualizacao === 'detalhado' ? (
+            Object.entries(custosAgrupados).map(([grupo, registros], idx) => {
+              const totalGrupo = registros.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+              return (
+                <div key={idx} className="mb-4">
+                  {agrupamentosAtivos.length > 0 && (
+                    <div className="bg-gray-200 px-2 py-1 mb-1">
+                      <h3 className="font-bold text-xs">{grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})</h3>
+                    </div>
+                  )}
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black">
+                        {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
+                        {colunasVisiveis.includes('safra') && <TableHead className="border border-black text-xs font-bold py-1">Safra</TableHead>}
+                        {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornecedor</TableHead>}
+                        {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                        {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
+                        {colunasVisiveis.includes('quantidade_entregue') && <TableHead className="border border-black text-xs font-bold text-right py-1">Entregue</TableHead>}
+                        {colunasVisiveis.includes('quantidade_restante') && <TableHead className="border border-black text-xs font-bold text-right py-1">Restante</TableHead>}
+                        {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
+                        {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit.</TableHead>}
+                        {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Total</TableHead>}
+                        {colunasVisiveis.includes('prazo_entrega') && <TableHead className="border border-black text-xs font-bold py-1">Prazo</TableHead>}
+                        {colunasVisiveis.includes('data_entrega') && <TableHead className="border border-black text-xs font-bold py-1">Data Entr.</TableHead>}
+                        {colunasVisiveis.includes('status') && <TableHead className="border border-black text-xs font-bold py-1">Status</TableHead>}
+                        {colunasVisiveis.includes('forma_pagamento') && <TableHead className="border border-black text-xs font-bold py-1">Forma Pgto</TableHead>}
+                        {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>}
                       </TableRow>
-                    ))}
-                    <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
-                        SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
-                      </TableCell>
-                      {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
+                    </TableHeader>
+                    <TableBody>
+                      {registros.map((c) => {
+                        const qtdEntregue = c.quantidade_entregue || 0;
+                        const qtdRestante = (c.quantidade || 0) - qtdEntregue;
+                        return (
+                          <TableRow key={c.id}>
+                            {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{c.numero_lancamento || '-'}</TableCell>}
+                            {colunasVisiveis.includes('safra') && <TableCell className="border border-gray-300 text-xs py-1">{c.safra_nome}</TableCell>}
+                            {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{c.fornecedor_nome}</TableCell>}
+                            {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{c.produto_nome}</TableCell>}
+                            {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(c.quantidade)}</TableCell>}
+                            {colunasVisiveis.includes('quantidade_entregue') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-blue-700">{formatarNumero(qtdEntregue)}</TableCell>}
+                            {colunasVisiveis.includes('quantidade_restante') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-orange-700">{formatarNumero(qtdRestante)}</TableCell>}
+                            {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{c.unidade_medida}</TableCell>}
+                            {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(c.valor_unitario)}</TableCell>}
+                            {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">R$ {formatarNumero(c.valor_total)}</TableCell>}
+                            {colunasVisiveis.includes('prazo_entrega') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(c.prazo_entrega)}</TableCell>}
+                            {colunasVisiveis.includes('data_entrega') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(c.data_entrega)}</TableCell>}
+                            {colunasVisiveis.includes('status') && <TableCell className="border border-gray-300 text-xs py-1">{c.status_entrega}</TableCell>}
+                            {colunasVisiveis.includes('forma_pagamento') && <TableCell className="border border-gray-300 text-xs py-1">{c.forma_pagamento || '-'}</TableCell>}
+                            {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1">{c.observacoes || '-'}</TableCell>}
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
+                          SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
+                        </TableCell>
+                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })
+          ) : (
+            <div className="mb-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-black">
+                    <TableHead className="border border-black text-xs font-bold py-1">Agrupamento</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Lançamentos</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Total</TableHead>
+                    <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(custosAgrupados).map(([grupo, dados], idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.registros.length}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarNumero(dados.quantidade_total)}</TableCell>
+                      <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold text-green-700">R$ {formatarNumero(dados.valor_total)}</TableCell>
                     </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            );
-          })}
+                  ))}
+                  <TableRow className="bg-gray-100 font-bold">
+                    <TableCell colSpan={3} className="border border-black text-xs py-1">TOTAL GERAL ({custosFiltrados.length} lançamento(s))</TableCell>
+                    <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalValor)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-          <div className="mt-4 border-t-2 border-black pt-2">
+          <div className="mt-4 pt-2 border-t-2 border-black">
             <div className="flex justify-between items-center">
               <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)</div>
               <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValor)}</div>
