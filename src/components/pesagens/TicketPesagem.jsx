@@ -17,7 +17,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
     window.print();
   };
 
-  // Usar numero_registro ao invés do id para o romaneio
+  // Usar numero_registro para o romaneio (formato: 000001)
   const romaneio = pesagem.numero_registro ? String(pesagem.numero_registro).padStart(6, '0') : '------';
 
   const formatarData = (dataString) => {
@@ -50,26 +50,33 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             @media print {
               @page {
                 size: 80mm auto;
-                margin: 0;
+                margin: 0mm;
               }
-              body {
-                margin: 0;
-                padding: 0;
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
-              body * {
-                visibility: hidden;
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 80mm !important;
+                height: auto !important;
               }
-              #ticket-content,
-              #ticket-content * {
-                visibility: visible;
+              body > *:not(#ticket-content) {
+                display: none !important;
               }
               #ticket-content {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 80mm;
-                padding: 3mm;
-                margin: 0;
+                display: block !important;
+                position: static !important;
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 3mm !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              #ticket-content * {
+                page-break-inside: avoid !important;
               }
               .print\\:hidden {
                 display: none !important;
@@ -93,7 +100,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
                 Insc. Est. 13.261.179-1<br/>
                 CPF 705.881.208-04<br/>
                 Cel (65) 9 9916-3376<br/>
-                Vila Bela da Santíssima Trindade (MT)
+                Vila Bela da Santissima Trindade (MT)
               </div>
             </div>
 
@@ -103,11 +110,11 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             {/* Dados Principais */}
             <div className="space-y-1 mb-2">
               <div>ROMANEIO...: {romaneio}</div>
-              <div className="break-words">Forn./Desti....: {pesagem.fornecedor_destino?.toUpperCase() || 'NÃO INFORMADO'}</div>
-              <div className="break-words">Produto........: {pesagem.produto?.toUpperCase() || 'NÃO INFORMADO'}</div>
+              <div className="break-words">Forn./Desti....: {pesagem.fornecedor_destino?.toUpperCase() || 'NAO INFORMADO'}</div>
+              <div className="break-words">Produto........: {pesagem.produto?.toUpperCase() || 'NAO INFORMADO'}</div>
               <div>Data...........: {formatarData(pesagem.data_pesagem)}</div>
-              <div>Placa..........: {pesagem.placa_caminhao?.toUpperCase() || 'NÃO INFORMADO'}</div>
-              <div>Motorista......: {pesagem.nome_motorista?.toUpperCase() || 'NÃO INFORMADO'}</div>
+              <div>Placa..........: {pesagem.placa_caminhao?.toUpperCase() || 'NAO INFORMADO'}</div>
+              <div className="break-words">Motorista......: {pesagem.nome_motorista?.toUpperCase() || 'NAO INFORMADO'}</div>
             </div>
 
             {/* Linha separadora */}
@@ -118,7 +125,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             <div className="space-y-1 mb-2">
               <div>Tara...........: {formatarNumero(pesagem.peso_tara)} kg</div>
               <div>Bruto..........: {formatarNumero(pesagem.peso_bruto)} kg</div>
-              <div>Líquido........: {formatarNumero(pesagem.peso_liquido)} kg</div>
+              <div>Liquido........: {formatarNumero(pesagem.peso_liquido)} kg</div>
             </div>
 
             {/* Linha separadora */}
@@ -127,7 +134,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
             {/* Observação */}
             {pesagem.observacoes && (
               <>
-                <div className="text-center font-bold mb-1">Observação</div>
+                <div className="text-center font-bold mb-1">Observacao</div>
                 <div className="break-words mb-2">{pesagem.observacoes?.toUpperCase()}</div>
                 <div className="border-t-2 border-dashed border-black my-2"></div>
               </>
@@ -135,7 +142,7 @@ export default function TicketPesagem({ pesagem, open, onClose }) {
 
             {/* Rodapé */}
             <div className="text-center text-xs">
-              Data e hora impressão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+              Data e hora impressao: {format(new Date(), "dd/MM/yyyy 'as' HH:mm:ss", { locale: ptBR })}
             </div>
           </div>
         </div>
