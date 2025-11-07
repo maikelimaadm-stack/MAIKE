@@ -24,6 +24,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'nome', label: 'Nome', default: true },
@@ -37,8 +44,20 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'cep', label: 'CEP', default: false },
 ];
 
+const ORDENACAO_OPCOES = [
+  { value: 'nome_asc', label: 'Nome (A-Z)' },
+  { value: 'nome_desc', label: 'Nome (Z-A)' },
+  { value: 'tipo_asc', label: 'Tipo (A-Z)' },
+  { value: 'tipo_desc', label: 'Tipo (Z-A)' },
+  { value: 'cidade_asc', label: 'Cidade (A-Z)' },
+  { value: 'cidade_desc', label: 'Cidade (Z-A)' },
+  { value: 'estado_asc', label: 'Estado (A-Z)' },
+  { value: 'estado_desc', label: 'Estado (Z-A)' },
+];
+
 export default function RelatorioFornecedores() {
   const [orientacao, setOrientacao] = useState("retrato");
+  const [ordenacao, setOrdenacao] = useState('nome_asc');
   
   // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -91,7 +110,7 @@ export default function RelatorioFornecedores() {
   const tiposUnicos = ['Física', 'Jurídica'];
 
   const fornecedoresFiltrados = useMemo(() => {
-    return fornecedores.filter(f => {
+    let filtered = fornecedores.filter(f => {
       if (tiposSelecionados.length > 0 && !tiposSelecionados.includes(f.tipo_pessoa)) return false;
       if (cidadesSelecionadas.length > 0 && !cidadesSelecionadas.includes(f.cidade)) return false;
       if (estadosSelecionados.length > 0 && !estadosSelecionados.includes(f.estado)) return false;
@@ -100,7 +119,33 @@ export default function RelatorioFornecedores() {
       if (buscaNome && !f.nome?.toLowerCase().includes(buscaNome.toLowerCase())) return false;
       return true;
     });
-  }, [fornecedores, tiposSelecionados, cidadesSelecionadas, estadosSelecionados, buscaTelefone, buscaEmail, buscaNome]);
+
+    // Aplicar ordenação
+    filtered.sort((a, b) => {
+      switch (ordenacao) {
+        case 'nome_asc':
+          return (a.nome || '').localeCompare(b.nome || '');
+        case 'nome_desc':
+          return (b.nome || '').localeCompare(a.nome || '');
+        case 'tipo_asc':
+          return (a.tipo_pessoa || '').localeCompare(b.tipo_pessoa || '');
+        case 'tipo_desc':
+          return (b.tipo_pessoa || '').localeCompare(a.tipo_pessoa || '');
+        case 'cidade_asc':
+          return (a.cidade || '').localeCompare(b.cidade || '');
+        case 'cidade_desc':
+          return (b.cidade || '').localeCompare(a.cidade || '');
+        case 'estado_asc':
+          return (a.estado || '').localeCompare(b.estado || '');
+        case 'estado_desc':
+          return (b.estado || '').localeCompare(a.estado || '');
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [fornecedores, tiposSelecionados, cidadesSelecionadas, estadosSelecionados, buscaTelefone, buscaEmail, buscaNome, ordenacao]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -190,6 +235,22 @@ export default function RelatorioFornecedores() {
                 <option value="retrato">Retrato</option>
                 <option value="paisagem">Paisagem</option>
               </select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Ordenar Por</Label>
+              <Select value={ordenacao} onValueChange={setOrdenacao}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDENACAO_OPCOES.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -350,7 +411,7 @@ export default function RelatorioFornecedores() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 0.5cm;
+              margin: 1.5cm 1cm 2cm 1cm; /* Adjust margins for better printing */
             }
             body * {
               visibility: hidden;
@@ -364,45 +425,45 @@ export default function RelatorioFornecedores() {
               top: 0;
               width: 100%;
             }
-            .page-footer {
-              position: fixed;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              height: 20px;
-              font-size: 9px;
-              display: flex;
-              justify-content: space-between;
-              padding: 0 0.5cm;
-            }
           }
         `}} />
         
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho com dados da empresa */}
-          <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            {empresaAtual?.logotipo_url ? (
-              <img 
-                src={empresaAtual.logotipo_url} 
-                alt={empresaAtual.apelido || "Logo da Empresa"}
-                className="h-20 object-contain"
-              />
-            ) : (
-              <img 
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                alt="Logo Padrão"
-                className="h-20"
-              />
-            )}
-            <div className="text-right">
-              <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Empresa'}</h1>
-              <p className="text-base">{empresaAtual?.nome || ''}</p>
-              {empresaAtual?.endereco && <p className="text-sm">{empresaAtual.endereco}</p>}
-              {empresaAtual?.cidade && empresaAtual?.estado && (
-                <p className="text-sm">{empresaAtual.cidade} - {empresaAtual.estado}</p>
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <div className="flex items-start gap-4">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido || "Logo da Empresa"}
+                  className="h-24 w-24 object-contain"
+                />
+              ) : (
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+                  alt="Logo Padrão"
+                  className="h-24 w-24 object-contain"
+                />
               )}
-              {empresaAtual?.telefone && <p className="text-sm">Tel: {empresaAtual.telefone}</p>}
-              {empresaAtual?.email && <p className="text-sm">E-mail: {empresaAtual.email}</p>}
+              <div className="flex-1">
+                <h1 className="text-xl font-bold">{empresaAtual?.nome || 'Empresa'}</h1>
+                {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
+                  <p className="text-sm">{empresaAtual.apelido}</p>
+                )}
+                {empresaAtual?.endereco && (
+                  <p className="text-sm">
+                    {empresaAtual.logradouro || ''}
+                    {empresaAtual.numero ? `, ${empresaAtual.numero}` : ''}
+                    {empresaAtual.complemento ? ` - ${empresaAtual.complemento}` : ''}
+                    {empresaAtual.bairro ? ` - ${empresaAtual.bairro}` : ''}
+                    {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
+                  </p>
+                )}
+                <p className="text-sm">
+                  {empresaAtual?.telefone && `Telefone: ${empresaAtual.telefone}`}
+                  {empresaAtual?.email && ` E-mail: ${empresaAtual.email}`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -454,9 +515,8 @@ export default function RelatorioFornecedores() {
           </Table>
 
           {/* Rodapé customizado */}
-          <div className="page-footer hidden print:flex">
-            <span>Página 1 de 1</span> {/* This needs to be dynamic for multi-page reports if implemented */}
-            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
+            <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           </div>
         </div>
       </div>

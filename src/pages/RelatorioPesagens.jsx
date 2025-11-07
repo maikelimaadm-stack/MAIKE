@@ -44,11 +44,25 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false },
 ];
 
+const ORDENACAO_OPCOES = [
+  { value: 'data_desc', label: 'Data (Mais Recente)' },
+  { value: 'data_asc', label: 'Data (Mais Antiga)' },
+  { value: 'tipo_asc', label: 'Tipo (A-Z)' },
+  { value: 'tipo_desc', label: 'Tipo (Z-A)' },
+  { value: 'placa_asc', label: 'Placa (A-Z)' },
+  { value: 'placa_desc', label: 'Placa (Z-A)' },
+  { value: 'motorista_asc', label: 'Motorista (A-Z)' },
+  { value: 'motorista_desc', label: 'Motorista (Z-A)' },
+  { value: 'produto_asc', label: 'Produto (A-Z)' },
+  { value: 'produto_desc', label: 'Produto (Z-A)' },
+];
+
 export default function RelatorioPesagens() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("retrato");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
+  const [ordenacao, setOrdenacao] = useState('data_desc');
   
   // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -154,7 +168,7 @@ export default function RelatorioPesagens() {
   };
 
   const pesagensFiltradas = useMemo(() => {
-    return pesagens.filter(p => {
+    let filtered = pesagens.filter(p => {
       if (dataInicio && p.data_pesagem) {
         try {
           const pDate = new Date(p.data_pesagem);
@@ -181,7 +195,37 @@ export default function RelatorioPesagens() {
       if (buscaObservacoes && !p.observacoes?.toLowerCase().includes(buscaObservacoes.toLowerCase())) return false;
       return true;
     });
-  }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados, motoristasSelecionados, fornecedoresSelecionados, buscaObservacoes]);
+
+    // Aplicar ordenação
+    filtered.sort((a, b) => {
+      switch (ordenacao) {
+        case 'data_desc':
+          return new Date(b.data_pesagem || 0) - new Date(a.data_pesagem || 0);
+        case 'data_asc':
+          return new Date(a.data_pesagem || 0) - new Date(b.data_pesagem || 0);
+        case 'tipo_asc':
+          return (a.tipo_pesagem || '').localeCompare(b.tipo_pesagem || '');
+        case 'tipo_desc':
+          return (b.tipo_pesagem || '').localeCompare(a.tipo_pesagem || '');
+        case 'placa_asc':
+          return (a.placa_caminhao || '').localeCompare(b.placa_caminhao || '');
+        case 'placa_desc':
+          return (b.placa_caminhao || '').localeCompare(a.placa_caminhao || '');
+        case 'motorista_asc':
+          return (a.nome_motorista || '').localeCompare(b.nome_motorista || '');
+        case 'motorista_desc':
+          return (b.nome_motorista || '').localeCompare(a.nome_motorista || '');
+        case 'produto_asc':
+          return (a.produto || '').localeCompare(b.produto || '');
+        case 'produto_desc':
+          return (b.produto || '').localeCompare(a.produto || '');
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados, motoristasSelecionados, fornecedoresSelecionados, buscaObservacoes, ordenacao]);
 
   const pesagensAgrupadas = useMemo(() => {
     if (agrupamentosAtivos.length === 0) {
@@ -266,6 +310,7 @@ export default function RelatorioPesagens() {
     setFornecedoresSelecionados([]);
     setBuscaObservacoes("");
     setAgrupamentosAtivos([]);
+    setOrdenacao('data_desc'); // Reset sorting as well
   };
 
   const imprimir = () => {
@@ -299,7 +344,7 @@ export default function RelatorioPesagens() {
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Data Início</Label>
               <Input
@@ -326,6 +371,21 @@ export default function RelatorioPesagens() {
                 <option value="retrato">Retrato</option>
                 <option value="paisagem">Paisagem</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Ordenar Por</Label>
+              <Select value={ordenacao} onValueChange={setOrdenacao}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma opção" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDENACAO_OPCOES.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -559,7 +619,7 @@ export default function RelatorioPesagens() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 0.5cm;
+              margin: 1.5cm 1cm 2cm 1cm; /* Adjust margins for better print layout */
             }
             body * {
               visibility: hidden;
@@ -573,45 +633,50 @@ export default function RelatorioPesagens() {
               top: 0;
               width: 100%;
             }
-            .page-footer {
-              position: fixed;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              height: 20px;
-              font-size: 9px;
-              display: flex;
-              justify-content: space-between;
-              padding: 0 0.5cm;
+            /* Custom page footer for page numbers */
+            @page {
+              @bottom-center {
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 9px;
+                color: #555;
+              }
             }
           }
         `}} />
 
         <div className="print-area p-8 print:p-0">
-          {/* Cabeçalho com dados da empresa */}
-          <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            {empresaAtual?.logotipo_url ? (
-              <img 
-                src={empresaAtual.logotipo_url} 
-                alt={empresaAtual.apelido || "Logo da Empresa"}
-                className="h-20 object-contain"
-              />
-            ) : (
-              <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
-                alt="Logo Padrão"
-                className="h-20"
-              />
-            )}
-            <div className="text-right">
-              <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Empresa'}</h1>
-              <p className="text-base">{empresaAtual?.nome || ''}</p>
-              {empresaAtual?.endereco && <p className="text-sm">{empresaAtual.endereco}</p>}
-              {empresaAtual?.cidade && empresaAtual?.estado && (
-                <p className="text-sm">{empresaAtual.cidade} - {empresaAtual.estado}</p>
+          {/* Cabeçalho Novo Formato */}
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <div className="flex items-start gap-4">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido || "Logo"}
+                  className="h-24 w-24 object-contain"
+                />
+              ) : (
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
+                  alt="Logo"
+                  className="h-24 w-24 object-contain"
+                />
               )}
-              {empresaAtual?.telefone && <p className="text-sm">Tel: {empresaAtual.telefone}</p>}
-              {empresaAtual?.email && <p className="text-sm">E-mail: {empresaAtual.email}</p>}
+              <div className="flex-1">
+                <h1 className="text-xl font-bold">{empresaAtual?.nome || 'Empresa'}</h1>
+                {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
+                  <p className="text-sm">{empresaAtual.apelido}</p>
+                )}
+                {empresaAtual?.endereco && (
+                  <p className="text-sm">
+                    {empresaAtual.endereco}
+                    {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
+                  </p>
+                )}
+                <p className="text-sm">
+                  {empresaAtual?.telefone && `Telefone: ${empresaAtual.telefone}`}
+                  {empresaAtual?.email && ` E-mail: ${empresaAtual.email}`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -626,6 +691,11 @@ export default function RelatorioPesagens() {
             {agrupamentosAtivos.length > 0 && (
               <p className="text-sm text-gray-600">
                 Agrupado por: <strong>{agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}</strong>
+              </p>
+            )}
+            {ordenacao && (
+              <p className="text-sm text-gray-600">
+                Ordenado por: <strong>{ORDENACAO_OPCOES.find(opt => opt.value === ordenacao)?.label}</strong>
               </p>
             )}
           </div>
@@ -696,10 +766,9 @@ export default function RelatorioPesagens() {
             </div>
           </div>
 
-          {/* Rodapé customizado */}
-          <div className="page-footer hidden print:flex">
-            <span>Página 1 de 1</span>
-            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+          {/* Rodapé */}
+          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
+            <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           </div>
         </div>
       </div>

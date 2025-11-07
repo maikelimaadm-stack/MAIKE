@@ -23,7 +23,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input"; // Added Input import
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Added Select imports
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -42,9 +49,21 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'estoque_min', label: 'Estoque Mínimo', default: false }, // Added new column
 ];
 
+const ORDENACAO_OPCOES = [
+  { value: 'nome_asc', label: 'Nome (A-Z)' },
+  { value: 'nome_desc', label: 'Nome (Z-A)' },
+  { value: 'codigo_asc', label: 'Código (A-Z)' },
+  { value: 'codigo_desc', label: 'Código (Z-A)' },
+  { value: 'categoria_asc', label: 'Categoria (A-Z)' },
+  { value: 'categoria_desc', label: 'Categoria (Z-A)' },
+  { value: 'estoque_asc', label: 'Estoque (Menor)' },
+  { value: 'estoque_desc', label: 'Estoque (Maior)' },
+];
+
 export default function RelatorioProdutos() {
   const [orientacao, setOrientacao] = useState("retrato");
-  
+  const [ordenacao, setOrdenacao] = useState('nome_asc');
+
   // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_produtos');
@@ -94,11 +113,11 @@ export default function RelatorioProdutos() {
   });
 
   const categoriasUnicas = [...new Set(produtos.map(p => p.categoria))].filter(Boolean);
-  const produtosUnicos = products.map(p => ({ id: p.id, nome: p.nome_produto }));
+  const produtosUnicos = produtos.map(p => ({ id: p.id, nome: p.nome_produto }));
   const unidadesUnicas = [...new Set(produtos.map(p => p.unidade_medida))].filter(Boolean); // Added new unique list
 
   const produtosFiltrados = useMemo(() => {
-    return produtos.filter(p => {
+    let filtered = produtos.filter(p => {
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(p.categoria)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(p.id)) return false;
       if (unidadesSelecionadas.length > 0 && !unidadesSelecionadas.includes(p.unidade_medida)) return false; // Added filter
@@ -107,7 +126,33 @@ export default function RelatorioProdutos() {
       if (buscaNome && !p.nome_produto?.toLowerCase().includes(buscaNome.toLowerCase())) return false; // Added filter
       return true;
     });
-  }, [produtos, categoriasSelecionadas, produtosSelecionados, unidadesSelecionadas, buscaCodigo, buscaBarras, buscaNome]); // Added new dependencies
+
+    // Aplicar ordenação
+    filtered.sort((a, b) => {
+      switch (ordenacao) {
+        case 'nome_asc':
+          return (a.nome_produto || '').localeCompare(b.nome_produto || '');
+        case 'nome_desc':
+          return (b.nome_produto || '').localeCompare(a.nome_produto || '');
+        case 'codigo_asc':
+          return (a.codigo_interno || '').localeCompare(b.codigo_interno || '');
+        case 'codigo_desc':
+          return (b.codigo_interno || '').localeCompare(a.codigo_interno || '');
+        case 'categoria_asc':
+          return (a.categoria || '').localeCompare(b.categoria || '');
+        case 'categoria_desc':
+          return (b.categoria || '').localeCompare(a.categoria || '');
+        case 'estoque_asc':
+          return (a.estoque_atual || 0) - (b.estoque_atual || 0);
+        case 'estoque_desc':
+          return (b.estoque_atual || 0) - (a.estoque_atual || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [produtos, categoriasSelecionadas, produtosSelecionados, unidadesSelecionadas, buscaCodigo, buscaBarras, buscaNome, ordenacao]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -201,6 +246,22 @@ export default function RelatorioProdutos() {
                 <option value="retrato">Retrato</option>
                 <option value="paisagem">Paisagem</option>
               </select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Ordenar Por</Label>
+              <Select value={ordenacao} onValueChange={setOrdenacao}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDENACAO_OPCOES.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -361,7 +422,7 @@ export default function RelatorioProdutos() {
           @media print {
             @page {
               size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'};
-              margin: 0.5cm;
+              margin: 1.5cm 1cm 2cm 1cm;
             }
             body * {
               visibility: hidden;
@@ -375,45 +436,42 @@ export default function RelatorioProdutos() {
               top: 0;
               width: 100%;
             }
-            .page-footer {
-              position: fixed;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              height: 20px;
-              font-size: 9px;
-              display: flex;
-              justify-content: space-between;
-              padding: 0 0.5cm;
-            }
           }
         `}} />
         
         <div className="print-area p-8 print:p-0">
-          {/* Cabeçalho com dados da empresa */}
-          <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            {empresaAtual?.logotipo_url ? (
-              <img 
-                src={empresaAtual.logotipo_url} 
-                alt={empresaAtual.apelido}
-                className="h-20 object-contain"
-              />
-            ) : (
-              <img 
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                alt="Logo"
-                className="h-20"
-              />
-            )}
-            <div className="text-right">
-              <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Empresa'}</h1>
-              <p className="text-base">{empresaAtual?.nome || ''}</p>
-              {empresaAtual?.endereco && <p className="text-sm">{empresaAtual.endereco}</p>}
-              {empresaAtual?.cidade && empresaAtual?.estado && (
-                <p className="text-sm">{empresaAtual.cidade} - {empresaAtual.estado}</p>
+          {/* Cabeçalho Novo Formato */}
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <div className="flex items-start gap-4">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido}
+                  className="h-24 w-24 object-contain"
+                />
+              ) : (
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+                  alt="Logo"
+                  className="h-24 w-24 object-contain"
+                />
               )}
-              {empresaAtual?.telefone && <p className="text-sm">Tel: {empresaAtual.telefone}</p>}
-              {empresaAtual?.email && <p className="text-sm">E-mail: {empresaAtual.email}</p>}
+              <div className="flex-1">
+                <h1 className="text-xl font-bold">{empresaAtual?.nome || 'Empresa'}</h1>
+                {empresaAtual?.apelido && empresaAtual.apelido !== empresaAtual.nome && (
+                  <p className="text-sm">{empresaAtual.apelido}</p>
+                )}
+                {empresaAtual?.endereco && (
+                  <p className="text-sm">
+                    {empresaAtual.endereco}
+                    {empresaAtual?.cidade && empresaAtual?.estado && `, ${empresaAtual.cidade}-${empresaAtual.estado}`}
+                  </p>
+                )}
+                <p className="text-sm">
+                  {empresaAtual?.telefone && `Telefone: ${empresaAtual.telefone}`}
+                  {empresaAtual?.email && ` E-mail: ${empresaAtual.email}`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -426,13 +484,13 @@ export default function RelatorioProdutos() {
               <TableRow className="border-black">
                 {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold">Nome</TableHead>}
                 {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold">Código</TableHead>}
-                {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold">Cód. Barras</TableHead>} {/* Added header */}
+                {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold">Cód. Barras</TableHead>}
                 {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold">Categoria</TableHead>}
                 {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold">UN</TableHead>}
                 {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right">Custo</TableHead>}
                 {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right">Venda</TableHead>}
                 {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right">Estoque</TableHead>}
-                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right">Est. Mínimo</TableHead>} {/* Added header */}
+                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right">Est. Mínimo</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -440,16 +498,15 @@ export default function RelatorioProdutos() {
                 <TableRow key={p.id}>
                   {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs">{p.nome_produto}</TableCell>}
                   {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs">{p.codigo_interno || '-'}</TableCell>}
-                  {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs">{p.codigo_barras || '-'}</TableCell>} {/* Added cell */}
+                  {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs">{p.codigo_barras || '-'}</TableCell>}
                   {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs">{p.categoria || '-'}</TableCell>}
                   {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs">{p.unidade_medida}</TableCell>}
                   {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
                   {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
                   {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
-                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_minimo || 0)}</TableCell>} {/* Added cell */}
+                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
                 </TableRow>
               ))}
-              {/* This section for totals is preserved as per instructions, it automatically adjusts colSpan based on visible columns */}
               <TableRow className="bg-gray-100 font-bold">
                 <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('preco_custo') ? 1 : 0)} className="border border-black text-xs">
                   TOTAL: {produtosFiltrados.length} produtos
@@ -463,10 +520,9 @@ export default function RelatorioProdutos() {
             </TableBody>
           </Table>
 
-          {/* Rodapé customizado */}
-          <div className="page-footer hidden print:flex">
-            <span>Página 1 de 1</span>
-            <span>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+          {/* Rodapé */}
+          <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
+            <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           </div>
         </div>
       </div>
