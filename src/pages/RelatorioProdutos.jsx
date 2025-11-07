@@ -100,6 +100,30 @@ export default function RelatorioProdutos() {
     setBuscaNome(""); // Added reset
   };
 
+  const selecionarTodasCategorias = () => {
+    setCategoriasSelecionadas(categoriasUnicas);
+  };
+
+  const desmarcarTodasCategorias = () => {
+    setCategoriasSelecionadas([]);
+  };
+
+  const selecionarTodosProdutos = () => {
+    setProdutosSelecionados(produtosUnicos.map(p => p.id));
+  };
+
+  const desmarcarTodosProdutos = () => {
+    setProdutosSelecionados([]);
+  };
+
+  const selecionarTodasUnidades = () => {
+    setUnidadesSelecionadas(unidadesUnicas);
+  };
+
+  const desmarcarTodasUnidades = () => {
+    setUnidadesSelecionadas([]);
+  };
+
   const imprimir = () => {
     window.print();
   };
@@ -180,7 +204,17 @@ export default function RelatorioProdutos() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Produtos</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Produtos</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {produtosUnicos.map(produto => (
                     <div key={produto.id} className="flex items-center space-x-2">
                       <Checkbox
@@ -202,7 +236,17 @@ export default function RelatorioProdutos() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Categorias</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Categorias</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasCategorias}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasCategorias}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {categoriasUnicas.map(categoria => (
                     <div key={categoria} className="flex items-center space-x-2">
                       <Checkbox
@@ -224,7 +268,17 @@ export default function RelatorioProdutos() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Unidades de Medida</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Unidades de Medida</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasUnidades}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasUnidades}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {unidadesUnicas.map(unidade => (
                     <div key={unidade} className="flex items-center space-x-2">
                       <Checkbox

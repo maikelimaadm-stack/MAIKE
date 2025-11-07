@@ -99,6 +99,30 @@ export default function RelatorioFornecedores() {
     window.print();
   };
 
+  const selecionarTodosTipos = () => {
+    setTiposSelecionados(tiposUnicos);
+  };
+
+  const desmarcarTodosTipos = () => {
+    setTiposSelecionados([]);
+  };
+
+  const selecionarTodasCidades = () => {
+    setCidadesSelecionadas(cidadesUnicas);
+  };
+
+  const desmarcarTodasCidades = () => {
+    setCidadesSelecionadas([]);
+  };
+
+  const selecionarTodosEstados = () => {
+    setEstadosSelecionados(estadosUnicos);
+  };
+
+  const desmarcarTodosEstados = () => {
+    setEstadosSelecionados([]);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -173,7 +197,17 @@ export default function RelatorioFornecedores() {
               </PopoverTrigger>
               <PopoverContent className="w-64">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Tipos</h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-sm">Selecione Tipos</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosTipos}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosTipos}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {tiposUnicos.map(tipo => (
                     <div key={tipo} className="flex items-center space-x-2">
                       <Checkbox
@@ -195,7 +229,17 @@ export default function RelatorioFornecedores() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Cidades</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Cidades</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasCidades}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasCidades}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {cidadesUnicas.map(cidade => (
                     <div key={cidade} className="flex items-center space-x-2">
                       <Checkbox
@@ -217,7 +261,17 @@ export default function RelatorioFornecedores() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Estados</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Estados</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosEstados}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosEstados}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {estadosUnicos.map(estado => (
                     <div key={estado} className="flex items-center space-x-2">
                       <Checkbox
