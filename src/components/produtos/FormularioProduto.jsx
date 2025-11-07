@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,11 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
   };
 
   const handleChange = (field, value) => {
+    // Converter para maiúsculo campos de texto específicos
+    const upperCaseFields = ['nome_produto', 'codigo_interno', 'categoria', 'descricao'];
+    if (upperCaseFields.includes(field) && typeof value === 'string') {
+      value = value.toUpperCase();
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -60,7 +66,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                 onChange={(e) => handleChange('nome_produto', e.target.value)}
                 placeholder="Nome do produto"
                 required
-                className="border-slate-300 focus:border-green-500"
+                className="border-slate-300 focus:border-green-500 uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
@@ -74,7 +81,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                   value={formData.codigo_interno}
                   onChange={(e) => handleChange('codigo_interno', e.target.value)}
                   placeholder="Código"
-                  className="border-slate-300 focus:border-green-500"
+                  className="border-slate-300 focus:border-green-500 uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
 
@@ -100,7 +108,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                   value={formData.categoria}
                   onChange={(e) => handleChange('categoria', e.target.value)}
                   placeholder="Ex: Insumos, Ferramentas..."
-                  className="border-slate-300 focus:border-green-500"
+                  className="border-slate-300 focus:border-green-500 uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
             </div>
@@ -115,7 +124,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                 value={formData.descricao}
                 onChange={(e) => handleChange('descricao', e.target.value)}
                 placeholder="Descrição detalhada do produto..."
-                className="border-slate-300 focus:border-green-500 min-h-20"
+                className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
@@ -220,9 +230,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
               </Label>
               <Textarea
                 value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
+                onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
                 placeholder="Informações adicionais sobre o produto..."
-                className="border-slate-300 focus:border-green-500 min-h-20"
+                className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
 

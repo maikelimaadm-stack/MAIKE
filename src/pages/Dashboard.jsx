@@ -207,8 +207,8 @@ export default function Dashboard() {
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm(`Tem certeza que deseja excluir TODAS as ${pesagens.length} pesagens? Esta ação não pode ser desfeita!`)) {
-      if (window.confirm('CONFIRME NOVAMENTE: Deseja realmente excluir TODOS os registros de pesagens?')) {
+    if (window.confirm(`⚠️ ATENÇÃO: Deseja realmente excluir TODAS as ${pesagens.length} pesagens? Esta ação não pode ser desfeita!`)) {
+      if (window.confirm('⚠️ CONFIRME NOVAMENTE: Deseja realmente excluir TODOS os registros de pesagens?')) {
         deleteAllMutation.mutate();
       }
     }
@@ -443,7 +443,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6"> {/* Updated grid-cols from 4 to 5 */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
@@ -538,15 +538,6 @@ export default function Dashboard() {
             >
               <FileSpreadsheet className="w-4 h-4" />
               Baixar Modelo
-            </Button>
-            <Button
-              onClick={handleDeleteAll}
-              variant="outline"
-              className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
-              disabled={pesagens.length === 0}
-            >
-              <Trash2 className="w-4 h-4" />
-              Excluir Todos ({pesagens.length})
             </Button>
           </div>
           <Button

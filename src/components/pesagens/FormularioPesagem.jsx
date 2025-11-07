@@ -51,6 +51,10 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
   };
 
   const handleChange = (field, value) => {
+    // Converter para maiúsculo campos de texto específicos
+    if (['placa_caminhao', 'nome_motorista', 'produto', 'fornecedor_destino'].includes(field) && typeof value === 'string') {
+      value = value.toUpperCase();
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -112,10 +116,11 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                 <Input
                   id="placa_caminhao"
                   value={formData.placa_caminhao}
-                  onChange={(e) => handleChange('placa_caminhao', e.target.value.toUpperCase())}
+                  onChange={(e) => handleChange('placa_caminhao', e.target.value)}
                   placeholder="ABC-1234"
                   required
                   className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
             </div>
@@ -132,7 +137,8 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   onChange={(e) => handleChange('nome_motorista', e.target.value)}
                   placeholder="Nome completo"
                   required
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500"
+                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
 
@@ -147,7 +153,8 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   onChange={(e) => handleChange('produto', e.target.value)}
                   placeholder="Ex: Soja, Milho, Adubo"
                   required
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500"
+                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
             </div>
@@ -162,7 +169,8 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                 value={formData.fornecedor_destino}
                 onChange={(e) => handleChange('fornecedor_destino', e.target.value)}
                 placeholder="Nome do fornecedor ou destino"
-                className="border-slate-300 focus:border-green-500 focus:ring-green-500"
+                className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
@@ -222,9 +230,10 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
               <Textarea
                 id="observacoes"
                 value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
+                onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
                 placeholder="Informações adicionais sobre a pesagem..."
-                className="border-slate-300 focus:border-green-500 focus:ring-green-500 min-h-20"
+                className="border-slate-300 focus:border-green-500 focus:ring-green-500 min-h-20 uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
 

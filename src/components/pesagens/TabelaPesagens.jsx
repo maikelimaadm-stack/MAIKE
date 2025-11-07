@@ -170,7 +170,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   };
 
   const handleBulkDelete = () => {
-    if (window.confirm(`Deseja excluir ${selectedItems.length} registros selecionados?`)) {
+    if (window.confirm(`⚠️ ATENÇÃO: Deseja realmente excluir ${selectedItems.length} registro(s) selecionado(s)? Esta ação não pode ser desfeita.`)) {
       selectedItems.forEach(id => onDelete(id));
       setSelectedItems([]);
       setShowBulkActions(false);
