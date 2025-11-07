@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,6 +36,11 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
       return;
     }
 
+    if (!numeroNfe || !chaveNfe) {
+      toast.error('Número e Chave da NF-e são obrigatórios!');
+      return;
+    }
+
     const qtdJaEntregue = custo.quantidade_entregue || 0;
     const qtdRestante = custo.quantidade - qtdJaEntregue;
 
@@ -68,8 +74,8 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
         quantidade_entregue: qtdEntrega,
         unidade_medida: custo.unidade_medida,
         data_entrega: dataEntrega,
-        numero_nfe: numeroNfe?.toUpperCase() || undefined,
-        chave_nfe: chaveNfe || undefined,
+        numero_nfe: numeroNfe?.toUpperCase(),
+        chave_nfe: chaveNfe,
         observacoes_nfe: observacoesNfe?.toUpperCase() || undefined,
         observacoes: observacoes?.toUpperCase() || undefined
       });
@@ -229,16 +235,17 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
             <div className="border-t pt-4">
               <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-600" />
-                Dados da Nota Fiscal
+                Dados da Nota Fiscal *
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Número da NF-e</Label>
+                  <Label>Número da NF-e *</Label>
                   <Input
                     value={numeroNfe}
                     onChange={(e) => setNumeroNfe(e.target.value)}
                     placeholder="000000"
+                    required
                     className="border-slate-300 focus:border-green-500 uppercase"
                     style={{ textTransform: 'uppercase' }}
                     disabled={isSubmitting}
@@ -246,12 +253,13 @@ export default function LancarEntrega({ custo, open, onClose, onSuccess }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Chave de Acesso NF-e</Label>
+                  <Label>Chave de Acesso NF-e *</Label>
                   <Input
                     value={chaveNfe}
                     onChange={(e) => setChaveNfe(e.target.value)}
                     placeholder="44 dígitos"
                     maxLength={44}
+                    required
                     className="border-slate-300 focus:border-green-500"
                     disabled={isSubmitting}
                   />
