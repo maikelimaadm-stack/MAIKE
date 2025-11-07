@@ -42,6 +42,7 @@ const formatarData = (dataString) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
   { id: 'fornecedor', label: 'Fornecedor', default: true, sortable: true },
   { id: 'produto', label: 'Produto', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
@@ -161,7 +162,8 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
       custo.fornecedor_nome?.toLowerCase().includes(searchLower) ||
       custo.produto_nome?.toLowerCase().includes(searchLower) ||
       custo.status_entrega?.toLowerCase().includes(searchLower) ||
-      custo.forma_pagamento?.toLowerCase().includes(searchLower)
+      custo.forma_pagamento?.toLowerCase().includes(searchLower) ||
+      custo.numero_lancamento?.toString().includes(searchLower) // Added search by numero_lancamento
     );
   });
 
@@ -171,6 +173,10 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
     let aValue, bValue;
 
     switch (sortField) {
+      case 'numero':
+        aValue = parseInt(a.numero_lancamento) || 0;
+        bValue = parseInt(b.numero_lancamento) || 0;
+        break;
       case 'fornecedor':
         aValue = a.fornecedor_nome;
         bValue = b.fornecedor_nome;
@@ -277,7 +283,7 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
               <div className="relative flex-1 md:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por fornecedor, produto, status..."
+                  placeholder="Buscar por fornecedor, produto, status, Nº..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -319,6 +325,17 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
+                  {colunasVisiveis.includes('numero') && (
+                    <TableHead 
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort('numero')}
+                    >
+                      <div className="flex items-center">
+                        Nº
+                        {getSortIcon('numero')}
+                      </div>
+                    </TableHead>
+                  )}
                   {colunasVisiveis.includes('fornecedor') && (
                     <TableHead 
                       className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
@@ -458,6 +475,11 @@ export default function TabelaCustos({ custos, onEdit, onDelete, onPrint, onLanc
                             onCheckedChange={() => toggleSelectItem(custo.id)}
                           />
                         </TableCell>
+                        {colunasVisiveis.includes('numero') && (
+                          <TableCell className="font-bold text-slate-900">
+                            {custo.numero_lancamento || '-'}
+                          </TableCell>
+                        )}
                         {colunasVisiveis.includes('fornecedor') && (
                           <TableCell className="font-semibold text-slate-900">
                             {custo.fornecedor_nome}
