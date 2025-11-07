@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer } from "lucide-react";
+import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +20,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,6 +106,44 @@ export default function Layout({ children, currentPageName }) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [weather, setWeather] = useState(null);
+  
+  // Estado para empresa selecionada
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
+    return localStorage.getItem('empresa_selecionada_id') || null;
+  });
+
+  // Buscar todas as empresas
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => base44.entities.Empresa.list(),
+    initialData: [],
+  });
+
+  // Buscar dados da empresa selecionada
+  const { data: empresaAtual } = useQuery({
+    queryKey: ['empresa-atual', empresaSelecionada],
+    queryFn: async () => {
+      if (!empresaSelecionada) return null;
+      const empresa = empresas.find(e => e.id === empresaSelecionada);
+      return empresa || null;
+    },
+    enabled: !!empresaSelecionada && empresas.length > 0,
+  });
+
+  // Auto-selecionar primeira empresa se não tiver nenhuma selecionada
+  useEffect(() => {
+    if (!empresaSelecionada && empresas.length > 0) {
+      const primeiraEmpresa = empresas[0].id;
+      setEmpresaSelecionada(primeiraEmpresa);
+      localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
+    }
+  }, [empresas, empresaSelecionada]);
+
+  const handleEmpresaChange = (empresaId) => {
+    setEmpresaSelecionada(empresaId);
+    localStorage.setItem('empresa_selecionada_id', empresaId);
+    window.location.reload(); // Recarregar para atualizar todos os dados
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -112,7 +158,6 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   useEffect(() => {
-    // Buscar clima para Vila Bela da Santíssima Trindade, MT
     const fetchWeather = async () => {
       try {
         const response = await fetch(
@@ -128,7 +173,6 @@ export default function Layout({ children, currentPageName }) {
       }
     };
     fetchWeather();
-    // Atualizar a cada 30 minutos
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
@@ -149,17 +193,47 @@ export default function Layout({ children, currentPageName }) {
       <div className="min-h-screen flex w-full bg-gradient-to-br from-green-50 via-emerald-50 to-green-100">
         <Sidebar className="border-r border-green-200 bg-white">
           <SidebarHeader className="border-b border-green-200 p-4">
-            <div className="flex items-center gap-3">
-              <img 
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                alt="Fazenda Palmital"
-                className="w-12 h-12 object-contain"
-              />
+            <div className="flex items-center gap-3 mb-3">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido}
+                  className="w-12 h-12 object-contain"
+                />
+              ) : (
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+                  alt="Logo"
+                  className="w-12 h-12 object-contain"
+                />
+              )}
               <div>
-                <h2 className="font-bold text-green-900 text-lg">Fazenda Palmital</h2>
+                <h2 className="font-bold text-green-900 text-lg">
+                  {empresaAtual?.apelido || 'Sistema'}
+                </h2>
                 <p className="text-xs text-green-700">Sistema de Gestão</p>
               </div>
             </div>
+
+            {/* Seletor de Empresa */}
+            {empresas.length > 0 && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-600">Empresa Ativa:</label>
+                <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
+                  <SelectTrigger className="w-full bg-green-50 border-green-300">
+                    <Building2 className="w-4 h-4 mr-2 text-green-600" />
+                    <SelectValue placeholder="Selecione a empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((empresa) => (
+                      <SelectItem key={empresa.id} value={empresa.id}>
+                        {empresa.apelido || empresa.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </SidebarHeader>
           
           <SidebarContent className="p-3">
@@ -224,10 +298,8 @@ export default function Layout({ children, currentPageName }) {
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Clima e Sistema Online */}
             {weather && (
               <div className="px-4 py-3 space-y-3 mt-4">
-                {/* Clima */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600 flex items-center gap-2">
@@ -245,7 +317,6 @@ export default function Layout({ children, currentPageName }) {
                   </div>
                 </div>
 
-                {/* Sistema Online */}
                 <div className="pt-3 border-t border-slate-200">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Sistema Online</span>
@@ -316,3 +387,7 @@ export default function Layout({ children, currentPageName }) {
     </SidebarProvider>
   );
 }
+
+export const getEmpresaSelecionada = () => {
+  return localStorage.getItem('empresa_selecionada_id');
+};
