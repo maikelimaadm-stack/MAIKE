@@ -14,6 +14,7 @@ import CustosSafra from './pages/CustosSafra';
 import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
 import RelatorioEstoque from './pages/RelatorioEstoque';
 import GerenciarSafras from './pages/GerenciarSafras';
+import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
 import Layout from './Layout.jsx';
 
 
@@ -34,6 +35,7 @@ export const PAGES = {
     "RelatorioCustosSafra": RelatorioCustosSafra,
     "RelatorioEstoque": RelatorioEstoque,
     "GerenciarSafras": GerenciarSafras,
+    "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
 }
 
 export const pagesConfig = {
