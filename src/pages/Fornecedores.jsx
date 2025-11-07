@@ -1,12 +1,21 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
@@ -16,6 +25,8 @@ export default function Fornecedores() {
   const [showForm, setShowForm] = useState(false);
   const [editingFornecedor, setEditingFornecedor] = useState(null);
   const [fichaFornecedor, setFichaFornecedor] = useState(null);
+  const [showImportProgress, setShowImportProgress] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const queryClient = useQueryClient();
 
@@ -140,39 +151,100 @@ export default function Fornecedores() {
       try {
         const text = e.target.result;
         const lines = text.split('\n');
+        const validRecords = [];
+        let errorCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 2) continue;
+          if (values.length < 2) {
+            errorCount++;
+            continue;
+          }
 
-          const fornecedor = {
-            tipo_pessoa: values[0],
-            nome: values[1],
-            cpf: values[2] || undefined,
-            rg: values[3] || undefined,
-            data_nascimento: values[4] || undefined,
-            cnpj: values[5] || undefined,
-            razao_social: values[6] || undefined,
-            inscricao_estadual: values[7] || undefined,
-            nome_responsavel: values[8] || undefined,
-            telefone: values[9] || undefined,
-            email: values[10] || undefined,
-            endereco: values[11] || undefined,
-            cidade: values[12] || undefined,
-            estado: values[13] || undefined,
-            cep: values[14] || undefined,
-            observacoes: values[15] || undefined
-          };
-          await base44.entities.Fornecedor.create(fornecedor);
+          try {
+            const fornecedor = {
+              tipo_pessoa: values[0]?.trim(),
+              nome: values[1]?.trim(),
+              cpf: values[2]?.trim() || undefined,
+              rg: values[3]?.trim() || undefined,
+              data_nascimento: values[4]?.trim() || undefined,
+              cnpj: values[5]?.trim() || undefined,
+              razao_social: values[6]?.trim() || undefined,
+              inscricao_estadual: values[7]?.trim() || undefined,
+              nome_responsavel: values[8]?.trim() || undefined,
+              telefone: values[9]?.trim() || undefined,
+              email: values[10]?.trim() || undefined,
+              endereco: values[11]?.trim() || undefined,
+              cidade: values[12]?.trim() || undefined,
+              estado: values[13]?.trim() || undefined,
+              cep: values[14]?.trim() || undefined,
+              observacoes: values[15]?.trim() || undefined
+            };
+
+            if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
+              throw new Error("Dados inválidos: Nome e Tipo de Pessoa são obrigatórios.");
+            }
+
+            validRecords.push(fornecedor);
+          } catch (err) {
+            console.error(`Erro na linha ${i + 1}:`, err.message);
+            errorCount++;
+          }
         }
-        queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
-        toast.success(`Dados importados com sucesso!`);
+
+        if (validRecords.length === 0) {
+          toast.error('Nenhum registro válido encontrado no arquivo!');
+          return;
+        }
+
+        setShowImportProgress(true);
+        setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
+
+        const batchSize = 10;
+        let imported = 0;
+
+        for (let i = 0; i < validRecords.length; i += batchSize) {
+          const batch = validRecords.slice(i, i + batchSize);
+          
+          try {
+            await base44.entities.Fornecedor.bulkCreate(batch);
+            imported += batch.length;
+          } catch (error) {
+            console.error('Erro no lote:', error);
+            // If bulkCreate fails, try individual creates to identify specific errors
+            for (const record of batch) {
+              try {
+                await base44.entities.Fornecedor.create(record);
+                imported++;
+              } catch (e) {
+                errorCount++;
+              }
+            }
+          }
+          
+          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+        
+        setTimeout(() => {
+          setShowImportProgress(false);
+          if (errorCount > 0) {
+            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          } else {
+            toast.success(`${imported} registros importados com sucesso!`);
+          }
+        }, 1000);
+
       } catch (error) {
+        console.error('Erro ao importar:', error);
+        setShowImportProgress(false);
         toast.error('Erro ao importar dados. Verifique o arquivo.');
       }
     };
     reader.readAsText(file);
+    event.target.value = '';
   };
 
   const downloadTemplate = () => {
@@ -194,6 +266,10 @@ export default function Fornecedores() {
   const totalFornecedores = fornecedores.length;
   const pessoasFisicas = fornecedores.filter(f => f.tipo_pessoa === 'Física').length;
   const pessoasJuridicas = fornecedores.filter(f => f.tipo_pessoa === 'Jurídica').length;
+
+  const progressPercentage = importProgress.total > 0 
+    ? Math.round((importProgress.current / importProgress.total) * 100) 
+    : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -309,6 +385,49 @@ export default function Fornecedores() {
         open={!!fichaFornecedor}
         onClose={() => setFichaFornecedor(null)}
       />
+
+      {/* Modal de Progresso de Importação */}
+      <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+              Importando Fornecedores
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto importamos os registros...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {importProgress.current} de {importProgress.total}
+                </span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-green-600">
+                {progressPercentage}%
+              </p>
+            </div>
+            
+            {importProgress.errors > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800">
+                  ⚠️ {importProgress.errors} registro(s) com erro
+                </p>
+              </div>
+            )}
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                💡 Dica: Registros são importados em lotes para maior velocidade
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
