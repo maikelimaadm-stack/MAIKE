@@ -4,7 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,6 +33,7 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
   { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'placa', label: 'Placa', default: true, sortable: true },
@@ -53,6 +55,8 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => 
@@ -84,9 +88,40 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
       pesagem.placa_caminhao?.toLowerCase().includes(searchLower) ||
       pesagem.nome_motorista?.toLowerCase().includes(searchLower) ||
       pesagem.produto?.toLowerCase().includes(searchLower) ||
-      pesagem.fornecedor_destino?.toLowerCase().includes(searchLower)
+      pesagem.fornecedor_destino?.toLowerCase().includes(searchLower) ||
+      pesagem.numero_registro?.toString().toLowerCase().includes(searchLower) // Added numero_registro to search
     );
   });
+
+  const toggleSelectAll = () => {
+    if (selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(paginatedPesagens.map(p => p.id));
+    }
+  };
+
+  const toggleSelectItem = (id) => {
+    setSelectedItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Deseja excluir ${selectedItems.length} registros selecionados?`)) {
+      selectedItems.forEach(id => onDelete(id));
+      setSelectedItems([]);
+      setShowBulkActions(false);
+    }
+  };
+
+  const handleBulkPrint = () => {
+    selectedItems.forEach(id => {
+      const pesagem = pesagens.find(p => p.id === id);
+      if (pesagem) onPrint(pesagem);
+    });
+    setShowBulkActions(false);
+  };
 
   // Ordenar pesagens
   const sortedPesagens = [...filteredPesagens].sort((a, b) => {
@@ -95,6 +130,10 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     let aValue, bValue;
 
     switch (sortField) {
+      case 'numero': // Added case for numero
+        aValue = parseInt(a.numero_registro) || 0;
+        bValue = parseInt(b.numero_registro) || 0;
+        break;
       case 'data':
         aValue = new Date(a.data_pesagem).getTime();
         bValue = new Date(b.data_pesagem).getTime();
@@ -188,12 +227,40 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
             <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
               {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
             </Badge>
+            {selectedItems.length > 0 && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
+                {selectedItems.length} selecionados
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-3 w-full md:w-auto">
+            {selectedItems.length > 0 && (
+              <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
+                    <CheckSquare className="w-4 h-4" />
+                    Ações em Massa
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir Todos
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir Todos
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
             <div className="relative flex-1 md:w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                placeholder="Buscar por placa, motorista, produto..."
+                placeholder="Buscar por nº, placa, motorista, produto..." // Updated placeholder
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -229,6 +296,23 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
+                <TableHead className="w-12"> {/* New column for checkboxes */}
+                  <Checkbox
+                    checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                {colunasVisiveis.includes('numero') && ( // New column header
+                  <TableHead 
+                    className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleSort('numero')}
+                  >
+                    <div className="flex items-center">
+                      Nº
+                      {getSortIcon('numero')}
+                    </div>
+                  </TableHead>
+                )}
                 {colunasVisiveis.includes('data') && (
                   <TableHead 
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
@@ -339,6 +423,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                 {isLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <TableRow key={i} className="animate-pulse">
+                      <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell> {/* Placeholder for checkbox */}
                       {colunasVisiveis.map((col, idx) => (
                         <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
                       ))}
@@ -347,7 +432,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                   ))
                 ) : paginatedPesagens.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
+                    <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12"> {/* Updated colSpan */}
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <FileText className="w-12 h-12" />
                         <p className="text-lg font-medium">Nenhum registro encontrado</p>
@@ -366,6 +451,17 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                       exit={{ opacity: 0 }}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
+                      <TableCell> {/* New column for individual checkboxes */}
+                        <Checkbox
+                          checked={selectedItems.includes(pesagem.id)}
+                          onCheckedChange={() => toggleSelectItem(pesagem.id)}
+                        />
+                      </TableCell>
+                      {colunasVisiveis.includes('numero') && ( // New column cell
+                        <TableCell className="font-bold text-slate-900">
+                          {pesagem.numero_registro || '-'}
+                        </TableCell>
+                      )}
                       {colunasVisiveis.includes('data') && (
                         <TableCell className="font-medium text-slate-700">
                           {formatarData(pesagem.data_pesagem)}
@@ -451,7 +547,6 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
           </Table>
         </div>
 
-        {/* Controles de Paginação */}
         {!isLoading && paginatedPesagens.length > 0 && (
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
             <div className="flex items-center gap-2 text-sm text-slate-600">

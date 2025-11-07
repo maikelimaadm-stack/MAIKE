@@ -76,12 +76,12 @@ export default function Fornecedores() {
     }
   });
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     // Gerar número único se for novo cadastro
     if (!editingFornecedor) {
-      const timestamp = Date.now();
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      data.numero_cadastro = `FOR-${timestamp}-${random}`;
+      const totalFornecedores = fornecedores.length;
+      const proximoNumero = (totalFornecedores + 1).toString().padStart(6, '0');
+      data.numero_cadastro = `${proximoNumero}`;
     }
     
     if (editingFornecedor) {
@@ -192,7 +192,7 @@ export default function Fornecedores() {
               estado: values[13]?.trim() || undefined,
               cep: values[14]?.trim() || undefined,
               observacoes: values[15]?.trim() || undefined,
-              numero_cadastro: values[16]?.trim() || `FOR-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}` // Generate if not present
+              numero_cadastro: values[16]?.trim() || undefined // If not present, the backend or a later step might generate it
             };
 
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
@@ -229,6 +229,12 @@ export default function Fornecedores() {
             // If bulkCreate fails, try individual creates to identify specific errors
             for (const record of batch) {
               try {
+                // Generate numero_cadastro if not provided in the CSV for individual creates
+                if (!record.numero_cadastro) {
+                  const currentFornecedores = await queryClient.fetchQuery({ queryKey: ['fornecedores'] });
+                  const proximoNumero = (currentFornecedores.length + 1).toString().padStart(6, '0');
+                  record.numero_cadastro = `${proximoNumero}`;
+                }
                 await base44.entities.Fornecedor.create(record);
                 imported++;
               } catch (e) {
@@ -267,7 +273,7 @@ export default function Fornecedores() {
     const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações', 'Número Cadastro'];
     csvRows.push(headers.join(';'));
     
-    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor', 'FOR-123456789-001'];
+    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor', '000001'];
     csvRows.push(example.join(';'));
 
     const csvString = csvRows.join('\n');

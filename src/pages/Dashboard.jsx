@@ -93,12 +93,12 @@ export default function Dashboard() {
     }
   });
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     // Gerar número único se for novo registro
     if (!editingPesagem) {
-      const timestamp = Date.now();
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      data.numero_registro = `PES-${timestamp}-${random}`;
+      const totalPesagens = pesagens.length;
+      const proximoNumero = (totalPesagens + 1).toString().padStart(6, '0');
+      data.numero_registro = `${proximoNumero}`;
     }
     
     if (editingPesagem) {

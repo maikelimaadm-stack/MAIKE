@@ -73,12 +73,12 @@ export default function Produtos() {
     }
   });
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     // Gerar número único se for novo produto
     if (!editingProduto) {
-      const timestamp = Date.now();
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      data.numero_produto = `PRO-${timestamp}-${random}`;
+      const totalProdutos = produtos.length;
+      const proximoNumero = (totalProdutos + 1).toString().padStart(6, '0');
+      data.numero_produto = `${proximoNumero}`;
     }
     
     if (editingProduto) {
