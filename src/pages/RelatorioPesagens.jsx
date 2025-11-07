@@ -48,7 +48,7 @@ export default function RelatorioPesagens() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("retrato");
-  const [agruparPor, setAgruparPor] = useState("nenhum");
+  const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [colunasVisiveis, setColunasVisiveis] = useState(
     COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id)
   );
@@ -130,7 +130,7 @@ export default function RelatorioPesagens() {
           const pDate = new Date(p.data_pesagem);
           const iDate = new Date(dataInicio);
           // Set to start of day for comparison to include full day
-          iDate.setHours(0, 0, 0, 0); 
+          iDate.setHours(0, 0, 0, 0);
           if (!isNaN(pDate.getTime()) && !isNaN(iDate.getTime()) && pDate < iDate) return false;
         } catch {}
       }
@@ -154,36 +154,44 @@ export default function RelatorioPesagens() {
   }, [pesagens, dataInicio, dataFim, produtosSelecionados, placasSelecionadas, tiposSelecionados, motoristasSelecionados, fornecedoresSelecionados, buscaObservacoes]);
 
   const pesagensAgrupadas = useMemo(() => {
-    if (agruparPor === "nenhum") {
+    if (agrupamentosAtivos.length === 0) {
       return { "Todos os Registros": pesagensFiltradas };
     }
 
     const grupos = {};
+
     pesagensFiltradas.forEach(p => {
-      let chave;
-      switch (agruparPor) {
-        case "placa":
-          chave = p.placa_caminhao || "Sem placa";
-          break;
-        case "tipo":
-          chave = p.tipo_pesagem || "Sem tipo";
-          break;
-        case "data":
-          chave = formatarData(p.data_pesagem);
-          break;
-        case "motorista":
-          chave = p.nome_motorista || "Sem motorista";
-          break;
-        case "produto":
-          chave = p.produto || "Sem produto";
-          break;
-        case "fornecedor":
-          chave = p.fornecedor_destino || "Sem fornecedor/destino";
-          break;
-        default:
-          chave = "Todos";
-      }
-      
+      let chaveArray = [];
+
+      agrupamentosAtivos.forEach(tipo => {
+        let valor;
+        switch (tipo) {
+          case "data":
+            valor = formatarData(p.data_pesagem);
+            break;
+          case "placa":
+            valor = p.placa_caminhao || "Sem placa";
+            break;
+          case "tipo":
+            valor = p.tipo_pesagem || "Sem tipo";
+            break;
+          case "motorista":
+            valor = p.nome_motorista || "Sem motorista";
+            break;
+          case "produto":
+            valor = p.produto || "Sem produto";
+            break;
+          case "fornecedor":
+            valor = p.fornecedor_destino || "Sem fornecedor/destino";
+            break;
+          default:
+            valor = "Sem classificação";
+        }
+        chaveArray.push(valor);
+      });
+
+      const chave = chaveArray.join(" → ");
+
       if (!grupos[chave]) {
         grupos[chave] = [];
       }
@@ -191,10 +199,10 @@ export default function RelatorioPesagens() {
     });
 
     return grupos;
-  }, [pesagensFiltradas, agruparPor]);
+  }, [pesagensFiltradas, agrupamentosAtivos]);
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => 
+    setColunasVisiveis(prev =>
       prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId]
     );
   };
@@ -202,6 +210,12 @@ export default function RelatorioPesagens() {
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev =>
       prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]
+    );
+  };
+
+  const toggleAgrupamento = (tipo) => {
+    setAgrupamentosAtivos(prev =>
+      prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]
     );
   };
 
@@ -214,7 +228,7 @@ export default function RelatorioPesagens() {
     setMotoristasSelecionados([]);
     setFornecedoresSelecionados([]);
     setBuscaObservacoes("");
-    setAgruparPor("nenhum");
+    setAgrupamentosAtivos([]);
   };
 
   const imprimir = () => {
@@ -248,7 +262,7 @@ export default function RelatorioPesagens() {
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Data Início</Label>
               <Input
@@ -276,23 +290,33 @@ export default function RelatorioPesagens() {
                 <option value="paisagem">Paisagem</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <Label>Agrupar Por</Label>
-              <Select value={agruparPor} onValueChange={setAgruparPor}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nenhum">Sem agrupamento</SelectItem>
-                  <SelectItem value="data">Data</SelectItem>
-                  <SelectItem value="placa">Placa</SelectItem>
-                  <SelectItem value="tipo">Tipo</SelectItem>
-                  <SelectItem value="motorista">Motorista</SelectItem>
-                  <SelectItem value="produto">Produto</SelectItem>
-                  <SelectItem value="fornecedor">Fornecedor/Destino</SelectItem>
-                </SelectContent>
-              </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Agrupar Por (Múltipla Seleção)</Label>
+            <div className="flex flex-wrap gap-2">
+              {['data', 'tipo', 'placa', 'motorista', 'produto', 'fornecedor'].map((tipo) => (
+                <Button
+                  key={tipo}
+                  variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleAgrupamento(tipo)}
+                  className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}
+                >
+                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                  {agrupamentosAtivos.includes(tipo) && (
+                    <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                      {agrupamentosAtivos.indexOf(tipo) + 1}
+                    </span>
+                  )}
+                </Button>
+              ))}
             </div>
+            {agrupamentosAtivos.length > 0 && (
+              <p className="text-xs text-slate-600">
+                <strong>Ordem de agrupamento:</strong> {agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -525,12 +549,12 @@ export default function RelatorioPesagens() {
             }
           }
         `}} />
-        
+
         <div className="print-area p-8 print:p-0">
           {/* Cabeçalho */}
           <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
-            <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+            <img
+              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
               alt="Fazenda Palmital"
               className="h-20"
             />
@@ -549,9 +573,9 @@ export default function RelatorioPesagens() {
                 Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
               </p>
             )}
-            {agruparPor !== "nenhum" && (
+            {agrupamentosAtivos.length > 0 && (
               <p className="text-sm text-gray-600">
-                Agrupado por: <strong>{agruparPor.charAt(0).toUpperCase() + agruparPor.slice(1)}</strong>
+                Agrupado por: <strong>{agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}</strong>
               </p>
             )}
           </div>
@@ -559,15 +583,15 @@ export default function RelatorioPesagens() {
           {/* Tabelas Agrupadas */}
           {Object.entries(pesagensAgrupadas).map(([grupo, registros], idx) => {
             const totalGrupo = registros.reduce((sum, p) => sum + (p.peso_liquido || 0), 0);
-            
+
             return (
               <div key={idx} className="mb-8">
-                {agruparPor !== "nenhum" && (
+                {agrupamentosAtivos.length > 0 && (
                   <div className="bg-gray-200 px-3 py-2 mb-2">
                     <h3 className="font-bold text-sm">{grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})</h3>
                   </div>
                 )}
-                
+
                 <Table>
                   <TableHeader>
                     <TableRow className="border-black">

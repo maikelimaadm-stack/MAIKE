@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
@@ -11,6 +11,12 @@ const formatarNumero = (numero) => {
 };
 
 export default function TicketPesagem({ pesagem, open, onClose }) {
+  useEffect(() => {
+    if (open && pesagem) {
+      console.log('Ticket aberto:', pesagem);
+    }
+  }, [open, pesagem]);
+
   if (!pesagem) return null;
 
   const handlePrint = () => {
