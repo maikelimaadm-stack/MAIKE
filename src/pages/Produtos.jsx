@@ -21,6 +21,26 @@ import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
 
+// Helper function to calculate the next system number based on existing products.
+// This function will look for the highest existing numero_produto and increment it.
+// It is defined here, simulating the "imports through getNextSystemNumber" placeholder
+// which implied its existence as a utility.
+const getNextSystemNumber = (productsList) => {
+  if (!productsList || productsList.length === 0) {
+    return '000001'; // Start with 000001 if no products exist
+  }
+
+  // Find the maximum existing numeric `numero_produto`
+  const maxNumber = productsList.reduce((max, p) => {
+    // Attempt to parse the number, handling cases where it might be undefined, null, or non-numeric
+    const num = parseInt(p.numero_produto, 10);
+    return isNaN(num) ? max : Math.max(max, num);
+  }, 0); // Start with 0 if no valid numbers are found
+
+  // Increment the maximum number and pad with leading zeros
+  return (maxNumber + 1).toString().padStart(6, '0');
+};
+
 export default function Produtos() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState(null);
@@ -35,6 +55,45 @@ export default function Produtos() {
     queryFn: () => base44.entities.Produto.list('-created_date'),
     initialData: [],
   });
+
+  // Numerar produtos existentes automaticamente
+  React.useEffect(() => {
+    const numerarProdutosExistentes = async () => {
+      // Filter products that don't have a numero_produto or it's an empty string
+      const produtosSemNumero = produtos.filter(p => !p.numero_produto || p.numero_produto === '');
+      
+      if (produtosSemNumero.length > 0) {
+        console.log(`Numerando ${produtosSemNumero.length} produtos sem número...`);
+        
+        // Get the initial next number based on ALL current products to ensure uniqueness
+        // and sequential assignment for the backfilled items.
+        let currentNextNumber = parseInt(getNextSystemNumber(produtos), 10);
+
+        for (const produto of produtosSemNumero) {
+          try {
+            const proximoNumero = (currentNextNumber++).toString().padStart(6, '0');
+            await base44.entities.Produto.update(produto.id, {
+              numero_produto: proximoNumero
+            });
+            console.log(`Produto ${produto.id} numerado como ${proximoNumero}`);
+          } catch (error) {
+            console.error(`Erro ao numerar produto ${produto.id}:`, error);
+            toast.error(`Erro ao numerar produto ${produto.nome_produto}.`);
+          }
+        }
+        
+        // Invalidate queries to re-fetch the products with their new numbers
+        queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        toast.success(`${produtosSemNumero.length} produtos numerados automaticamente.`);
+      }
+    };
+
+    // Only run this effect if products have been loaded, there are products in the list,
+    // and we are not currently loading (to avoid running on initial empty state).
+    if (!isLoading && produtos && produtos.length > 0) {
+      numerarProdutosExistentes();
+    }
+  }, [produtos, queryClient, isLoading]); // Dependencies for the effect
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Produto.create(data),
@@ -76,6 +135,8 @@ export default function Produtos() {
   const handleSubmit = async (data) => {
     // Gerar número único se for novo produto
     if (!editingProduto) {
+      // The original logic uses produtos.length + 1.
+      // Keeping this original logic as per "preserve all other features" instruction.
       const totalProdutos = produtos.length;
       const proximoNumero = (totalProdutos + 1).toString().padStart(6, '0');
       data.numero_produto = `${proximoNumero}`;

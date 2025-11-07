@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,24 @@ import { Progress } from "@/components/ui/progress";
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
 import FichaFornecedor from "../components/fornecedores/FichaFornecedor";
+
+// Helper function to get the next sequential system number by querying existing records
+async function getNextSystemNumberHelper() {
+  try {
+    const allFornecedores = await base44.entities.Fornecedor.list();
+    const existingNumbers = allFornecedores
+      .map(f => parseInt(f.numero_cadastro, 10))
+      .filter(num => !isNaN(num));
+
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    return (maxNumber + 1).toString().padStart(6, '0');
+  } catch (error) {
+    console.error("Erro ao buscar números existentes para autogeração:", error);
+    // Fallback: If cannot fetch, generate a simple timestamp-based number
+    // This is a fallback and might not guarantee sequentiality across concurrent operations
+    return Date.now().toString().slice(-6); 
+  }
+}
 
 export default function Fornecedores() {
   const [showForm, setShowForm] = useState(false);
@@ -76,12 +94,47 @@ export default function Fornecedores() {
     }
   });
 
+  // Numerar cadastros existentes automaticamente
+  useEffect(() => {
+    const numerarCadastrosExistentes = async () => {
+      // Filter for items that are loaded and do not have a numero_cadastro
+      const cadastrosSemNumero = fornecedores.filter(f => !f.numero_cadastro);
+      
+      if (cadastrosSemNumero.length > 0) {
+        console.log(`[Fornecedores] Numerando ${cadastrosSemNumero.length} cadastros sem número...`);
+        let changesMade = false;
+        
+        // Iterate and update each record sequentially to ensure unique numbering for each
+        for (const fornecedor of cadastrosSemNumero) {
+          try {
+            const proximoNumero = await getNextSystemNumberHelper();
+            await base44.entities.Fornecedor.update(fornecedor.id, {
+              ...fornecedor, // Spread existing data to ensure full object update
+              numero_cadastro: proximoNumero
+            });
+            changesMade = true;
+          } catch (error) {
+            console.error(`Erro ao numerar cadastro ${fornecedor.id}:`, error);
+          }
+        }
+        
+        if (changesMade) {
+          queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+          toast.success(`Fornecedores sem número cadastral foram numerados automaticamente.`);
+        }
+      }
+    };
+
+    // Trigger numbering only if `fornecedores` array is loaded, not empty, and contains items to number
+    if (fornecedores && fornecedores.length > 0 && fornecedores.some(f => !f.numero_cadastro)) {
+      numerarCadastrosExistentes();
+    }
+  }, [fornecedores, queryClient]); // Dependencies: re-run if fornecedores data changes or queryClient instance changes
+
   const handleSubmit = async (data) => {
     // Gerar número único se for novo cadastro
     if (!editingFornecedor) {
-      const totalFornecedores = fornecedores.length;
-      const proximoNumero = (totalFornecedores + 1).toString().padStart(6, '0');
-      data.numero_cadastro = `${proximoNumero}`;
+      data.numero_cadastro = await getNextSystemNumberHelper();
     }
     
     if (editingFornecedor) {
@@ -165,43 +218,51 @@ export default function Fornecedores() {
         const validRecords = [];
         let errorCount = 0;
 
+        // Headers are at line 0, data starts from line 1
+        // Expected header format: 'Tipo;Nome;CPF;RG;Data Nascimento;CNPJ;Razão Social;Inscrição Estadual;Responsável;Telefone;Email;Endereço;Cidade;Estado;CEP;Observações;Número Cadastro'
+        const headers = lines[0].split(';'); // Read headers for mapping
+
+        // Mapping CSV column names to object keys
+        const headerMap = {
+          'Tipo': 'tipo_pessoa',
+          'Nome': 'nome',
+          'CPF': 'cpf',
+          'RG': 'rg',
+          'Data Nascimento': 'data_nascimento',
+          'CNPJ': 'cnpj',
+          'Razão Social': 'razao_social',
+          'Inscrição Estadual': 'inscricao_estadual',
+          'Responsável': 'nome_responsavel',
+          'Telefone': 'telefone',
+          'Email': 'email',
+          'Endereço': 'endereco',
+          'Cidade': 'cidade',
+          'Estado': 'estado',
+          'CEP': 'cep',
+          'Observações': 'observacoes',
+          'Número Cadastro': 'numero_cadastro',
+        };
+
         for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
+          if (!lines[i].trim()) continue; // Skip empty lines
           const values = lines[i].split(';');
-          // Ensure enough columns for basic data, if number_cadastro is the last it might be optional for import
-          if (values.length < 2) { 
-            errorCount++;
-            continue;
+          
+          let fornecedor = {};
+          for (let j = 0; j < headers.length; j++) {
+            const propName = headerMap[headers[j]?.trim()];
+            if (propName && values[j]) {
+              fornecedor[propName] = values[j]?.trim();
+            }
           }
 
           try {
-            const fornecedor = {
-              tipo_pessoa: values[0]?.trim(),
-              nome: values[1]?.trim(),
-              cpf: values[2]?.trim() || undefined,
-              rg: values[3]?.trim() || undefined,
-              data_nascimento: values[4]?.trim() || undefined,
-              cnpj: values[5]?.trim() || undefined,
-              razao_social: values[6]?.trim() || undefined,
-              inscricao_estadual: values[7]?.trim() || undefined,
-              nome_responsavel: values[8]?.trim() || undefined,
-              telefone: values[9]?.trim() || undefined,
-              email: values[10]?.trim() || undefined,
-              endereco: values[11]?.trim() || undefined,
-              cidade: values[12]?.trim() || undefined,
-              estado: values[13]?.trim() || undefined,
-              cep: values[14]?.trim() || undefined,
-              observacoes: values[15]?.trim() || undefined,
-              numero_cadastro: values[16]?.trim() || undefined // If not present, the backend or a later step might generate it
-            };
-
+            // Basic validation
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
               throw new Error("Dados inválidos: Nome e Tipo de Pessoa são obrigatórios.");
             }
-
             validRecords.push(fornecedor);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1}:`, err.message);
+            console.error(`Erro na linha ${i + 1}:`, err.message, values);
             errorCount++;
           }
         }
@@ -221,24 +282,24 @@ export default function Fornecedores() {
         for (let i = 0; i < validRecords.length; i += batchSize) {
           const batch = validRecords.slice(i, i + batchSize);
           
+          // Try to bulk create first
           try {
             await base44.entities.Fornecedor.bulkCreate(batch);
             imported += batch.length;
           } catch (error) {
-            console.error('Erro no lote:', error);
+            console.error('Erro no lote, tentando importação individual:', error);
             // If bulkCreate fails, try individual creates to identify specific errors
             for (const record of batch) {
               try {
                 // Generate numero_cadastro if not provided in the CSV for individual creates
                 if (!record.numero_cadastro) {
-                  const currentFornecedores = await queryClient.fetchQuery({ queryKey: ['fornecedores'] });
-                  const proximoNumero = (currentFornecedores.length + 1).toString().padStart(6, '0');
-                  record.numero_cadastro = `${proximoNumero}`;
+                  record.numero_cadastro = await getNextSystemNumberHelper();
                 }
                 await base44.entities.Fornecedor.create(record);
                 imported++;
               } catch (e) {
                 errorsInImport++;
+                console.error(`Erro ao importar registro individual ${record.nome || record.razao_social}:`, e);
               }
             }
           }
@@ -246,26 +307,27 @@ export default function Fornecedores() {
           setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
         }
 
+        // Invalidate queries after all imports are processed
         await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
         
         setTimeout(() => {
           setShowImportProgress(false);
           const totalErrors = errorCount + errorsInImport;
           if (totalErrors > 0) {
-            toast.success(`${imported} registros importados! ${totalErrors} com erro.`);
+            toast.warning(`${imported} registros importados! ${totalErrors} com erro. Verifique o console para detalhes.`);
           } else {
             toast.success(`${imported} registros importados com sucesso!`);
           }
         }, 1000);
 
       } catch (error) {
-        console.error('Erro ao importar:', error);
+        console.error('Erro geral ao importar:', error);
         setShowImportProgress(false);
-        toast.error('Erro ao importar dados. Verifique o arquivo.');
+        toast.error('Erro ao importar dados. Verifique o arquivo e o formato.');
       }
     };
     reader.readAsText(file);
-    event.target.value = '';
+    event.target.value = ''; // Clear file input
   };
 
   const downloadTemplate = () => {

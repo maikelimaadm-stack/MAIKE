@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,10 @@ import TicketPesagem from "../components/pesagens/TicketPesagem";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  // Convert to number before toFixed to handle potential string inputs
+  const num = parseFloat(numero);
+  if (isNaN(num)) return "0,00"; // Handle cases where conversion fails
+  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 export default function Dashboard() {
@@ -40,6 +43,75 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Pesagem.list('-created_date'),
     initialData: [],
   });
+
+  // Helper function to get the next sequential system number
+  // This function needs to be defined within the component scope to access 'pesagens'
+  const getNextSystemNumber = () => {
+    if (!pesagens || pesagens.length === 0) {
+      return "000001";
+    }
+    const maxNum = pesagens.reduce((max, p) => {
+      // Ensure p.numero_registro is treated as a number, handle null/undefined/empty
+      const num = parseInt(p.numero_registro, 10);
+      return !isNaN(num) ? Math.max(max, num) : max;
+    }, 0);
+    return String(maxNum + 1).padStart(6, '0');
+  };
+
+  // Numerar registros existentes automaticamente
+  useEffect(() => {
+    const numerarRegistrosExistentes = async () => {
+      // Only process if pesagens are loaded, not loading, and not currently showing the form
+      if (isLoading || !pesagens || pesagens.length === 0 || showForm) {
+        return;
+      }
+
+      // Filter for records that explicitly don't have a numero_registro or it's empty
+      const registrosSemNumero = pesagens.filter(p => !p.numero_registro || p.numero_registro.trim() === '');
+      
+      if (registrosSemNumero.length > 0) {
+        console.log(`Numerando ${registrosSemNumero.length} registros sem número...`);
+        
+        let currentMaxNumber = pesagens.reduce((max, p) => {
+          const num = parseInt(p.numero_registro, 10);
+          return !isNaN(num) ? Math.max(max, num) : max;
+        }, 0);
+
+        const updates = [];
+        for (const pesagem of registrosSemNumero) {
+          // Increment the max number to ensure unique sequential numbers for backfilling
+          currentMaxNumber++;
+          const proximoNumero = String(currentMaxNumber).padStart(6, '0');
+          
+          updates.push({
+            id: pesagem.id,
+            numero_registro: proximoNumero
+          });
+        }
+
+        // Perform updates sequentially
+        let updateCount = 0;
+        for (const update of updates) {
+          try {
+            // Direct API call to avoid triggering many mutation hooks and re-renders for batch update
+            await base44.entities.Pesagem.update(update.id, { numero_registro: update.numero_registro });
+            updateCount++;
+          } catch (error) {
+            console.error(`Erro ao atualizar pesagem ${update.id} com número ${update.numero_registro}:`, error);
+          }
+        }
+        
+        if (updateCount > 0) {
+          queryClient.invalidateQueries({ queryKey: ['pesagens'] });
+          toast.info(`${updateCount} registros foram numerados automaticamente.`);
+        }
+      }
+    };
+
+    // Run when pesagens data changes, isLoading status changes, or showForm status changes
+    // This ensures it runs after data is fetched and when the form is not active
+    numerarRegistrosExistentes();
+  }, [pesagens, queryClient, isLoading, showForm]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Pesagem.create(data),
@@ -80,7 +152,9 @@ export default function Dashboard() {
 
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
-      for (const pesagem of pesagens) {
+      // It's safer to fetch the latest list before deleting all, in case 'pesagens' state is stale
+      const currentPesagens = await base44.entities.Pesagem.list(); // Fetch fresh list
+      for (const pesagem of currentPesagens) {
         await base44.entities.Pesagem.delete(pesagem.id);
       }
     },
@@ -96,9 +170,8 @@ export default function Dashboard() {
   const handleSubmit = async (data) => {
     // Gerar número único se for novo registro
     if (!editingPesagem) {
-      const totalPesagens = pesagens.length;
-      const proximoNumero = (totalPesagens + 1).toString().padStart(6, '0');
-      data.numero_registro = `${proximoNumero}`;
+      const proximoNumero = getNextSystemNumber(); // Use the robust numbering function
+      data.numero_registro = proximoNumero;
     }
     
     if (editingPesagem) {
@@ -158,11 +231,13 @@ export default function Dashboard() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    // Added 'Numero Registro' to headers
+    const headers = ['Numero Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
 
     pesagens.forEach(p => {
       const row = [
+        p.numero_registro || '', // Include numero_registro, defaulting to empty string if not present
         format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
         p.tipo_pesagem,
         p.placa_caminhao,
@@ -197,60 +272,86 @@ export default function Dashboard() {
         const lines = text.split('\n');
         const validRecords = [];
         let errorCount = 0;
+        let nextNumberForImport = getNextSystemNumber(); // Get the current next system number for new imports
 
-        // Parse todas as linhas primeiro
+        // Parse all lines first, skipping the header (index 0)
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 9) {
+          
+          // Determine column indices dynamically or assume a fixed structure
+          // For simplicity, let's assume the template downloaded from 'downloadTemplate' is used,
+          // which includes 'Numero Registro' as the first column.
+          // If the imported CSV has fewer columns (e.g., old template), we'll try to adapt.
+          const hasNumeroRegistroColumn = values.length >= 11; // Check if it matches the new template's column count
+          const dataIndex = hasNumeroRegistroColumn ? 1 : 0;
+          const tipoIndex = dataIndex + 1;
+          const placaIndex = dataIndex + 2;
+          const motoristaIndex = dataIndex + 3;
+          const produtoIndex = dataIndex + 4;
+          const fornecedorDestinoIndex = dataIndex + 5;
+          const pesoTaraIndex = dataIndex + 6;
+          const pesoBrutoIndex = dataIndex + 7;
+          const pesoLiquidoIndex = dataIndex + 8;
+          const observacoesIndex = dataIndex + 9;
+
+          // Ensure minimum required columns are present (excluding optional 'Numero Registro' and 'Observacoes' for a strict check)
+          if (values.length <= pesoLiquidoIndex) { 
             errorCount++;
+            console.error(`Erro na linha ${i + 1}: Número insuficiente de colunas (${values.length}). Esperado no mínimo ${pesoLiquidoIndex + 1}.`);
             continue;
           }
 
           try {
-            const dataFormatada = parseDateBR(values[0].trim());
-            const pesoTara = parseDecimalBR(values[6]);
-            const pesoBruto = parseDecimalBR(values[7]);
-            const pesoLiquido = parseDecimalBR(values[8]);
+            const dataFormatada = parseDateBR(values[dataIndex]?.trim());
+            const pesoTara = parseDecimalBR(values[pesoTaraIndex]);
+            const pesoBruto = parseDecimalBR(values[pesoBrutoIndex]);
+            const pesoLiquido = parseDecimalBR(values[pesoLiquidoIndex]);
+
+            // Assign a generated number to ensure uniqueness for all imported items
+            const generatedNumeroRegistro = nextNumberForImport;
+            nextNumberForImport = String(parseInt(nextNumberForImport, 10) + 1).padStart(6, '0'); // Increment for the next record
 
             const pesagem = {
+              numero_registro: generatedNumeroRegistro,
               data_pesagem: dataFormatada,
-              tipo_pesagem: values[1].trim(),
-              placa_caminhao: values[2].trim(),
-              nome_motorista: values[3].trim(),
-              produto: values[4].trim(),
-              fornecedor_destino: values[5].trim() || undefined,
+              tipo_pesagem: values[tipoIndex]?.trim(),
+              placa_caminhao: values[placaIndex]?.trim(),
+              nome_motorista: values[motoristaIndex]?.trim(),
+              produto: values[produtoIndex]?.trim(),
+              fornecedor_destino: values[fornecedorDestinoIndex]?.trim() || undefined,
               peso_tara: pesoTara,
               peso_bruto: pesoBruto,
               peso_liquido: pesoLiquido,
-              observacoes: values[9]?.trim() || undefined
+              observacoes: values[observacoesIndex]?.trim() || undefined
             };
 
+            // Basic validation for critical fields
             if (!pesagem.data_pesagem || !pesagem.tipo_pesagem || !pesagem.placa_caminhao || 
                 !pesagem.nome_motorista || !pesagem.produto || isNaN(pesagem.peso_tara) || 
                 isNaN(pesagem.peso_bruto) || isNaN(pesagem.peso_liquido)) {
-              throw new Error("Dados inválidos");
+              throw new Error("Dados obrigatórios ausentes ou inválidos.");
             }
             
             validRecords.push(pesagem);
           } catch (err) {
-            console.error(`Erro na linha ${i + 1}:`, err);
+            console.error(`Erro ao processar linha ${i + 1}:`, err.message);
             errorCount++;
           }
         }
 
         if (validRecords.length === 0) {
-          toast.error('Nenhum registro válido encontrado no arquivo!');
+          toast.error('Nenhum registro válido encontrado no arquivo para importar!');
           return;
         }
 
-        // Mostrar progresso
+        // Show progress dialog
         setShowImportProgress(true);
         setImportProgress({ current: 0, total: validRecords.length, errors: errorCount });
 
-        // Importar em lotes de 10
         const batchSize = 10;
         let imported = 0;
+        let actualErrors = errorCount; // Keep track of errors during API calls
 
         for (let i = 0; i < validRecords.length; i += batchSize) {
           const batch = validRecords.slice(i, i + batchSize);
@@ -267,44 +368,47 @@ export default function Dashboard() {
                 await base44.entities.Pesagem.create(record);
                 imported++;
               } catch (e) {
-                errorCount++; // Increment error count for individual failures
+                console.error(`Erro ao criar registro individualmente (num ${record.numero_registro}):`, e);
+                actualErrors++; // Increment error count for individual failures
               }
             }
           }
           
-          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+          setImportProgress({ current: imported, total: validRecords.length, errors: actualErrors });
         }
 
-        // Atualizar dados
+        // Invalidate queries to re-fetch and update the UI after import
         await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
         
         setTimeout(() => {
           setShowImportProgress(false);
-          if (errorCount > 0) {
-            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          if (actualErrors > 0) {
+            toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
           } else {
             toast.success(`${imported} registros importados com sucesso!`);
           }
         }, 1000);
 
       } catch (error) {
-        console.error('Erro ao importar:', error);
+        console.error('Erro geral ao importar:', error);
         setShowImportProgress(false);
-        toast.error('Erro ao importar dados. Verifique o arquivo.');
+        toast.error('Erro ao importar dados. Verifique o formato do arquivo e tente novamente.');
       }
     };
     reader.readAsText(file);
     
-    // Limpar o input para permitir reimportar o mesmo arquivo
+    // Clear the input to allow re-importing the same file
     event.target.value = '';
   };
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
+    // Added 'Numero Registro' to headers
+    const headers = ['Numero Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
     
     const example = [
+      '000001', // Example for Numero Registro
       '04/11/2025',
       'Entrada',
       'ABC1234',

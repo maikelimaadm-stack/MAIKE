@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -93,36 +94,6 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     );
   });
 
-  const toggleSelectAll = () => {
-    if (selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(paginatedPesagens.map(p => p.id));
-    }
-  };
-
-  const toggleSelectItem = (id) => {
-    setSelectedItems(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleBulkDelete = () => {
-    if (window.confirm(`Deseja excluir ${selectedItems.length} registros selecionados?`)) {
-      selectedItems.forEach(id => onDelete(id));
-      setSelectedItems([]);
-      setShowBulkActions(false);
-    }
-  };
-
-  const handleBulkPrint = () => {
-    selectedItems.forEach(id => {
-      const pesagem = pesagens.find(p => p.id === id);
-      if (pesagem) onPrint(pesagem);
-    });
-    setShowBulkActions(false);
-  };
-
   // Ordenar pesagens
   const sortedPesagens = [...filteredPesagens].sort((a, b) => {
     if (!sortField) return 0;
@@ -183,6 +154,36 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
     if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
     return 0;
   });
+
+  const toggleSelectAll = () => {
+    if (selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(sortedPesagens.map(p => p.id));
+    }
+  };
+
+  const toggleSelectItem = (id) => {
+    setSelectedItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Deseja excluir ${selectedItems.length} registros selecionados?`)) {
+      selectedItems.forEach(id => onDelete(id));
+      setSelectedItems([]);
+      setShowBulkActions(false);
+    }
+  };
+
+  const handleBulkPrint = () => {
+    selectedItems.forEach(id => {
+      const pesagem = pesagens.find(p => p.id === id);
+      if (pesagem) onPrint(pesagem);
+    });
+    setShowBulkActions(false);
+  };
 
   // Paginação
   const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedPesagens.length / itemsPerPage);
