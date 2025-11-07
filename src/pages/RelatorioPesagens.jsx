@@ -72,6 +72,46 @@ export default function RelatorioPesagens() {
   const motoristasUnicos = [...new Set(pesagens.map(p => p.nome_motorista))].filter(Boolean);
   const fornecedoresUnicos = [...new Set(pesagens.map(p => p.fornecedor_destino))].filter(Boolean);
 
+  const selecionarTodosProdutos = () => {
+    setProdutosSelecionados(produtosUnicos);
+  };
+
+  const desmarcarTodosProdutos = () => {
+    setProdutosSelecionados([]);
+  };
+
+  const selecionarTodasPlacas = () => {
+    setPlacasSelecionadas(placasUnicas);
+  };
+
+  const desmarcarTodasPlacas = () => {
+    setPlacasSelecionadas([]);
+  };
+
+  const selecionarTodosTipos = () => {
+    setTiposSelecionados(tiposUnicos);
+  };
+
+  const desmarcarTodosTipos = () => {
+    setTiposSelecionados([]);
+  };
+
+  const selecionarTodosMotoristas = () => {
+    setMotoristasSelecionados(motoristasUnicos);
+  };
+
+  const desmarcarTodosMotoristas = () => {
+    setMotoristasSelecionados([]);
+  };
+
+  const selecionarTodosFornecedores = () => {
+    setFornecedoresSelecionados(fornecedoresUnicos);
+  };
+
+  const desmarcarTodosFornecedores = () => {
+    setFornecedoresSelecionados([]);
+  };
+
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
     try {
@@ -265,7 +305,6 @@ export default function RelatorioPesagens() {
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            {/* Filtros existentes - mantidos */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -274,7 +313,17 @@ export default function RelatorioPesagens() {
               </PopoverTrigger>
               <PopoverContent className="w-64">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Tipos</h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-sm">Selecione Tipos</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosTipos}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosTipos}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {tiposUnicos.map(tipo => (
                     <div key={tipo} className="flex items-center space-x-2">
                       <Checkbox
@@ -296,7 +345,17 @@ export default function RelatorioPesagens() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Placas</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Placas</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasPlacas}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasPlacas}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {placasUnicas.map(placa => (
                     <div key={placa} className="flex items-center space-x-2">
                       <Checkbox
@@ -318,7 +377,17 @@ export default function RelatorioPesagens() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Motoristas</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Motoristas</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosMotoristas}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosMotoristas}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {motoristasUnicos.map(motorista => (
                     <div key={motorista} className="flex items-center space-x-2">
                       <Checkbox
@@ -340,7 +409,17 @@ export default function RelatorioPesagens() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Produtos</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Selecione Produtos</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {produtosUnicos.map(produto => (
                     <div key={produto} className="flex items-center space-x-2">
                       <Checkbox
@@ -362,7 +441,17 @@ export default function RelatorioPesagens() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-3">Selecione Fornecedores/Destinos</h4>
+                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                    <h4 className="font-semibold text-sm">Fornecedores/Destinos</h4>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosFornecedores}>
+                        Todos
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosFornecedores}>
+                        Nenhum
+                      </Button>
+                    </div>
+                  </div>
                   {fornecedoresUnicos.map(fornecedor => (
                     <div key={fornecedor} className="flex items-center space-x-2">
                       <Checkbox

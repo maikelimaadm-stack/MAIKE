@@ -94,6 +94,13 @@ export default function Dashboard() {
   });
 
   const handleSubmit = (data) => {
+    // Gerar número único se for novo registro
+    if (!editingPesagem) {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      data.numero_registro = `PES-${timestamp}-${random}`;
+    }
+    
     if (editingPesagem) {
       updateMutation.mutate({ id: editingPesagem.id, data });
     } else {

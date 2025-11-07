@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +74,13 @@ export default function Produtos() {
   });
 
   const handleSubmit = (data) => {
+    // Gerar número único se for novo produto
+    if (!editingProduto) {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      data.numero_produto = `PRO-${timestamp}-${random}`;
+    }
+    
     if (editingProduto) {
       updateMutation.mutate({ id: editingProduto.id, data });
     } else {

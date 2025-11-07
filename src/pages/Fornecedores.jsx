@@ -44,7 +44,8 @@ export default function Fornecedores() {
       setEditingFornecedor(null);
       toast.success('Fornecedor cadastrado com sucesso!');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro ao criar fornecedor:", error);
       toast.error('Erro ao salvar fornecedor. Tente novamente.');
     }
   });
@@ -57,7 +58,8 @@ export default function Fornecedores() {
       setEditingFornecedor(null);
       toast.success('Fornecedor atualizado com sucesso!');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro ao atualizar fornecedor:", error);
       toast.error('Erro ao atualizar fornecedor. Tente novamente.');
     }
   });
@@ -68,12 +70,20 @@ export default function Fornecedores() {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       toast.success('Fornecedor excluído com sucesso!');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro ao excluir fornecedor:", error);
       toast.error('Erro ao excluir fornecedor. Tente novamente.');
     }
   });
 
   const handleSubmit = (data) => {
+    // Gerar número único se for novo cadastro
+    if (!editingFornecedor) {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      data.numero_cadastro = `FOR-${timestamp}-${random}`;
+    }
+    
     if (editingFornecedor) {
       updateMutation.mutate({ id: editingFornecedor.id, data });
     } else {
@@ -108,7 +118,7 @@ export default function Fornecedores() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações', 'Número Cadastro'];
     csvRows.push(headers.join(';'));
 
     fornecedores.forEach(f => {
@@ -128,7 +138,8 @@ export default function Fornecedores() {
         f.cidade || '',
         f.estado || '',
         f.cep || '',
-        f.observacoes || ''
+        f.observacoes || '',
+        f.numero_cadastro || ''
       ];
       csvRows.push(row.join(';'));
     });
@@ -157,7 +168,8 @@ export default function Fornecedores() {
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const values = lines[i].split(';');
-          if (values.length < 2) {
+          // Ensure enough columns for basic data, if number_cadastro is the last it might be optional for import
+          if (values.length < 2) { 
             errorCount++;
             continue;
           }
@@ -179,7 +191,8 @@ export default function Fornecedores() {
               cidade: values[12]?.trim() || undefined,
               estado: values[13]?.trim() || undefined,
               cep: values[14]?.trim() || undefined,
-              observacoes: values[15]?.trim() || undefined
+              observacoes: values[15]?.trim() || undefined,
+              numero_cadastro: values[16]?.trim() || `FOR-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}` // Generate if not present
             };
 
             if (!fornecedor.nome || !fornecedor.tipo_pessoa) {
@@ -203,6 +216,7 @@ export default function Fornecedores() {
 
         const batchSize = 10;
         let imported = 0;
+        let errorsInImport = 0; // Track errors during the actual import API call
 
         for (let i = 0; i < validRecords.length; i += batchSize) {
           const batch = validRecords.slice(i, i + batchSize);
@@ -218,20 +232,21 @@ export default function Fornecedores() {
                 await base44.entities.Fornecedor.create(record);
                 imported++;
               } catch (e) {
-                errorCount++;
+                errorsInImport++;
               }
             }
           }
           
-          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount });
+          setImportProgress({ current: imported, total: validRecords.length, errors: errorCount + errorsInImport });
         }
 
         await queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
         
         setTimeout(() => {
           setShowImportProgress(false);
-          if (errorCount > 0) {
-            toast.success(`${imported} registros importados! ${errorCount} com erro.`);
+          const totalErrors = errorCount + errorsInImport;
+          if (totalErrors > 0) {
+            toast.success(`${imported} registros importados! ${totalErrors} com erro.`);
           } else {
             toast.success(`${imported} registros importados com sucesso!`);
           }
@@ -249,10 +264,10 @@ export default function Fornecedores() {
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações'];
+    const headers = ['Tipo', 'Nome', 'CPF', 'RG', 'Data Nascimento', 'CNPJ', 'Razão Social', 'Inscrição Estadual', 'Responsável', 'Telefone', 'Email', 'Endereço', 'Cidade', 'Estado', 'CEP', 'Observações', 'Número Cadastro'];
     csvRows.push(headers.join(';'));
     
-    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor'];
+    const example = ['Física', 'Exemplo Fornecedor', '000.000.000-00', '00.000.000-0', '01/01/1990', '', '', '', '', '(00) 00000-0000', 'exemplo@email.com', 'Rua Exemplo, 123', 'Vila Bela', 'MT', '00000-000', 'Exemplo de fornecedor', 'FOR-123456789-001'];
     csvRows.push(example.join(';'));
 
     const csvString = csvRows.join('\n');
