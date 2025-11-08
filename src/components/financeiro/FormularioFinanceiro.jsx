@@ -32,29 +32,54 @@ const formatarMoeda = (valor) => {
 
 export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, safras }) {
   const [abaAtiva, setAbaAtiva] = useState("dados");
-  const [formData, setFormData] = useState({
-    tipo: "Pagar",
-    fornecedor_id: "",
-    cliente_nome: "",
-    safra_id: "",
-    centro_custo_id: "",
-    plano_contas_id: "",
-    grupo_id: "",
-    forma_pagamento_id: "",
-    numero_documento: "",
-    chave_nfe: "",
-    tipo_documento: "NF-e",
-    data_emissao: new Date().toISOString().split('T')[0],
-    data_vencimento: new Date().toISOString().split('T')[0],
-    valor_original: "",
-    valor_juros: "0,00",
-    valor_multa: "0,00",
-    valor_desconto: "0,00",
-    observacoes: "",
-    parcelar: false,
-    parcelas: [],
-    produtos_lancamento: [],
-    ...initialData
+  
+  const [formData, setFormData] = useState(() => {
+    const defaults = {
+      tipo: "Pagar",
+      fornecedor_id: "",
+      cliente_nome: "",
+      safra_id: "",
+      centro_custo_id: "",
+      plano_contas_id: "",
+      grupo_id: "",
+      forma_pagamento_id: "",
+      numero_documento: "",
+      chave_nfe: "",
+      tipo_documento: "NF-e",
+      data_emissao: new Date().toISOString().split('T')[0],
+      data_vencimento: new Date().toISOString().split('T')[0],
+      valor_original: "",
+      valor_juros: "0,00",
+      valor_multa: "0,00",
+      valor_desconto: "0,00",
+      observacoes: "",
+      parcelar: false,
+      parcelas: [],
+      produtos_lancamento: []
+    };
+
+    if (!initialData) return defaults;
+
+    // Processar initialData
+    return {
+      ...defaults,
+      ...initialData,
+      valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : defaults.valor_original,
+      valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
+      valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
+      valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
+      parcelas: initialData.parcelas?.map(p => ({
+        data: p.data,
+        valor: formatarNumero(p.valor || 0)
+      })) || [],
+      produtos_lancamento: initialData.produtos_lancamento?.map(p => ({
+        produto_id: p.produto_id || "",
+        produto_nome: p.produto_nome || "",
+        quantidade: formatarNumero(p.quantidade || 1),
+        valor_unitario: formatarNumero(p.valor_unitario || 0),
+        desconto: formatarNumero(p.desconto || 0)
+      })) || []
+    };
   });
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
@@ -205,7 +230,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
   const aplicarTotalProdutos = () => {
     const total = calcularTotalProdutos();
     setFormData(prev => ({ ...prev, valor_original: formatarNumero(total) }));
-    toast.success('Valor atualizado com produtos!');
+    toast.success('Valor atualizado!');
   };
 
   const handleChange = (field, value) => {
@@ -226,8 +251,18 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     }
 
     if (formData.parcelar && formData.parcelas.length < 2) {
-      toast.error('Adicione pelo menos 2 parcelas!');
+      toast.error('Mínimo 2 parcelas!');
       return;
+    }
+
+    if (formData.parcelar) {
+      const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+      const valorTotal = parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
+      
+      if (Math.abs(totalParcelas - valorTotal) > 0.01) {
+        toast.error('Total das parcelas diferente do valor total!');
+        return;
+      }
     }
 
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
@@ -262,10 +297,20 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       valor_multa: parseNumero(formData.valor_multa),
       valor_desconto: parseNumero(formData.valor_desconto),
       observacoes: formData.observacoes?.toUpperCase() || undefined,
-      parcelas: formData.parcelar ? formData.parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : undefined,
-      produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento : undefined
+      parcelas: formData.parcelar ? formData.parcelas.map(p => ({ 
+        data: p.data, 
+        valor: parseNumero(p.valor) 
+      })) : undefined,
+      produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento.map(p => ({
+        produto_id: p.produto_id,
+        produto_nome: p.produto_nome || produtos.find(pr => pr.id === p.produto_id)?.nome_produto,
+        quantidade: parseNumero(p.quantidade),
+        valor_unitario: parseNumero(p.valor_unitario),
+        desconto: parseNumero(p.desconto)
+      })) : undefined
     };
 
+    console.log('📝 Dados enviados para salvar:', data);
     onSubmit(data);
   };
 
@@ -282,7 +327,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
               <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-white" />
               </div>
-              {initialData ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'}
+              {initialData?.id ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -329,8 +374,25 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     </div>
 
                     <div className="space-y-2">
+                      <Label>Data Emissão *</Label>
+                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
                       <Label>Nº Documento</Label>
                       <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Safra</Label>
+                      <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
+                        <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                        <SelectContent>
+                          {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -352,23 +414,6 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
                   )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Safra</Label>
-                      <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                        <SelectContent>
-                          {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Data Emissão *</Label>
-                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
-                    </div>
-                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
@@ -418,21 +463,6 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Forma de Pagamento</Label>
-                    <div className="flex gap-2">
-                      <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          {formasPagamento.map(f => <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Observações</Label>
                     <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
                   </div>
@@ -440,7 +470,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
                 <TabsContent value="produtos" className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <p className="text-sm text-slate-600">Configure os produtos deste lançamento</p>
+                    <p className="text-sm text-slate-600">Produtos vinculados (opcional)</p>
                     <Button type="button" onClick={adicionarProduto} size="sm" className="gap-2">
                       <Plus className="w-4 h-4" />
                       Adicionar Produto
@@ -451,8 +481,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <Card className="bg-slate-50 border-dashed">
                       <CardContent className="p-12 text-center text-slate-400">
                         <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Nenhum produto adicionado</p>
-                        <p className="text-xs mt-1">Produtos são opcionais</p>
+                        <p>Nenhum produto vinculado</p>
                       </CardContent>
                     </Card>
                   ) : (
@@ -461,8 +490,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                         <TableHeader>
                           <TableRow>
                             <TableHead>Produto</TableHead>
-                            <TableHead className="text-right">Qtd</TableHead>
-                            <TableHead className="text-right">Vlr Unit.</TableHead>
+                            <TableHead className="text-right">Quantidade</TableHead>
+                            <TableHead className="text-right">Valor Unit.</TableHead>
                             <TableHead className="text-right">Desconto</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                             <TableHead className="w-12"></TableHead>
@@ -487,7 +516,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Input value={prod.quantidade} onChange={(e) => atualizarProduto(idx, 'quantidade', e.target.value)} className="w-24 text-right" placeholder="0,00" />
+                                  <Input value={prod.quantidade} onChange={(e) => atualizarProduto(idx, 'quantidade', e.target.value)} className="w-24 text-right" placeholder="1,00" />
                                 </TableCell>
                                 <TableCell>
                                   <Input value={prod.valor_unitario} onChange={(e) => atualizarProduto(idx, 'valor_unitario', e.target.value)} className="w-32 text-right" placeholder="0,00" />
@@ -510,11 +539,11 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       {totalProdutos > 0 && (
                         <Card className="bg-blue-50 border-blue-300">
                           <CardContent className="p-4 flex justify-between items-center">
-                            <span className="font-semibold">Total dos Produtos:</span>
+                            <span className="font-semibold">Total:</span>
                             <div className="flex items-center gap-3">
                               <span className="text-2xl font-bold text-blue-700">{formatarMoeda(totalProdutos)}</span>
                               <Button type="button" size="sm" onClick={aplicarTotalProdutos} variant="outline">
-                                Aplicar ao Valor Original
+                                Aplicar
                               </Button>
                             </div>
                           </CardContent>
@@ -548,19 +577,32 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                   </div>
 
                   <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-slate-700">Valor Total:</span>
-                        <span className="text-2xl font-bold text-blue-700">{formatarMoeda(valorTotal)}</span>
-                      </div>
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <span className="font-semibold text-slate-700">Valor Total:</span>
+                      <span className="text-2xl font-bold text-blue-700">{formatarMoeda(valorTotal)}</span>
                     </CardContent>
                   </Card>
 
-                  {!initialData && (
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <div className="flex gap-2">
+                      <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {formasPagamento.map(f => <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {!initialData?.id && (
                     <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
                       <div className="flex items-center space-x-2">
                         <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                        <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar este lançamento</label>
+                        <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento</label>
                       </div>
 
                       {!formData.parcelar && (
@@ -573,10 +615,10 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       {formData.parcelar && (
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                            <Label>Configurar Parcelas ({formData.parcelas.length})</Label>
+                            <Label>Parcelas ({formData.parcelas.length})</Label>
                             <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
                               <Plus className="w-4 h-4" />
-                              Adicionar Parcela
+                              Adicionar
                             </Button>
                           </div>
                           
@@ -584,8 +626,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-16">Nº</TableHead>
-                                <TableHead>Data Vencimento</TableHead>
-                                <TableHead className="text-right">Valor (R$)</TableHead>
+                                <TableHead>Vencimento</TableHead>
+                                <TableHead className="text-right">Valor</TableHead>
                                 <TableHead className="w-12"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -617,12 +659,12 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                                   <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span>Valor Lançamento:</span>
+                                  <span>Valor:</span>
                                   <span className="font-bold">{formatarMoeda(valorTotal)}</span>
                                 </div>
                               </div>
                               {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores devem ser iguais!</p>
+                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
                               )}
                             </CardContent>
                           </Card>
@@ -643,7 +685,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     disabled={formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                   >
                     <Save className="w-4 h-4" />
-                    {initialData ? 'Atualizar' : 'Salvar'}
+                    {initialData?.id ? 'Atualizar' : 'Salvar'}
                   </Button>
                 </div>
               </form>
