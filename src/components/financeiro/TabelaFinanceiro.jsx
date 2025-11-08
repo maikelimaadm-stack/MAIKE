@@ -29,6 +29,11 @@ const formatarNumero = (numero) => {
   return numero.toLocaleString('pt-BR');
 };
 
+const formatarNumeroDecimal = (numero) => {
+  if (!numero && numero !== 0) return "0,00";
+  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
 const formatarData = (dataString) => {
   if (!dataString) return '-';
   try {
@@ -222,6 +227,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento.fornecedor_id);
 
+  console.log('🔍 DEBUG - Lancamento exemplo:', lancamentosOrdenados[0]);
+  console.log('🔍 Produtos lancamento:', lancamentosOrdenados[0]?.produtos_lancamento);
+
   return (
     <>
       <Card className="shadow-xl border-slate-200">
@@ -340,97 +348,101 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <TableCell colSpan={20} className="text-center py-12 text-slate-400">Nenhum lançamento encontrado</TableCell>
                     </TableRow>
                   ) : (
-                    lancamentosOrdenados.map((lancamento) => (
-                      <ContextMenu key={lancamento.id}>
-                        <ContextMenuTrigger asChild>
-                          <motion.tr 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            className="hover:bg-slate-50 transition-colors cursor-pointer"
-                            onDoubleClick={() => handleDoubleClick(lancamento)}
-                          >
-                            {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
-                            {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
-                            {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs">{formatarData(lancamento.data_vencimento)}</TableCell>}
-                            {colunasVisiveis.includes('dias') && (
-                              <TableCell className="text-xs">
-                                {lancamento.status === 'Pendente' && (
-                                  <span className={`font-medium ${calcularDias(lancamento.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-blue-600'}`}>
-                                    {calcularDias(lancamento.data_vencimento)}
-                                  </span>
-                                )}
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('fornecedor_cliente') && (
-                              <TableCell className="max-w-xs truncate">
-                                {lancamento.fornecedor_nome || lancamento.cliente_nome || '-'}
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('documento') && <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>}
-                            {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento.valor_original || 0)}</TableCell>}
-                            {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento.valor_total || 0)}</TableCell>}
-                            {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento.valor_pago || 0)}</TableCell>}
-                            {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total || 0)}</TableCell>}
-                            {colunasVisiveis.includes('status') && (
+                    lancamentosOrdenados.map((lancamento) => {
+                      const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
+                      
+                      return (
+                        <ContextMenu key={lancamento.id}>
+                          <ContextMenuTrigger asChild>
+                            <motion.tr 
+                              initial={{ opacity: 0 }} 
+                              animate={{ opacity: 1 }} 
+                              exit={{ opacity: 0 }} 
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                              onDoubleClick={() => handleDoubleClick(lancamento)}
+                            >
+                              {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
+                              {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
+                              {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs">{formatarData(lancamento.data_vencimento)}</TableCell>}
+                              {colunasVisiveis.includes('dias') && (
+                                <TableCell className="text-xs">
+                                  {lancamento.status === 'Pendente' && (
+                                    <span className={`font-medium ${calcularDias(lancamento.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-blue-600'}`}>
+                                      {calcularDias(lancamento.data_vencimento)}
+                                    </span>
+                                  )}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('fornecedor_cliente') && (
+                                <TableCell className="max-w-xs truncate">
+                                  {lancamento.fornecedor_nome || lancamento.cliente_nome || '-'}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('documento') && <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>}
+                              {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento.valor_original || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento.valor_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento.valor_pago || 0)}</TableCell>}
+                              {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('status') && (
+                                <TableCell>
+                                  <Badge className={getBadgeStyle(lancamento.status)}>{lancamento.status}</Badge>
+                                  {lancamento.numero_parcela && (
+                                    <div className="text-xs text-slate-500 mt-1">
+                                      Parcela {lancamento.numero_parcela}/{lancamento.total_parcelas}
+                                    </div>
+                                  )}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento.safra_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento.centro_custo_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento.forma_pagamento_nome || '-'}</TableCell>}
                               <TableCell>
-                                <Badge className={getBadgeStyle(lancamento.status)}>{lancamento.status}</Badge>
-                                {lancamento.numero_parcela && (
-                                  <div className="text-xs text-slate-500 mt-1">
-                                    Parcela {lancamento.numero_parcela}/{lancamento.total_parcelas}
-                                  </div>
-                                )}
+                                <div className="flex gap-1 justify-center">
+                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirDetalhes(lancamento); }} title="Ver detalhes">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  {temProdutos && (
+                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirProdutos(lancamento); }} title="Ver produtos" className="text-green-600">
+                                      <Package className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(lancamento); }} title="Editar">
+                                    <Edit className="w-4 h-4 text-blue-600" />
+                                  </Button>
+                                  {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
+                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onBaixa(lancamento); }} title="Dar baixa" className="text-green-600">
+                                      <DollarSign className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {lancamento.status === 'Pago' && onCancelarBaixa && (
+                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onCancelarBaixa(lancamento); }} title="Cancelar baixa" className="text-orange-600">
+                                      <XCircle className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(lancamento.id); }} title="Excluir" className="text-red-600 hover:bg-red-50">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
+                            </motion.tr>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
+                              <ContextMenuItem onClick={() => onBaixa(lancamento)}>
+                                <DollarSign className="w-4 h-4 mr-2 text-green-600" />
+                                Dar Baixa
+                              </ContextMenuItem>
                             )}
-                            {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento.safra_nome || '-'}</TableCell>}
-                            {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento.centro_custo_nome || '-'}</TableCell>}
-                            {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento.forma_pagamento_nome || '-'}</TableCell>}
-                            <TableCell>
-                              <div className="flex gap-1 justify-center">
-                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirDetalhes(lancamento); }} title="Ver detalhes">
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                {lancamento.produtos_lancamento?.length > 0 && (
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirProdutos(lancamento); }} title="Ver produtos" className="text-green-600">
-                                    <Package className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(lancamento); }} title="Editar">
-                                  <Edit className="w-4 h-4 text-blue-600" />
-                                </Button>
-                                {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onBaixa(lancamento); }} title="Dar baixa" className="text-green-600">
-                                    <DollarSign className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                {lancamento.status === 'Pago' && onCancelarBaixa && (
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onCancelarBaixa(lancamento); }} title="Cancelar baixa" className="text-orange-600">
-                                    <XCircle className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(lancamento.id); }} title="Excluir" className="text-red-600 hover:bg-red-50">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </motion.tr>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
-                            <ContextMenuItem onClick={() => onBaixa(lancamento)}>
-                              <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-                              Dar Baixa
-                            </ContextMenuItem>
-                          )}
-                          {lancamento.status === 'Pago' && onCancelarBaixa && (
-                            <ContextMenuItem onClick={() => onCancelarBaixa(lancamento)}>
-                              <XCircle className="w-4 h-4 mr-2 text-orange-600" />
-                              Cancelar Baixa
-                            </ContextMenuItem>
-                          )}
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ))
+                            {lancamento.status === 'Pago' && onCancelarBaixa && (
+                              <ContextMenuItem onClick={() => onCancelarBaixa(lancamento)}>
+                                <XCircle className="w-4 h-4 mr-2 text-orange-600" />
+                                Cancelar Baixa
+                              </ContextMenuItem>
+                            )}
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      );
+                    })
                   )}
                 </AnimatePresence>
               </TableBody>
@@ -514,16 +526,17 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               Produtos Vinculados - Lançamento #{produtosAberto?.numero_lancamento}
             </DialogTitle>
           </DialogHeader>
-          {produtosAberto?.produtos_lancamento?.length > 0 && (
+          {produtosAberto?.produtos_lancamento?.length > 0 ? (
             <Card className="bg-green-50 border-green-200">
               <CardContent className="p-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Produto</TableHead>
+                      <TableHead>Código</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead>UN</TableHead>
                       <TableHead className="text-right">Vlr. Unit.</TableHead>
-                      <TableHead className="text-right">Desconto</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -531,22 +544,28 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     {produtosAberto.produtos_lancamento.map((pl, idx) => (
                       <TableRow key={idx}>
                         <TableCell className="font-semibold">{pl.produto_nome || '-'}</TableCell>
-                        <TableCell className="text-right font-mono">{formatarNumero(pl.quantidade)}</TableCell>
+                        <TableCell className="font-mono text-xs">{pl.codigo || '-'}</TableCell>
+                        <TableCell className="text-right font-mono">{formatarNumeroDecimal(pl.quantidade)}</TableCell>
+                        <TableCell className="text-xs">{pl.unidade}</TableCell>
                         <TableCell className="text-right font-mono">{formatarMoeda(pl.valor_unitario)}</TableCell>
-                        <TableCell className="text-right font-mono text-red-600">{formatarMoeda(pl.desconto || 0)}</TableCell>
-                        <TableCell className="text-right font-mono font-bold text-green-700">{formatarMoeda(pl.quantidade * pl.valor_unitario - (pl.desconto || 0))}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-green-700">{formatarMoeda(pl.quantidade * pl.valor_unitario)}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="bg-green-100 font-bold">
-                      <TableCell colSpan={4} className="text-right">TOTAL PRODUTOS:</TableCell>
+                      <TableCell colSpan={5} className="text-right">TOTAL PRODUTOS:</TableCell>
                       <TableCell className="text-right text-green-800">
-                        {formatarMoeda(produtosAberto.produtos_lancamento.reduce((s, p) => s + (p.quantidade * p.valor_unitario - (p.desconto || 0)), 0))}
+                        {formatarMoeda(produtosAberto.produtos_lancamento.reduce((s, p) => s + (p.quantidade * p.valor_unitario), 0))}
                       </TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+          ) : (
+            <div className="text-center py-8 text-slate-500">
+              <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>Nenhum produto vinculado a este lançamento</p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -123,7 +122,8 @@ export default function Financeiro() {
             status: 'Pendente',
             observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
             numero_parcela: i + 1,
-            total_parcelas: data.parcelas.length
+            total_parcelas: data.parcelas.length,
+            produtos_lancamento: data.produtos_lancamento
           });
           
           lancamentosCriados.push(lanc);
@@ -245,7 +245,7 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dados) => {
     try {
-      console.log('🚀 Dados recebidos da importação:', dados);
+      console.log('🚀 Dados recebidos da importação XML:', dados);
       
       const movIds = [];
       
@@ -254,11 +254,11 @@ export default function Financeiro() {
         
         for (const item of dados.itens) {
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
-          const prod = products.find(p => p.id === item.produto_id) || produtos.find(p => p.codigo_produto === item.codigo); // Added fallback to find by codigo
+          const prod = produtos.find(p => p.id === item.produto_id);
           
           if (!prod) {
-            console.warn(`Produto com ID ${item.produto_id} ou código ${item.codigo} não encontrado. Pulando movimentação de estoque para este item.`);
-            toast.warning(`⚠️ Produto ${item.produto_nome} (${item.codigo}) não encontrado, pulando estoque.`);
+            console.warn(`Produto com ID ${item.produto_id} não encontrado.`);
+            toast.warning(`⚠️ Produto ${item.produto_nome} não encontrado, pulando estoque.`);
             continue;
           }
 
@@ -268,9 +268,9 @@ export default function Financeiro() {
             tipo_movimentacao: 'Entrada',
             tipo_detalhado: 'COMPRA',
             data_movimentacao: new Date().toISOString(),
-            produto_id: prod.id, // Use found product ID
+            produto_id: prod.id,
             produto_nome: prod.nome_produto?.toUpperCase(),
-            produto_codigo: prod.codigo_produto?.toUpperCase(),
+            produto_codigo: prod.codigo_interno?.toUpperCase(),
             quantidade: item.quantidade,
             unidade_medida: item.unidade?.toUpperCase(),
             local_estoque_destino: dados.dadosComplementares.local_estoque?.toUpperCase(),
@@ -354,8 +354,17 @@ export default function Financeiro() {
         
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
         
+        const produtosLancamento = dados.itens.map(i => ({
+          produto_id: i.produto_id,
+          produto_nome: i.produto_nome,
+          codigo: i.codigo,
+          quantidade: i.quantidade,
+          unidade: i.unidade,
+          valor_unitario: i.valor_unitario
+        }));
+
         if (dados.parcelar && dados.parcelas?.length > 0) {
-          console.log('📋 Criando', dados.parcelas.length, 'lançamentos separados');
+          console.log('📋 Criando', dados.parcelas.length, 'lançamentos separados com produtos');
           
           for (let i = 0; i < dados.parcelas.length; i++) {
             const parcela = dados.parcelas[i];
@@ -383,11 +392,12 @@ export default function Financeiro() {
               observacoes: `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero} - PARCELA ${i + 1}/${dados.parcelas.length}${dados.dadosComplementares?.observacoes ? ' - ' + dados.dadosComplementares.observacoes.toUpperCase() : ''}`,
               numero_parcela: i + 1,
               total_parcelas: dados.parcelas.length,
+              produtos_lancamento: i === 0 ? produtosLancamento : [],
               gerado_xml: true
             });
           }
           
-          toast.success(`✅ ${dados.parcelas.length} lançamentos criados (parcelas separadas)!`);
+          toast.success(`✅ ${dados.parcelas.length} lançamentos criados!`);
         } else {
           const numero = await getNextNumber(empresaSelecionadaId);
           
@@ -411,6 +421,7 @@ export default function Financeiro() {
             valor_pago: 0,
             status: 'Pendente',
             observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
+            produtos_lancamento: produtosLancamento,
             gerado_xml: true
           });
           
