@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Upload, CheckCircle, AlertCircle, Plus, RefreshCw, Loader2, Save, X, Search, Trash2, CheckSquare } from "lucide-react";
+import { FileText, Upload, CheckCircle, AlertCircle, Plus, RefreshCw, Loader2, Save, X, Search, Trash2, CheckSquare, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +45,7 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
   const [itensNFe, setItensNFe] = useState([]);
   const [itensSelecionados, setItensSelecionados] = useState([]);
+  const [editandoItemIndex, setEditandoItemIndex] = useState(null); // New state for inline editing
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
     centro_custo_id: "",
@@ -280,7 +281,7 @@ Retorne um JSON com esta estrutura EXATA:
         return;
       }
 
-      toast.info('✅ XML processado com sucesso!');
+      toast.success('✅ XML processado com sucesso!');
       
       const movimentacoes = await base44.entities.MovimentacaoEstoque.list();
       const jaImportada = movimentacoes.find(m => m.chave_documento === resultado.chave);
@@ -354,6 +355,7 @@ Retorne um JSON com esta estrutura EXATA:
           status: produtoEncontrado ? 'associado' : 'pendente',
           quantidade_ajustada: formatarNumero(item.quantidade),
           valor_unitario_ajustado: formatarNumero(item.valor_unitario),
+          desconto_item: "0,00", // Add new field for item discount
           cfop_ajustado: item.cfop,
           incluir: true
         };
@@ -363,6 +365,25 @@ Retorne um JSON com esta estrutura EXATA:
       setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
   }, [etapa, dadosNFe, produtos]);
+
+  const handleAtualizarItem = (index, campo, valor) => {
+    setItensNFe(prev => prev.map(item => {
+      if (item.index === index) {
+        const updated = { ...item, [campo]: valor };
+        
+        // Recalcular valor_total se quantidade ou valor_unitario mudaram
+        if (campo === 'quantidade_ajustada' || campo === 'valor_unitario_ajustado' || campo === 'desconto_item') {
+          const qtd = parseNumero(campo === 'quantidade_ajustada' ? valor : updated.quantidade_ajustada);
+          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustado' ? valor : updated.valor_unitario_ajustado);
+          const desc = parseNumero(campo === 'desconto_item' ? valor : updated.desconto_item);
+          updated.valor_total_ajustado = qtd * vlrUnit - desc;
+        }
+        
+        return updated;
+      }
+      return item;
+    }));
+  };
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
@@ -408,7 +429,7 @@ Retorne um JSON com esta estrutura EXATA:
       unidade_medida: novoProduto.unidade.toUpperCase(),
       categoria: novoProduto.categoria?.toUpperCase(),
       descricao: novoProduto.descricao?.toUpperCase(),
-      preco_custo: itemEditando?.valor_unitario || 0
+      preco_custo: parseNumero(itemEditando?.valor_unitario_ajustado) || 0 // Use adjusted value
     });
   };
 
@@ -435,7 +456,7 @@ Retorne um JSON com esta estrutura EXATA:
           nome_produto: item.descricao.toUpperCase(),
           codigo_interno: item.codigo?.toUpperCase(),
           unidade_medida: item.unidade?.toUpperCase() || 'UN',
-          preco_custo: item.valor_unitario,
+          preco_custo: parseNumero(item.valor_unitario_ajustado), // Use adjusted value
           estoque_atual: 0
         });
 
@@ -570,11 +591,20 @@ Retorne um JSON com esta estrutura EXATA:
     setFornecedorSelecionado(null);
     setItensNFe([]);
     setItensSelecionados([]);
+    setEditandoItemIndex(null); // Reset editing index
     setDadosComplementares({ local_estoque: "", centro_custo_id: "", frete: "0,00", tipo_frete: "CIF", desconto_total: "0,00", outras_despesas: "0,00", observacoes: "" });
   };
 
-  const totalItens = dadosNFe?.valor_total || 0;
-  const totalAjustado = totalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
+  // Calcular subtotal apenas dos itens selecionados
+  const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
+  const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
+    const qtd = parseNumero(item.quantidade_ajustada);
+    const vlrUnit = parseNumero(item.valor_unitario_ajustado);
+    const desc = parseNumero(item.desconto_item || "0,00");
+    return sum + (qtd * vlrUnit - desc);
+  }, 0);
+
+  const totalAjustado = subtotalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
   const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
   const produtosFiltrados = produtos.filter(p => 
     !buscaProduto || 
@@ -633,7 +663,7 @@ Retorne um JSON com esta estrutura EXATA:
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
                   <div className="col-span-2"><strong>Chave:</strong> {dadosNFe.chave}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
-                  <div><strong>Valor:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
+                  <div><strong>Valor NF-e:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
                 </CardContent>
               </Card>
 
@@ -689,7 +719,7 @@ Retorne um JSON com esta estrutura EXATA:
               
               <div className="overflow-auto max-h-96 border rounded">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-white">
+                  <TableHeader className="sticky top-0 bg-white z-10">
                     <TableRow>
                       <TableHead className="w-12">
                         <Checkbox 
@@ -698,66 +728,129 @@ Retorne um JSON com esta estrutura EXATA:
                         />
                       </TableHead>
                       <TableHead className="w-12">Status</TableHead>
-                      <TableHead>Código XML</TableHead>
-                      <TableHead>Descrição XML</TableHead>
-                      <TableHead>Produto Associado</TableHead>
+                      <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
                       <TableHead className="text-right">Vlr Unit.</TableHead>
-                      <TableHead>Ações</TableHead>
+                      <TableHead className="text-right">Desc.</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {itensNFe.map((item) => (
-                      <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50' : ''}>
-                        <TableCell>
-                          <Checkbox 
-                            checked={itensSelecionados.includes(item.index)}
-                            onCheckedChange={() => handleToggleSelecao(item.index)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {item.status === 'associado' ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-orange-600" />
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{item.codigo}</TableCell>
-                        <TableCell className="text-xs">{item.descricao}</TableCell>
-                        <TableCell className="text-xs">
-                          {item.produto_nome || <span className="text-orange-600">Não associado</span>}
-                        </TableCell>
-                        <TableCell className="text-right">{item.quantidade_ajustada}</TableCell>
-                        <TableCell className="text-right">R$ {item.valor_unitario_ajustado}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            {item.status === 'pendente' && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Novo
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
-                                  <RefreshCw className="w-3 h-3" />
-                                </Button>
-                              </>
+                    {itensNFe.map((item) => {
+                      const isEditando = editandoItemIndex === item.index;
+                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado) - parseNumero(item.desconto_item || "0,00");
+                      
+                      return (
+                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
+                          <TableCell>
+                            <Checkbox 
+                              checked={itensSelecionados.includes(item.index)}
+                              onCheckedChange={() => handleToggleSelecao(item.index)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {item.status === 'associado' ? (
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-orange-600" />
                             )}
-                            <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div>
+                              <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
+                              <div className="text-slate-500 text-xs">{item.descricao}</div>
+                              <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEditando ? (
+                              <Input
+                                value={item.quantidade_ajustada}
+                                onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)}
+                                className="w-24 text-right"
+                                placeholder="0,00"
+                              />
+                            ) : (
+                              <span className="font-mono">{item.quantidade_ajustada}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEditando ? (
+                              <Input
+                                value={item.valor_unitario_ajustado}
+                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
+                                className="w-28 text-right"
+                                placeholder="0,00"
+                              />
+                            ) : (
+                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEditando ? (
+                              <Input
+                                value={item.desconto_item || "0,00"}
+                                onChange={(e) => handleAtualizarItem(item.index, 'desconto_item', e.target.value)}
+                                className="w-24 text-right"
+                                placeholder="0,00"
+                              />
+                            ) : (
+                              <span className="font-mono text-red-600">
+                                {parseNumero(item.desconto_item) > 0 ? `R$ ${item.desconto_item}` : '-'}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-center">
+                              {isEditando ? (
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600">
+                                  <CheckCircle className="w-3 h-3" />
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores">
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {item.status === 'pendente' && (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
+                                    <RefreshCw className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
 
-              <Alert>
-                <AlertDescription>
-                  <strong>{itensSelecionados.length}</strong> de <strong>{itensNFe.length}</strong> itens selecionados para importação
-                </AlertDescription>
-              </Alert>
+              <Card className="bg-blue-50 border-blue-300">
+                <CardContent className="p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Itens Selecionados:</span>
+                      <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold text-blue-700">
+                      <span>Subtotal Produtos:</span>
+                      <span>R$ {formatarNumero(subtotalItens)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(2)}>Voltar</Button>
@@ -777,6 +870,22 @@ Retorne um JSON com esta estrutura EXATA:
 
           {etapa === 4 && (
             <div className="space-y-6">
+              <Card className="bg-blue-50 border-blue-300">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Resumo da Importação</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>NF-e Original:</span>
+                    <span className="font-semibold">R$ {formatarNumero(dadosNFe?.valor_total || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-blue-700 font-semibold">
+                    <span>Subtotal Produtos ({itensSelecionados.length} itens):</span>
+                    <span>R$ {formatarNumero(subtotalItens)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Local de Estoque *</Label>
@@ -809,7 +918,7 @@ Retorne um JSON com esta estrutura EXATA:
                   <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Desconto</Label>
+                  <Label>Desconto Geral</Label>
                   <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
                 </div>
                 <div className="space-y-2">
@@ -818,11 +927,40 @@ Retorne um JSON com esta estrutura EXATA:
                 </div>
               </div>
 
-              <Card className="bg-slate-50">
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea 
+                  value={dadosComplementares.observacoes} 
+                  onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
+                  placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
+                  className="uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
+              <Card className="bg-green-50 border-green-300">
                 <CardContent className="p-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>TOTAL GERAL:</span>
-                    <span className="text-green-700">R$ {formatarNumero(totalAjustado)}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal Produtos:</span>
+                      <span className="font-mono">R$ {formatarNumero(subtotalItens)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>+ Frete:</span>
+                      <span className="font-mono">R$ {dadosComplementares.frete}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>+ Outras Despesas:</span>
+                      <span className="font-mono">R$ {dadosComplementares.outras_despesas}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>- Desconto:</span>
+                      <span className="font-mono">R$ {dadosComplementares.desconto_total}</span>
+                    </div>
+                    <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
+                      <span>TOTAL FINAL:</span>
+                      <span>R$ {formatarNumero(totalAjustado)}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
