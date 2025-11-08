@@ -116,11 +116,26 @@ export default function Categorias() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Categoria.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem produtos vinculados
+      const todosProdutos = await base44.entities.Produto.list();
+      const categoria = categorias.find(c => c.id === id);
+      
+      const produtosVinculados = todosProdutos.filter(p => p.categoria === categoria?.nome);
+      
+      if (produtosVinculados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta categoria possui ${produtosVinculados.length} produto(s) vinculado(s). Não é possível excluir.`);
+      }
+      
+      return base44.entities.Categoria.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
       toast.success('Categoria excluída com sucesso!');
     },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao excluir categoria.');
+    }
   });
 
   const handleSubmit = (e) => {

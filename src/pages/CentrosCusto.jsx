@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +74,9 @@ export default function CentrosCusto() {
       resetForm();
       toast.success('Centro de custo cadastrado!');
     },
+    onError: (error) => {
+      toast.error('Erro ao cadastrar centro de custo', { description: error.message });
+    }
   });
 
   const updateMutation = useMutation({
@@ -84,14 +88,43 @@ export default function CentrosCusto() {
       resetForm();
       toast.success('Centro atualizado!');
     },
+    onError: (error) => {
+      toast.error('Erro ao atualizar centro de custo', { description: error.message });
+    }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.CentroCusto.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se tem lançamentos financeiros vinculados
+      const lancamentos = await base44.entities.LancamentoFinanceiro.list();
+      const temLancamentos = lancamentos.some(l => l.centro_custo_id === id);
+      if (temLancamentos) {
+        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui lançamentos financeiros vinculados. Não é possível excluir.');
+      }
+
+      // Verificar se tem movimentações vinculadas
+      const movimentacoes = await base44.entities.MovimentacaoEstoque.list();
+      const temMovimentacoes = movimentacoes.some(m => m.centro_custo_id === id);
+      if (temMovimentacoes) {
+        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui movimentações de estoque vinculadas. Não é possível excluir.');
+      }
+
+      // Verificar se tem custos de safra vinculados
+      const custos = await base44.entities.CustoSafra.list();
+      const temCustos = custos.some(c => c.centro_custo_id === id);
+      if (temCustos) {
+        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui custos de safra vinculados. Não é possível excluir.');
+      }
+      
+      return base44.entities.CentroCusto.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['centros'] });
       toast.success('Centro excluído!');
     },
+    onError: (error) => {
+      toast.error('Erro ao excluir centro de custo', { description: error.message });
+    }
   });
 
   const resetForm = () => {

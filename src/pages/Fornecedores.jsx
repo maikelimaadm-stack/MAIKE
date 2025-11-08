@@ -134,14 +134,40 @@ export default function Fornecedores() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Fornecedor.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem custos de safra relacionados
+      const todosCustos = await base44.entities.CustoSafra.list();
+      const custosRelacionados = todosCustos.filter(c => c.fornecedor_id === id);
+      
+      if (custosRelacionados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este fornecedor possui ${custosRelacionados.length} custo(s) de safra vinculado(s). Não é possível excluir.`);
+      }
+
+      // Verificar se existem movimentações relacionadas
+      const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
+      const movimentacoesRelacionadas = todasMovimentacoes.filter(m => m.fornecedor_id === id);
+      
+      if (movimentacoesRelacionadas.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este fornecedor possui ${movimentacoesRelacionadas.length} movimentação(ões) de estoque vinculada(s). Não é possível excluir.`);
+      }
+
+      // Verificar lançamentos financeiros
+      const lancamentos = await base44.entities.LancamentoFinanceiro.list();
+      const lancamentosRelacionados = lancamentos.filter(l => l.fornecedor_id === id);
+      
+      if (lancamentosRelacionados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este fornecedor possui ${lancamentosRelacionados.length} lançamento(s) financeiro(s) vinculado(s). Não é possível excluir.`);
+      }
+      
+      return base44.entities.Fornecedor.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       toast.success('Fornecedor/Cliente excluído com sucesso!');
     },
     onError: (error) => {
       console.error("Erro ao excluir fornecedor:", error);
-      toast.error('Erro ao excluir fornecedor/cliente. Tente novamente.');
+      toast.error(error.message || 'Erro ao excluir fornecedor/cliente. Tente novamente.');
     }
   });
 
@@ -691,7 +717,7 @@ export default function Fornecedores() {
             
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados um a um para garantir numeração única.
+                💡 Dica: Registros são importados um a one para garantir numeração única.
               </p>
             </div>
           </div>

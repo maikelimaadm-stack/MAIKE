@@ -114,14 +114,36 @@ export default function LocaisEstoque() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.LocalEstoque.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem produtos vinculados
+      const todosProdutos = await base44.entities.Produto.list();
+      const local = locais.find(l => l.id === id);
+      const produtosVinculados = todosProdutos.filter(p => p.local_estoque === local?.nome);
+      
+      if (produtosVinculados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este local possui ${produtosVinculados.length} produto(s) vinculado(s). Não é possível excluir.`);
+      }
+
+      // Verificar se existem movimentações vinculadas
+      const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
+      const movimentacoesVinculadas = todasMovimentacoes.filter(m => 
+        m.local_estoque_origem === local?.nome || 
+        m.local_estoque_destino === local?.nome
+      );
+      
+      if (movimentacoesVinculadas.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este local possui ${movimentacoesVinculadas.length} movimentação(ões) de estoque vinculada(s). Não é possível excluir.`);
+      }
+      
+      return base44.entities.LocalEstoque.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
       toast.success('Local excluído com sucesso!');
     },
     onError: (error) => {
       console.error('Erro ao excluir local:', error);
-      toast.error('Erro ao excluir local. Por favor, tente novamente.');
+      toast.error(error.message || 'Erro ao excluir local. Por favor, tente novamente.');
     }
   });
 

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,11 +63,32 @@ export default function GerenciarSafras() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Safra.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem custos vinculados
+      const todosCustos = await base44.entities.CustoSafra.list();
+      const custosVinculados = todosCustos.filter(c => c.safra_id === id);
+      
+      if (custosVinculados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta safra possui ${custosVinculados.length} custo(s) vinculado(s). Não é possível excluir.`);
+      }
+
+      // Verificar se existem lançamentos financeiros vinculados
+      const lancamentos = await base44.entities.LancamentoFinanceiro.list();
+      const lancamentosVinculados = lancamentos.filter(l => l.safra_id === id);
+      
+      if (lancamentosVinculados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta safra possui ${lancamentosVinculados.length} lançamento(s) financeiro(s) vinculado(s). Não é possível excluir.`);
+      }
+      
+      return base44.entities.Safra.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['safras'] });
       toast.success('Safra excluída com sucesso!');
     },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao excluir safra.');
+    }
   });
 
   const resetForm = () => {

@@ -117,10 +117,29 @@ export default function UnidadesMedida() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.UnidadeMedida.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem produtos vinculados
+      const todosProdutos = await base44.entities.Produto.list();
+      const unidade = unidades.find(u => u.id === id);
+      
+      if (!unidade) {
+        throw new Error('Unidade de medida não encontrada.');
+      }
+
+      const produtosVinculados = todosProdutos.filter(p => p.unidade_medida === unidade.sigla);
+      
+      if (produtosVinculados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta unidade possui ${produtosVinculados.length} produto(s) vinculado(s). Não é possível excluir.`);
+      }
+      
+      return base44.entities.UnidadeMedida.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       toast.success('Unidade excluída com sucesso!');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao excluir unidade.');
     },
   });
 
