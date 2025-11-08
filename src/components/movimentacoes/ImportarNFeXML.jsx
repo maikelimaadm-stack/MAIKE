@@ -64,6 +64,7 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
   const [progressoImportacao, setProgressoImportacao] = useState({ current: 0, total: 0 });
   const [itemEditando, setItemEditando] = useState(null);
   const [buscaProduto, setBuscaProduto] = useState("");
+  const [erroExtracao, setErroExtracao] = useState(null);
   
   const [novoFornecedor, setNovoFornecedor] = useState({ 
     tipo_pessoa: "Jurídica", 
@@ -186,8 +187,9 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
     if (!file) return;
 
     setProcessando(true);
+    setErroExtracao(null);
+    
     try {
-      // Mostrar nome do arquivo
       toast.info(`📄 Processando: ${file.name}`);
       
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -197,8 +199,17 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
       const xmlText = await response.text();
 
       toast.info('🤖 Analisando nota fiscal...');
-      const resultado = await base44.integrations.Core.InvokeLLM({
-        prompt: `Você é um extrator de dados de NF-e. Extraia os dados do XML abaixo e retorne EXATAMENTE no formato JSON solicitado.
+      
+      let resultado;
+      try {
+        resultado = await base44.integrations.Core.InvokeLLM({
+          prompt: `Você é um extrator de dados de NF-e. Extraia os dados do XML abaixo e retorne EXATAMENTE no formato JSON solicitado.
+
+IMPORTANTE: 
+- Se o XML não for uma NF-e válida (modelo 55), retorne modelo como string vazia
+- Para campos que não existirem no XML, use null
+- Números devem ser sempre numéricos, não strings
+- CNPJ/CPF devem ter apenas números
 
 XML:
 ${xmlText}
@@ -235,49 +246,79 @@ Retorne um JSON com esta estrutura EXATA:
     }
   ]
 }`,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            modelo: { type: "string" },
-            numero: { type: "string" },
-            serie: { type: "string" },
-            chave: { type: "string" },
-            data_emissao: { type: "string" },
-            cnpj_emitente: { type: "string" },
-            cpf_emitente: { type: ["string", "null"] },
-            razao_social_emitente: { type: "string" },
-            inscricao_estadual_emitente: { type: ["string", "null"] },
-            telefone_emitente: { type: ["string", "null"] },
-            email_emitente: { type: ["string", "null"] },
-            endereco_emitente: { type: "string" },
-            bairro_emitente: { type: ["string", "null"] },
-            cidade_emitente: { type: "string" },
-            estado_emitente: { type: "string" },
-            cep_emitente: { type: "string" },
-            valor_total: { type: "number" },
-            itens: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  codigo: { type: "string" },
-                  descricao: { type: "string" },
-                  ncm: { type: "string" },
-                  cfop: { type: "string" },
-                  unidade: { type: "string" },
-                  quantidade: { type: "number" },
-                  valor_unitario: { type: "number" },
-                  valor_total: { type: "number" }
+          response_json_schema: {
+            type: "object",
+            properties: {
+              modelo: { type: "string" },
+              numero: { type: "string" },
+              serie: { type: "string" },
+              chave: { type: "string" },
+              data_emissao: { type: "string" },
+              cnpj_emitente: { type: ["string", "null"] },
+              cpf_emitente: { type: ["string", "null"] },
+              razao_social_emitente: { type: "string" },
+              inscricao_estadual_emitente: { type: ["string", "null"] },
+              telefone_emitente: { type: ["string", "null"] },
+              email_emitente: { type: ["string", "null"] },
+              endereco_emitente: { type: "string" },
+              bairro_emitente: { type: ["string", "null"] },
+              cidade_emitente: { type: "string" },
+              estado_emitente: { type: "string" },
+              cep_emitente: { type: "string" },
+              valor_total: { type: "number" },
+              itens: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    codigo: { type: "string" },
+                    descricao: { type: "string" },
+                    ncm: { type: "string" },
+                    cfop: { type: "string" },
+                    unidade: { type: "string" },
+                    quantidade: { type: "number" },
+                    valor_unitario: { type: "number" },
+                    valor_total: { type: "number" }
+                  }
                 }
               }
             }
           }
-        }
-      });
-
-      if (resultado.modelo !== "55") {
-        toast.error('❌ Arquivo não é uma NF-e válida (modelo 55)!');
+        });
+      } catch (llmError) {
+        console.error('Erro LLM:', llmError);
+        setErroExtracao({
+          tipo: 'llm',
+          mensagem: 'Erro ao processar XML com IA',
+          detalhes: llmError.message || 'Erro desconhecido',
+          xmlUrl: file_url
+        });
         setProcessando(false);
+        toast.error('❌ Erro ao processar XML - verifique os detalhes');
+        return;
+      }
+
+      if (!resultado || resultado.modelo !== "55") {
+        setErroExtracao({
+          tipo: 'modelo',
+          mensagem: 'Arquivo não é uma NF-e válida (modelo 55)',
+          detalhes: resultado ? `Modelo detectado: ${resultado.modelo || 'não identificado'}` : 'Não foi possível extrair dados',
+          xmlUrl: file_url
+        });
+        setProcessando(false);
+        toast.error('❌ Arquivo não é uma NF-e válida (modelo 55)');
+        return;
+      }
+
+      if (!resultado.itens || resultado.itens.length === 0) {
+        setErroExtracao({
+          tipo: 'itens',
+          mensagem: 'NF-e não possui itens',
+          detalhes: 'O XML não contém produtos para importar',
+          xmlUrl: file_url
+        });
+        setProcessando(false);
+        toast.error('❌ NF-e não possui itens para importar');
         return;
       }
 
@@ -288,7 +329,7 @@ Retorne um JSON com esta estrutura EXATA:
       
       if (jaImportada) {
         if (window.confirm(`⚠️ ATENÇÃO: Esta NF-e (${resultado.numero}) já foi importada anteriormente em ${new Date(jaImportada.data_movimentacao).toLocaleString('pt-BR')}!\n\nDeseja importar novamente?`)) {
-          // Continua a importação
+          // Continua
         } else {
           setProcessando(false);
           return;
@@ -330,11 +371,19 @@ Retorne um JSON com esta estrutura EXATA:
       }
 
     } catch (error) {
-      toast.error('Erro ao processar XML. Verifique o arquivo.');
-      console.error(error);
+      console.error('Erro geral:', error);
+      setErroExtracao({
+        tipo: 'geral',
+        mensagem: 'Erro ao processar XML',
+        detalhes: error.message || 'Erro desconhecido ao processar arquivo',
+        xmlUrl: xmlFile // Use xmlFile if it was successfully uploaded to get file_url
+      });
+      toast.error('❌ Erro ao processar XML - verifique os detalhes');
     } finally {
-      setProcessando(false);
       e.target.value = '';
+      if (!erroExtracao) {
+        setProcessando(false);
+      }
     }
   };
 
@@ -544,7 +593,7 @@ Retorne um JSON com esta estrutura EXATA:
       for (let i = 0; i < itensParaImportar.length; i++) {
         const item = itensParaImportar[i];
         const qtd = parseNumero(item.quantidade_ajustada);
-        const vlrUnit = parseNumero(item.valor_unitario_ajustado);
+        const vlrUnit = parseNumero(item.valor_unitario_ajustada);
 
         movimentacoes.push({
           tipo: 'Entrada',
@@ -599,7 +648,7 @@ Retorne um JSON com esta estrutura EXATA:
   const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
   const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
     const qtd = parseNumero(item.quantidade_ajustada);
-    const vlrUnit = parseNumero(item.valor_unitario_ajustado);
+    const vlrUnit = parseNumero(item.valor_unitario_ajustada);
     const desc = parseNumero(item.desconto_item || "0,00");
     return sum + (qtd * vlrUnit - desc);
   }, 0);
@@ -614,7 +663,7 @@ Retorne um JSON com esta estrutura EXATA:
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); resetar(); } }}>
+      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); resetar(); setErroExtracao(null); } }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -631,6 +680,29 @@ Retorne um JSON com esta estrutura EXATA:
                   Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55) para importação automática.
                 </AlertDescription>
               </Alert>
+
+              {erroExtracao && (
+                <Alert className="bg-red-50 border-red-300">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-semibold text-red-800">❌ {erroExtracao.mensagem}</p>
+                      <p className="text-sm text-red-700">{erroExtracao.detalhes}</p>
+                      {erroExtracao.xmlUrl && (
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" variant="outline" onClick={() => window.open(erroExtracao.xmlUrl, '_blank')} className="text-xs">
+                            Ver XML Original
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setErroExtracao(null)} className="text-xs">
+                            Tentar Outro Arquivo
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-xs text-red-600 mt-2">💡 Dica: Faça o lançamento manual se o XML não for compatível</p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
                 <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
@@ -739,7 +811,7 @@ Retorne um JSON com esta estrutura EXATA:
                   <TableBody>
                     {itensNFe.map((item) => {
                       const isEditando = editandoItemIndex === item.index;
-                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado) - parseNumero(item.desconto_item || "0,00");
+                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustada) - parseNumero(item.desconto_item || "0,00");
                       
                       return (
                         <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
@@ -778,13 +850,13 @@ Retorne um JSON com esta estrutura EXATA:
                           <TableCell className="text-right">
                             {isEditando ? (
                               <Input
-                                value={item.valor_unitario_ajustado}
-                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
+                                value={item.valor_unitario_ajustada}
+                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustada', e.target.value)}
                                 className="w-28 text-right"
                                 placeholder="0,00"
                               />
                             ) : (
-                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
+                              <span className="font-mono">R$ {item.valor_unitario_ajustada}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
