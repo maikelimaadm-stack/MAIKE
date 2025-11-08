@@ -21,6 +21,7 @@ import Home from './pages/Home';
 import PlanoContas from './pages/PlanoContas';
 import FormasPagamento from './pages/FormasPagamento';
 import GruposFinanceiros from './pages/GruposFinanceiros';
+import Financeiro from './pages/Financeiro';
 import Layout from './Layout.jsx';
 
 
@@ -48,6 +49,7 @@ export const PAGES = {
     "PlanoContas": PlanoContas,
     "FormasPagamento": FormasPagamento,
     "GruposFinanceiros": GruposFinanceiros,
+    "Financeiro": Financeiro,
 }
 
 export const pagesConfig = {
