@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -82,53 +81,36 @@ export default function Financeiro() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const numero = await getNextNumber(empresaSelecionadaId);
-      
-      const valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
-      
-      const lancamento = {
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_lancamento: String(numero),
-        numero_documento: data.numero_documento ? `NOTA FISCAL: ${data.numero_documento}` : undefined,
-        valor_total: valorTotal,
-        valor_pago: 0,
-        valor_saldo: valorTotal,
-        status: 'Pendente'
-      };
-
       if (data.parcelas && data.parcelas.length > 0) {
-        const lancamentoPai = await base44.entities.LancamentoFinanceiro.create({
-          ...lancamento,
-          observacoes: `${lancamento.observacoes || ''} - LANÇAMENTO PARCELADO EM ${data.parcelas.length}X`.trim()
-        });
+        console.log('💰 Criando', data.parcelas.length, 'lançamentos separados');
+        
+        const lancamentosCriados = [];
         
         for (let i = 0; i < data.parcelas.length; i++) {
           const parcela = data.parcelas[i];
-          const numeroParcela = await getNextNumber(empresaSelecionadaId);
+          const numero = await getNextNumber(empresaSelecionadaId);
           
-          await base44.entities.LancamentoFinanceiro.create({
-            tipo: lancamento.tipo,
-            fornecedor_id: lancamento.fornecedor_id,
-            fornecedor_nome: lancamento.fornecedor_nome,
-            cliente_nome: lancamento.cliente_nome,
-            safra_id: lancamento.safra_id,
-            safra_nome: lancamento.safra_nome,
-            centro_custo_id: lancamento.centro_custo_id,
-            centro_custo_nome: lancamento.centro_custo_nome,
-            plano_contas_id: lancamento.plano_contas_id,
-            plano_contas_nome: lancamento.plano_contas_nome,
-            grupo_id: lancamento.grupo_id,
-            grupo_nome: lancamento.grupo_nome,
-            forma_pagamento_id: lancamento.forma_pagamento_id,
-            forma_pagamento_nome: lancamento.forma_pagamento_nome,
-            numero_documento: lancamento.numero_documento,
-            chave_nfe: lancamento.chave_nfe,
-            tipo_documento: lancamento.tipo_documento,
-            data_emissao: lancamento.data_emissao,
-            observacoes: lancamento.observacoes,
+          const lanc = await base44.entities.LancamentoFinanceiro.create({
             empresa_id: empresaSelecionadaId,
-            numero_lancamento: String(numeroParcela),
+            numero_lancamento: String(numero),
+            tipo: data.tipo,
+            tipo_documento: data.tipo_documento,
+            fornecedor_id: data.fornecedor_id,
+            fornecedor_nome: data.fornecedor_nome,
+            cliente_nome: data.cliente_nome,
+            safra_id: data.safra_id,
+            safra_nome: data.safra_nome,
+            centro_custo_id: data.centro_custo_id,
+            centro_custo_nome: data.centro_custo_nome,
+            plano_contas_id: data.plano_contas_id,
+            plano_contas_nome: data.plano_contas_nome,
+            grupo_id: data.grupo_id,
+            grupo_nome: data.grupo_nome,
+            forma_pagamento_id: data.forma_pagamento_id,
+            forma_pagamento_nome: data.forma_pagamento_nome,
+            numero_documento: data.numero_documento,
+            chave_nfe: data.chave_nfe,
+            data_emissao: data.data_emissao,
             data_vencimento: parcela.data,
             valor_original: parcela.valor,
             valor_total: parcela.valor,
@@ -137,16 +119,30 @@ export default function Financeiro() {
             valor_multa: 0,
             valor_desconto: 0,
             valor_pago: 0,
+            status: 'Pendente',
+            observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
             numero_parcela: i + 1,
-            total_parcelas: data.parcelas.length,
-            lancamento_pai_id: lancamentoPai.id,
-            status: 'Pendente'
+            total_parcelas: data.parcelas.length
           });
+          
+          lancamentosCriados.push(lanc);
         }
         
-        return lancamentoPai;
+        toast.success(`✅ ${data.parcelas.length} lançamentos criados!`);
+        return lancamentosCriados[0];
       } else {
-        return base44.entities.LancamentoFinanceiro.create(lancamento);
+        const numero = await getNextNumber(empresaSelecionadaId);
+        const valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
+        
+        return base44.entities.LancamentoFinanceiro.create({
+          ...data,
+          empresa_id: empresaSelecionadaId,
+          numero_lancamento: String(numero),
+          valor_total: valorTotal,
+          valor_pago: 0,
+          valor_saldo: valorTotal,
+          status: 'Pendente'
+        });
       }
     },
     onSuccess: () => {
@@ -202,7 +198,7 @@ export default function Financeiro() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('⚠️ Excluir?')) {
+    if (window.confirm('⚠️ EXCLUIR LANÇAMENTO?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -214,12 +210,12 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dados) => {
     try {
-      console.log('🚀 Iniciando importação:', dados);
+      console.log('🚀 Dados recebidos da importação:', dados);
       
       const movIds = [];
       
       if (dados.gerarEstoque && dados.itens?.length > 0) {
-        toast.info('📦 Lançando estoque...');
+        toast.info('📦 Lançando no estoque...');
         
         for (const item of dados.itens) {
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
@@ -229,14 +225,14 @@ export default function Financeiro() {
             empresa_id: empresaSelecionadaId,
             numero_movimentacao: String(num),
             tipo_movimentacao: 'Entrada',
-            tipo_detalhado: 'Compra',
+            tipo_detalhado: 'COMPRA',
             data_movimentacao: new Date().toISOString(),
             produto_id: item.produto_id,
-            produto_nome: item.produto_nome,
-            produto_codigo: item.codigo,
+            produto_nome: item.produto_nome?.toUpperCase(),
+            produto_codigo: item.codigo?.toUpperCase(),
             quantidade: item.quantidade,
-            unidade_medida: item.unidade,
-            local_estoque_destino: dados.dadosComplementares.local_estoque,
+            unidade_medida: item.unidade?.toUpperCase(),
+            local_estoque_destino: dados.dadosComplementares.local_estoque?.toUpperCase(),
             valor_unitario: item.valor_unitario,
             valor_total: item.quantidade * item.valor_unitario,
             custo_medio_antes: prod?.preco_custo || 0,
@@ -250,9 +246,9 @@ export default function Financeiro() {
             chave_documento: dados.dadosNFe.chave,
             data_documento: dados.dadosNFe.data_emissao,
             fornecedor_id: dados.fornecedor_id,
-            fornecedor_nome: fornecedores.find(f => f.id === dados.fornecedor_id)?.nome,
+            fornecedor_nome: fornecedores.find(f => f.id === dados.fornecedor_id)?.nome?.toUpperCase(),
             centro_custo_id: dados.dadosComplementares?.centro_custo_id,
-            motivo_movimentacao: `COMPRA NF-E ${dados.dadosNFe.numero}`.toUpperCase(),
+            motivo_movimentacao: `COMPRA NF-E ${dados.dadosNFe.numero}`,
             observacoes: (dados.dadosComplementares?.observacoes || '').toUpperCase(),
             usuario_responsavel: (await base44.auth.me()).email,
             status: 'Ativa'
@@ -266,12 +262,12 @@ export default function Financeiro() {
           });
         }
         
-        toast.success(`✅ ${dados.itens.length} produto(s) no estoque!`);
+        toast.success(`✅ ${dados.itens.length} produto(s) lançados no estoque!`);
       }
 
       let livroId = null;
       if (dados.gerarLivroFiscal && dados.itens?.length > 0) {
-        toast.info('📚 Livro fiscal...');
+        toast.info('📚 Criando registro no livro fiscal...');
         
         const num = await getNextNumeroLivro(empresaSelecionadaId);
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
@@ -287,7 +283,7 @@ export default function Financeiro() {
           data_emissao: dados.dadosNFe.data_emissao,
           data_entrada_saida: new Date().toISOString().split('T')[0],
           fornecedor_id: dados.fornecedor_id,
-          fornecedor_nome: forn?.nome,
+          fornecedor_nome: forn?.nome?.toUpperCase(),
           fornecedor_cnpj_cpf: forn?.cnpj || forn?.cpf,
           cfop: dados.dadosNFe.cfop || '5102',
           natureza_operacao: (dados.dadosNFe.natureza_operacao || 'COMPRA').toUpperCase(),
@@ -295,12 +291,12 @@ export default function Financeiro() {
           valor_total_nota: dados.dadosNFe.valor_total,
           itens: dados.itens.map(i => ({
             produto_id: i.produto_id,
-            produto_nome: i.produto_nome,
-            codigo_produto: i.codigo,
+            produto_nome: i.produto_nome?.toUpperCase(),
+            codigo_produto: i.codigo?.toUpperCase(),
             ncm: i.ncm,
             cfop: i.cfop,
             quantidade: i.quantidade,
-            unidade: i.unidade,
+            unidade: i.unidade?.toUpperCase(),
             valor_unitario: i.valor_unitario,
             valor_total: i.quantidade * i.valor_unitario
           })),
@@ -309,73 +305,72 @@ export default function Financeiro() {
         });
         
         livroId = livro.id;
-        toast.success('✅ Livro fiscal!');
+        toast.success('✅ Registro fiscal criado!');
       }
 
       if (dados.gerarFinanceiro) {
-        toast.info('💰 Gerando lançamentos financeiros...');
+        toast.info('💰 Criando lançamentos financeiros...');
         
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
         
-        const lancamentoBase = {
-          tipo: 'Pagar',
-          tipo_documento: 'NF-e',
-          fornecedor_id: dados.fornecedor_id,
-          fornecedor_nome: forn?.nome,
-          numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
-          chave_nfe: dados.dadosNFe.chave,
-          data_emissao: dados.dadosNFe.data_emissao,
-          observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
-          empresa_id: empresaSelecionadaId,
-          valor_juros: 0,
-          valor_multa: 0,
-          valor_desconto: 0,
-          valor_pago: 0,
-          gerado_xml: true
-        };
-
         if (dados.parcelar && dados.parcelas?.length > 0) {
-          const numeroPai = await getNextNumber(empresaSelecionadaId);
-          const lancamentoPai = await base44.entities.LancamentoFinanceiro.create({
-            ...lancamentoBase,
-            numero_lancamento: String(numeroPai),
-            data_vencimento: dados.dataVencimento,
-            valor_original: dados.dadosNFe.valor_total,
-            valor_total: dados.dadosNFe.valor_total,
-            valor_saldo: dados.dadosNFe.valor_total,
-            status: 'Pendente',
-            observacoes: `${lancamentoBase.observacoes} - PARCELADO EM ${dados.parcelas.length}X`
-          });
-
+          console.log('📋 Criando', dados.parcelas.length, 'lançamentos separados');
+          
           for (let i = 0; i < dados.parcelas.length; i++) {
             const parcela = dados.parcelas[i];
-            const numParcela = await getNextNumber(empresaSelecionadaId);
+            const numero = await getNextNumber(empresaSelecionadaId);
             
             await base44.entities.LancamentoFinanceiro.create({
-              ...lancamentoBase,
-              numero_lancamento: String(numParcela),
+              empresa_id: empresaSelecionadaId,
+              numero_lancamento: String(numero),
+              tipo: 'Pagar',
+              tipo_documento: 'NF-e',
+              fornecedor_id: dados.fornecedor_id,
+              fornecedor_nome: forn?.nome?.toUpperCase(),
+              numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
+              chave_nfe: dados.dadosNFe.chave,
+              data_emissao: dados.dadosNFe.data_emissao,
               data_vencimento: parcela.data,
               valor_original: parcela.valor,
               valor_total: parcela.valor,
               valor_saldo: parcela.valor,
+              valor_juros: 0,
+              valor_multa: 0,
+              valor_desconto: 0,
+              valor_pago: 0,
+              status: 'Pendente',
+              observacoes: `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero} - PARCELA ${i + 1}/${dados.parcelas.length}${dados.dadosComplementares?.observacoes ? ' - ' + dados.dadosComplementares.observacoes.toUpperCase() : ''}`,
               numero_parcela: i + 1,
               total_parcelas: dados.parcelas.length,
-              lancamento_pai_id: lancamentoPai.id,
-              status: 'Pendente'
+              gerado_xml: true
             });
           }
           
-          toast.success(`✅ Lançamento parcelado em ${dados.parcelas.length}x criado!`);
+          toast.success(`✅ ${dados.parcelas.length} lançamentos criados (parcelas separadas)!`);
         } else {
           const numero = await getNextNumber(empresaSelecionadaId);
+          
           await base44.entities.LancamentoFinanceiro.create({
-            ...lancamentoBase,
+            empresa_id: empresaSelecionadaId,
             numero_lancamento: String(numero),
+            tipo: 'Pagar',
+            tipo_documento: 'NF-e',
+            fornecedor_id: dados.fornecedor_id,
+            fornecedor_nome: forn?.nome?.toUpperCase(),
+            numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
+            chave_nfe: dados.dadosNFe.chave,
+            data_emissao: dados.dadosNFe.data_emissao,
             data_vencimento: dados.dataVencimento,
             valor_original: dados.dadosNFe.valor_total,
             valor_total: dados.dadosNFe.valor_total,
             valor_saldo: dados.dadosNFe.valor_total,
-            status: 'Pendente'
+            valor_juros: 0,
+            valor_multa: 0,
+            valor_desconto: 0,
+            valor_pago: 0,
+            status: 'Pendente',
+            observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
+            gerado_xml: true
           });
           
           toast.success('✅ Lançamento financeiro criado!');
@@ -385,16 +380,16 @@ export default function Financeiro() {
       setShowImportarXML(false);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-      toast.success('✅ Importação concluída com sucesso!');
+      toast.success('🎉 Importação concluída com sucesso!');
       
     } catch (error) {
-      console.error('❌ Erro:', error);
-      toast.error('Erro na importação: ' + error.message);
+      console.error('❌ Erro na importação:', error);
+      toast.error('Erro: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
-  const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar' && !l.lancamento_pai_id);
-  const lancamentosReceber = lancamentos.filter(l => l.tipo === 'Receber' && !l.lancamento_pai_id);
+  const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar');
+  const lancamentosReceber = lancamentos.filter(l => l.tipo === 'Receber');
 
   const estatisticas = useMemo(() => {
     const contasPagar = lancamentosPagar.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado');
@@ -542,8 +537,3 @@ export default function Financeiro() {
     </div>
   );
 }
-
-const formatarNumero = (num) => {
-  if (num === null || num === undefined) return '0,00';
-  return String(num).replace('.', ',');
-};

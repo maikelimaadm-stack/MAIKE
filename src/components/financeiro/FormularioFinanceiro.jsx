@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -61,14 +60,15 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
     if (!initialData) return defaults;
 
-    // Processar initialData
     return {
       ...defaults,
       ...initialData,
+      tipo: initialData.tipo || defaults.tipo,
       valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : defaults.valor_original,
       valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
       valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
+      numero_documento: initialData.numero_documento ? initialData.numero_documento.replace('NOTA FISCAL: ', '') : '',
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
         valor: formatarNumero(p.valor || 0)
@@ -251,12 +251,17 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       return;
     }
 
-    if (formData.parcelar && formData.parcelas.length < 2) {
+    if (formData.tipo === 'Receber' && !formData.cliente_nome) {
+      toast.error('Digite o nome do cliente!');
+      return;
+    }
+
+    if (!initialData?.id && formData.parcelar && formData.parcelas.length < 2) {
       toast.error('Mínimo 2 parcelas!');
       return;
     }
 
-    if (formData.parcelar) {
+    if (!initialData?.id && formData.parcelar) {
       const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
       const valorTotal = parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
       
@@ -276,9 +281,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     const data = {
       tipo: formData.tipo,
       tipo_documento: formData.tipo_documento,
-      fornecedor_id: formData.fornecedor_id || undefined,
-      fornecedor_nome: fornecedor?.nome,
-      cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
+      fornecedor_id: formData.tipo === 'Pagar' ? (formData.fornecedor_id || undefined) : undefined,
+      fornecedor_nome: formData.tipo === 'Pagar' ? fornecedor?.nome : undefined,
+      cliente_nome: formData.tipo === 'Receber' ? formData.cliente_nome?.toUpperCase() : undefined,
       safra_id: formData.safra_id || undefined,
       safra_nome: safra ? `${safra.ano_inicio}/${safra.ano_fim}` : undefined,
       centro_custo_id: formData.centro_custo_id || undefined,
@@ -298,20 +303,20 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       valor_multa: parseNumero(formData.valor_multa),
       valor_desconto: parseNumero(formData.valor_desconto),
       observacoes: formData.observacoes?.toUpperCase() || undefined,
-      parcelas: formData.parcelar ? formData.parcelas.map(p => ({ 
+      parcelas: (!initialData?.id && formData.parcelar) ? formData.parcelas.map(p => ({ 
         data: p.data, 
         valor: parseNumero(p.valor) 
       })) : undefined,
       produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento.map(p => ({
         produto_id: p.produto_id,
-        produto_nome: p.produto_nome || products.find(pr => pr.id === p.produto_id)?.nome_produto, // Corrected variable name from 'produtos' to 'products' (assuming this was a typo or should be `produtos` itself, keeping the original logic with `produtos` if `products` is not defined elsewhere)
+        produto_nome: p.produto_nome || produtos.find(pr => pr.id === p.produto_id)?.nome_produto,
         quantidade: parseNumero(p.quantidade),
         valor_unitario: parseNumero(p.valor_unitario),
         desconto: parseNumero(p.desconto)
       })) : undefined
     };
 
-    console.log('📝 Dados enviados para salvar:', data);
+    console.log('📝 Dados enviados:', data);
     onSubmit(data);
   };
 
@@ -411,8 +416,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
                   {formData.tipo === 'Receber' && (
                     <div className="space-y-2">
-                      <Label>Cliente</Label>
-                      <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                      <Label>Cliente *</Label>
+                      <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} required />
                     </div>
                   )}
 
@@ -599,80 +604,80 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     </div>
                   </div>
 
-                  {!initialData?.id && (
-                    <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+                  <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+                    {!initialData?.id && (
                       <div className="flex items-center space-x-2">
                         <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                        <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento</label>
+                        <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento (cria lançamentos separados)</label>
                       </div>
+                    )}
 
-                      {!formData.parcelar && (
-                        <div className="space-y-2">
-                          <Label>Data de Vencimento *</Label>
-                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                    {!formData.parcelar && (
+                      <div className="space-y-2">
+                        <Label>Data de Vencimento *</Label>
+                        <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                      </div>
+                    )}
+
+                    {formData.parcelar && (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <Label>Parcelas ({formData.parcelas.length})</Label>
+                          <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Adicionar
+                          </Button>
                         </div>
-                      )}
-
-                      {formData.parcelar && (
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <Label>Parcelas ({formData.parcelas.length})</Label>
-                            <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
-                              <Plus className="w-4 h-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-16">Nº</TableHead>
-                                <TableHead>Vencimento</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                                <TableHead className="w-12"></TableHead>
+                        
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-16">Nº</TableHead>
+                              <TableHead>Vencimento</TableHead>
+                              <TableHead className="text-right">Valor</TableHead>
+                              <TableHead className="w-12"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {formData.parcelas.map((parcela, index) => (
+                              <TableRow key={index}>
+                                <TableCell className="font-bold">{index + 1}</TableCell>
+                                <TableCell>
+                                  <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
+                                </TableCell>
+                                <TableCell>
+                                  <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" />
+                                </TableCell>
+                                <TableCell>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {formData.parcelas.map((parcela, index) => (
-                                <TableRow key={index}>
-                                  <TableCell className="font-bold">{index + 1}</TableCell>
-                                  <TableCell>
-                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2}>
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                            ))}
+                          </TableBody>
+                        </Table>
 
-                          <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                            <CardContent className="p-3">
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Total Parcelas:</span>
-                                  <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Valor:</span>
-                                  <span className="font-bold">{formatarMoeda(valorTotal)}</span>
-                                </div>
+                        <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                          <CardContent className="p-3">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Total Parcelas:</span>
+                                <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
                               </div>
-                              {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                              <div className="flex justify-between">
+                                <span>Valor:</span>
+                                <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                              </div>
+                            </div>
+                            {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                              <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
 
                 <div className="flex justify-end gap-3 pt-6 border-t mt-6">
@@ -683,7 +688,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                   <Button 
                     type="submit" 
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-                    disabled={formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
+                    disabled={!initialData?.id && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                   >
                     <Save className="w-4 h-4" />
                     {initialData?.id ? 'Atualizar' : 'Salvar'}
