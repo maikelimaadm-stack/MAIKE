@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Package } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
@@ -127,11 +127,8 @@ export default function Financeiro() {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setShowForm(false);
       setEditingItem(null);
-      toast.success('Lançamento cadastrado com sucesso!');
+      toast.success('✅ Lançamento salvo!');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar lançamento.');
-    }
   });
 
   const updateMutation = useMutation({
@@ -143,7 +140,7 @@ export default function Financeiro() {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setShowForm(false);
       setEditingItem(null);
-      toast.success('Lançamento atualizado!');
+      toast.success('✅ Atualizado!');
     }
   });
 
@@ -152,13 +149,13 @@ export default function Financeiro() {
       const baixas = await base44.entities.BaixaFinanceira.list();
       const temBaixas = baixas.some(b => b.lancamento_id === id);
       if (temBaixas) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este lançamento possui baixas financeiras.');
+        throw new Error('❌ Possui baixas!');
       }
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      toast.success('Lançamento excluído!');
+      toast.success('✅ Excluído!');
     },
     onError: (error) => {
       toast.error(error.message);
@@ -166,8 +163,7 @@ export default function Financeiro() {
   });
 
   const handleSubmit = (data) => {
-    console.log('📝 Salvando lançamento:', data);
-    if (editingItem) {
+    if (editingItem?.id) {
       updateMutation.mutate({ id: editingItem.id, data });
     } else {
       createMutation.mutate(data);
@@ -180,7 +176,7 @@ export default function Financeiro() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('⚠️ Deseja realmente excluir este lançamento?')) {
+    if (window.confirm('⚠️ Excluir?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -190,100 +186,88 @@ export default function Financeiro() {
     setShowBaixa(true);
   };
 
-  const handleImportarXMLSuccess = async (dadosImportacao) => {
+  const handleImportarXMLSuccess = async (dados) => {
     try {
-      console.log('🚀 Iniciando importação XML:', dadosImportacao);
+      const movIds = [];
       
-      const movimentacaoIds = [];
-      
-      // 1. Criar movimentações de estoque
-      if (dadosImportacao.gerarEstoque && dadosImportacao.itens && dadosImportacao.itens.length > 0) {
-        toast.info('📦 Lançando produtos no estoque...');
+      if (dados.gerarEstoque && dados.itens?.length > 0) {
+        toast.info('📦 Lançando estoque...');
         
-        for (const item of dadosImportacao.itens) {
-          const numeroMov = await getNextNumeroMovimentacao(empresaSelecionadaId);
+        for (const item of dados.itens) {
+          const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
+          const prod = produtos.find(p => p.id === item.produto_id);
           
-          const produto = produtos.find(p => p.id === item.produto_id);
-          const qtd = item.quantidade;
-          const vlrUnit = item.valor_unitario;
-          
-          const custoAntes = produto?.preco_custo || 0;
-          const saldoAntes = produto?.estoque_atual || 0;
-          const custoDepois = saldoAntes > 0 
-            ? ((custoAntes * saldoAntes) + (vlrUnit * qtd)) / (saldoAntes + qtd)
-            : vlrUnit;
-          
-          const movimentacao = await base44.entities.MovimentacaoEstoque.create({
+          const mov = await base44.entities.MovimentacaoEstoque.create({
             empresa_id: empresaSelecionadaId,
-            numero_movimentacao: String(numeroMov),
+            numero_movimentacao: String(num),
             tipo_movimentacao: 'Entrada',
             tipo_detalhado: 'Compra',
             data_movimentacao: new Date().toISOString(),
             produto_id: item.produto_id,
-            produto_nome: item.produto_nome || item.descricao,
+            produto_nome: item.produto_nome,
             produto_codigo: item.codigo,
-            quantidade: qtd,
+            quantidade: item.quantidade,
             unidade_medida: item.unidade,
-            local_estoque_destino: dadosImportacao.dadosComplementares?.local_estoque,
-            valor_unitario: vlrUnit,
-            valor_total: qtd * vlrUnit,
-            custo_medio_antes: custoAntes,
-            custo_medio_depois: custoDepois,
-            saldo_antes: saldoAntes,
-            saldo_depois: saldoAntes + qtd,
+            local_estoque_destino: dados.dadosComplementares.local_estoque,
+            valor_unitario: item.valor_unitario,
+            valor_total: item.quantidade * item.valor_unitario,
+            custo_medio_antes: prod?.preco_custo || 0,
+            custo_medio_depois: (prod?.estoque_atual > 0) 
+              ? ((prod.preco_custo * prod.estoque_atual) + (item.valor_unitario * item.quantidade)) / (prod.estoque_atual + item.quantidade)
+              : item.valor_unitario,
+            saldo_antes: prod?.estoque_atual || 0,
+            saldo_depois: (prod?.estoque_atual || 0) + item.quantidade,
             tipo_documento: 'Nota Fiscal',
-            numero_documento: dadosImportacao.dadosNFe.numero,
-            chave_documento: dadosImportacao.dadosNFe.chave,
-            data_documento: dadosImportacao.dadosNFe.data_emissao,
-            fornecedor_id: dadosImportacao.fornecedor_id,
-            fornecedor_nome: fornecedores.find(f => f.id === dadosImportacao.fornecedor_id)?.nome,
-            centro_custo_id: dadosImportacao.dadosComplementares?.centro_custo_id,
-            motivo_movimentacao: `COMPRA VIA NF-e ${dadosImportacao.dadosNFe.numero}`,
-            observacoes: dadosImportacao.dadosComplementares?.observacoes || `IMPORTAÇÃO XML NF-e ${dadosImportacao.dadosNFe.numero}`,
+            numero_documento: dados.dadosNFe.numero,
+            chave_documento: dados.dadosNFe.chave,
+            data_documento: dados.dadosNFe.data_emissao,
+            fornecedor_id: dados.fornecedor_id,
+            fornecedor_nome: fornecedores.find(f => f.id === dados.fornecedor_id)?.nome,
+            centro_custo_id: dados.dadosComplementares?.centro_custo_id,
+            motivo_movimentacao: `COMPRA NF-e ${dados.dadosNFe.numero}`,
+            observacoes: dados.dadosComplementares?.observacoes || '',
             usuario_responsavel: (await base44.auth.me()).email,
             status: 'Ativa'
           });
           
-          movimentacaoIds.push(movimentacao.id);
+          movIds.push(mov.id);
           
-          // Atualizar estoque do produto
           await base44.entities.Produto.update(item.produto_id, {
-            estoque_atual: saldoAntes + qtd,
-            preco_custo: custoDepois
+            estoque_atual: (prod?.estoque_atual || 0) + item.quantidade,
+            preco_custo: mov.custo_medio_depois
           });
         }
         
-        toast.success(`✅ ${dadosImportacao.itens.length} produto(s) lançado(s) no estoque!`);
+        toast.success(`✅ ${dados.itens.length} produto(s) no estoque!`);
       }
 
-      // 2. Criar registro no livro fiscal
-      let livroFiscalId = null;
-      if (dadosImportacao.gerarLivroFiscal && dadosImportacao.itens && dadosImportacao.itens.length > 0) {
-        toast.info('📚 Registrando no livro fiscal...');
+      let livroId = null;
+      if (dados.gerarLivroFiscal && dados.itens?.length > 0) {
+        toast.info('📚 Livro fiscal...');
         
-        const numeroLivro = await getNextNumeroLivro(empresaSelecionadaId);
-        const fornecedor = fornecedores.find(f => f.id === dadosImportacao.fornecedor_id);
+        const num = await getNextNumeroLivro(empresaSelecionadaId);
+        const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
         
-        const livroFiscal = await base44.entities.LivroFiscal.create({
+        const livro = await base44.entities.LivroFiscal.create({
           empresa_id: empresaSelecionadaId,
-          numero_registro: String(numeroLivro),
+          numero_registro: String(num),
           tipo_livro: 'Entrada',
           tipo_documento: 'NF-e',
-          numero_documento: dadosImportacao.dadosNFe.numero,
-          serie_documento: dadosImportacao.dadosNFe.serie,
-          chave_acesso: dadosImportacao.dadosNFe.chave,
-          data_emissao: dadosImportacao.dadosNFe.data_emissao,
+          numero_documento: dados.dadosNFe.numero,
+          serie_documento: dados.dadosNFe.serie,
+          chave_acesso: dados.dadosNFe.chave,
+          data_emissao: dados.dadosNFe.data_emissao,
           data_entrada_saida: new Date().toISOString().split('T')[0],
-          fornecedor_id: dadosImportacao.fornecedor_id,
-          fornecedor_nome: fornecedor?.nome,
-          fornecedor_cnpj_cpf: fornecedor?.cnpj || fornecedor?.cpf,
-          cfop: dadosImportacao.dadosNFe.cfop || '5102',
-          natureza_operacao: dadosImportacao.dadosNFe.natureza_operacao || 'COMPRA PARA COMERCIALIZAÇÃO',
-          valor_produtos: dadosImportacao.itens.reduce((s, i) => s + (i.quantidade * i.valor_unitario), 0),
-          valor_total_nota: dadosImportacao.dadosNFe.valor_total,
-          itens: dadosImportacao.itens.map(i => ({
+          fornecedor_id: dados.fornecedor_id,
+          fornecedor_nome: forn?.nome,
+          fornecedor_cnpj_cpf: forn?.cnpj || forn?.cpf,
+          cfop: dados.dadosNFe.cfop || '5102',
+          natureza_operacao: dados.dadosNFe.natureza_operacao || 'COMPRA',
+          valor_produtos: dados.itens.reduce((s, i) => s + (i.quantidade * i.valor_unitario), 0),
+          valor_total_nota: dados.dadosNFe.valor_total,
+          itens: dados.itens.map(i => ({
             produto_id: i.produto_id,
-            produto_nome: i.produto_nome || i.descricao,
+            produto_nome: i.produto_nome,
             codigo_produto: i.codigo,
             ncm: i.ncm,
             cfop: i.cfop,
@@ -292,51 +276,47 @@ export default function Financeiro() {
             valor_unitario: i.valor_unitario,
             valor_total: i.quantidade * i.valor_unitario
           })),
-          movimentacao_estoque_ids: movimentacaoIds,
+          movimentacao_estoque_ids: movIds,
           status: 'Ativo'
         });
         
-        livroFiscalId = livroFiscal.id;
-        toast.success('✅ Registro fiscal criado!');
+        livroId = livro.id;
+        toast.success('✅ Livro fiscal!');
       }
 
-      // 3. Criar lançamento financeiro
-      if (dadosImportacao.gerarFinanceiro) {
-        toast.info('💰 Preparando lançamento financeiro...');
+      if (dados.gerarFinanceiro) {
+        toast.info('💰 Preparando financeiro...');
         
         setEditingItem({
           tipo: 'Pagar',
           tipo_documento: 'NF-e',
-          fornecedor_id: dadosImportacao.fornecedor_id,
-          numero_documento: dadosImportacao.dadosNFe.numero,
-          chave_nfe: dadosImportacao.dadosNFe.chave,
-          data_emissao: dadosImportacao.dadosNFe.data_emissao,
-          data_vencimento: dadosImportacao.dadosNFe.data_emissao,
-          valor_original: String(dadosImportacao.dadosNFe.valor_total).replace('.', ','),
+          fornecedor_id: dados.fornecedor_id,
+          numero_documento: dados.dadosNFe.numero,
+          chave_nfe: dados.dadosNFe.chave,
+          data_emissao: dados.dadosNFe.data_emissao,
+          data_vencimento: dados.dataVencimento,
+          valor_original: String(dados.dadosNFe.valor_total).replace('.', ','),
           valor_juros: "0,00",
           valor_multa: "0,00",
           valor_desconto: "0,00",
-          observacoes: dadosImportacao.dadosComplementares?.observacoes || '',
-          gerado_xml: true,
-          livro_fiscal_id: livroFiscalId,
-          movimentacao_estoque_ids: movimentacaoIds,
-          parcelar: dadosImportacao.parcelas > 1,
+          observacoes: dados.dadosComplementares?.observacoes || '',
+          parcelar: dados.parcelas > 1,
           parcelas: [],
           produtos_lancamento: []
         });
         setShowImportarXML(false);
         setShowForm(true);
-        toast.info('📝 Complete os dados e salve o lançamento financeiro');
+        toast.info('📝 Complete e salve');
       } else {
         setShowImportarXML(false);
         queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
         queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-        toast.success('✅ Importação concluída com sucesso!');
+        toast.success('✅ Importação concluída!');
       }
       
     } catch (error) {
-      console.error('❌ Erro na importação:', error);
-      toast.error('Erro ao processar importação: ' + error.message);
+      console.error('❌ Erro:', error);
+      toast.error('Erro: ' + error.message);
     }
   };
 
@@ -356,9 +336,7 @@ export default function Financeiro() {
     };
   }, [lancamentos, lancamentosPagar, lancamentosReceber]);
 
-  const formatarMoeda = (valor) => {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
+  const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <div className="p-6 space-y-6">
@@ -453,11 +431,11 @@ export default function Financeiro() {
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="pagar" className="gap-2">
               <TrendingDown className="w-4 h-4" />
-              Contas a Pagar ({lancamentosPagar.length})
+              A Pagar ({lancamentosPagar.length})
             </TabsTrigger>
             <TabsTrigger value="receber" className="gap-2">
               <TrendingUp className="w-4 h-4" />
-              Contas a Receber ({lancamentosReceber.length})
+              A Receber ({lancamentosReceber.length})
             </TabsTrigger>
           </TabsList>
 
