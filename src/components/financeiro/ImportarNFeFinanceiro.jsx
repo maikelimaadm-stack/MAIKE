@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,7 +18,8 @@ import { Progress } from "@/components/ui/progress";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
-  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const fixed = typeof num === 'number' ? num.toFixed(2) : String(num);
+  return fixed.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const parseNumero = (str) => {
@@ -33,7 +35,7 @@ const formatarMoeda = (num) => {
 const ESTADOS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 const UNIDADES_MEDIDA = ['UN', 'KG', 'G', 'MG', 'L', 'ML', 'M', 'M2', 'M3', 'CM', 'MM', 'CX', 'PC', 'SC', 'FD', 'TON', 'KIT', 'JG', 'PAR', 'DZ'];
 
-export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornecedores }) {
+export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornecedores, produtos }) {
   const [processando, setProcessando] = useState(false);
   const [dadosNFe, setDadosNFe] = useState(null);
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
@@ -54,8 +56,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
     centro_custo_id: "",
+    observacoes: ""
   });
-  
+
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica",
     nome: "",
@@ -69,28 +72,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     estado: "",
     cep: ""
   });
-  
+
   const [novoProduto, setNovoProduto] = useState({
     nome: "",
     codigo: "",
-    codigo_barras: "",
-    ncm: "",
     unidade: "UN",
-    categoria: "",
-    descricao: ""
+    categoria: ""
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-
-  const { data: produtos = [] } = useQuery({
-    queryKey: ['produtos_import_fin', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Produto.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
 
   const { data: locais = [] } = useQuery({
     queryKey: ['locais'],
@@ -99,7 +90,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   });
 
   const { data: centros = [] } = useQuery({
-    queryKey: ['centros_import_fin', empresaSelecionadaId],
+    queryKey: ['centros_import', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.CentroCusto.list();
       return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
@@ -144,17 +135,17 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     },
     onSuccess: (newProduto) => {
       queryClient.invalidateQueries({ queryKey: ['produtos_import_fin'] });
-      
+
       setItensNFe(prev => prev.map(item => {
         if (item.index === itemEditando?.index) {
           return { ...item, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' };
         }
         return item;
       }));
-      
+
       setShowNovoProduto(false);
       setItemEditando(null);
-      toast.success('✅ Produto cadastrado e associado!');
+      toast.success('✅ Produto cadastrado!');
     },
   });
 
@@ -163,18 +154,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     if (!file) return;
 
     setProcessando(true);
-    
+
     try {
       toast.info(`📄 Processando: ${file.name}`);
-      
+
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const response = await fetch(file_url);
       const xmlText = await response.text();
 
-      toast.info('🤖 Analisando nota fiscal...');
-      
+      toast.info('🤖 Extraindo dados...');
+
       const resultado = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extraia TODOS os dados desta NF-e (XML) incluindo itens/produtos:
+        prompt: `Extraia TODOS os dados desta NF-e XML incluindo itens/produtos. Retorne JSON estruturado:
 
 ${xmlText}`,
         response_json_schema: {
@@ -226,25 +217,26 @@ ${xmlText}`,
       }
 
       if (!resultado.itens || resultado.itens.length === 0) {
-        toast.error('❌ NF-e não possui itens');
+        toast.error('❌ NF-e sem produtos');
         setProcessando(false);
         return;
       }
 
       setDadosNFe(resultado);
-      
+      setEtapa(2);
+
       const documentoEmitente = resultado.cnpj_emitente || resultado.cpf_emitente;
-      const fornecedor = fornecedores.find(f => 
+      const fornecedor = fornecedores.find(f =>
         f.cnpj?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '') ||
         f.cpf?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '')
       );
-      
+
       if (fornecedor) {
         setFornecedorSelecionado(fornecedor);
-        toast.success('✅ XML processado! Fornecedor identificado.');
+        toast.success('✅ Fornecedor identificado!');
         setTimeout(() => setEtapa(3), 500);
       } else {
-        const enderecoCompleto = resultado.bairro_emitente 
+        const enderecoCompleto = resultado.bairro_emitente
           ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
           : resultado.endereco_emitente;
 
@@ -261,11 +253,10 @@ ${xmlText}`,
           estado: resultado.estado_emitente || "",
           cep: resultado.cep_emitente || ""
         });
-        setEtapa(2);
       }
-      
+
     } catch (error) {
-      toast.error('❌ Erro ao processar XML');
+      toast.error('❌ Erro ao processar XML: ' + error.message);
       console.error(error);
     } finally {
       setProcessando(false);
@@ -276,7 +267,7 @@ ${xmlText}`,
   useEffect(() => {
     if (etapa === 3 && dadosNFe?.itens) {
       const itensComAssociacao = dadosNFe.itens.map((item, index) => {
-        const produtoEncontrado = produtos.find(p => 
+        const produtoEncontrado = produtos.find(p =>
           p.codigo_interno === item.codigo ||
           p.codigo_barras === item.codigo ||
           p.nome_produto?.toLowerCase().includes(item.descricao?.toLowerCase())
@@ -293,7 +284,7 @@ ${xmlText}`,
           cfop_ajustado: item.cfop,
         };
       });
-      
+
       setItensNFe(itensComAssociacao);
       setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
@@ -301,7 +292,7 @@ ${xmlText}`,
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
-      toast.error('Nome é obrigatório!');
+      toast.error('Nome obrigatório!');
       return;
     }
 
@@ -322,36 +313,34 @@ ${xmlText}`,
 
   const handleCadastrarProduto = () => {
     if (!novoProduto.nome || !novoProduto.unidade) {
-      toast.error('Nome e unidade são obrigatórios!');
+      toast.error('Nome e unidade obrigatórios!');
       return;
     }
 
     createProdutoMutation.mutate({
       nome_produto: novoProduto.nome.toUpperCase(),
       codigo_interno: novoProduto.codigo?.toUpperCase(),
-      codigo_barras: novoProduto.codigo_barras,
       unidade_medida: novoProduto.unidade.toUpperCase(),
       categoria: novoProduto.categoria?.toUpperCase(),
-      descricao: novoProduto.descricao?.toUpperCase(),
       preco_custo: parseNumero(itemEditando?.valor_unitario_ajustado) || 0
     });
   };
 
   const handleCadastrarProdutosEmMassa = async () => {
     const itensPendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
-    
+
     if (itensPendentes.length === 0) {
       toast.error('Nenhum produto pendente!');
       return;
     }
 
     setShowCadastroEmMassa(true);
-    
+
     for (const item of itensPendentes) {
       try {
         const all = await base44.entities.Produto.list();
         const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
-        
+
         const newProduto = await base44.entities.Produto.create({
           empresa_id: empresaSelecionadaId,
           numero_produto: String(maxNum + 1),
@@ -368,7 +357,7 @@ ${xmlText}`,
           }
           return i;
         }));
-        
+
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error('Erro:', error);
@@ -396,7 +385,7 @@ ${xmlText}`,
       }
       return item;
     }));
-    
+
     setShowTrocarProduto(false);
     setItemEditando(null);
     setBuscaProduto("");
@@ -404,32 +393,27 @@ ${xmlText}`,
   };
 
   const handleToggleSelecao = (index) => {
-    setItensSelecionados(prev => 
+    setItensSelecionados(prev =>
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
   };
 
   const handleSelecionarTodos = () => {
-    if (itensSelecionados.length === itensNFe.length) {
-      setItensSelecionados([]);
-    } else {
-      setItensSelecionados(itensNFe.map(i => i.index));
-    }
+    setItensSelecionados(itensSelecionados.length === itensNFe.length ? [] : itensNFe.map(i => i.index));
   };
 
   const handleConfirmar = () => {
     const itensParaImportar = itensNFe.filter(i => itensSelecionados.includes(i.index));
     const itensPendentes = itensParaImportar.filter(i => i.status === 'pendente');
-    
-    if (gerarEstoque) {
-      if (itensPendentes.length > 0) {
-        toast.error(`❌ ${itensPendentes.length} produto(s) sem associação!`);
-        return;
-      }
-      if (!dadosComplementares.local_estoque) {
-        toast.error('Selecione o local de estoque!');
-        return;
-      }
+
+    if (gerarEstoque && itensPendentes.length > 0) {
+      toast.error(`❌ ${itensPendentes.length} produto(s) sem associação!`);
+      return;
+    }
+
+    if (gerarEstoque && !dadosComplementares.local_estoque) {
+      toast.error('Selecione o local de estoque!');
+      return;
     }
 
     onSuccess({
@@ -451,15 +435,15 @@ ${xmlText}`,
     setItensNFe([]);
     setItensSelecionados([]);
     setEditandoItemIndex(null);
-    setDadosComplementares({ local_estoque: "", centro_custo_id: "" });
+    setDadosComplementares({ local_estoque: "", centro_custo_id: "", observacoes: "" });
     setGerarFinanceiro(true);
     setGerarEstoque(true);
     setGerarLivroFiscal(true);
     setParcelas(1);
   };
 
-  const produtosFiltrados = produtos.filter(p => 
-    !buscaProduto || 
+  const produtosFiltrados = produtos.filter(p =>
+    !buscaProduto ||
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
@@ -471,7 +455,7 @@ ${xmlText}`,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-green-600" />
-              Importar NF-e (XML) - Etapa {etapa} de 4
+              Importar NF-e - Etapa {etapa} de 4
             </DialogTitle>
           </DialogHeader>
 
@@ -594,10 +578,10 @@ ${xmlText}`,
                     </div>
 
                     <div className="flex justify-end gap-3">
-                      <Button variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
+                      <Button type="button" variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
                       <Button onClick={handleCadastrarFornecedor} className="bg-green-600">
                         <Save className="w-4 h-4 mr-2" />
-                        Salvar e Continuar
+                        Salvar
                       </Button>
                     </div>
                   </CardContent>
@@ -623,7 +607,7 @@ ${xmlText}`,
                     )}
                   </div>
                 </div>
-                
+
                 <div className="overflow-auto max-h-96 border rounded">
                   <Table>
                     <TableHeader className="sticky top-0 bg-white">
@@ -641,7 +625,7 @@ ${xmlText}`,
                       {itensNFe.map((item) => {
                         const isEditando = editandoItemIndex === item.index;
                         const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
-                        
+
                         return (
                           <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50' : ''}>
                             <TableCell><Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} /></TableCell>
@@ -708,7 +692,7 @@ ${xmlText}`,
                 <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={gerarFinanceiro} onCheckedChange={setGerarFinanceiro} />
-                    <label className="font-semibold">Gerar Lançamento Financeiro</label>
+                    <label className="font-semibold">✅ Gerar Lançamento Financeiro</label>
                   </div>
 
                   {gerarFinanceiro && (
@@ -721,7 +705,7 @@ ${xmlText}`,
 
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={gerarEstoque} onCheckedChange={setGerarEstoque} />
-                    <label className="font-semibold">Dar Entrada em Estoque</label>
+                    <label className="font-semibold">📦 Dar Entrada em Estoque</label>
                   </div>
 
                   {gerarEstoque && (
@@ -754,18 +738,28 @@ ${xmlText}`,
 
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={gerarLivroFiscal} onCheckedChange={setGerarLivroFiscal} />
-                    <label className="font-semibold">Registrar no Livro Fiscal</label>
+                    <label className="font-semibold">📚 Registrar no Livro Fiscal</label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="observacoes">Observações</Label>
+                    <Textarea
+                        id="observacoes"
+                        value={dadosComplementares.observacoes}
+                        onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })}
+                        placeholder="Observações adicionais para a importação..."
+                    />
                   </div>
                 </div>
 
-                <Card className="bg-blue-50 border-blue-300">
+                <Card className="bg-green-50 border-green-300">
                   <CardContent className="p-4">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Itens Selecionados:</span>
                         <span className="font-semibold">{itensSelecionados.length}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold text-blue-700">
+                      <div className="flex justify-between text-lg font-bold text-green-700">
                         <span>Valor Total NF-e:</span>
                         <span>{formatarMoeda(dadosNFe.valor_total)}</span>
                       </div>
@@ -866,7 +860,7 @@ ${xmlText}`,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              Cadastrando Produtos...
+              Cadastrando...
             </DialogTitle>
           </DialogHeader>
         </DialogContent>

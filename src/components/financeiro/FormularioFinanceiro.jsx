@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, Save, X, Plus, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DollarSign, Save, X, Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
 const formatarNumero = (num) => {
@@ -21,10 +22,11 @@ const formatarNumero = (num) => {
 
 const parseNumero = (str) => {
   if (!str) return 0;
-  return parseFloat(String(str).replace(',', '.')) || 0;
+  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
 export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, safras }) {
+  const [abaAtiva, setAbaAtiva] = useState("dados");
   const [formData, setFormData] = useState(initialData || {
     tipo: "Pagar",
     fornecedor_id: "",
@@ -37,6 +39,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     forma_pagamento_id: "",
     numero_documento: "",
     chave_nfe: "",
+    tipo_documento: "NF-e",
     data_emissao: new Date().toISOString().split('T')[0],
     data_vencimento: new Date().toISOString().split('T')[0],
     valor_original: "",
@@ -45,13 +48,15 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     valor_desconto: "0,00",
     observacoes: "",
     parcelar: false,
-    parcelas: []
+    parcelas: [],
+    produtos_lancamento: []
   });
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogPlano, setShowDialogPlano] = useState(false);
   const [showDialogGrupo, setShowDialogGrupo] = useState(false);
   const [showDialogForma, setShowDialogForma] = useState(false);
+  const [showDialogProduto, setShowDialogProduto] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -143,6 +148,61 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     }));
   };
 
+  const adicionarProduto = () => {
+    setFormData(prev => ({
+      ...prev,
+      produtos_lancamento: [...prev.produtos_lancamento, {
+        produto_id: "",
+        produto_nome: "",
+        quantidade: "1,00",
+        valor_unitario: "0,00",
+        desconto: "0,00"
+      }]
+    }));
+  };
+
+  const removerProduto = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      produtos_lancamento: prev.produtos_lancamento.filter((_, i) => i !== index)
+    }));
+  };
+
+  const atualizarProduto = (index, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      produtos_lancamento: prev.produtos_lancamento.map((p, i) => {
+        if (i === index) {
+          const updated = { ...p, [campo]: valor };
+          
+          if (campo === 'produto_id') {
+            const produto = produtos.find(pr => pr.id === valor);
+            updated.produto_nome = produto?.nome_produto;
+            updated.valor_unitario = formatarNumero(produto?.preco_custo || 0);
+          }
+          
+          return updated;
+        }
+        return p;
+      })
+    }));
+  };
+
+  const calcularTotalProdutos = () => {
+    return formData.produtos_lancamento.reduce((sum, p) => {
+      const qtd = parseNumero(p.quantidade);
+      const vlr = parseNumero(p.valor_unitario);
+      const desc = parseNumero(p.desconto);
+      return sum + (qtd * vlr - desc);
+    }, 0);
+  };
+
+  const aplicarTotalProdutos = () => {
+    const total = calcularTotalProdutos();
+    setFormData(prev => ({ ...prev, valor_original: formatarNumero(total) }));
+    toast.success('Valor original atualizado com base nos produtos!');
+  };
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -175,6 +235,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
     const data = {
       tipo: formData.tipo,
+      tipo_documento: formData.tipo_documento,
       fornecedor_id: formData.fornecedor_id || undefined,
       fornecedor_nome: fornecedor?.nome,
       cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
@@ -199,7 +260,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       valor_multa: parseNumero(formData.valor_multa),
       valor_desconto: parseNumero(formData.valor_desconto),
       observacoes: formData.observacoes?.toUpperCase() || undefined,
-      parcelas: formData.parcelar ? formData.parcelas : undefined
+      parcelas: formData.parcelar ? formData.parcelas : undefined,
+      produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento : undefined
     };
 
     onSubmit(data);
@@ -207,6 +269,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
   const valorTotal = parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + (parseNumero(String(p.valor)) || 0), 0);
+  const totalProdutos = calcularTotalProdutos();
 
   return (
     <>
@@ -221,304 +284,414 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Tipo *</Label>
-                  <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pagar">Conta a Pagar</SelectItem>
-                      <SelectItem value="Receber">Conta a Receber</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
+                <TabsTrigger value="produtos" className="gap-2">
+                  <Package className="w-4 h-4" />
+                  Produtos ({formData.produtos_lancamento.length})
+                </TabsTrigger>
+                <TabsTrigger value="pagamento">Pagamento</TabsTrigger>
+              </TabsList>
 
-                {formData.tipo === 'Pagar' && (
-                  <div className="space-y-2">
-                    <Label>Fornecedor *</Label>
-                    <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fornecedores.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              <form onSubmit={handleSubmit}>
+                <TabsContent value="dados" className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label>Tipo *</Label>
+                      <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pagar">Conta a Pagar</SelectItem>
+                          <SelectItem value="Receber">Conta a Receber</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {formData.tipo === 'Receber' && (
-                  <div className="space-y-2">
-                    <Label>Cliente</Label>
-                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} />
-                  </div>
-                )}
+                    <div className="space-y-2">
+                      <Label>Tipo Documento *</Label>
+                      <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NF-e">NF-e</SelectItem>
+                          <SelectItem value="NFC-e">NFC-e</SelectItem>
+                          <SelectItem value="Recibo">Recibo</SelectItem>
+                          <SelectItem value="Boleto">Boleto</SelectItem>
+                          <SelectItem value="Nota Manual">Nota Manual</SelectItem>
+                          <SelectItem value="Outros">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Nº Documento</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Safra</Label>
-                  <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {safras.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Produto</Label>
-                  <Select value={formData.produto_id} onValueChange={(v) => handleChange('produto_id', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {produtos.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {centros.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Plano de Contas</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Grupo</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => (
-                          <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Data Emissão *</Label>
-                  <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data Vencimento *</Label>
-                  <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Forma de Pagamento</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formasPagamento.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <Label>Valor Original *</Label>
-                  <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Juros</Label>
-                  <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Multa</Label>
-                  <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Desconto</Label>
-                  <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" />
-                </div>
-              </div>
-
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-700">Valor Total:</span>
-                    <span className="text-2xl font-bold text-blue-700">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {!initialData && (
-                <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} />
-                    <label className="font-semibold">Parcelar este lançamento</label>
+                    <div className="space-y-2">
+                      <Label>Nº Documento</Label>
+                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
                   </div>
 
-                  {formData.parcelar && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <Label>Configure as parcelas individualmente:</Label>
-                        <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
+                  {formData.tipo === 'Pagar' && (
+                    <div className="space-y-2">
+                      <Label>Fornecedor *</Label>
+                      <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fornecedores.map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.tipo === 'Receber' && (
+                    <div className="space-y-2">
+                      <Label>Cliente</Label>
+                      <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Safra</Label>
+                      <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {safras.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Produto (Opcional)</Label>
+                      <div className="flex gap-2">
+                        <Select value={formData.produto_id} onValueChange={(v) => handleChange('produto_id', v)} className="flex-1">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {produtos.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
                           <Plus className="w-4 h-4" />
-                          Adicionar Parcela
                         </Button>
                       </div>
-                      
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label>Centro de Custo</Label>
+                      <div className="flex gap-2">
+                        <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {centros.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Plano de Contas</Label>
+                      <div className="flex gap-2">
+                        <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Grupo</Label>
+                      <div className="flex gap-2">
+                        <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => (
+                              <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label>Data Emissão *</Label>
+                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Data Vencimento *</Label>
+                      <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Forma de Pagamento</Label>
+                      <div className="flex gap-2">
+                        <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formasPagamento.map(f => (
+                              <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Observações</Label>
+                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="produtos" className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-600">Configure os produtos deste lançamento</p>
+                    <Button type="button" onClick={adicionarProduto} size="sm" className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      Adicionar Produto
+                    </Button>
+                  </div>
+
+                  {formData.produtos_lancamento.length === 0 ? (
+                    <Card className="bg-slate-50 border-dashed">
+                      <CardContent className="p-12 text-center text-slate-400">
+                        <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>Nenhum produto adicionado</p>
+                        <p className="text-xs mt-1">Clique em "Adicionar Produto" para começar</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Parcela</TableHead>
-                            <TableHead>Data Vencimento</TableHead>
-                            <TableHead>Valor</TableHead>
+                            <TableHead>Produto</TableHead>
+                            <TableHead className="text-right">Qtd</TableHead>
+                            <TableHead className="text-right">Vlr Unit.</TableHead>
+                            <TableHead className="text-right">Desconto</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
                             <TableHead className="w-12"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {formData.parcelas.map((parcela, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-bold">{index + 1}</TableCell>
-                              <TableCell>
-                                <Input 
-                                  type="date" 
-                                  value={parcela.data} 
-                                  onChange={(e) => atualizarParcela(index, 'data', e.target.value)}
-                                  className="w-full"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input 
-                                  value={formatarNumero(parcela.valor)} 
-                                  onChange={(e) => atualizarParcela(index, 'valor', parseNumero(e.target.value))}
-                                  placeholder="0,00"
-                                  className="w-full"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => removerParcela(index)}
-                                  disabled={formData.parcelas.length <= 2}
-                                  className="hover:bg-red-50 hover:text-red-700"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {formData.produtos_lancamento.map((prod, idx) => {
+                            const total = parseNumero(prod.quantidade) * parseNumero(prod.valor_unitario) - parseNumero(prod.desconto);
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Select value={prod.produto_id} onValueChange={(v) => atualizarProduto(idx, 'produto_id', v)} className="flex-1">
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {produtos.map(p => (
+                                          <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
+                                      <Plus className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Input value={prod.quantidade} onChange={(e) => atualizarProduto(idx, 'quantidade', e.target.value)} className="w-24 text-right" placeholder="0,00" />
+                                </TableCell>
+                                <TableCell>
+                                  <Input value={prod.valor_unitario} onChange={(e) => atualizarProduto(idx, 'valor_unitario', e.target.value)} className="w-32 text-right" placeholder="0,00" />
+                                </TableCell>
+                                <TableCell>
+                                  <Input value={prod.desconto} onChange={(e) => atualizarProduto(idx, 'desconto', e.target.value)} className="w-24 text-right" placeholder="0,00" />
+                                </TableCell>
+                                <TableCell className="text-right font-mono font-bold">R$ {formatarNumero(total.toFixed(2))}</TableCell>
+                                <TableCell>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerProduto(idx)} className="hover:bg-red-50 hover:text-red-700">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
 
-                      <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                        <CardContent className="p-3">
-                          <div className="flex justify-between text-sm">
-                            <span>Total das Parcelas:</span>
-                            <span className="font-bold">R$ {formatarNumero(totalParcelas.toFixed(2))}</span>
+                      <Card className="bg-blue-50 border-blue-300">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold">Total dos Produtos:</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-blue-700">R$ {formatarNumero(totalProdutos.toFixed(2))}</span>
+                              <Button type="button" size="sm" onClick={aplicarTotalProdutos} variant="outline">
+                                Aplicar ao Valor Original
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Valor do Lançamento:</span>
-                            <span className="font-bold">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
-                          </div>
-                          {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                            <p className="text-xs text-red-600 mt-2">⚠️ O total das parcelas deve ser igual ao valor do lançamento!</p>
-                          )}
                         </CardContent>
                       </Card>
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="pagamento" className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <Label>Valor Original *</Label>
+                      <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Juros</Label>
+                      <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Multa</Label>
+                      <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Desconto</Label>
+                      <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" />
+                    </div>
+                  </div>
+
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-slate-700">Valor Total:</span>
+                        <span className="text-2xl font-bold text-blue-700">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {!initialData && (
+                    <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} />
+                        <label className="font-semibold">Parcelar este lançamento</label>
+                      </div>
+
+                      {formData.parcelar && (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <Label>Configure as parcelas:</Label>
+                            <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
+                              <Plus className="w-4 h-4" />
+                              Adicionar Parcela
+                            </Button>
+                          </div>
+                          
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Parcela</TableHead>
+                                <TableHead>Data</TableHead>
+                                <TableHead>Valor</TableHead>
+                                <TableHead className="w-12"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {formData.parcelas.map((parcela, index) => (
+                                <TableRow key={index}>
+                                  <TableCell className="font-bold">{index + 1}</TableCell>
+                                  <TableCell>
+                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input value={formatarNumero(parcela.valor)} onChange={(e) => atualizarParcela(index, 'valor', parseNumero(e.target.value))} placeholder="0,00" />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2}>
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+
+                          <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                            <CardContent className="p-3">
+                              <div className="flex justify-between text-sm">
+                                <span>Total Parcelas:</span>
+                                <span className="font-bold">R$ {formatarNumero(totalParcelas.toFixed(2))}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>Valor Lançamento:</span>
+                                <span className="font-bold">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
+                              </div>
+                              {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                                <p className="text-xs text-red-600 mt-2">⚠️ Valores devem ser iguais!</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
                     </div>
                   )}
+                </TabsContent>
+
+                <div className="flex justify-end gap-3 pt-6 border-t mt-6">
+                  <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
+                    disabled={formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
+                  >
+                    <Save className="w-4 h-4" />
+                    {initialData ? 'Atualizar' : 'Salvar'}
+                  </Button>
                 </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
-                  Cancelar
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-                  disabled={formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
-                >
-                  <Save className="w-4 h-4" />
-                  {initialData ? 'Atualizar' : 'Salvar'}
-                </Button>
-              </div>
-            </form>
+              </form>
+            </Tabs>
           </CardContent>
         </Card>
       </motion.div>
@@ -566,6 +739,17 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
           queryClient.invalidateQueries({ queryKey: ['formas_form'] });
           handleChange('forma_pagamento_id', id);
           setShowDialogForma(false);
+        }}
+      />
+
+      <DialogCadastroRapido
+        tipo="produto"
+        open={showDialogProduto}
+        onClose={() => setShowDialogProduto(false)}
+        onSuccess={(id) => {
+          queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+          handleChange('produto_id', id);
+          setShowDialogProduto(false);
         }}
       />
     </>

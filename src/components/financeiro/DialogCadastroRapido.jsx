@@ -8,11 +8,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+
+const UNIDADES_MEDIDA = ['UN', 'KG', 'G', 'MG', 'L', 'ML', 'M', 'M2', 'M3', 'CM', 'MM', 'CX', 'PC', 'SC', 'FD', 'TON', 'KIT', 'JG', 'PAR', 'DZ'];
 
 export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, tipoFinanceiro }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({});
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: categorias = [] } = useQuery({
+    queryKey: ['categorias_dialog'],
+    queryFn: () => base44.entities.Categoria.list(),
+    initialData: [],
+    enabled: tipo === 'produto',
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,6 +74,20 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
           prazo_padrao_dias: parseInt(formData.prazo) || 0,
           ativo: true
         });
+      } else if (tipo === 'produto') {
+        const all = await base44.entities.Produto.list();
+        const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
+        newItem = await base44.entities.Produto.create({
+          empresa_id: empresaSelecionadaId,
+          numero_produto: String(maxNum + 1),
+          nome_produto: formData.nome?.toUpperCase(),
+          codigo_interno: formData.codigo?.toUpperCase(),
+          unidade_medida: formData.unidade || 'UN',
+          categoria: formData.categoria?.toUpperCase(),
+          descricao: formData.descricao?.toUpperCase(),
+          preco_custo: 0,
+          estoque_atual: 0
+        });
       }
 
       toast.success('Cadastrado com sucesso!');
@@ -82,6 +106,7 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
       case 'plano_contas': return 'Nova Conta';
       case 'grupo_financeiro': return 'Novo Grupo Financeiro';
       case 'forma_pagamento': return 'Nova Forma de Pagamento';
+      case 'produto': return 'Novo Produto';
       default: return 'Novo Cadastro';
     }
   };
@@ -111,7 +136,6 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
                       <SelectItem value="Departamento">Departamento</SelectItem>
                       <SelectItem value="Filial">Filial</SelectItem>
                       <SelectItem value="Projeto">Projeto</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -175,6 +199,43 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
                   <Label>Prazo (dias)</Label>
                   <Input type="number" value={formData.prazo || 0} onChange={(e) => setFormData({ ...formData, prazo: e.target.value })} />
                 </div>
+              </div>
+            </>
+          )}
+
+          {tipo === 'produto' && (
+            <>
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input value={formData.nome || ''} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} required className="uppercase" style={{ textTransform: 'uppercase' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Código</Label>
+                  <Input value={formData.codigo || ''} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unidade *</Label>
+                  <Select value={formData.unidade || 'UN'} onValueChange={(v) => setFormData({ ...formData, unidade: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un}>{un}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={formData.categoria || ''} onValueChange={(v) => setFormData({ ...formData, categoria: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}

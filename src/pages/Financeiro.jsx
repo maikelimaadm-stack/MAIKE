@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Package } from "lucide-react";
 import { toast } from "sonner";
 import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
@@ -15,6 +15,20 @@ const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
   const filtered = all.filter(l => l.empresa_id === empresaId);
   const maxNum = filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0);
+  return maxNum + 1;
+};
+
+const getNextNumeroMovimentacao = async (empresaId) => {
+  const all = await base44.entities.MovimentacaoEstoque.list();
+  const filtered = all.filter(m => m.empresa_id === empresaId);
+  const maxNum = filtered.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
+  return maxNum + 1;
+};
+
+const getNextNumeroLivro = async (empresaId) => {
+  const all = await base44.entities.LivroFiscal.list();
+  const filtered = all.filter(l => l.empresa_id === empresaId);
+  const maxNum = filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_registro) || 0), 0);
   return maxNum + 1;
 };
 
@@ -84,12 +98,11 @@ export default function Financeiro() {
       if (data.parcelas && data.parcelas.length > 0) {
         const lancamentoPai = await base44.entities.LancamentoFinanceiro.create(lancamento);
         
-        const parcelasParaCriar = [];
         for (let i = 0; i < data.parcelas.length; i++) {
           const parcela = data.parcelas[i];
           const numeroParcela = await getNextNumber(empresaSelecionadaId);
           
-          parcelasParaCriar.push({
+          await base44.entities.LancamentoFinanceiro.create({
             ...lancamento,
             numero_lancamento: String(numeroParcela),
             valor_original: parcela.valor,
@@ -105,7 +118,6 @@ export default function Financeiro() {
           });
         }
         
-        await base44.entities.LancamentoFinanceiro.bulkCreate(parcelasParaCriar);
         return lancamentoPai;
       } else {
         return base44.entities.LancamentoFinanceiro.create(lancamento);
@@ -140,7 +152,7 @@ export default function Financeiro() {
       const baixas = await base44.entities.BaixaFinanceira.list();
       const temBaixas = baixas.some(b => b.lancamento_id === id);
       if (temBaixas) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este lançamento possui baixas financeiras. Não é possível excluir.');
+        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este lançamento possui baixas financeiras.');
       }
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
@@ -178,26 +190,144 @@ export default function Financeiro() {
   };
 
   const handleImportarXMLSuccess = async (dadosImportacao) => {
-    if (dadosImportacao.gerarFinanceiro) {
-      setShowImportarXML(false);
+    try {
+      const movimentacaoIds = [];
       
-      setEditingItem({
-        tipo: 'Pagar',
-        fornecedor_id: dadosImportacao.fornecedor_id,
-        numero_documento: dadosImportacao.dadosNFe.numero,
-        chave_nfe: dadosImportacao.dadosNFe.chave,
-        data_emissao: dadosImportacao.dadosNFe.data_emissao,
-        data_vencimento: dadosImportacao.dadosNFe.data_emissao,
-        valor_original: dadosImportacao.dadosNFe.valor_total,
-        gerado_xml: true,
-        total_parcelas: dadosImportacao.parcelas || 1
-      });
-      setShowForm(true);
-      toast.info('📝 Complete os dados do lançamento financeiro');
-    }
-    
-    if (dadosImportacao.gerarEstoque) {
-      toast.info('✅ Estoque será baixado ao salvar');
+      // 1. Criar movimentações de estoque
+      if (dadosImportacao.gerarEstoque && dadosImportacao.itens) {
+        toast.info('📦 Lançando produtos no estoque...');
+        
+        for (const item of dadosImportacao.itens) {
+          const numeroMov = await getNextNumeroMovimentacao(empresaSelecionadaId);
+          
+          const produto = produtos.find(p => p.id === item.produto_id);
+          const qtd = typeof item.quantidade === 'string' ? parseFloat(item.quantidade.replace(',', '.')) : item.quantidade;
+          const vlrUnit = typeof item.valor_unitario === 'string' ? parseFloat(item.valor_unitario.replace(',', '.')) : item.valor_unitario;
+          
+          const custoAntes = produto?.preco_custo || 0;
+          const saldoAntes = produto?.estoque_atual || 0;
+          const custoDepois = saldoAntes > 0 
+            ? ((custoAntes * saldoAntes) + (vlrUnit * qtd)) / (saldoAntes + qtd)
+            : vlrUnit;
+          
+          const movimentacao = await base44.entities.MovimentacaoEstoque.create({
+            empresa_id: empresaSelecionadaId,
+            numero_movimentacao: String(numeroMov),
+            tipo_movimentacao: 'Entrada',
+            tipo_detalhado: 'Compra',
+            data_movimentacao: new Date().toISOString(),
+            produto_id: item.produto_id,
+            produto_nome: item.produto_nome || item.descricao,
+            produto_codigo: item.codigo,
+            quantidade: qtd,
+            unidade_medida: item.unidade,
+            local_estoque_destino: dadosImportacao.dadosComplementares?.local_estoque,
+            valor_unitario: vlrUnit,
+            valor_total: qtd * vlrUnit,
+            custo_medio_antes: custoAntes,
+            custo_medio_depois: custoDepois,
+            saldo_antes: saldoAntes,
+            saldo_depois: saldoAntes + qtd,
+            tipo_documento: 'Nota Fiscal',
+            numero_documento: dadosImportacao.dadosNFe.numero,
+            chave_documento: dadosImportacao.dadosNFe.chave,
+            data_documento: dadosImportacao.dadosNFe.data_emissao,
+            fornecedor_id: dadosImportacao.fornecedor_id,
+            fornecedor_nome: fornecedores.find(f => f.id === dadosImportacao.fornecedor_id)?.nome,
+            centro_custo_id: dadosImportacao.dadosComplementares?.centro_custo_id,
+            motivo_movimentacao: `COMPRA VIA NF-e ${dadosImportacao.dadosNFe.numero}`,
+            observacoes: dadosImportacao.dadosComplementares?.observacoes || `IMPORTAÇÃO XML NF-e ${dadosImportacao.dadosNFe.numero}`,
+            usuario_responsavel: (await base44.auth.me()).email,
+            status: 'Ativa'
+          });
+          
+          movimentacaoIds.push(movimentacao.id);
+          
+          // Atualizar estoque do produto
+          await base44.entities.Produto.update(item.produto_id, {
+            estoque_atual: saldoAntes + qtd,
+            preco_custo: custoDepois
+          });
+        }
+      }
+
+      // 2. Criar registro no livro fiscal
+      let livroFiscalId = null;
+      if (dadosImportacao.gerarLivroFiscal) {
+        toast.info('📚 Registrando no livro fiscal...');
+        
+        const numeroLivro = await getNextNumeroLivro(empresaSelecionadaId);
+        const fornecedor = fornecedores.find(f => f.id === dadosImportacao.fornecedor_id);
+        
+        const livroFiscal = await base44.entities.LivroFiscal.create({
+          empresa_id: empresaSelecionadaId,
+          numero_registro: String(numeroLivro),
+          tipo_livro: 'Entrada',
+          tipo_documento: 'NF-e',
+          numero_documento: dadosImportacao.dadosNFe.numero,
+          serie_documento: dadosImportacao.dadosNFe.serie,
+          chave_acesso: dadosImportacao.dadosNFe.chave,
+          data_emissao: dadosImportacao.dadosNFe.data_emissao,
+          data_entrada_saida: new Date().toISOString().split('T')[0],
+          fornecedor_id: dadosImportacao.fornecedor_id,
+          fornecedor_nome: fornecedor?.nome,
+          fornecedor_cnpj_cpf: fornecedor?.cnpj || fornecedor?.cpf,
+          cfop: dadosImportacao.dadosNFe.cfop || '5102',
+          natureza_operacao: dadosImportacao.dadosNFe.natureza_operacao || 'COMPRA PARA COMERCIALIZAÇÃO',
+          valor_produtos: dadosImportacao.itens?.reduce((s, i) => {
+            const qtd = typeof i.quantidade === 'string' ? parseFloat(i.quantidade.replace(',', '.')) : i.quantidade;
+            const vlr = typeof i.valor_unitario === 'string' ? parseFloat(i.valor_unitario.replace(',', '.')) : i.valor_unitario;
+            return s + (qtd * vlr);
+          }, 0) || 0,
+          valor_total_nota: dadosImportacao.dadosNFe.valor_total,
+          itens: dadosImportacao.itens?.map(i => ({
+            produto_id: i.produto_id,
+            produto_nome: i.produto_nome || i.descricao,
+            codigo_produto: i.codigo,
+            ncm: i.ncm,
+            cfop: i.cfop,
+            quantidade: typeof i.quantidade === 'string' ? parseFloat(i.quantidade.replace(',', '.')) : i.quantidade,
+            unidade: i.unidade,
+            valor_unitario: typeof i.valor_unitario === 'string' ? parseFloat(i.valor_unitario.replace(',', '.')) : i.valor_unitario,
+            valor_total: typeof i.quantidade === 'string' && typeof i.valor_unitario === 'string'
+              ? parseFloat(i.quantidade.replace(',', '.')) * parseFloat(i.valor_unitario.replace(',', '.'))
+              : (i.quantidade * i.valor_unitario)
+          })),
+          movimentacao_estoque_ids: movimentacaoIds,
+          status: 'Ativo'
+        });
+        
+        livroFiscalId = livroFiscal.id;
+      }
+
+      // 3. Criar lançamento financeiro
+      if (dadosImportacao.gerarFinanceiro) {
+        toast.info('💰 Criando lançamento financeiro...');
+        
+        setEditingItem({
+          tipo: 'Pagar',
+          fornecedor_id: dadosImportacao.fornecedor_id,
+          numero_documento: dadosImportacao.dadosNFe.numero,
+          chave_nfe: dadosImportacao.dadosNFe.chave,
+          data_emissao: dadosImportacao.dadosNFe.data_emissao,
+          data_vencimento: dadosImportacao.dadosNFe.data_emissao,
+          valor_original: dadosImportacao.dadosNFe.valor_total,
+          gerado_xml: true,
+          livro_fiscal_id: livroFiscalId,
+          movimentacao_estoque_ids: movimentacaoIds,
+          parcelas: dadosImportacao.parcelas > 1 ? dadosImportacao.parcelas : undefined
+        });
+        setShowImportarXML(false);
+        setShowForm(true);
+        toast.info('📝 Complete os dados do lançamento financeiro');
+      } else {
+        setShowImportarXML(false);
+        toast.success('✅ Importação concluída!');
+      }
+      
+    } catch (error) {
+      console.error('Erro na importação:', error);
+      toast.error('Erro ao processar importação: ' + error.message);
     }
   };
 
@@ -232,7 +362,7 @@ export default function Financeiro() {
           <div className="flex gap-3">
             <Button onClick={() => setShowImportarXML(true)} variant="outline" className="gap-2">
               <FileText className="w-5 h-5" />
-              Importar XML
+              Importar NF-e (XML)
             </Button>
             <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="bg-green-600 gap-2">
               <Plus className="w-5 h-5" />
@@ -305,6 +435,7 @@ export default function Financeiro() {
         onClose={() => setShowImportarXML(false)}
         onSuccess={handleImportarXMLSuccess}
         fornecedores={fornecedores}
+        produtos={produtos}
       />
 
       {!showForm && !showBaixa && (
