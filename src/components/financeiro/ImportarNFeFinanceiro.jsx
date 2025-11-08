@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -10,16 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, Trash2, CheckSquare, Edit2, Search } from "lucide-react";
+import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, CheckSquare, Edit2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Progress } from "@/components/ui/progress";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
   const fixed = typeof num === 'number' ? num.toFixed(2) : String(num);
-  return fixed.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return fixed.replace('.', ',');
 };
 
 const parseNumero = (str) => {
@@ -47,7 +45,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [gerarLivroFiscal, setGerarLivroFiscal] = useState(true);
   const [parcelas, setParcelas] = useState(1);
   const [etapa, setEtapa] = useState(1);
-  const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [showTrocarProduto, setShowTrocarProduto] = useState(false);
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
@@ -58,7 +55,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     centro_custo_id: "",
     observacoes: ""
   });
-
+  
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica",
     nome: "",
@@ -72,7 +69,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     estado: "",
     cep: ""
   });
-
+  
   const [novoProduto, setNovoProduto] = useState({
     nome: "",
     codigo: "",
@@ -115,8 +112,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       });
     },
     onSuccess: (newFornecedor) => {
+      queryClient.invalidateQueries({ queryKey: ['fornecedores_financeiro'] });
       setFornecedorSelecionado(newFornecedor);
-      setShowNovoFornecedor(false);
       toast.success('✅ Fornecedor cadastrado!');
       setEtapa(3);
     },
@@ -134,15 +131,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       });
     },
     onSuccess: (newProduto) => {
-      queryClient.invalidateQueries({ queryKey: ['produtos_import_fin'] });
-
+      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+      
       setItensNFe(prev => prev.map(item => {
         if (item.index === itemEditando?.index) {
           return { ...item, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' };
         }
         return item;
       }));
-
+      
       setShowNovoProduto(false);
       setItemEditando(null);
       toast.success('✅ Produto cadastrado!');
@@ -154,20 +151,33 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     if (!file) return;
 
     setProcessando(true);
-
+    
     try {
-      toast.info(`📄 Processando: ${file.name}`);
-
+      toast.info(`📄 Enviando arquivo: ${file.name}`);
+      
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      toast.info('📥 Baixando XML...');
       const response = await fetch(file_url);
       const xmlText = await response.text();
 
-      toast.info('🤖 Extraindo dados...');
-
+      toast.info('🤖 Analisando nota fiscal com IA...');
+      
       const resultado = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extraia TODOS os dados desta NF-e XML incluindo itens/produtos. Retorne JSON estruturado:
+        prompt: `Você é um extrator de dados de NF-e. Analise o XML abaixo e extraia TODOS os dados estruturados.
 
-${xmlText}`,
+REGRAS IMPORTANTES:
+1. Se não for NF-e modelo 55, retorne modelo como string vazia ""
+2. Para dados não encontrados, use null
+3. Números devem ser numéricos (não string)
+4. CNPJ/CPF apenas números, sem formatação
+5. Data no formato YYYY-MM-DD
+6. Extraia TODOS os itens/produtos da nota
+
+XML DA NF-e:
+${xmlText}
+
+Retorne o JSON estruturado conforme schema.`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -210,33 +220,45 @@ ${xmlText}`,
         }
       });
 
-      if (!resultado || resultado.modelo !== "55") {
+      console.log('✅ Resultado LLM:', resultado);
+
+      if (!resultado || !resultado.modelo || resultado.modelo !== "55") {
         toast.error('❌ Arquivo não é uma NF-e válida (modelo 55)');
+        console.error('Modelo inválido:', resultado);
         setProcessando(false);
         return;
       }
 
       if (!resultado.itens || resultado.itens.length === 0) {
-        toast.error('❌ NF-e sem produtos');
+        toast.error('❌ NF-e não possui produtos/itens');
+        console.error('Sem itens:', resultado);
         setProcessando(false);
         return;
       }
 
+      toast.success(`✅ XML processado! ${resultado.itens.length} produto(s) encontrado(s)`);
+      
       setDadosNFe(resultado);
-      setEtapa(2);
-
+      
       const documentoEmitente = resultado.cnpj_emitente || resultado.cpf_emitente;
-      const fornecedor = fornecedores.find(f =>
+      
+      if (!documentoEmitente) {
+        toast.warning('⚠️ Documento do fornecedor não encontrado no XML');
+      }
+      
+      const fornecedor = fornecedores.find(f => 
         f.cnpj?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '') ||
         f.cpf?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '')
       );
-
+      
       if (fornecedor) {
         setFornecedorSelecionado(fornecedor);
-        toast.success('✅ Fornecedor identificado!');
-        setTimeout(() => setEtapa(3), 500);
+        toast.success(`✅ Fornecedor encontrado: ${fornecedor.nome}`);
+        setEtapa(3);
       } else {
-        const enderecoCompleto = resultado.bairro_emitente
+        toast.warning('⚠️ Fornecedor não cadastrado - preencha os dados');
+        
+        const enderecoCompleto = resultado.bairro_emitente 
           ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
           : resultado.endereco_emitente;
 
@@ -253,11 +275,12 @@ ${xmlText}`,
           estado: resultado.estado_emitente || "",
           cep: resultado.cep_emitente || ""
         });
+        setEtapa(2);
       }
-
+      
     } catch (error) {
-      toast.error('❌ Erro ao processar XML: ' + error.message);
-      console.error(error);
+      console.error('❌ Erro completo:', error);
+      toast.error('❌ Erro ao processar XML. Verifique o console para detalhes.');
     } finally {
       setProcessando(false);
       e.target.value = '';
@@ -265,26 +288,39 @@ ${xmlText}`,
   };
 
   useEffect(() => {
-    if (etapa === 3 && dadosNFe?.itens) {
+    if (etapa === 3 && dadosNFe?.itens && produtos) {
+      console.log('🔍 Associando produtos...', dadosNFe.itens.length, 'itens');
+      
       const itensComAssociacao = dadosNFe.itens.map((item, index) => {
-        const produtoEncontrado = produtos.find(p =>
+        const produtoEncontrado = produtos.find(p => 
           p.codigo_interno === item.codigo ||
           p.codigo_barras === item.codigo ||
           p.nome_produto?.toLowerCase().includes(item.descricao?.toLowerCase())
         );
 
-        return {
+        const itemProcessado = {
           index,
-          ...item,
+          codigo: item.codigo || '',
+          descricao: item.descricao || '',
+          ncm: item.ncm || '',
+          cfop: item.cfop || '',
+          unidade: item.unidade || 'UN',
+          quantidade: item.quantidade || 0,
+          valor_unitario: item.valor_unitario || 0,
+          valor_total: item.valor_total || 0,
           produto_id: produtoEncontrado?.id,
           produto_nome: produtoEncontrado?.nome_produto,
           status: produtoEncontrado ? 'associado' : 'pendente',
-          quantidade_ajustada: formatarNumero(item.quantidade),
-          valor_unitario_ajustado: formatarNumero(item.valor_unitario),
-          cfop_ajustado: item.cfop,
+          quantidade_ajustada: formatarNumero(item.quantidade || 0),
+          valor_unitario_ajustado: formatarNumero(item.valor_unitario || 0),
+          cfop_ajustado: item.cfop || '',
         };
+        
+        return itemProcessado;
       });
-
+      
+      console.log('✅ Itens processados:', itensComAssociacao);
+      
       setItensNFe(itensComAssociacao);
       setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
@@ -292,7 +328,7 @@ ${xmlText}`,
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
-      toast.error('Nome obrigatório!');
+      toast.error('Nome é obrigatório!');
       return;
     }
 
@@ -313,7 +349,7 @@ ${xmlText}`,
 
   const handleCadastrarProduto = () => {
     if (!novoProduto.nome || !novoProduto.unidade) {
-      toast.error('Nome e unidade obrigatórios!');
+      toast.error('Nome e unidade são obrigatórios!');
       return;
     }
 
@@ -328,19 +364,20 @@ ${xmlText}`,
 
   const handleCadastrarProdutosEmMassa = async () => {
     const itensPendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
-
+    
     if (itensPendentes.length === 0) {
-      toast.error('Nenhum produto pendente!');
+      toast.error('Nenhum produto pendente selecionado!');
       return;
     }
 
     setShowCadastroEmMassa(true);
-
+    let cadastrados = 0;
+    
     for (const item of itensPendentes) {
       try {
         const all = await base44.entities.Produto.list();
         const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
-
+        
         const newProduto = await base44.entities.Produto.create({
           empresa_id: empresaSelecionadaId,
           numero_produto: String(maxNum + 1),
@@ -357,16 +394,18 @@ ${xmlText}`,
           }
           return i;
         }));
-
+        
+        cadastrados++;
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        console.error('Erro:', error);
+        console.error('Erro ao cadastrar produto:', error);
+        toast.error(`Erro ao cadastrar ${item.descricao}`);
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['produtos_import_fin'] });
+    queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
     setShowCadastroEmMassa(false);
-    toast.success('✅ Produtos cadastrados!');
+    toast.success(`✅ ${cadastrados} produto(s) cadastrado(s)!`);
   };
 
   const handleAtualizarItem = (index, campo, valor) => {
@@ -385,15 +424,15 @@ ${xmlText}`,
       }
       return item;
     }));
-
+    
     setShowTrocarProduto(false);
     setItemEditando(null);
     setBuscaProduto("");
-    toast.success('Produto associado!');
+    toast.success('✅ Produto associado!');
   };
 
   const handleToggleSelecao = (index) => {
-    setItensSelecionados(prev =>
+    setItensSelecionados(prev => 
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     );
   };
@@ -405,21 +444,39 @@ ${xmlText}`,
   const handleConfirmar = () => {
     const itensParaImportar = itensNFe.filter(i => itensSelecionados.includes(i.index));
     const itensPendentes = itensParaImportar.filter(i => i.status === 'pendente');
-
+    
     if (gerarEstoque && itensPendentes.length > 0) {
-      toast.error(`❌ ${itensPendentes.length} produto(s) sem associação!`);
+      toast.error(`❌ ${itensPendentes.length} produto(s) sem associação! Cadastre ou associe todos.`);
+      return;
+    }
+    
+    if (gerarEstoque && !dadosComplementares.local_estoque) {
+      toast.error('❌ Selecione o local de estoque!');
       return;
     }
 
-    if (gerarEstoque && !dadosComplementares.local_estoque) {
-      toast.error('Selecione o local de estoque!');
-      return;
-    }
+    console.log('✅ Confirmando importação:', {
+      fornecedor: fornecedorSelecionado?.nome,
+      itens: itensParaImportar.length,
+      gerarFinanceiro,
+      gerarEstoque,
+      gerarLivroFiscal
+    });
 
     onSuccess({
       dadosNFe,
       fornecedor_id: fornecedorSelecionado.id,
-      itens: itensParaImportar,
+      itens: itensParaImportar.map(i => ({
+        produto_id: i.produto_id,
+        produto_nome: i.produto_nome,
+        descricao: i.descricao,
+        codigo: i.codigo,
+        ncm: i.ncm,
+        cfop: i.cfop_ajustado,
+        unidade: i.unidade,
+        quantidade: parseNumero(i.quantidade_ajustada),
+        valor_unitario: parseNumero(i.valor_unitario_ajustado)
+      })),
       dadosComplementares,
       gerarFinanceiro,
       gerarEstoque,
@@ -440,10 +497,29 @@ ${xmlText}`,
     setGerarEstoque(true);
     setGerarLivroFiscal(true);
     setParcelas(1);
+    setNovoFornecedor({
+      tipo_pessoa: "Jurídica",
+      nome: "",
+      cnpj: "",
+      cpf: "",
+      inscricao_estadual: "",
+      telefone: "",
+      email: "",
+      endereco: "",
+      cidade: "",
+      estado: "",
+      cep: ""
+    });
+    setNovoProduto({
+      nome: "",
+      codigo: "",
+      unidade: "UN",
+      categoria: ""
+    });
   };
 
-  const produtosFiltrados = produtos.filter(p =>
-    !buscaProduto ||
+  const produtosFiltrados = produtos.filter(p => 
+    !buscaProduto || 
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
@@ -455,8 +531,11 @@ ${xmlText}`,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-green-600" />
-              Importar NF-e - Etapa {etapa} de 4
+              Importar NF-e (XML) - Etapa {etapa} de 4
             </DialogTitle>
+            <DialogDescription>
+              Siga as etapas para importar a nota fiscal e lançar no sistema
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -466,12 +545,13 @@ ${xmlText}`,
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Selecione o arquivo XML da NF-e modelo 55
+                    Selecione o arquivo XML da NF-e (modelo 55). O sistema irá extrair automaticamente os dados.
                   </AlertDescription>
                 </Alert>
 
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
+                  <Upload className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                  <p className="text-sm text-slate-600 mb-4 font-medium">Arraste o XML aqui ou clique para selecionar</p>
                   <Input
                     type="file"
                     accept=".xml"
@@ -480,9 +560,12 @@ ${xmlText}`,
                     className="max-w-md mx-auto"
                   />
                   {processando && (
-                    <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processando...
+                    <div className="mt-6 space-y-3">
+                      <div className="flex items-center justify-center gap-2 text-blue-600">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="font-medium">Processando XML...</span>
+                      </div>
+                      <p className="text-xs text-slate-500">Isso pode levar alguns segundos</p>
                     </div>
                   )}
                 </div>
@@ -494,21 +577,24 @@ ${xmlText}`,
               <div className="space-y-4">
                 <Card className="bg-blue-50 border-blue-200">
                   <CardHeader>
-                    <CardTitle className="text-sm">Dados da NF-e</CardTitle>
+                    <CardTitle className="text-sm">📄 Dados da NF-e Extraídos</CardTitle>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-3 text-sm">
                     <div><strong>Número:</strong> {dadosNFe.numero}</div>
                     <div><strong>Série:</strong> {dadosNFe.serie}</div>
-                    <div className="col-span-2"><strong>Chave:</strong> {dadosNFe.chave}</div>
+                    <div className="col-span-2"><strong>Chave:</strong> <span className="font-mono text-xs">{dadosNFe.chave}</span></div>
                     <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
-                    <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                    <div><strong>Valor:</strong> <span className="text-green-700 font-bold">{formatarMoeda(dadosNFe.valor_total)}</span></div>
+                    <div className="col-span-2"><strong>Produtos:</strong> {dadosNFe.itens?.length || 0} item(ns)</div>
                   </CardContent>
                 </Card>
 
                 <Alert className="bg-orange-50 border-orange-300">
                   <AlertCircle className="h-4 w-4 text-orange-600" />
                   <AlertDescription>
-                    Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
+                    <strong>Fornecedor não cadastrado:</strong> {dadosNFe.razao_social_emitente}
+                    <br />
+                    <span className="text-xs">Preencha os dados abaixo para cadastrar</span>
                   </AlertDescription>
                 </Alert>
 
@@ -518,7 +604,7 @@ ${xmlText}`,
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Tipo *</Label>
+                      <Label>Tipo de Pessoa *</Label>
                       <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
                         <SelectTrigger>
                           <SelectValue />
@@ -531,7 +617,7 @@ ${xmlText}`,
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Nome *</Label>
+                      <Label>Nome/Razão Social *</Label>
                       <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
 
@@ -540,19 +626,35 @@ ${xmlText}`,
                         <>
                           <div className="space-y-2">
                             <Label>CNPJ *</Label>
-                            <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} />
+                            <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
                           </div>
                           <div className="space-y-2">
-                            <Label>Insc. Estadual</Label>
+                            <Label>Inscrição Estadual</Label>
                             <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
                           </div>
                         </>
                       ) : (
                         <div className="space-y-2">
                           <Label>CPF *</Label>
-                          <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} />
+                          <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
                         </div>
                       )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Telefone</Label>
+                        <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>E-mail</Label>
+                        <Input value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Endereço</Label>
+                      <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
@@ -561,10 +663,10 @@ ${xmlText}`,
                         <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
                       </div>
                       <div className="space-y-2">
-                        <Label>UF</Label>
+                        <Label>Estado (UF)</Label>
                         <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="UF" />
                           </SelectTrigger>
                           <SelectContent>
                             {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
@@ -573,15 +675,18 @@ ${xmlText}`,
                       </div>
                       <div className="space-y-2">
                         <Label>CEP</Label>
-                        <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} />
+                        <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" />
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-3">
+                    <div className="flex justify-end gap-3 pt-4 border-t">
                       <Button type="button" variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
-                      <Button onClick={handleCadastrarFornecedor} className="bg-green-600">
-                        <Save className="w-4 h-4 mr-2" />
-                        Salvar
+                      <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+                        {createFornecedorMutation.isPending ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+                        ) : (
+                          <><Save className="w-4 h-4 mr-2" />Salvar e Continuar</>
+                        )}
                       </Button>
                     </div>
                   </CardContent>
@@ -590,97 +695,139 @@ ${xmlText}`,
             )}
 
             {/* ETAPA 3: Produtos */}
-            {etapa === 3 && (
+            {etapa === 3 && itensNFe && (
               <div className="space-y-4">
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4 grid grid-cols-3 gap-3 text-sm">
+                    <div><strong>Fornecedor:</strong> {fornecedorSelecionado?.nome}</div>
+                    <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
+                    <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                  </CardContent>
+                </Card>
+
                 <div className="flex justify-between items-center">
-                  <h3 className="font-semibold">Produtos ({itensNFe.length})</h3>
+                  <h3 className="font-semibold text-lg">Produtos da Nota ({itensNFe.length})</h3>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
                       <CheckSquare className="w-3 h-3 mr-1" />
-                      {itensSelecionados.length === itensNFe.length ? 'Desmarcar' : 'Selecionar'} Todos
+                      {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'} Todos
                     </Button>
                     {itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
-                      <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
+                      <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600" disabled={showCadastroEmMassa}>
                         <Plus className="w-3 h-3 mr-1" />
-                        Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                        Cadastrar em Massa ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <div className="overflow-auto max-h-96 border rounded">
+                <div className="overflow-auto max-h-96 border rounded-lg">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-white">
+                    <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
-                        <TableHead className="w-12"><Checkbox checked={itensSelecionados.length === itensNFe.length} onCheckedChange={handleSelecionarTodos} /></TableHead>
+                        <TableHead className="w-12"><Checkbox checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0} onCheckedChange={handleSelecionarTodos} /></TableHead>
                         <TableHead className="w-12">Status</TableHead>
                         <TableHead>Produto</TableHead>
                         <TableHead className="text-right">Qtd</TableHead>
                         <TableHead className="text-right">Vlr Unit.</TableHead>
                         <TableHead className="text-right">Total</TableHead>
-                        <TableHead>Ações</TableHead>
+                        <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {itensNFe.map((item) => {
-                        const isEditando = editandoItemIndex === item.index;
-                        const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
+                      {itensNFe.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                            Nenhum produto encontrado
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        itensNFe.map((item) => {
+                          const isEditando = editandoItemIndex === item.index;
+                          const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
 
-                        return (
-                          <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50' : ''}>
-                            <TableCell><Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} /></TableCell>
-                            <TableCell>
-                              {item.status === 'associado' ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-orange-600" />}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
-                              <div className="text-slate-500 text-xs">{item.descricao}</div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {isEditando ? (
-                                <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-24" />
-                              ) : (
-                                <span className="font-mono">{item.quantidade_ajustada}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {isEditando ? (
-                                <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-28" />
-                              ) : (
-                                <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {isEditando ? (
-                                  <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)}><CheckCircle className="w-3 h-3" /></Button>
+                          return (
+                            <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40 bg-slate-50' : ''}>
+                              <TableCell>
+                                <Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} />
+                              </TableCell>
+                              <TableCell>
+                                {item.status === 'associado' ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600" title="Produto associado" />
                                 ) : (
-                                  <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)}><Edit2 className="w-3 h-3" /></Button>
+                                  <AlertCircle className="w-4 h-4 text-orange-600" title="Produto não associado" />
                                 )}
-                                {item.status === 'pendente' && (
-                                  <>
-                                    <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN" }); setShowNovoProduto(true); }}>
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
-                                      <RefreshCw className="w-3 h-3" />
-                                    </Button>
-                                  </>
+                              </TableCell>
+                              <TableCell className="text-xs max-w-xs">
+                                <div className="font-semibold text-slate-900">
+                                  {item.produto_nome || <span className="text-orange-600">⚠️ NÃO ASSOCIADO</span>}
+                                </div>
+                                <div className="text-slate-500 text-xs mt-1">{item.descricao}</div>
+                                <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo} • NCM: {item.ncm}</div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {isEditando ? (
+                                  <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-20 text-right text-xs" />
+                                ) : (
+                                  <span className="font-mono text-sm">{item.quantidade_ajustada} {item.unidade}</span>
                                 )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {isEditando ? (
+                                  <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-28 text-right text-xs" />
+                                ) : (
+                                  <span className="font-mono text-sm">R$ {item.valor_unitario_ajustado}</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 justify-center">
+                                  {isEditando ? (
+                                    <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600">
+                                      <CheckCircle className="w-3 h-3" />
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores">
+                                      <Edit2 className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                  {item.status === 'pendente' && (
+                                    <>
+                                      <Button size="sm" variant="outline" onClick={() => { 
+                                        setItemEditando(item); 
+                                        setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN", categoria: "" }); 
+                                        setShowNovoProduto(true); 
+                                      }} title="Cadastrar novo">
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }} title="Associar existente">
+                                        <RefreshCw className="w-3 h-3" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
                     </TableBody>
                   </Table>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    💡 <strong>Dica:</strong> Produtos em laranja precisam ser associados ou cadastrados. Use os botões <Plus className="w-3 h-3 inline" /> ou <RefreshCw className="w-3 h-3 inline" />
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex justify-between gap-3">
+                  <Button variant="outline" onClick={() => setEtapa(1)}>Voltar e Trocar XML</Button>
                   <Button onClick={() => setEtapa(4)} className="bg-green-600">
-                    Avançar ({itensSelecionados.length} itens)
+                    Avançar para Configurações ({itensSelecionados.length} selecionados)
                   </Button>
                 </div>
               </div>
@@ -688,78 +835,93 @@ ${xmlText}`,
 
             {/* ETAPA 4: Configurações Finais */}
             {etapa === 4 && (
-              <div className="space-y-4">
-                <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={gerarFinanceiro} onCheckedChange={setGerarFinanceiro} />
-                    <label className="font-semibold">✅ Gerar Lançamento Financeiro</label>
-                  </div>
-
-                  {gerarFinanceiro && (
-                    <div className="ml-6 space-y-2">
-                      <Label>Número de Parcelas</Label>
-                      <Input type="number" min="1" max="120" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
-                      <p className="text-xs text-slate-600">* Configure valores e datas na próxima tela</p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={gerarEstoque} onCheckedChange={setGerarEstoque} />
-                    <label className="font-semibold">📦 Dar Entrada em Estoque</label>
-                  </div>
-
-                  {gerarEstoque && (
-                    <div className="ml-6 grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Local de Estoque *</Label>
-                        <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">O que deseja fazer com esta NF-e?</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox checked={gerarFinanceiro} onCheckedChange={setGerarFinanceiro} id="gerar-financeiro" />
+                        <label htmlFor="gerar-financeiro" className="font-semibold cursor-pointer">💰 Gerar Lançamento Financeiro (Contas a Pagar)</label>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Centro de Custo</Label>
-                        <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                      {gerarFinanceiro && (
+                        <div className="ml-8 space-y-3 p-3 bg-white rounded border">
+                          <div className="space-y-2">
+                            <Label>Número de Parcelas</Label>
+                            <Input type="number" min="1" max="120" value={parcelas} onChange={(e) => setParcelas(e.target.value)} className="w-32" />
+                            <p className="text-xs text-slate-600">Você configurará valores e datas individuais após confirmar</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center space-x-3">
+                        <Checkbox checked={gerarEstoque} onCheckedChange={setGerarEstoque} id="gerar-estoque" />
+                        <label htmlFor="gerar-estoque" className="font-semibold cursor-pointer">📦 Dar Entrada em Estoque</label>
+                      </div>
+
+                      {gerarEstoque && (
+                        <div className="ml-8 space-y-3 p-3 bg-white rounded border">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Local de Estoque *</Label>
+                              <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione onde entrará" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Centro de Custo (opcional)</Label>
+                              <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center space-x-3">
+                        <Checkbox checked={gerarLivroFiscal} onCheckedChange={setGerarLivroFiscal} id="gerar-livro" />
+                        <label htmlFor="gerar-livro" className="font-semibold cursor-pointer">📚 Registrar no Livro Fiscal</label>
                       </div>
                     </div>
-                  )}
 
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={gerarLivroFiscal} onCheckedChange={setGerarLivroFiscal} />
-                    <label className="font-semibold">📚 Registrar no Livro Fiscal</label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Textarea
-                        id="observacoes"
+                    <div className="space-y-2">
+                      <Label>Observações</Label>
+                      <Textarea
                         value={dadosComplementares.observacoes}
                         onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })}
-                        placeholder="Observações adicionais para a importação..."
-                    />
-                  </div>
-                </div>
+                        placeholder="Observações sobre esta importação..."
+                        rows={3}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
                 <Card className="bg-green-50 border-green-300">
                   <CardContent className="p-4">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Itens Selecionados:</span>
-                        <span className="font-semibold">{itensSelecionados.length}</span>
+                        <span>Fornecedor:</span>
+                        <span className="font-semibold">{fornecedorSelecionado?.nome}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold text-green-700">
+                      <div className="flex justify-between">
+                        <span>Produtos Selecionados:</span>
+                        <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
+                      </div>
+                      <div className="border-t pt-2 flex justify-between text-lg font-bold text-green-700">
                         <span>Valor Total NF-e:</span>
                         <span>{formatarMoeda(dadosNFe.valor_total)}</span>
                       </div>
@@ -768,10 +930,10 @@ ${xmlText}`,
                 </Card>
 
                 <div className="flex justify-between gap-3">
-                  <Button variant="outline" onClick={() => setEtapa(3)}>Voltar</Button>
-                  <Button onClick={handleConfirmar} className="bg-green-600">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Confirmar Importação
+                  <Button variant="outline" onClick={() => setEtapa(3)}>Voltar para Produtos</Button>
+                  <Button onClick={handleConfirmar} className="bg-green-600 text-lg px-6 py-6" disabled={processando}>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Confirmar e Importar
                   </Button>
                 </div>
               </div>
@@ -780,19 +942,21 @@ ${xmlText}`,
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Novo Produto */}
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Cadastrar Produto</DialogTitle>
+            <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription>Dados pré-preenchidos do XML</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome *</Label>
+              <Label>Nome do Produto *</Label>
               <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Código</Label>
+                <Label>Código Interno</Label>
                 <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
@@ -807,61 +971,89 @@ ${xmlText}`,
                 </Select>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarProduto} className="bg-green-600">
-                <Save className="w-4 h-4 mr-2" />
-                Salvar
+              <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
+                {createProdutoMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-4 h-4 mr-2" />Salvar e Associar</>
+                )}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Trocar Produto */}
       <Dialog open={showTrocarProduto} onOpenChange={setShowTrocarProduto}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Trocar Produto</DialogTitle>
+            <DialogTitle>Associar a Produto Existente</DialogTitle>
+            <DialogDescription>Busque e selecione o produto cadastrado</DialogDescription>
           </DialogHeader>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
+            <Input placeholder="Buscar por nome ou código..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
           </div>
-          <div className="max-h-96 overflow-auto">
+          <div className="flex-1 overflow-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Código</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtosFiltrados.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.nome_produto}</TableCell>
-                    <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
-                    <TableCell>
-                      <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Selecionar
-                      </Button>
-                    </TableCell>
+                {produtosFiltrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-slate-400">Nenhum produto encontrado</TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  produtosFiltrados.map(p => (
+                    <TableRow key={p.id} className="hover:bg-green-50">
+                      <TableCell>{p.nome_produto}</TableCell>
+                      <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
+                      <TableCell>{p.unidade_medida}</TableCell>
+                      <TableCell>
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Selecionar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Cadastro em Massa */}
       <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              Cadastrando...
+              Cadastrando Produtos em Massa
             </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto os produtos são cadastrados automaticamente...
+            </DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
