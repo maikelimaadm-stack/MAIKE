@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, CheckCircle, AlertCircle, Plus, RefreshCw, Loader2, Save, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FileText, Upload, CheckCircle, AlertCircle, Plus, RefreshCw, Loader2, Save, X, Search, Trash2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Progress } from "@/components/ui/progress";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
@@ -42,6 +44,7 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
   const [dadosNFe, setDadosNFe] = useState(null);
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
   const [itensNFe, setItensNFe] = useState([]);
+  const [itensSelecionados, setItensSelecionados] = useState([]);
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
     centro_custo_id: "",
@@ -55,7 +58,12 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
   const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [showTrocarProduto, setShowTrocarProduto] = useState(false);
+  const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
+  const [showProgressoImportacao, setShowProgressoImportacao] = useState(false);
+  const [progressoImportacao, setProgressoImportacao] = useState({ current: 0, total: 0 });
   const [itemEditando, setItemEditando] = useState(null);
+  const [buscaProduto, setBuscaProduto] = useState("");
+  
   const [novoFornecedor, setNovoFornecedor] = useState({ 
     tipo_pessoa: "Jurídica", 
     nome: "", 
@@ -271,9 +279,12 @@ Retorne um JSON com esta estrutura EXATA:
       const jaImportada = movimentacoes.find(m => m.chave_documento === resultado.chave);
       
       if (jaImportada) {
-        toast.error('❌ Esta NF-e já foi importada anteriormente!');
-        setProcessando(false);
-        return;
+        if (window.confirm(`⚠️ ATENÇÃO: Esta NF-e (${resultado.numero}) já foi importada anteriormente em ${new Date(jaImportada.data_movimentacao).toLocaleString('pt-BR')}!\n\nDeseja importar novamente?`)) {
+          // Continua a importação
+        } else {
+          setProcessando(false);
+          return;
+        }
       }
 
       setXmlFile(file_url);
@@ -291,7 +302,6 @@ Retorne um JSON com esta estrutura EXATA:
         toast.success('✅ Fornecedor identificado automaticamente!');
         setTimeout(() => setEtapa(3), 500);
       } else {
-        // Preencher automaticamente os dados do fornecedor do XML
         const enderecoCompleto = resultado.bairro_emitente 
           ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
           : resultado.endereco_emitente;
@@ -337,11 +347,13 @@ Retorne um JSON com esta estrutura EXATA:
           status: produtoEncontrado ? 'associado' : 'pendente',
           quantidade_ajustada: formatarNumero(item.quantidade),
           valor_unitario_ajustado: formatarNumero(item.valor_unitario),
-          cfop_ajustado: item.cfop
+          cfop_ajustado: item.cfop,
+          incluir: true
         };
       });
       
       setItensNFe(itensComAssociacao);
+      setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
   }, [etapa, dadosNFe, produtos]);
 
@@ -393,6 +405,52 @@ Retorne um JSON com esta estrutura EXATA:
     });
   };
 
+  const handleCadastrarProdutosEmMassa = async () => {
+    const itensPendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
+    
+    if (itensPendentes.length === 0) {
+      toast.error('Nenhum produto pendente selecionado para cadastro em massa!');
+      return;
+    }
+
+    setShowCadastroEmMassa(true);
+    let cadastrados = 0;
+    queryClient.invalidateQueries({ queryKey: ['produtos'] }); // Invalidate products query before starting to fetch latest
+
+    for (const item of itensPendentes) {
+      try {
+        const allProdutos = await base44.entities.Produto.list();
+        const maxNum = allProdutos.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
+        
+        const newProduto = await base44.entities.Produto.create({
+          empresa_id: empresaSelecionadaId,
+          numero_produto: String(maxNum + 1),
+          nome_produto: item.descricao.toUpperCase(),
+          codigo_interno: item.codigo?.toUpperCase(),
+          unidade_medida: item.unidade?.toUpperCase() || 'UN',
+          preco_custo: item.valor_unitario,
+          estoque_atual: 0
+        });
+
+        setItensNFe(prevItens => prevItens.map(i => {
+          if (i.index === item.index) {
+            return { ...i, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' };
+          }
+          return i;
+        }));
+        cadastrados++;
+        
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to avoid overwhelming
+      } catch (error) {
+        console.error('Erro ao cadastrar produto:', error);
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    setShowCadastroEmMassa(false);
+    toast.success(`✅ ${cadastrados} produto(s) cadastrado(s) em massa!`);
+  };
+
   const handleTrocarProduto = (produto) => {
     const itensAtualizados = itensNFe.map(item => {
       if (item.index === itemEditando?.index) {
@@ -404,24 +462,43 @@ Retorne um JSON com esta estrutura EXATA:
     setItensNFe(itensAtualizados);
     setShowTrocarProduto(false);
     setItemEditando(null);
+    setBuscaProduto("");
     toast.success('Produto associado!');
   };
 
-  const handleAjustarItem = (index, campo, valor) => {
-    const itensAtualizados = itensNFe.map(item => {
-      if (item.index === index) {
-        return { ...item, [campo]: valor };
-      }
-      return item;
-    });
-    setItensNFe(itensAtualizados);
+  const handleRemoverItem = (index) => {
+    if (window.confirm('Deseja remover este item da importação?')) {
+      setItensNFe(prev => prev.filter(item => item.index !== index));
+      setItensSelecionados(prev => prev.filter(i => i !== index));
+      toast.success('Item removido!');
+    }
+  };
+
+  const handleToggleSelecao = (index) => {
+    setItensSelecionados(prev => 
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
+  };
+
+  const handleSelecionarTodos = () => {
+    if (itensSelecionados.length === itensNFe.length) {
+      setItensSelecionados([]);
+    } else {
+      setItensSelecionados(itensNFe.map(i => i.index));
+    }
   };
 
   const handleConfirmarImportacao = async () => {
-    const itensPendentes = itensNFe.filter(i => i.status === 'pendente');
+    const itensParaImportar = itensNFe.filter(i => itensSelecionados.includes(i.index));
+    const itensPendentes = itensParaImportar.filter(i => i.status === 'pendente');
     
+    if (itensParaImportar.length === 0) {
+      toast.error('❌ Nenhum item selecionado para importação!');
+      return;
+    }
+
     if (itensPendentes.length > 0) {
-      toast.error(`❌ ${itensPendentes.length} produto(s) sem associação! Cadastre ou associe todos.`);
+      toast.error(`❌ ${itensPendentes.length} produto(s) sem associação! Cadastre ou associe todos os itens selecionados.`);
       return;
     }
 
@@ -430,12 +507,14 @@ Retorne um JSON com esta estrutura EXATA:
       return;
     }
 
-    setProcessando(true);
+    setShowProgressoImportacao(true);
+    setProgressoImportacao({ current: 0, total: itensParaImportar.length });
 
     try {
       const movimentacoes = [];
 
-      for (const item of itensNFe) {
+      for (let i = 0; i < itensParaImportar.length; i++) {
+        const item = itensParaImportar[i];
         const qtd = parseNumero(item.quantidade_ajustada);
         const vlrUnit = parseNumero(item.valor_unitario_ajustado);
 
@@ -450,6 +529,9 @@ Retorne um JSON com esta estrutura EXATA:
           serie_nfe: dadosNFe.serie,
           chave_nfe: dadosNFe.chave
         });
+
+        setProgressoImportacao({ current: i + 1, total: itensParaImportar.length });
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for visual progress
       }
 
       await onSuccess({
@@ -460,14 +542,17 @@ Retorne um JSON com esta estrutura EXATA:
         xmlFile
       });
 
-      toast.success(`✅ NF-e importada! ${itensNFe.length} produto(s) lançado(s).`);
-      onClose();
-      resetar();
+      toast.success(`✅ NF-e importada! ${itensParaImportar.length} produto(s) lançado(s).`);
+      
+      setTimeout(() => {
+        setShowProgressoImportacao(false);
+        onClose();
+        resetar();
+      }, 1000);
     } catch (error) {
       toast.error('Erro ao confirmar importação');
       console.error(error);
-    } finally {
-      setProcessando(false);
+      setShowProgressoImportacao(false);
     }
   };
 
@@ -477,11 +562,18 @@ Retorne um JSON com esta estrutura EXATA:
     setDadosNFe(null);
     setFornecedorSelecionado(null);
     setItensNFe([]);
+    setItensSelecionados([]);
     setDadosComplementares({ local_estoque: "", centro_custo_id: "", frete: "0,00", tipo_frete: "CIF", desconto_total: "0,00", outras_despesas: "0,00", observacoes: "" });
   };
 
   const totalItens = dadosNFe?.valor_total || 0;
   const totalAjustado = totalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
+  const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
+  const produtosFiltrados = produtos.filter(p => 
+    !buscaProduto || 
+    p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
+    p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
+  );
 
   return (
     <>
@@ -544,15 +636,15 @@ Retorne um JSON com esta estrutura EXATA:
                   <Alert className="bg-green-50 border-green-300">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <AlertDescription>
-                      <strong>{fornecedorSelecionado.nome}</strong> - CNPJ: {fornecedorSelecionado.cnpj}
+                      <strong>{fornecedorSelecionado.nome}</strong> - {fornecedorSelecionado.cnpj || fornecedorSelecionado.cpf}
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <Alert className="bg-orange-50 border-orange-300">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     <AlertDescription>
-                      Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong> (CNPJ: {dadosNFe.cnpj_emitente || dadosNFe.cpf_emitente})
-                      <Button size="sm" className="ml-4" onClick={() => { setShowNovoFornecedor(true); }}>
+                      Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
+                      <Button size="sm" className="ml-4" onClick={() => setShowNovoFornecedor(true)}>
                         <Plus className="w-3 h-3 mr-1" />
                         Cadastrar
                       </Button>
@@ -572,12 +664,32 @@ Retorne um JSON com esta estrutura EXATA:
 
           {etapa === 3 && (
             <div className="space-y-4">
-              <h3 className="font-semibold">Produtos da NF-e ({itensNFe.length})</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold">Produtos da NF-e ({itensNFe.length})</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                    {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  </Button>
+                  {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
+                      <Plus className="w-3 h-3 mr-1" />
+                      Cadastrar Selecionados ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                    </Button>
+                  )}
+                </div>
+              </div>
               
               <div className="overflow-auto max-h-96 border rounded">
                 <Table>
                   <TableHeader className="sticky top-0 bg-white">
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox 
+                          checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0}
+                          onCheckedChange={handleSelecionarTodos}
+                        />
+                      </TableHead>
                       <TableHead className="w-12">Status</TableHead>
                       <TableHead>Código XML</TableHead>
                       <TableHead>Descrição XML</TableHead>
@@ -589,7 +701,13 @@ Retorne um JSON com esta estrutura EXATA:
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => (
-                      <TableRow key={item.index}>
+                      <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50' : ''}>
+                        <TableCell>
+                          <Checkbox 
+                            checked={itensSelecionados.includes(item.index)}
+                            onCheckedChange={() => handleToggleSelecao(item.index)}
+                          />
+                        </TableCell>
                         <TableCell>
                           {item.status === 'associado' ? (
                             <CheckCircle className="w-4 h-4 text-green-600" />
@@ -617,6 +735,9 @@ Retorne um JSON com esta estrutura EXATA:
                                 </Button>
                               </>
                             )}
+                            <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -625,10 +746,23 @@ Retorne um JSON com esta estrutura EXATA:
                 </Table>
               </div>
 
+              <Alert>
+                <AlertDescription>
+                  <strong>{itensSelecionados.length}</strong> de <strong>{itensNFe.length}</strong> itens selecionados para importação
+                </AlertDescription>
+              </Alert>
+
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(2)}>Voltar</Button>
-                <Button onClick={() => setEtapa(4)} className="bg-green-600" disabled={itensNFe.some(i => i.status === 'pendente')}>
-                  Avançar
+                <Button 
+                  onClick={() => setEtapa(4)} 
+                  className="bg-green-600" 
+                  disabled={
+                    itensSelecionados.length === 0 || 
+                    itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0
+                  }
+                >
+                  Avançar ({itensSelecionados.length} item{itensSelecionados.length !== 1 ? 's' : ''})
                 </Button>
               </div>
             </div>
@@ -689,8 +823,8 @@ Retorne um JSON com esta estrutura EXATA:
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(3)}>Voltar</Button>
                 <Button onClick={handleConfirmarImportacao} className="bg-green-600 gap-2" disabled={processando}>
-                  {processando ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  Confirmar e Lançar
+                  <CheckCircle className="w-4 h-4" />
+                  Confirmar e Lançar ({itensSelecionados.length} item{itensSelecionados.length !== 1 ? 's' : ''})
                 </Button>
               </div>
             </div>
@@ -884,6 +1018,17 @@ Retorne um JSON com esta estrutura EXATA:
             <DialogTitle>Trocar por Produto Existente</DialogTitle>
             <DialogDescription>Selecione um produto cadastrado para associar</DialogDescription>
           </DialogHeader>
+          
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Input
+              placeholder="Buscar por nome ou código..."
+              value={buscaProduto}
+              onChange={(e) => setBuscaProduto(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
           <div className="flex-1 overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-white">
@@ -896,22 +1041,68 @@ Retorne um JSON com esta estrutura EXATA:
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtos.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
-                    <TableCell className="text-sm">{p.nome_produto}</TableCell>
-                    <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
-                    <TableCell>{p.unidade_medida}</TableCell>
-                    <TableCell>
-                      <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Selecionar
-                      </Button>
+                {produtosFiltrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                      Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  produtosFiltrados.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
+                      <TableCell className="text-sm">{p.nome_produto}</TableCell>
+                      <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
+                      <TableCell>{p.unidade_medida}</TableCell>
+                      <TableCell>
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Selecionar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              Cadastrando Produtos
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto os produtos selecionados são cadastrados...
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+              Importando NF-e
+            </DialogTitle>
+            <DialogDescription>
+              Lançando produtos no estoque...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progresso</span>
+                <span className="font-semibold">{progressoImportacao.current} de {progressoImportacao.total}</span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-green-600">{progressPercentage}%</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
