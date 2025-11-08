@@ -17,6 +17,10 @@ import GerenciarSafras from './pages/GerenciarSafras';
 import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
 import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
 import CentrosCusto from './pages/CentrosCusto';
+import Home from './pages/Home';
+import PlanoContas from './pages/PlanoContas';
+import FormasPagamento from './pages/FormasPagamento';
+import GruposFinanceiros from './pages/GruposFinanceiros';
 import Layout from './Layout.jsx';
 
 
@@ -40,6 +44,10 @@ export const PAGES = {
     "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
     "MovimentacoesEstoque": MovimentacoesEstoque,
     "CentrosCusto": CentrosCusto,
+    "Home": Home,
+    "PlanoContas": PlanoContas,
+    "FormasPagamento": FormasPagamento,
+    "GruposFinanceiros": GruposFinanceiros,
 }
 
 export const pagesConfig = {
