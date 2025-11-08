@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -286,7 +285,7 @@ export default function MovimentacoesEstoque() {
       
       if (!produto) {
         console.warn(`Produto com ID ${item.produto_id} não encontrado, pulando item.`);
-        continue; // Skip this item if product not found
+        continue;
       }
 
       const estoqueAtual = produto?.estoque_atual || 0;
@@ -301,7 +300,7 @@ export default function MovimentacoesEstoque() {
         numero_movimentacao: String(proximoNumero),
         tipo_movimentacao: 'Entrada',
         tipo_detalhado: 'Compra',
-        data_movimentacao: new Date().toISOString(), // Use current date for mov. creation, NFe date for doc date
+        data_movimentacao: new Date().toISOString(),
         produto_id: item.produto_id,
         produto_nome: produto?.nome_produto,
         produto_codigo: produto?.codigo_interno,
@@ -450,7 +449,6 @@ export default function MovimentacoesEstoque() {
         onSuccess={handleImportacaoXML}
         produtos={produtos}
         fornecedores={fornecedores}
-        centrosDeCusto={centros} // Assuming ImportarNFeXML might need centros for selection
       />
     </div>
   );
