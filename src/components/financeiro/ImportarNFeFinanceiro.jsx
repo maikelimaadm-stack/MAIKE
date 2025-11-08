@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,8 +16,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
-  const fixed = typeof num === 'number' ? num.toFixed(2) : String(num);
-  return fixed.replace('.', ',');
+  const numero = typeof num === 'number' ? num : parseFloat(String(num).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(numero)) return '0,00';
+  return numero.toFixed(2).replace('.', ',');
 };
 
 const parseNumero = (str) => {
@@ -43,7 +43,6 @@ const formatarDataParaBR = (dataString) => {
 };
 
 const ESTADOS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
-const UNIDADES_MEDIDA = ['UN', 'KG', 'G', 'MG', 'L', 'ML', 'M', 'M2', 'M3', 'CM', 'MM', 'CX', 'PC', 'SC', 'FD', 'TON', 'KIT', 'JG', 'PAR', 'DZ'];
 
 export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornecedores, produtos }) {
   const [processando, setProcessando] = useState(false);
@@ -59,6 +58,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [parcelas, setParcelas] = useState([]);
   const [dataVencimento, setDataVencimento] = useState("");
   const [etapa, setEtapa] = useState(1);
+  const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [showTrocarProduto, setShowTrocarProduto] = useState(false);
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
@@ -87,8 +87,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [novoProduto, setNovoProduto] = useState({
     nome: "",
     codigo: "",
+    codigo_barras: "",
+    ncm: "",
     unidade: "UN",
-    categoria: ""
+    categoria: "",
+    descricao: ""
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -134,6 +137,20 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     onSuccess: (newFornecedor) => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores_financeiro'] });
       setFornecedorSelecionado(newFornecedor);
+      setShowNovoFornecedor(false);
+      setNovoFornecedor({
+        tipo_pessoa: "Jurídica",
+        nome: "",
+        cnpj: "",
+        cpf: "",
+        inscricao_estadual: "",
+        telefone: "",
+        email: "",
+        endereco: "",
+        cidade: "",
+        estado: "",
+        cep: ""
+      });
       toast.success('✅ Fornecedor cadastrado!');
       setEtapa(3);
     },
@@ -162,6 +179,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       
       setShowNovoProduto(false);
       setItemEditando(null);
+      setNovoProduto({
+        nome: "",
+        codigo: "",
+        codigo_barras: "",
+        ncm: "",
+        unidade: "UN",
+        categoria: "",
+        descricao: ""
+      });
       toast.success('✅ Produto cadastrado e associado!');
     },
   });
@@ -186,20 +212,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     const equalParcelValue = valorTotal / newNumberOfParcelas;
 
     const updatedParcelas = Array.from({ length: newNumberOfParcelas }, (_, i) => {
-        const currentParcel = parcelas[i];
-        let date = currentParcel?.data || (i === 0 ? dataVencimento : calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento));
-        if (i === newNumberOfParcelas -1 && !ultimaParcela) {
-          date = dataVencimento;
-        } else if (i === newNumberOfParcelas -1 && ultimaParcela) {
-          date = calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento);
-        } else {
-          date = currentParcel?.data || (i === 0 ? dataVencimento : calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento));
-        }
+      const currentParcel = parcelas[i];
+      let date = currentParcel?.data || (i === 0 ? dataVencimento : calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento));
+      if (i === newNumberOfParcelas - 1 && !ultimaParcela) {
+        date = dataVencimento;
+      } else if (i === newNumberOfParcelas - 1 && ultimaParcela) {
+        date = calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento);
+      }
 
-        return {
-            data: date,
-            valor: formatarNumero(equalParcelValue)
-        };
+      return {
+        data: date,
+        valor: formatarNumero(equalParcelValue)
+      };
     });
     
     setParcelas(updatedParcelas);
@@ -212,12 +236,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     }
     const newParcelas = parcelas.filter((_, i) => i !== index);
     const valorTotal = dadosNFe.valor_total;
-    const newNumberOfParcelas = newParcelas.length;
-    const equalParcelValue = valorTotal / newNumberOfParcelas;
+    const equalParcelValue = valorTotal / newParcelas.length;
 
     const updatedParcelas = newParcelas.map(p => ({
-        ...p,
-        valor: formatarNumero(equalParcelValue)
+      ...p,
+      valor: formatarNumero(equalParcelValue)
     }));
     
     setParcelas(updatedParcelas);
@@ -278,8 +301,8 @@ ${xmlText}`,
             email_emitente: { type: ["string", "null"] },
             endereco_emitente: { type: "string" },
             bairro_emitente: { type: ["string", "null"] },
-            cidade_emitente: { type: "string", default: "CIDADE_NAO_INFORMADA" },
-            estado_emitente: { type: "string", default: "UF" },
+            cidade_emitente: { type: "string" },
+            estado_emitente: { type: "string" },
             cep_emitente: { type: "string" },
             cfop: { type: "string" },
             natureza_operacao: { type: "string" },
@@ -299,8 +322,7 @@ ${xmlText}`,
                 }
               }
             }
-          },
-          required: ["modelo", "numero", "serie", "data_emissao", "valor_total", "razao_social_emitente", "endereco_emitente", "cidade_emitente", "estado_emitente", "cep_emitente", "itens"]
+          }
         }
       });
 
@@ -316,10 +338,19 @@ ${xmlText}`,
         return;
       }
 
+      console.log('📋 Data emissão extraída:', resultado.data_emissao);
       toast.success(`✅ ${resultado.itens.length} produto(s) encontrado(s)`);
       
       setDadosNFe(resultado);
-      setDataVencimento(resultado.data_emissao || new Date().toISOString().split('T')[0]);
+      
+      if (resultado.data_emissao) {
+        setDataVencimento(resultado.data_emissao);
+        console.log('📅 Data vencimento setada:', resultado.data_emissao);
+      } else {
+        const hoje = new Date().toISOString().split('T')[0];
+        setDataVencimento(hoje);
+        console.log('📅 Data vencimento padrão (hoje):', hoje);
+      }
       
       const doc = resultado.cnpj_emitente || resultado.cpf_emitente;
       const forn = fornecedores.find(f => 
@@ -332,6 +363,10 @@ ${xmlText}`,
         toast.success(`✅ Fornecedor: ${forn.nome}`);
         setEtapa(3);
       } else {
+        const enderecoCompleto = resultado.bairro_emitente 
+          ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
+          : resultado.endereco_emitente;
+
         setNovoFornecedor({
           tipo_pessoa: resultado.cnpj_emitente ? "Jurídica" : "Física",
           nome: resultado.razao_social_emitente || "",
@@ -340,7 +375,7 @@ ${xmlText}`,
           inscricao_estadual: resultado.inscricao_estadual_emitente || "",
           telefone: resultado.telefone_emitente || "",
           email: resultado.email_emitente || "",
-          endereco: resultado.bairro_emitente ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}` : resultado.endereco_emitente,
+          endereco: enderecoCompleto || "",
           cidade: resultado.cidade_emitente || "",
           estado: resultado.estado_emitente || "",
           cep: resultado.cep_emitente || ""
@@ -395,7 +430,17 @@ ${xmlText}`,
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
-      toast.error('Nome obrigatório!');
+      toast.error('❌ Nome obrigatório!');
+      return;
+    }
+
+    if (novoFornecedor.tipo_pessoa === 'Jurídica' && !novoFornecedor.cnpj) {
+      toast.error('❌ CNPJ obrigatório para pessoa jurídica!');
+      return;
+    }
+
+    if (novoFornecedor.tipo_pessoa === 'Física' && !novoFornecedor.cpf) {
+      toast.error('❌ CPF obrigatório para pessoa física!');
       return;
     }
 
@@ -416,15 +461,17 @@ ${xmlText}`,
 
   const handleCadastrarProduto = () => {
     if (!novoProduto.nome || !novoProduto.unidade) {
-      toast.error('Nome e unidade obrigatórios!');
+      toast.error('❌ Nome e unidade obrigatórios!');
       return;
     }
 
     createProdutoMutation.mutate({
       nome_produto: novoProduto.nome.toUpperCase(),
       codigo_interno: novoProduto.codigo?.toUpperCase(),
+      codigo_barras: novoProduto.codigo_barras,
       unidade_medida: novoProduto.unidade.toUpperCase(),
       categoria: novoProduto.categoria?.toUpperCase(),
+      descricao: novoProduto.descricao?.toUpperCase(),
       preco_custo: parseNumero(itemEditando?.valor_unitario_ajustado) || 0
     });
   };
@@ -433,50 +480,41 @@ ${xmlText}`,
     const pendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
     
     if (pendentes.length === 0) {
-      toast.error('Nenhum produto pendente para cadastro!');
+      toast.error('❌ Nenhum produto pendente!');
       return;
     }
     
     setShowCadastroEmMassa(true);
 
-    const createdProductPromises = pendentes.map(async (item) => {
+    for (const item of pendentes) {
+      try {
         const all = await base44.entities.Produto.list();
         const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
         
-        return base44.entities.Produto.create({
-            empresa_id: empresaSelecionadaId,
-            numero_produto: String(maxNum + 1),
-            nome_produto: item.descricao.toUpperCase(),
-            codigo_interno: item.codigo?.toUpperCase(),
-            unidade_medida: item.unidade?.toUpperCase() || 'UN',
-            preco_custo: parseNumero(item.valor_unitario_ajustado),
-            estoque_atual: 0
+        const newProduto = await base44.entities.Produto.create({
+          empresa_id: empresaSelecionadaId,
+          numero_produto: String(maxNum + 1),
+          nome_produto: item.descricao.toUpperCase(),
+          codigo_interno: item.codigo?.toUpperCase(),
+          unidade_medida: item.unidade?.toUpperCase() || 'UN',
+          preco_custo: parseNumero(item.valor_unitario_ajustado),
+          estoque_atual: 0
         });
-    });
 
-    try {
-        const newProducts = await Promise.all(createdProductPromises);
-        
-        setItensNFe(prev => prev.map(item => {
-            const newProduct = newProducts.find(np => 
-                (np.codigo_interno === item.codigo || np.nome_produto === item.descricao.toUpperCase()) &&
-                item.status === 'pendente'
-            );
-            if (newProduct) {
-                return { ...item, produto_id: newProduct.id, produto_nome: newProduct.nome_produto, status: 'associado' };
-            }
-            return item;
+        setItensNFe(prevItens => prevItens.map(i => {
+          if (i.index === item.index) {
+            return { ...i, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' };
+          }
+          return i;
         }));
-
-        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-        toast.success(`✅ ${pendentes.length} produto(s) cadastrado(s)!`);
-
-    } catch (error) {
-        console.error("Erro ao cadastrar produtos em massa:", error);
-        toast.error("❌ Erro ao cadastrar produtos em massa.");
-    } finally {
-        setShowCadastroEmMassa(false);
+      } catch (error) {
+        console.error('Erro:', error);
+      }
     }
+
+    queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+    setShowCadastroEmMassa(false);
+    toast.success(`✅ ${pendentes.length} produto(s) cadastrado(s)!`);
   };
 
   const handleAtualizarItem = (index, campo, valor) => {
@@ -496,6 +534,14 @@ ${xmlText}`,
     setItemEditando(null);
     setBuscaProduto("");
     toast.success('✅ Produto associado!');
+  };
+
+  const handleRemoverItem = (index) => {
+    if (window.confirm('Deseja remover este item?')) {
+      setItensNFe(prev => prev.filter(item => item.index !== index));
+      setItensSelecionados(prev => prev.filter(i => i !== index));
+      toast.success('Item removido!');
+    }
   };
 
   const handleToggleSelecao = (index) => {
@@ -543,27 +589,10 @@ ${xmlText}`,
       }
     }
 
-    console.log('✅ Confirmando:', {
+    console.log('✅ Confirmando importação:', {
       dadosNFe,
-      fornecedor_id: fornecedorSelecionado.id,
       dataVencimento,
-      itens: itensParaImportar.map(i => ({
-        produto_id: i.produto_id,
-        produto_nome: i.produto_nome,
-        descricao: i.descricao,
-        codigo: i.codigo,
-        ncm: i.ncm,
-        cfop: i.cfop_ajustado,
-        unidade: i.unidade,
-        quantidade: parseNumero(i.quantidade_ajustada),
-        valor_unitario: parseNumero(i.valor_unitario_ajustado)
-      })),
-      dadosComplementares,
-      gerarFinanceiro,
-      gerarEstoque,
-      gerarLivroFiscal,
-      parcelar,
-      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : []
+      fornecedor_id: fornecedorSelecionado.id
     });
 
     onSuccess({
@@ -605,7 +634,7 @@ ${xmlText}`,
     setParcelar(false);
     setParcelas([]);
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
-    setNovoProduto({ nome: "", codigo: "", unidade: "UN", categoria: "" });
+    setNovoProduto({ nome: "", codigo: "", codigo_barras: "", ncm: "", unidade: "UN", categoria: "", descricao: "" });
   };
 
   const produtosFiltrados = produtos.filter(p => 
@@ -613,6 +642,13 @@ ${xmlText}`,
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
+
+  const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
+  const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
+    const qtd = parseNumero(item.quantidade_ajustada);
+    const vlrUnit = parseNumero(item.valor_unitario_ajustado);
+    return sum + (qtd * vlrUnit);
+  }, 0);
 
   const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
   const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - (dadosNFe?.valor_total || 0)) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
@@ -653,7 +689,8 @@ ${xmlText}`,
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-4 grid grid-cols-2 gap-2 text-sm">
                   <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
-                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                  <div><strong>Emissão:</strong> {formatarDataParaBR(dadosNFe.data_emissao)}</div>
+                  <div className="col-span-2"><strong>Vlr. Total:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
                 </CardContent>
               </Card>
 
@@ -661,56 +698,12 @@ ${xmlText}`,
                 <AlertCircle className="h-4 w-4 text-orange-600" />
                 <AlertDescription>
                   <strong>Fornecedor não cadastrado:</strong> {dadosNFe.razao_social_emitente}
+                  <Button size="sm" className="ml-4" onClick={() => setShowNovoFornecedor(true)}>
+                    <Plus className="w-3 h-3 mr-1" />
+                    Cadastrar Agora
+                  </Button>
                 </AlertDescription>
               </Alert>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Cadastrar Fornecedor</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Tipo *</Label>
-                    <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Jurídica">Jurídica</SelectItem>
-                        <SelectItem value="Física">Física</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Nome *</Label>
-                    <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
-                      <>
-                        <div className="space-y-2">
-                          <Label>CNPJ *</Label>
-                          <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Insc. Estadual</Label>
-                          <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label>CPF *</Label>
-                        <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between gap-3 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => setEtapa(1)}>← Voltar</Button>
-                    <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
-                      {createFornecedorMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar →</>}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           )}
 
@@ -720,7 +713,7 @@ ${xmlText}`,
                 <CardContent className="p-4 grid grid-cols-3 gap-2 text-sm">
                   <div><strong>Fornecedor:</strong> {fornecedorSelecionado?.nome}</div>
                   <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
-                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                  <div><strong>Vlr. Total:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
                 </CardContent>
               </Card>
 
@@ -748,7 +741,7 @@ ${xmlText}`,
                       <TableHead className="w-12">OK</TableHead>
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
-                      <TableHead className="text-right">Vlr Unit.</TableHead>
+                      <TableHead className="text-right">Vlr. Unit.</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
@@ -769,10 +762,10 @@ ${xmlText}`,
                             <div className="text-slate-500 text-xs">{item.descricao}</div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {isEdit ? <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-20" /> : <span className="font-mono">{item.quantidade_ajustada}</span>}
+                            {isEdit ? <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-24 text-right" /> : <span className="font-mono">{item.quantidade_ajustada}</span>}
                           </TableCell>
                           <TableCell className="text-right">
-                            {isEdit ? <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-24" /> : <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>}
+                            {isEdit ? <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-28 text-right" /> : <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-green-700">R$ {formatarNumero(total)}</TableCell>
                           <TableCell>
@@ -780,13 +773,20 @@ ${xmlText}`,
                               {isEdit ? (
                                 <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)}><CheckCircle className="w-3 h-3" /></Button>
                               ) : (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)}><Edit2 className="w-3 h-3" /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores"><Edit2 className="w-3 h-3" /></Button>
                               )}
-                              <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN" }); setShowNovoProduto(true); }}>
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
-                                <RefreshCw className="w-3 h-3" />
+                              {item.status === 'pendente' && (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
+                                    <RefreshCw className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:bg-red-50">
+                                <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
                           </TableCell>
@@ -797,8 +797,21 @@ ${xmlText}`,
                 </Table>
               </div>
 
+              <Card className="bg-blue-50 border-blue-300">
+                <CardContent className="p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Itens Selecionados:</span>
+                    <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold text-blue-700">
+                    <span>Subtotal Produtos:</span>
+                    <span>R$ {formatarNumero(subtotalItens)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex justify-between gap-3">
-                <Button variant="outline" onClick={() => setEtapa(1)}>← Voltar</Button>
+                <Button variant="outline" onClick={() => setEtapa(2)}>← Voltar</Button>
                 <Button onClick={() => setEtapa(4)} className="bg-green-600">Avançar → ({itensSelecionados.length})</Button>
               </div>
             </div>
@@ -816,11 +829,11 @@ ${xmlText}`,
                   <div className="ml-8 p-4 bg-white rounded border space-y-4">
                     <div className="space-y-2">
                       <Label className="flex items-center gap-2">
-                        Data de Vencimento (padrão)
+                        Data de Vencimento (padrão) 
                         <span className="text-red-600 font-bold">*</span>
                       </Label>
                       <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
-                      <p className="text-xs text-slate-500">⚠️ Campo obrigatório para gerar lançamento financeiro</p>
+                      <p className="text-xs text-slate-500">⚠️ Campo obrigatório - já preenchido com data de emissão da NF-e</p>
                     </div>
 
                     <div className="flex items-center space-x-3">
@@ -875,7 +888,7 @@ ${xmlText}`,
                                 <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span>Valor NF-e:</span>
+                                <span>Vlr. NF-e:</span>
                                 <span className="font-bold">{formatarMoeda(dadosNFe.valor_total)}</span>
                               </div>
                             </div>
@@ -930,7 +943,7 @@ ${xmlText}`,
 
                 <div className="space-y-2">
                   <Label>Observações</Label>
-                  <Textarea value={dadosComplementares.observacoes} onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} rows={2} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  <Textarea value={dadosComplementares.observacoes} onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} rows={2} className="uppercase" style={{ textTransform: 'uppercase' }} placeholder="OBSERVAÇÕES..." />
                 </div>
               </div>
 
@@ -961,31 +974,171 @@ ${xmlText}`,
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Cadastrar Produto</DialogTitle></DialogHeader>
+      <Dialog open={showNovoFornecedor} onOpenChange={setShowNovoFornecedor}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Fornecedor</DialogTitle>
+            <DialogDescription>Preencha os dados do fornecedor para continuar a importação</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label>Tipo de Pessoa *</Label>
+              <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="Física">Pessoa Física</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
+              <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>CNPJ *</Label>
+                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Inscrição Estadual</Label>
+                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label>CPF *</Label>
+                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Código</Label>
+                <Label>Telefone</Label>
+                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Endereço</Label>
+              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              </div>
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
+                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>CEP</Label>
+                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" />
+              </div>
+            </div>
+
+            {novoFornecedor.tipo_pessoa === 'Jurídica' && (
+              <div className="space-y-2">
+                <Label>Nome do Responsável</Label>
+                <Input value={novoFornecedor.nome_responsavel} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome_responsavel: e.target.value })} placeholder="NOME DO RESPONSÁVEL" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              </div>
+            )}
+
+            {novoFornecedor.tipo_pessoa === 'Física' && (
+              <div className="space-y-2">
+                <Label>Data de Nascimento</Label>
+                <Input type="date" value={novoFornecedor.data_nascimento} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, data_nascimento: e.target.value })} />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea value={novoFornecedor.observacoes} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowNovoFornecedor(false)}>Cancelar</Button>
+              <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+                {createFornecedorMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar e Continuar</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription>Preencha os dados do produto para associá-lo à NF-e</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do Produto *</Label>
+              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Código Interno</Label>
                 <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Unidade *</Label>
+                <Label>Código de Barras</Label>
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>NCM</Label>
+                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Unidade de Medida *</Label>
                 <Select value={novoProduto.unidade} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un}>{un}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {unidadesMedida.map(un => <SelectItem key={un.id} value={un.sigla}>{un.sigla} - {un.descricao}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="flex justify-end gap-3">
+
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
               <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
-                {createProdutoMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar</>}
+                {createProdutoMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar e Associar</>}
               </Button>
             </div>
           </div>
@@ -993,34 +1146,49 @@ ${xmlText}`,
       </Dialog>
 
       <Dialog open={showTrocarProduto} onOpenChange={setShowTrocarProduto}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Associar Produto</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Trocar por Produto Existente</DialogTitle>
+            <DialogDescription>Selecione um produto cadastrado para associar</DialogDescription>
+          </DialogHeader>
+          
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Input placeholder="Buscar por nome ou código..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
           </div>
-          <div className="max-h-96 overflow-auto">
+
+          <div className="flex-1 overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
-                  <TableHead>Nome</TableHead>
                   <TableHead>Código</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtosFiltrados.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.nome_produto}</TableCell>
-                    <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
-                    <TableCell>
-                      <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Selecionar
-                      </Button>
-                    </TableCell>
+                {produtosFiltrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">Nenhum produto encontrado</TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  produtosFiltrados.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
+                      <TableCell className="text-sm">{p.nome_produto}</TableCell>
+                      <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
+                      <TableCell>{p.unidade_medida}</TableCell>
+                      <TableCell>
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Selecionar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -1028,12 +1196,13 @@ ${xmlText}`,
       </Dialog>
 
       <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              Cadastrando...
+              Cadastrando Produtos
             </DialogTitle>
+            <DialogDescription>Aguarde enquanto os produtos selecionados são cadastrados...</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
