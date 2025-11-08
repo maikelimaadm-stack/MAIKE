@@ -90,6 +90,7 @@ export default function Financeiro() {
         ...data,
         empresa_id: empresaSelecionadaId,
         numero_lancamento: String(numero),
+        numero_documento: data.numero_documento ? `NOTA FISCAL: ${data.numero_documento}` : undefined,
         valor_total: valorTotal,
         valor_pago: 0,
         valor_saldo: valorTotal,
@@ -97,25 +98,49 @@ export default function Financeiro() {
       };
 
       if (data.parcelas && data.parcelas.length > 0) {
-        const lancamentoPai = await base44.entities.LancamentoFinanceiro.create(lancamento);
+        const lancamentoPai = await base44.entities.LancamentoFinanceiro.create({
+          ...lancamento,
+          observacoes: `${lancamento.observacoes || ''} - LANÇAMENTO PARCELADO EM ${data.parcelas.length}X`.trim()
+        });
         
         for (let i = 0; i < data.parcelas.length; i++) {
           const parcela = data.parcelas[i];
           const numeroParcela = await getNextNumber(empresaSelecionadaId);
           
           await base44.entities.LancamentoFinanceiro.create({
-            ...lancamento,
+            tipo: lancamento.tipo,
+            fornecedor_id: lancamento.fornecedor_id,
+            fornecedor_nome: lancamento.fornecedor_nome,
+            cliente_nome: lancamento.cliente_nome,
+            safra_id: lancamento.safra_id,
+            safra_nome: lancamento.safra_nome,
+            centro_custo_id: lancamento.centro_custo_id,
+            centro_custo_nome: lancamento.centro_custo_nome,
+            plano_contas_id: lancamento.plano_contas_id,
+            plano_contas_nome: lancamento.plano_contas_nome,
+            grupo_id: lancamento.grupo_id,
+            grupo_nome: lancamento.grupo_nome,
+            forma_pagamento_id: lancamento.forma_pagamento_id,
+            forma_pagamento_nome: lancamento.forma_pagamento_nome,
+            numero_documento: lancamento.numero_documento,
+            chave_nfe: lancamento.chave_nfe,
+            tipo_documento: lancamento.tipo_documento,
+            data_emissao: lancamento.data_emissao,
+            observacoes: lancamento.observacoes,
+            empresa_id: empresaSelecionadaId,
             numero_lancamento: String(numeroParcela),
+            data_vencimento: parcela.data,
             valor_original: parcela.valor,
             valor_total: parcela.valor,
             valor_saldo: parcela.valor,
             valor_juros: 0,
             valor_multa: 0,
             valor_desconto: 0,
-            data_vencimento: parcela.data,
+            valor_pago: 0,
             numero_parcela: i + 1,
             total_parcelas: data.parcelas.length,
-            lancamento_pai_id: lancamentoPai.id
+            lancamento_pai_id: lancamentoPai.id,
+            status: 'Pendente'
           });
         }
         
@@ -221,14 +246,14 @@ export default function Financeiro() {
             saldo_antes: prod?.estoque_atual || 0,
             saldo_depois: (prod?.estoque_atual || 0) + item.quantidade,
             tipo_documento: 'Nota Fiscal',
-            numero_documento: dados.dadosNFe.numero,
+            numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
             chave_documento: dados.dadosNFe.chave,
             data_documento: dados.dadosNFe.data_emissao,
             fornecedor_id: dados.fornecedor_id,
             fornecedor_nome: fornecedores.find(f => f.id === dados.fornecedor_id)?.nome,
             centro_custo_id: dados.dadosComplementares?.centro_custo_id,
-            motivo_movimentacao: `COMPRA NF-e ${dados.dadosNFe.numero}`,
-            observacoes: dados.dadosComplementares?.observacoes || '',
+            motivo_movimentacao: `COMPRA NF-E ${dados.dadosNFe.numero}`.toUpperCase(),
+            observacoes: (dados.dadosComplementares?.observacoes || '').toUpperCase(),
             usuario_responsavel: (await base44.auth.me()).email,
             status: 'Ativa'
           });
@@ -265,7 +290,7 @@ export default function Financeiro() {
           fornecedor_nome: forn?.nome,
           fornecedor_cnpj_cpf: forn?.cnpj || forn?.cpf,
           cfop: dados.dadosNFe.cfop || '5102',
-          natureza_operacao: dados.dadosNFe.natureza_operacao || 'COMPRA',
+          natureza_operacao: (dados.dadosNFe.natureza_operacao || 'COMPRA').toUpperCase(),
           valor_produtos: dados.itens.reduce((s, i) => s + (i.quantidade * i.valor_unitario), 0),
           valor_total_nota: dados.dadosNFe.valor_total,
           itens: dados.itens.map(i => ({
@@ -288,45 +313,83 @@ export default function Financeiro() {
       }
 
       if (dados.gerarFinanceiro) {
-        toast.info('💰 Abrindo formulário financeiro...');
+        toast.info('💰 Gerando lançamentos financeiros...');
         
-        setEditingItem({
+        const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
+        
+        const lancamentoBase = {
           tipo: 'Pagar',
           tipo_documento: 'NF-e',
           fornecedor_id: dados.fornecedor_id,
-          numero_documento: dados.dadosNFe.numero,
+          fornecedor_nome: forn?.nome,
+          numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
           chave_nfe: dados.dadosNFe.chave,
           data_emissao: dados.dadosNFe.data_emissao,
-          data_vencimento: dados.dataVencimento,
-          valor_original: dados.dadosNFe.valor_total,
+          observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
+          empresa_id: empresaSelecionadaId,
           valor_juros: 0,
           valor_multa: 0,
           valor_desconto: 0,
-          observacoes: dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-e ${dados.dadosNFe.numero}`,
-          parcelar: dados.parcelar || false,
-          parcelas: dados.parcelas || [],
-          produtos_lancamento: dados.itens.map(i => ({
-            produto_id: i.produto_id,
-            produto_nome: i.produto_nome,
-            quantidade: i.quantidade,
-            valor_unitario: i.valor_unitario,
-            desconto: 0
-          }))
-        });
-        
-        setShowImportarXML(false);
-        setShowForm(true);
-        toast.info('📝 Revise e salve o lançamento');
-      } else {
-        setShowImportarXML(false);
-        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-        toast.success('✅ Importação concluída!');
+          valor_pago: 0,
+          gerado_xml: true
+        };
+
+        if (dados.parcelar && dados.parcelas?.length > 0) {
+          const numeroPai = await getNextNumber(empresaSelecionadaId);
+          const lancamentoPai = await base44.entities.LancamentoFinanceiro.create({
+            ...lancamentoBase,
+            numero_lancamento: String(numeroPai),
+            data_vencimento: dados.dataVencimento,
+            valor_original: dados.dadosNFe.valor_total,
+            valor_total: dados.dadosNFe.valor_total,
+            valor_saldo: dados.dadosNFe.valor_total,
+            status: 'Pendente',
+            observacoes: `${lancamentoBase.observacoes} - PARCELADO EM ${dados.parcelas.length}X`
+          });
+
+          for (let i = 0; i < dados.parcelas.length; i++) {
+            const parcela = dados.parcelas[i];
+            const numParcela = await getNextNumber(empresaSelecionadaId);
+            
+            await base44.entities.LancamentoFinanceiro.create({
+              ...lancamentoBase,
+              numero_lancamento: String(numParcela),
+              data_vencimento: parcela.data,
+              valor_original: parcela.valor,
+              valor_total: parcela.valor,
+              valor_saldo: parcela.valor,
+              numero_parcela: i + 1,
+              total_parcelas: dados.parcelas.length,
+              lancamento_pai_id: lancamentoPai.id,
+              status: 'Pendente'
+            });
+          }
+          
+          toast.success(`✅ Lançamento parcelado em ${dados.parcelas.length}x criado!`);
+        } else {
+          const numero = await getNextNumber(empresaSelecionadaId);
+          await base44.entities.LancamentoFinanceiro.create({
+            ...lancamentoBase,
+            numero_lancamento: String(numero),
+            data_vencimento: dados.dataVencimento,
+            valor_original: dados.dadosNFe.valor_total,
+            valor_total: dados.dadosNFe.valor_total,
+            valor_saldo: dados.dadosNFe.valor_total,
+            status: 'Pendente'
+          });
+          
+          toast.success('✅ Lançamento financeiro criado!');
+        }
       }
+      
+      setShowImportarXML(false);
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+      toast.success('✅ Importação concluída com sucesso!');
       
     } catch (error) {
       console.error('❌ Erro:', error);
-      toast.error('Erro: ' + error.message);
+      toast.error('Erro na importação: ' + error.message);
     }
   };
 

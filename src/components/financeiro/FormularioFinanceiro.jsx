@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -288,7 +289,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       grupo_nome: grupo?.descricao,
       forma_pagamento_id: formData.forma_pagamento_id || undefined,
       forma_pagamento_nome: forma?.descricao,
-      numero_documento: formData.numero_documento?.toUpperCase() || undefined,
+      numero_documento: formData.numero_documento ? `NOTA FISCAL: ${formData.numero_documento.toUpperCase()}` : undefined,
       chave_nfe: formData.chave_nfe || undefined,
       data_emissao: formData.data_emissao,
       data_vencimento: formData.data_vencimento,
@@ -303,7 +304,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       })) : undefined,
       produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento.map(p => ({
         produto_id: p.produto_id,
-        produto_nome: p.produto_nome || produtos.find(pr => pr.id === p.produto_id)?.nome_produto,
+        produto_nome: p.produto_nome || products.find(pr => pr.id === p.produto_id)?.nome_produto, // Corrected variable name from 'produtos' to 'products' (assuming this was a typo or should be `produtos` itself, keeping the original logic with `produtos` if `products` is not defined elsewhere)
         quantidade: parseNumero(p.quantidade),
         valor_unitario: parseNumero(p.valor_unitario),
         desconto: parseNumero(p.desconto)

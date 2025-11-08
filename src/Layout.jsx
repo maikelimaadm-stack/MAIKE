@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft, DollarSign, Home, BookOpen } from "lucide-react";
+import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, BookOpen, Settings, Plus, GripVertical, Edit2, Trash2, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,6 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,160 +46,98 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
-const navigationItems = [
+const iconsMap = {
+  Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, FileText, Shield, Package, Users
+};
+
+const DEFAULT_MENU = [
+  { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
+  { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
+  { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
+  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
-    title: "Dashboard",
-    url: createPageUrl("Home"),
-    icon: Home,
-  },
-  {
-    title: "Pesagens",
-    url: createPageUrl("Dashboard"),
-    icon: Scale,
-  },
-  {
-    title: "Custos de Safra",
-    url: createPageUrl("CustosSafra"),
-    icon: TrendingUp,
-  },
-  {
-    title: "Movimentações Estoque",
-    url: createPageUrl("MovimentacoesEstoque"),
-    icon: ArrowRightLeft,
-  },
-  {
+    id: "financeiro",
     title: "Financeiro",
-    icon: DollarSign,
+    icon: "DollarSign",
     submenu: [
-      {
-        title: "Controle Financeiro",
-        url: createPageUrl("Financeiro"),
-      },
-      {
-        title: "Plano de Contas",
-        url: createPageUrl("PlanoContas"),
-      },
-      {
-        title: "Formas de Pagamento",
-        url: createPageUrl("FormasPagamento"),
-      },
-      {
-        title: "Grupos Financeiros",
-        url: createPageUrl("GruposFinanceiros"),
-      },
+      { id: "fin-controle", title: "Controle Financeiro", url: "Financeiro" },
+      { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
+      { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
+      { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
     ],
   },
   {
+    id: "fiscal",
     title: "Fiscal",
-    icon: BookOpen,
+    icon: "BookOpen",
     submenu: [
-      {
-        title: "Livros Fiscais",
-        url: createPageUrl("LivrosFiscais"),
-      },
+      { id: "fiscal-livros", title: "Livros Fiscais", url: "LivrosFiscais" },
     ],
   },
   {
+    id: "cadastros",
     title: "Cadastros",
-    icon: FolderOpen,
+    icon: "FolderOpen",
     submenu: [
-      {
-        title: "Empresa",
-        url: createPageUrl("Empresa"),
-      },
-      {
-        title: "Safras",
-        url: createPageUrl("GerenciarSafras"),
-      },
-      {
-        title: "Fornecedores/Clientes",
-        url: createPageUrl("Fornecedores"),
-      },
-      {
-        title: "Produtos",
-        url: createPageUrl("Produtos"),
-      },
-      {
-        title: "Unidades de Medida",
-        url: createPageUrl("UnidadesMedida"),
-      },
-      {
-        title: "Categorias",
-        url: createPageUrl("Categorias"),
-      },
-      {
-        title: "Locais de Estoque",
-        url: createPageUrl("LocaisEstoque"),
-      },
-      {
-        title: "Centros de Custo",
-        url: createPageUrl("CentrosCusto"),
-      },
+      { id: "cad-empresa", title: "Empresa", url: "Empresa" },
+      { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
+      { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
+      { id: "cad-produtos", title: "Produtos", url: "Produtos" },
+      { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
+      { id: "cad-categorias", title: "Categorias", url: "Categorias" },
+      { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
+      { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
     ],
   },
   {
+    id: "relatorios",
     title: "Relatórios",
-    icon: FileText,
+    icon: "FileText",
     submenu: [
-      {
-        title: "Relatório de Pesagens",
-        url: createPageUrl("RelatorioPesagens"),
-      },
-      {
-        title: "Relatório de Custos Safra",
-        url: createPageUrl("RelatorioCustosSafra"),
-      },
-      {
-        title: "Relatório de Estoque",
-        url: createPageUrl("RelatorioEstoque"),
-      },
-      {
-        title: "Histórico de Entregas",
-        url: createPageUrl("RelatorioHistoricoEntregas"),
-      },
-      {
-        title: "Relatório Financeiro",
-        url: createPageUrl("RelatorioFinanceiro"),
-      },
-      {
-        title: "Lista de Fornecedores",
-        url: createPageUrl("RelatorioFornecedores"),
-      },
-      {
-        title: "Lista de Produtos",
-        url: createPageUrl("RelatorioProdutos"),
-      },
+      { id: "rel-pesagens", title: "Relatório de Pesagens", url: "RelatorioPesagens" },
+      { id: "rel-custos", title: "Relatório de Custos Safra", url: "RelatorioCustosSafra" },
+      { id: "rel-estoque", title: "Relatório de Estoque", url: "RelatorioEstoque" },
+      { id: "rel-entregas", title: "Histórico de Entregas", url: "RelatorioHistoricoEntregas" },
+      { id: "rel-financeiro", title: "Relatório Financeiro", url: "RelatorioFinanceiro" },
+      { id: "rel-fornecedores", title: "Lista de Fornecedores", url: "RelatorioFornecedores" },
+      { id: "rel-produtos", title: "Lista de Produtos", url: "RelatorioProdutos" },
     ],
   },
-  {
-    title: "Usuários",
-    url: createPageUrl("Usuarios"),
-    icon: Shield,
-  },
+  { id: "usuarios", title: "Usuários", url: "Usuarios", icon: "Shield" },
 ];
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState({});
   const [weather, setWeather] = useState(null);
+  const [menuItems, setMenuItems] = useState(() => {
+    const saved = localStorage.getItem('custom_menu');
+    return saved ? JSON.parse(saved) : DEFAULT_MENU;
+  });
+  const [expandedMenus, setExpandedMenus] = useState({});
+  const [showMenuEditor, setShowMenuEditor] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newMenuItem, setNewMenuItem] = useState({ title: "", url: "", icon: "Home" });
   
-  // Estado para empresa selecionada
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // Buscar todas as empresas
   const { data: empresas = [] } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
   });
 
-  // Buscar dados da empresa selecionada
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual', empresaSelecionada],
     queryFn: async () => {
@@ -201,7 +148,6 @@ export default function Layout({ children, currentPageName }) {
     enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
-  // Auto-selecionar primeira empresa se não tiver nenhuma selecionada
   useEffect(() => {
     if (!empresaSelecionada && empresas.length > 0) {
       const primeiraEmpresa = empresas[0].id;
@@ -213,7 +159,7 @@ export default function Layout({ children, currentPageName }) {
   const handleEmpresaChange = (empresaId) => {
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
-    window.location.reload(); // Recarregar para atualizar todos os dados
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -252,11 +198,105 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const toggleSubmenu = (title) => {
+  const toggleSubmenu = (id) => {
     setExpandedMenus(prev => ({
       ...prev,
-      [title]: !prev[title]
+      [id]: !prev[id]
     }));
+  };
+
+  const saveMenu = (newMenu) => {
+    setMenuItems(newMenu);
+    localStorage.setItem('custom_menu', JSON.stringify(newMenu));
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const items = Array.from(menuItems);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    saveMenu(items);
+  };
+
+  const handleAddMenuItem = () => {
+    const newItem = {
+      id: `custom-${Date.now()}`,
+      title: newMenuItem.title,
+      url: newMenuItem.url,
+      icon: newMenuItem.icon,
+    };
+    saveMenu([...menuItems, newItem]);
+    setNewMenuItem({ title: "", url: "", icon: "Home" });
+    setShowAddDialog(false);
+  };
+
+  const handleDeleteMenuItem = (id) => {
+    saveMenu(menuItems.filter(item => item.id !== id));
+  };
+
+  const handleResetMenu = () => {
+    if (window.confirm('Resetar menu para o padrão?')) {
+      saveMenu(DEFAULT_MENU);
+      setShowMenuEditor(false);
+    }
+  };
+
+  const renderMenuItem = (item, index) => {
+    const Icon = iconsMap[item.icon] || Home;
+    const isActive = item.url && location.pathname === createPageUrl(item.url);
+    const hasActiveSubmenu = item.submenu?.some(sub => sub.url && location.pathname === createPageUrl(sub.url));
+
+    return (
+      <SidebarMenuItem key={item.id}>
+        {item.submenu ? (
+          <div>
+            <SidebarMenuButton 
+              onClick={() => toggleSubmenu(item.id)}
+              className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
+                hasActiveSubmenu ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
+              }`}
+            >
+              <div className="flex items-center gap-3 px-4 py-3 w-full">
+                <Icon className="w-5 h-5" />
+                <span className="font-medium flex-1">{item.title}</span>
+                <ChevronRight className={`w-4 h-4 transform transition-transform ${expandedMenus[item.id] ? 'rotate-90' : ''}`} />
+              </div>
+            </SidebarMenuButton>
+            {expandedMenus[item.id] && (
+              <div className="ml-6 space-y-1">
+                {item.submenu.map((subitem) => (
+                  <Link 
+                    key={subitem.id}
+                    to={createPageUrl(subitem.url)}
+                    className={`block px-4 py-2 text-sm rounded-lg transition-all ${
+                      location.pathname === createPageUrl(subitem.url)
+                        ? 'bg-green-100 text-green-800 font-medium' 
+                        : 'text-slate-600 hover:bg-green-50 hover:text-green-700'
+                    }`}
+                  >
+                    {subitem.title}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <SidebarMenuButton 
+            asChild 
+            className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
+              isActive ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
+            }`}
+          >
+            <Link to={createPageUrl(item.url)} className="flex items-center gap-3 px-4 py-3">
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.title}</span>
+            </Link>
+          </SidebarMenuButton>
+        )}
+      </SidebarMenuItem>
+    );
   };
 
   return (
@@ -286,7 +326,6 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
 
-            {/* Seletor de Empresa */}
             {empresas.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-600">Empresa Ativa:</label>
@@ -309,62 +348,23 @@ export default function Layout({ children, currentPageName }) {
           
           <SidebarContent className="p-3">
             <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold text-green-700 uppercase tracking-wider px-3 py-3">
-                Menu Principal
-              </SidebarGroupLabel>
+              <div className="flex items-center justify-between px-3 py-3">
+                <SidebarGroupLabel className="text-xs font-semibold text-green-700 uppercase tracking-wider">
+                  Menu Principal
+                </SidebarGroupLabel>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6"
+                  onClick={() => setShowMenuEditor(true)}
+                  title="Personalizar Menu"
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navigationItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      {item.submenu ? (
-                        <div>
-                          <SidebarMenuButton 
-                            onClick={() => toggleSubmenu(item.title)}
-                            className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
-                              Object.values(item.submenu).some(subitem => location.pathname === subitem.url) ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 px-4 py-3 w-full">
-                              <item.icon className="w-5 h-5" />
-                              <span className="font-medium flex-1">{item.title}</span>
-                              <span className={`transform transition-transform text-xs ${expandedMenus[item.title] ? 'rotate-90' : ''}`}>
-                                ▶
-                              </span>
-                            </div>
-                          </SidebarMenuButton>
-                          {expandedMenus[item.title] && (
-                            <div className="ml-6 space-y-1">
-                              {item.submenu.map((subitem) => (
-                                <Link 
-                                  key={subitem.title}
-                                  to={subitem.url}
-                                  className={`block px-4 py-2 text-sm rounded-lg transition-all ${
-                                    location.pathname === subitem.url 
-                                      ? 'bg-green-100 text-green-800 font-medium' 
-                                      : 'text-slate-600 hover:bg-green-50 hover:text-green-700'
-                                  }`}
-                                >
-                                  {subitem.title}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <SidebarMenuButton 
-                          asChild 
-                          className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
-                            location.pathname === item.url ? 'bg-green-50 text-green-700 font-medium shadow-sm' : ''
-                          }`}
-                        >
-                          <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
-                            <item.icon className="w-5 h-5" />
-                            <span className="font-medium">{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
+                  {menuItems.map((item, index) => renderMenuItem(item, index))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -429,7 +429,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/80 backdrop-blur-sm border-b border-green-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
             <SidebarTrigger className="md:hidden hover:bg-green-100 p-2 rounded-lg transition-colors duration-200" />
             <div>
-              <h1 className="text-xl font-bold text-green-900">{currentPageName || 'Pesagens'}</h1>
+              <h1 className="text-xl font-bold text-green-900">{currentPageName || 'Dashboard'}</h1>
             </div>
           </header>
 
@@ -438,6 +438,104 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </main>
       </div>
+
+      <Dialog open={showMenuEditor} onOpenChange={setShowMenuEditor}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Editor de Menu
+            </DialogTitle>
+            <DialogDescription>
+              Arraste para reordenar, clique com botão direito para editar ou excluir
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Novo Item
+              </Button>
+              <Button variant="outline" onClick={handleResetMenu}>
+                Resetar Padrão
+              </Button>
+            </div>
+
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="menu">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                    {menuItems.map((item, index) => (
+                      <Draggable key={item.id} draggableId={item.id} index={index}>
+                        {(provided) => (
+                          <ContextMenu>
+                            <ContextMenuTrigger>
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors"
+                              >
+                                <GripVertical className="w-5 h-5 text-slate-400" />
+                                {React.createElement(iconsMap[item.icon] || Home, { className: "w-5 h-5 text-slate-600" })}
+                                <span className="flex-1 font-medium">{item.title}</span>
+                                {item.submenu && <span className="text-xs text-slate-500">({item.submenu.length} subitens)</span>}
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              <ContextMenuItem onClick={() => handleDeleteMenuItem(item.id)} className="text-red-600">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Excluir
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Item ao Menu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input value={newMenuItem.title} onChange={(e) => setNewMenuItem({ ...newMenuItem, title: e.target.value })} placeholder="Nome do item" />
+            </div>
+            <div className="space-y-2">
+              <Label>Página (URL)</Label>
+              <Input value={newMenuItem.url} onChange={(e) => setNewMenuItem({ ...newMenuItem, url: e.target.value })} placeholder="NomeDaPagina" />
+            </div>
+            <div className="space-y-2">
+              <Label>Ícone</Label>
+              <Select value={newMenuItem.icon} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, icon: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(iconsMap).map(iconName => (
+                    <SelectItem key={iconName} value={iconName}>{iconName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
+              <Button onClick={handleAddMenuItem} disabled={!newMenuItem.title || !newMenuItem.url}>Adicionar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent>
