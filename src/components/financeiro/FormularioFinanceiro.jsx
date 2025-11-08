@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +28,7 @@ const parseNumero = (str) => {
 
 export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, safras }) {
   const [abaAtiva, setAbaAtiva] = useState("dados");
-  const [formData, setFormData] = useState(initialData || {
+  const [formData, setFormData] = useState({
     tipo: "Pagar",
     fornecedor_id: "",
     cliente_nome: "",
@@ -49,7 +50,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     observacoes: "",
     parcelar: false,
     parcelas: [],
-    produtos_lancamento: []
+    produtos_lancamento: [],
+    ...initialData // Apply initialData here, overwriting defaults if present
   });
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
@@ -268,7 +270,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
   };
 
   const valorTotal = parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
-  const totalParcelas = formData.parcelas.reduce((sum, p) => sum + (parseNumero(String(p.valor)) || 0), 0);
+  const totalParcelas = (formData.parcelas || []).reduce((sum, p) => sum + (parseNumero(String(p.valor)) || 0), 0);
   const totalProdutos = calcularTotalProdutos();
 
   return (
