@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -137,7 +136,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
     const data = {
       nome_produto: formData.nome_produto?.toUpperCase(),
-      codigo_interno: formData.codigo_interno?.toUpperCase(), // No longer optional
+      codigo_interno: formData.codigo_interno?.toUpperCase(),
       codigo_barras: formData.codigo_barras || undefined,
       categoria: formData.categoria?.toUpperCase() || undefined,
       descricao: formData.descricao?.toUpperCase() || undefined,
@@ -149,7 +148,6 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       observacoes: formData.observacoes?.toUpperCase() || undefined
     };
 
-    // Não incluir estoque_atual - será gerenciado por movimentações
     if (!isEditing) {
       data.estoque_atual = 0;
     }
@@ -224,12 +222,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Código Interno *</Label> {/* Label updated */}
+                  <Label className="text-slate-700 font-medium">Código Interno *</Label>
                   <Input
                     value={formData.codigo_interno}
                     onChange={(e) => handleChange('codigo_interno', e.target.value)}
                     placeholder="CÓDIGO INTERNO"
-                    required {/* Added required prop */}
+                    required
                     className="border-slate-300 focus:border-green-500 uppercase"
                     style={{ textTransform: 'uppercase' }}
                   />
@@ -344,7 +342,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="flex gap-2">
                   <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
                     <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue placeholder="Selecione um local" />
+                      <SelectValue placeholder="Selecione um local" />
                     </SelectTrigger>
                     <SelectContent>
                       {locais.map((loc) => (
@@ -386,7 +384,6 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         </Card>
       </motion.div>
 
-      {/* Modal Nova Unidade */}
       <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -427,7 +424,6 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         </DialogContent>
       </Dialog>
 
-      {/* Modal Nova Categoria */}
       <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -477,7 +473,6 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         </DialogContent>
       </Dialog>
 
-      {/* Modal Novo Local */}
       <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
