@@ -59,6 +59,7 @@ const ORDENACAO_OPCOES = [
 ];
 
 export default function RelatorioPesagens() {
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [orientacao, setOrientacao] = useState("retrato");
@@ -312,6 +313,7 @@ export default function RelatorioPesagens() {
     setBuscaObservacoes("");
     setAgrupamentosAtivos([]);
     setOrdenacao('data_desc'); // Reset sorting as well
+    setTipoRelatorio('analitico'); // Reset report type
   };
 
   const imprimir = () => {
@@ -372,6 +374,18 @@ export default function RelatorioPesagens() {
                 <option value="retrato">Retrato</option>
                 <option value="paisagem">Paisagem</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Relatório</Label>
+              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
+                  <SelectItem value="sintetico">Sintético (Resumido)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Ordenar Por</Label>
@@ -685,7 +699,7 @@ export default function RelatorioPesagens() {
             
             {/* Título do Relatório */}
             <div>
-              <h2 className="text-base font-bold">Relatório de Pesagens</h2>
+              <h2 className="text-base font-bold">Relatório de Pesagens {tipoRelatorio === 'analitico' ? '(Analítico)' : '(Sintético)'}</h2>
               {(dataInicio || dataFim) && (
                 <p className="text-xs text-gray-600">
                   Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
@@ -706,43 +720,49 @@ export default function RelatorioPesagens() {
                   </div>
                 )}
 
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-black">
-                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
-                      {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
-                      {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
-                      {colunasVisiveis.includes('placa') && <TableHead className="border border-black text-xs font-bold py-1">Placa</TableHead>}
-                      {colunasVisiveis.includes('motorista') && <TableHead className="border border-black text-xs font-bold py-1">Motorista</TableHead>}
-                      {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
-                      {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Forn./Dest.</TableHead>}
-                      {colunasVisiveis.includes('tara') && <TableHead className="border border-black text-xs font-bold text-right py-1">Tara</TableHead>}
-                      {colunasVisiveis.includes('bruto') && <TableHead className="border border-black text-xs font-bold text-right py-1">Bruto</TableHead>}
-                      {colunasVisiveis.includes('liquido') && <TableHead className="border border-black text-xs font-bold text-right py-1">Líquido</TableHead>}
-                      {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Observações</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registros.map((p, rowIndex) => (
-                      <TableRow key={p.id}>
-                        {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{rowIndex + 1}</TableCell>}
-                        {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(p.data_pesagem)}</TableCell>}
-                        {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{p.tipo_pesagem}</TableCell>}
-                        {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase py-1">{p.placa_caminhao}</TableCell>}
-                        {colunasVisiveis.includes('motorista') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_motorista}</TableCell>}
-                        {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{p.produto}</TableCell>}
-                        {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{p.fornecedor_destino || '-'}</TableCell>}
-                        {colunasVisiveis.includes('tara') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.peso_tara)}</TableCell>}
-                        {colunasVisiveis.includes('bruto') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.peso_bruto)}</TableCell>}
-                        {colunasVisiveis.includes('liquido') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">{formatarNumero(p.peso_liquido)}</TableCell>}
-                        {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1">{p.observacoes || '-'}</TableCell>}
+                {tipoRelatorio === 'analitico' && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black">
+                        {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
+                        {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
+                        {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
+                        {colunasVisiveis.includes('placa') && <TableHead className="border border-black text-xs font-bold py-1">Placa</TableHead>}
+                        {colunasVisiveis.includes('motorista') && <TableHead className="border border-black text-xs font-bold py-1">Motorista</TableHead>}
+                        {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                        {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Forn./Dest.</TableHead>}
+                        {colunasVisiveis.includes('tara') && <TableHead className="border border-black text-xs font-bold text-right py-1">Tara</TableHead>}
+                        {colunasVisiveis.includes('bruto') && <TableHead className="border border-black text-xs font-bold text-right py-1">Bruto</TableHead>}
+                        {colunasVisiveis.includes('liquido') && <TableHead className="border border-black text-xs font-bold text-right py-1">Líquido</TableHead>}
+                        {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Observações</TableHead>}
                       </TableRow>
-                    ))}
+                    </TableHeader>
+                    <TableBody>
+                      {registros.map((p, rowIndex) => (
+                        <TableRow key={p.id}>
+                          {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{rowIndex + 1}</TableCell>}
+                          {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(p.data_pesagem)}</TableCell>}
+                          {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{p.tipo_pesagem}</TableCell>}
+                          {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase py-1">{p.placa_caminhao}</TableCell>}
+                          {colunasVisiveis.includes('motorista') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_motorista}</TableCell>}
+                          {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{p.produto}</TableCell>}
+                          {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{p.fornecedor_destino || '-'}</TableCell>}
+                          {colunasVisiveis.includes('tara') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.peso_tara)}</TableCell>}
+                          {colunasVisiveis.includes('bruto') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.peso_bruto)}</TableCell>}
+                          {colunasVisiveis.includes('liquido') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">{formatarNumero(p.peso_liquido)}</TableCell>}
+                          {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1">{p.observacoes || '-'}</TableCell>}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                <Table className="mt-1">
+                  <TableBody>
                     <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('liquido') ? 1 : 0)} className="border border-black text-xs py-1">
+                      <TableCell colSpan={tipoRelatorio === 'analitico' ? colunasVisiveis.length - (colunasVisiveis.includes('liquido') ? 1 : 0) : 1} className="border border-black text-xs py-1">
                         SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})
                       </TableCell>
-                      {colunasVisiveis.includes('liquido') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalGrupo)}</TableCell>}
+                      <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalGrupo)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
