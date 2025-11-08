@@ -4,11 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
+import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceiro.jsx";
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
@@ -23,6 +24,7 @@ export default function Financeiro() {
   const [editingItem, setEditingItem] = useState(null);
   const [showBaixa, setShowBaixa] = useState(false);
   const [itemBaixa, setItemBaixa] = useState(null);
+  const [showImportarXML, setShowImportarXML] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -79,31 +81,31 @@ export default function Financeiro() {
         status: 'Pendente'
       };
 
-      if (data.total_parcelas && data.total_parcelas > 1) {
+      if (data.parcelas && data.parcelas.length > 0) {
         const lancamentoPai = await base44.entities.LancamentoFinanceiro.create(lancamento);
         
-        const valorParcela = valorTotal / data.total_parcelas;
-        const parcelas = [];
-        
-        for (let i = 1; i <= data.total_parcelas; i++) {
+        const parcelasParaCriar = [];
+        for (let i = 0; i < data.parcelas.length; i++) {
+          const parcela = data.parcelas[i];
           const numeroParcela = await getNextNumber(empresaSelecionadaId);
-          const dataVencimento = new Date(data.data_vencimento);
-          dataVencimento.setMonth(dataVencimento.getMonth() + (i - 1));
           
-          parcelas.push({
+          parcelasParaCriar.push({
             ...lancamento,
             numero_lancamento: String(numeroParcela),
-            valor_original: valorParcela,
-            valor_total: valorParcela,
-            valor_saldo: valorParcela,
-            data_vencimento: dataVencimento.toISOString().split('T')[0],
-            numero_parcela: i,
-            total_parcelas: data.total_parcelas,
+            valor_original: parcela.valor,
+            valor_total: parcela.valor,
+            valor_saldo: parcela.valor,
+            valor_juros: 0,
+            valor_multa: 0,
+            valor_desconto: 0,
+            data_vencimento: parcela.data,
+            numero_parcela: i + 1,
+            total_parcelas: data.parcelas.length,
             lancamento_pai_id: lancamentoPai.id
           });
         }
         
-        await base44.entities.LancamentoFinanceiro.bulkCreate(parcelas);
+        await base44.entities.LancamentoFinanceiro.bulkCreate(parcelasParaCriar);
         return lancamentoPai;
       } else {
         return base44.entities.LancamentoFinanceiro.create(lancamento);
@@ -175,6 +177,30 @@ export default function Financeiro() {
     setShowBaixa(true);
   };
 
+  const handleImportarXMLSuccess = async (dadosImportacao) => {
+    if (dadosImportacao.gerarFinanceiro) {
+      setShowImportarXML(false);
+      
+      setEditingItem({
+        tipo: 'Pagar',
+        fornecedor_id: dadosImportacao.fornecedor_id,
+        numero_documento: dadosImportacao.dadosNFe.numero,
+        chave_nfe: dadosImportacao.dadosNFe.chave,
+        data_emissao: dadosImportacao.dadosNFe.data_emissao,
+        data_vencimento: dadosImportacao.dadosNFe.data_emissao,
+        valor_original: dadosImportacao.dadosNFe.valor_total,
+        gerado_xml: true,
+        total_parcelas: dadosImportacao.parcelas || 1
+      });
+      setShowForm(true);
+      toast.info('📝 Complete os dados do lançamento financeiro');
+    }
+    
+    if (dadosImportacao.gerarEstoque) {
+      toast.info('✅ Estoque será baixado ao salvar');
+    }
+  };
+
   const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar' && !l.lancamento_pai_id);
   const lancamentosReceber = lancamentos.filter(l => l.tipo === 'Receber' && !l.lancamento_pai_id);
 
@@ -203,10 +229,16 @@ export default function Financeiro() {
           <p className="text-green-700">Gerenciar contas a pagar e receber</p>
         </div>
         {!showForm && !showBaixa && (
-          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="bg-green-600 gap-2">
-            <Plus className="w-5 h-5" />
-            Novo Lançamento
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={() => setShowImportarXML(true)} variant="outline" className="gap-2">
+              <FileText className="w-5 h-5" />
+              Importar XML
+            </Button>
+            <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="bg-green-600 gap-2">
+              <Plus className="w-5 h-5" />
+              Novo Lançamento
+            </Button>
+          </div>
         )}
       </div>
 
@@ -267,6 +299,13 @@ export default function Financeiro() {
           }}
         />
       )}
+
+      <ImportarNFeFinanceiro
+        open={showImportarXML}
+        onClose={() => setShowImportarXML(false)}
+        onSuccess={handleImportarXMLSuccess}
+        fornecedores={fornecedores}
+      />
 
       {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
