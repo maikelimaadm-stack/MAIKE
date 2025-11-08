@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp } from "lucide-react";
+import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
@@ -48,6 +48,11 @@ const navigationItems = [
     title: "Custos de Safra",
     url: createPageUrl("CustosSafra"),
     icon: TrendingUp,
+  },
+  {
+    title: "Movimentações Estoque",
+    url: createPageUrl("MovimentacoesEstoque"),
+    icon: ArrowRightLeft,
   },
   {
     title: "Cadastros",
