@@ -591,7 +591,7 @@ ${xmlText}`,
   );
 
   const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
-  const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - dadosNFe?.valor_total) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
+  const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - (dadosNFe?.valor_total || 0)) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
 
   return (
     <>
@@ -600,11 +600,10 @@ ${xmlText}`,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-green-600" />
-              Importar NF-e - Etapa {etapa} of 4
+              Importar NF-e - Etapa {etapa} de 4
             </DialogTitle>
           </DialogHeader>
 
-          {/* ETAPA 1 */}
           {etapa === 1 && (
             <div className="space-y-4">
               <Alert>
@@ -625,11 +624,162 @@ ${xmlText}`,
             </div>
           )}
 
-          {/* ETAPA 2 - keep existing code */}
+          {etapa === 2 && dadosNFe && (
+            <div className="space-y-4">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4 grid grid-cols-2 gap-2 text-sm">
+                  <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
+                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                </CardContent>
+              </Card>
 
-          {/* ETAPA 3 - keep existing code */}
+              <Alert className="bg-orange-50 border-orange-300">
+                <AlertCircle className="h-4 w-4 text-orange-600" />
+                <AlertDescription>
+                  <strong>Fornecedor não cadastrado:</strong> {dadosNFe.razao_social_emitente}
+                </AlertDescription>
+              </Alert>
 
-          {/* ETAPA 4 */}
+              <Card>
+                <CardHeader><CardTitle className="text-base">Cadastrar Fornecedor</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Tipo *</Label>
+                    <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Jurídica">Jurídica</SelectItem>
+                        <SelectItem value="Física">Física</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Nome *</Label>
+                    <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label>CNPJ *</Label>
+                          <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Insc. Estadual</Label>
+                          <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label>CPF *</Label>
+                        <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between gap-3 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setEtapa(1)}>← Voltar</Button>
+                    <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+                      {createFornecedorMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar →</>}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {etapa === 3 && dadosNFe && itensNFe.length > 0 && (
+            <div className="space-y-4">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4 grid grid-cols-3 gap-2 text-sm">
+                  <div><strong>Fornecedor:</strong> {fornecedorSelecionado?.nome}</div>
+                  <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
+                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-between">
+                <h3 className="font-semibold">Produtos ({itensNFe.length})</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                    {itensSelecionados.length === itensNFe.length ? 'Desmarcar' : 'Selecionar'} Todos
+                  </Button>
+                  {itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
+                      <Plus className="w-3 h-3 mr-1" />
+                      Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-auto max-h-96 border rounded">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-white z-10">
+                    <TableRow>
+                      <TableHead className="w-12"><Checkbox checked={itensSelecionados.length === itensNFe.length} onCheckedChange={handleSelecionarTodos} /></TableHead>
+                      <TableHead className="w-12">OK</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Vlr Unit.</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {itensNFe.map((item) => {
+                      const isEdit = editandoItemIndex === item.index;
+                      const total = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
+
+                      return (
+                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
+                          <TableCell><Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} /></TableCell>
+                          <TableCell>
+                            {item.status === 'associado' ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-orange-600" />}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">NÃO ASSOCIADO</span>}</div>
+                            <div className="text-slate-500 text-xs">{item.descricao}</div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEdit ? <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-20" /> : <span className="font-mono">{item.quantidade_ajustada}</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEdit ? <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-24" /> : <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-green-700">R$ {formatarNumero(total)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {isEdit ? (
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)}><CheckCircle className="w-3 h-3" /></Button>
+                              ) : (
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)}><Edit2 className="w-3 h-3" /></Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN" }); setShowNovoProduto(true); }}>
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
+                                <RefreshCw className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-between gap-3">
+                <Button variant="outline" onClick={() => setEtapa(1)}>← Voltar</Button>
+                <Button onClick={() => setEtapa(4)} className="bg-green-600">Avançar → ({itensSelecionados.length})</Button>
+              </div>
+            </div>
+          )}
+
           {etapa === 4 && dadosNFe && (
             <div className="space-y-4">
               <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
@@ -778,7 +928,82 @@ ${xmlText}`,
         </DialogContent>
       </Dialog>
 
-      {/* Keep existing dialogs... */}
+      <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Cadastrar Produto</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Código</Label>
+                <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unidade *</Label>
+                <Select value={novoProduto.unidade} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un}>{un}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
+              <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
+                {createProdutoMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTrocarProduto} onOpenChange={setShowTrocarProduto}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Associar Produto</DialogTitle></DialogHeader>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
+          </div>
+          <div className="max-h-96 overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white">
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {produtosFiltrados.map(p => (
+                  <TableRow key={p.id}>
+                    <TableCell>{p.nome_produto}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Selecionar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              Cadastrando...
+            </DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
