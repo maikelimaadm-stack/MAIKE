@@ -404,7 +404,7 @@ Retorne um JSON com esta estrutura EXATA:
           status: produtoEncontrado ? 'associado' : 'pendente',
           quantidade_ajustada: formatarNumero(item.quantidade),
           valor_unitario_ajustado: formatarNumero(item.valor_unitario),
-          desconto_item: "0,00", // Add new field for item discount
+          desconto_item: "0,00",
           cfop_ajustado: item.cfop,
           incluir: true
         };
@@ -423,7 +423,7 @@ Retorne um JSON com esta estrutura EXATA:
         // Recalcular valor_total se quantidade ou valor_unitario mudaram
         if (campo === 'quantidade_ajustada' || campo === 'valor_unitario_ajustado' || campo === 'desconto_item') {
           const qtd = parseNumero(campo === 'quantidade_ajustada' ? valor : updated.quantidade_ajustada);
-          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustado' ? valor : updated.valor_unitario_ajustado);
+          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustada' ? valor : updated.valor_unitario_ajustada);
           const desc = parseNumero(campo === 'desconto_item' ? valor : updated.desconto_item);
           updated.valor_total_ajustado = qtd * vlrUnit - desc;
         }
@@ -850,13 +850,13 @@ Retorne um JSON com esta estrutura EXATA:
                           <TableCell className="text-right">
                             {isEditando ? (
                               <Input
-                                value={item.valor_unitario_ajustada}
+                                value={item.valor_unitario_ajustado}
                                 onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustada', e.target.value)}
                                 className="w-28 text-right"
                                 placeholder="0,00"
                               />
                             ) : (
-                              <span className="font-mono">R$ {item.valor_unitario_ajustada}</span>
+                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
