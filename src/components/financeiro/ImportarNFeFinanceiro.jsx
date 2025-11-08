@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, CheckSquare, Edit2, Search } from "lucide-react";
+import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, CheckSquare, Edit2, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +44,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [gerarFinanceiro, setGerarFinanceiro] = useState(true);
   const [gerarEstoque, setGerarEstoque] = useState(true);
   const [gerarLivroFiscal, setGerarLivroFiscal] = useState(true);
-  const [parcelas, setParcelas] = useState(1);
+  const [parcelar, setParcelar] = useState(false);
+  const [parcelas, setParcelas] = useState([]);
   const [dataVencimento, setDataVencimento] = useState("");
   const [etapa, setEtapa] = useState(1);
   const [showNovoProduto, setShowNovoProduto] = useState(false);
@@ -147,6 +149,78 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     },
   });
 
+  const calcularDataProximaMes = (dataBase) => {
+    const data = new Date(dataBase + "T00:00:00"); // Ensure date is parsed correctly to avoid timezone issues
+    data.setMonth(data.getMonth() + 1);
+    return data.toISOString().split('T')[0];
+  };
+
+  const adicionarParcela = () => {
+    const ultimaParcela = parcelas[parcelas.length - 1];
+    const proximaData = ultimaParcela ? calcularDataProximaMes(ultimaParcela.data) : dataVencimento;
+    const valorTotal = dadosNFe.valor_total;
+    const valorParcela = parcelas.length === 0 ? valorTotal : valorTotal / (parcelas.length + 1); // If first parcel, use total value to avoid division by zero immediately
+    
+    // Recalculate all parcel values to be equal when a new one is added
+    const newNumberOfParcelas = parcelas.length + 1;
+    const equalParcelValue = valorTotal / newNumberOfParcelas;
+
+    const updatedParcelas = Array.from({ length: newNumberOfParcelas }, (_, i) => {
+        const currentParcel = parcelas[i];
+        let date = currentParcel?.data || (i === 0 ? dataVencimento : calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento));
+        if (i === newNumberOfParcelas -1 && !ultimaParcela) { // Special case for first parcel when adding a new one to empty
+          date = dataVencimento;
+        } else if (i === newNumberOfParcelas -1 && ultimaParcela) { // for the newly added parcel
+          date = calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento);
+        } else { // for existing parcels
+          date = currentParcel?.data || (i === 0 ? dataVencimento : calcularDataProximaMes(parcelas[i-1]?.data || dataVencimento));
+        }
+
+        return {
+            data: date,
+            valor: formatarNumero(equalParcelValue)
+        };
+    });
+    
+    setParcelas(updatedParcelas);
+  };
+
+  const removerParcela = (index) => {
+    if (parcelas.length <= 1) {
+      toast.error('Mínimo de 1 parcela!');
+      return;
+    }
+    const newParcelas = parcelas.filter((_, i) => i !== index);
+    const valorTotal = dadosNFe.valor_total;
+    const newNumberOfParcelas = newParcelas.length;
+    const equalParcelValue = valorTotal / newNumberOfParcelas;
+
+    const updatedParcelas = newParcelas.map(p => ({
+        ...p,
+        valor: formatarNumero(equalParcelValue)
+    }));
+    
+    setParcelas(updatedParcelas);
+  };
+
+  const atualizarParcela = (index, campo, valor) => {
+    setParcelas(prev => prev.map((p, i) => i === index ? { ...p, [campo]: valor } : p));
+  };
+
+  useEffect(() => {
+    if (parcelar && parcelas.length === 0 && dataVencimento && dadosNFe?.valor_total) {
+      const valorTotal = dadosNFe.valor_total || 0;
+      const valorParcela = valorTotal / 2;
+      
+      setParcelas([
+        { data: dataVencimento, valor: formatarNumero(valorParcela) },
+        { data: calcularDataProximaMes(dataVencimento), valor: formatarNumero(valorParcela) }
+      ]);
+    } else if (!parcelar) {
+      setParcelas([]);
+    }
+  }, [parcelar, dataVencimento, dadosNFe?.valor_total]);
+
   const handleUploadXML = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -184,8 +258,8 @@ ${xmlText}`,
             email_emitente: { type: ["string", "null"] },
             endereco_emitente: { type: "string" },
             bairro_emitente: { type: ["string", "null"] },
-            cidade_emitente: { type: "string" },
-            estado_emitente: { type: "string" },
+            cidade_emitente: { type: "string", default: "CIDADE_NAO_INFORMADA" }, // Added default
+            estado_emitente: { type: "string", default: "UF" }, // Added default
             cep_emitente: { type: "string" },
             cfop: { type: "string" },
             natureza_operacao: { type: "string" },
@@ -205,7 +279,8 @@ ${xmlText}`,
                 }
               }
             }
-          }
+          },
+          required: ["modelo", "numero", "serie", "data_emissao", "valor_total", "razao_social_emitente", "endereco_emitente", "cidade_emitente", "estado_emitente", "cep_emitente", "itens"]
         }
       });
 
@@ -255,7 +330,7 @@ ${xmlText}`,
       
     } catch (error) {
       console.error('❌ Erro:', error);
-      toast.error('❌ Erro ao processar XML');
+      toast.error(`❌ Erro ao processar XML: ${error.message || ''}`);
     } finally {
       setProcessando(false);
       e.target.value = '';
@@ -334,38 +409,50 @@ ${xmlText}`,
     const pendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
     
     if (pendentes.length === 0) {
-      toast.error('Nenhum produto pendente!');
+      toast.error('Nenhum produto pendente para cadastro!');
       return;
     }
-
-    setShowCadastroEmMassa(true);
     
-    for (const item of pendentes) {
-      const all = await base44.entities.Produto.list();
-      const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
-      
-      const novo = await base44.entities.Produto.create({
-        empresa_id: empresaSelecionadaId,
-        numero_produto: String(maxNum + 1),
-        nome_produto: item.descricao.toUpperCase(),
-        codigo_interno: item.codigo?.toUpperCase(),
-        unidade_medida: item.unidade?.toUpperCase() || 'UN',
-        preco_custo: parseNumero(item.valor_unitario_ajustado),
-        estoque_atual: 0
-      });
+    setShowCadastroEmMassa(true);
 
-      setItensNFe(prev => prev.map(i => 
-        i.index === item.index 
-          ? { ...i, produto_id: novo.id, produto_nome: novo.nome_produto, status: 'associado' }
-          : i
-      ));
-      
-      await new Promise(r => setTimeout(r, 100));
+    const createdProductPromises = pendentes.map(async (item) => {
+        const all = await base44.entities.Produto.list();
+        const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
+        
+        return base44.entities.Produto.create({
+            empresa_id: empresaSelecionadaId,
+            numero_produto: String(maxNum + 1),
+            nome_produto: item.descricao.toUpperCase(),
+            codigo_interno: item.codigo?.toUpperCase(),
+            unidade_medida: item.unidade?.toUpperCase() || 'UN',
+            preco_custo: parseNumero(item.valor_unitario_ajustado),
+            estoque_atual: 0
+        });
+    });
+
+    try {
+        const newProducts = await Promise.all(createdProductPromises);
+        
+        setItensNFe(prev => prev.map(item => {
+            const newProduct = newProducts.find(np => 
+                (np.codigo_interno === item.codigo || np.nome_produto === item.descricao.toUpperCase()) &&
+                item.status === 'pendente'
+            );
+            if (newProduct) {
+                return { ...item, produto_id: newProduct.id, produto_nome: newProduct.nome_produto, status: 'associado' };
+            }
+            return item;
+        }));
+
+        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+        toast.success(`✅ ${pendentes.length} produto(s) cadastrado(s)!`);
+
+    } catch (error) {
+        console.error("Erro ao cadastrar produtos em massa:", error);
+        toast.error("❌ Erro ao cadastrar produtos em massa.");
+    } finally {
+        setShowCadastroEmMassa(false);
     }
-
-    queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-    setShowCadastroEmMassa(false);
-    toast.success(`✅ ${pendentes.length} produto(s) cadastrado(s)!`);
   };
 
   const handleAtualizarItem = (index, campo, valor) => {
@@ -412,8 +499,24 @@ ${xmlText}`,
     }
 
     if (gerarFinanceiro && !dataVencimento) {
-      toast.error('❌ Defina o vencimento!');
+      toast.error('❌ Defina a data de vencimento padrão!');
       return;
+    }
+
+    if (gerarFinanceiro && parcelar) {
+      if (parcelas.length === 0) {
+        toast.error('❌ Configure as parcelas!');
+        return;
+      }
+      const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+      if (Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01) { // Allow for small floating point inaccuracies
+        toast.error('❌ Total das parcelas diferente do valor da NF-e!');
+        return;
+      }
+      if (parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0)) {
+        toast.error('❌ Todas as parcelas devem ter data e valor válidos!');
+        return;
+      }
     }
 
     console.log('✅ Confirmando:', {
@@ -421,7 +524,9 @@ ${xmlText}`,
       gerarEstoque,
       gerarFinanceiro,
       gerarLivroFiscal,
-      vencimento: dataVencimento
+      dataVencimento,
+      parcelar,
+      parcelas: parcelar ? parcelas : []
     });
 
     onSuccess({
@@ -437,13 +542,14 @@ ${xmlText}`,
         cfop: i.cfop_ajustado,
         unidade: i.unidade,
         quantidade: parseNumero(i.quantidade_ajustada),
-        valor_unitario: parseNumero(i.valor_unitario_ajustado)
+        valor_unitario: parseNumero(i.valor_unitario_ajustada)
       })),
       dadosComplementares,
       gerarFinanceiro,
       gerarEstoque,
       gerarLivroFiscal,
-      parcelas: parseInt(parcelas)
+      parcelar,
+      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : []
     });
   };
 
@@ -459,7 +565,8 @@ ${xmlText}`,
     setGerarFinanceiro(true);
     setGerarEstoque(true);
     setGerarLivroFiscal(true);
-    setParcelas(1);
+    setParcelar(false);
+    setParcelas([]);
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
     setNovoProduto({ nome: "", codigo: "", unidade: "UN", categoria: "" });
   };
@@ -469,6 +576,9 @@ ${xmlText}`,
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
+
+  const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+  const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - dadosNFe?.valor_total) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
 
   return (
     <>
@@ -575,8 +685,8 @@ ${xmlText}`,
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-4 grid grid-cols-3 gap-2 text-sm">
                   <div><strong>Fornecedor:</strong> {fornecedorSelecionado?.nome}</div>
-                  <div><strong>NF-e:</strong> {dadosNFe.numero}</div>
-                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+                  <div><strong>NF-e:</strong> {dadosNFe?.numero}</div>
+                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe?.valor_total)}</div>
                 </CardContent>
               </Card>
 
@@ -670,18 +780,80 @@ ${xmlText}`,
                 </div>
 
                 {gerarFinanceiro && (
-                  <div className="ml-8 p-3 bg-white rounded border space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Data Vencimento *</Label>
-                        <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Parcelas</Label>
-                        <Input type="number" min="1" max="120" value={parcelas} onChange={(e) => setParcelas(e.target.value)} className="w-32" />
-                      </div>
+                  <div className="ml-8 p-4 bg-white rounded border space-y-4">
+                    <div className="space-y-2">
+                      <Label>Data de Vencimento (padrão) *</Label>
+                      <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
                     </div>
-                    <p className="text-xs text-slate-600">Configure parcelas após confirmar</p>
+
+                    <div className="flex items-center space-x-3">
+                      <Checkbox checked={parcelar} onCheckedChange={(v) => { setParcelar(v); if (!v) setParcelas([]); }} id="parcelar" />
+                      <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento</label>
+                    </div>
+
+                    {parcelar && (
+                      <div className="space-y-3 p-3 bg-slate-50 rounded">
+                        <div className="flex justify-between items-center">
+                          <Label>Parcelas ({parcelas.length})</Label>
+                          <Button type="button" size="sm" onClick={adicionarParcela}>
+                            <Plus className="w-3 h-3 mr-1" />
+                            Adicionar
+                          </Button>
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-16">Nº</TableHead>
+                              <TableHead>Vencimento</TableHead>
+                              <TableHead className="text-right">Valor</TableHead>
+                              <TableHead className="w-12"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parcelas.map((parcela, index) => (
+                              <TableRow key={index}>
+                                <TableCell className="font-bold">{index + 1}</TableCell>
+                                <TableCell>
+                                  <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
+                                </TableCell>
+                                <TableCell>
+                                  <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" />
+                                </TableCell>
+                                <TableCell>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={parcelas.length <= 1}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+
+                        {dadosNFe && (
+                          <Card className={`${Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                            <CardContent className="p-3">
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Total Parcelas:</span>
+                                  <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Valor NF-e:</span>
+                                  <span className="font-bold">{formatarMoeda(dadosNFe.valor_total)}</span>
+                                </div>
+                              </div>
+                              {Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01 && (
+                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Total das parcelas diferente do valor da NF-e!</p>
+                              )}
+                              {parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0) && (
+                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Todas as parcelas devem ter data e valor válidos!</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -730,13 +902,19 @@ ${xmlText}`,
                 <CardContent className="p-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span>Fornecedor:</span><strong>{fornecedorSelecionado?.nome}</strong></div>
                   <div className="flex justify-between"><span>Produtos:</span><strong>{itensSelecionados.length} de {itensNFe.length}</strong></div>
-                  <div className="flex justify-between text-lg font-bold text-green-700 border-t pt-2"><span>Valor NF-e:</span><span>{formatarMoeda(dadosNFe.valor_total)}</span></div>
+                  {gerarFinanceiro && (
+                    <>
+                      <div className="flex justify-between"><span>Vencimento Padrão:</span><strong>{dataVencimento ? new Date(dataVencimento + "T00:00:00").toLocaleDateString('pt-BR') : '-'}</strong></div>
+                      {parcelar && <div className="flex justify-between"><span>Parcelas:</span><strong>{parcelas.length}x</strong></div>}
+                    </>
+                  )}
+                  <div className="flex justify-between text-lg font-bold text-green-700 border-t pt-2"><span>Valor NF-e:</span><span>{formatarMoeda(dadosNFe?.valor_total)}</span></div>
                 </CardContent>
               </Card>
 
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(3)}>← Voltar</Button>
-                <Button onClick={handleConfirmar} className="bg-green-600 px-8 py-6 text-lg">
+                <Button onClick={handleConfirmar} className="bg-green-600 px-8 py-6 text-lg" disabled={gerarFinanceiro && parcelasInvalidas}>
                   <CheckCircle className="w-5 h-5 mr-2" />
                   Confirmar e Importar
                 </Button>

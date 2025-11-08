@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -188,6 +189,8 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dados) => {
     try {
+      console.log('🚀 Dados recebidos:', dados);
+      
       const movIds = [];
       
       if (dados.gerarEstoque && dados.itens?.length > 0) {
@@ -285,7 +288,9 @@ export default function Financeiro() {
       }
 
       if (dados.gerarFinanceiro) {
-        toast.info('💰 Preparando financeiro...');
+        toast.info('💰 Abrindo formulário financeiro...');
+        
+        console.log('📦 Produtos para formulário:', dados.itens);
         
         setEditingItem({
           tipo: 'Pagar',
@@ -295,18 +300,33 @@ export default function Financeiro() {
           chave_nfe: dados.dadosNFe.chave,
           data_emissao: dados.dadosNFe.data_emissao,
           data_vencimento: dados.dataVencimento,
-          valor_original: String(dados.dadosNFe.valor_total).replace('.', ','),
+          valor_original: formatarNumero(dados.dadosNFe.valor_total),
           valor_juros: "0,00",
           valor_multa: "0,00",
           valor_desconto: "0,00",
-          observacoes: dados.dadosComplementares?.observacoes || '',
-          parcelar: dados.parcelas > 1,
-          parcelas: [],
-          produtos_lancamento: []
+          observacoes: dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-e ${dados.dadosNFe.numero}`,
+          parcelar: dados.parcelar || false,
+          parcelas: dados.parcelas?.map(p => ({
+            data: p.data,
+            valor: formatarNumero(p.valor)
+          })) || [],
+          produtos_lancamento: dados.itens.map(i => ({
+            produto_id: i.produto_id,
+            produto_nome: i.produto_nome,
+            quantidade: formatarNumero(i.quantidade),
+            valor_unitario: formatarNumero(i.valor_unitario),
+            desconto: "0,00"
+          }))
         });
+        
+        console.log('✅ Dados iniciais do form:', {
+          produtos: dados.itens.length,
+          parcelas: dados.parcelas?.length || 0
+        });
+        
         setShowImportarXML(false);
         setShowForm(true);
-        toast.info('📝 Complete e salve');
+        toast.info('📝 Revise e salve o lançamento');
       } else {
         setShowImportarXML(false);
         queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
@@ -469,3 +489,8 @@ export default function Financeiro() {
     </div>
   );
 }
+
+const formatarNumero = (num) => {
+  if (num === null || num === undefined) return '0,00';
+  return String(num).replace('.', ',');
+};
