@@ -423,7 +423,7 @@ Retorne um JSON com esta estrutura EXATA:
         // Recalcular valor_total se quantidade ou valor_unitario mudaram
         if (campo === 'quantidade_ajustada' || campo === 'valor_unitario_ajustado' || campo === 'desconto_item') {
           const qtd = parseNumero(campo === 'quantidade_ajustada' ? valor : updated.quantidade_ajustada);
-          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustada' ? valor : updated.valor_unitario_ajustada);
+          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustado' ? valor : updated.valor_unitario_ajustada);
           const desc = parseNumero(campo === 'desconto_item' ? valor : updated.desconto_item);
           updated.valor_total_ajustado = qtd * vlrUnit - desc;
         }
@@ -608,7 +608,7 @@ Retorne um JSON com esta estrutura EXATA:
         });
 
         setProgressoImportacao({ current: i + 1, total: itensParaImportar.length });
-        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for visual progress
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
       await onSuccess({
@@ -811,7 +811,7 @@ Retorne um JSON com esta estrutura EXATA:
                   <TableBody>
                     {itensNFe.map((item) => {
                       const isEditando = editandoItemIndex === item.index;
-                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustada) - parseNumero(item.desconto_item || "0,00");
+                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado) - parseNumero(item.desconto_item || "0,00");
                       
                       return (
                         <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
@@ -851,7 +851,7 @@ Retorne um JSON com esta estrutura EXATA:
                             {isEditando ? (
                               <Input
                                 value={item.valor_unitario_ajustado}
-                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustada', e.target.value)}
+                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
                                 className="w-28 text-right"
                                 placeholder="0,00"
                               />
