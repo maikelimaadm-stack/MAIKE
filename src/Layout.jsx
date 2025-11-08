@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft } from "lucide-react";
+import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft, DollarSign, Home } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
@@ -40,6 +40,11 @@ import {
 
 const navigationItems = [
   {
+    title: "Dashboard",
+    url: createPageUrl("Home"),
+    icon: Home,
+  },
+  {
     title: "Pesagens",
     url: createPageUrl("Dashboard"),
     icon: Scale,
@@ -53,6 +58,28 @@ const navigationItems = [
     title: "Movimentações Estoque",
     url: createPageUrl("MovimentacoesEstoque"),
     icon: ArrowRightLeft,
+  },
+  {
+    title: "Financeiro",
+    icon: DollarSign,
+    submenu: [
+      {
+        title: "Controle Financeiro",
+        url: createPageUrl("Financeiro"),
+      },
+      {
+        title: "Plano de Contas",
+        url: createPageUrl("PlanoContas"),
+      },
+      {
+        title: "Formas de Pagamento",
+        url: createPageUrl("FormasPagamento"),
+      },
+      {
+        title: "Grupos Financeiros",
+        url: createPageUrl("GruposFinanceiros"),
+      },
+    ],
   },
   {
     title: "Cadastros",
