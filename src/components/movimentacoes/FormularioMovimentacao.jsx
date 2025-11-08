@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRightLeft, Save, X, Upload, AlertCircle } from "lucide-react";
+import { ArrowRightLeft, Save, X, Upload, AlertCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const TIPOS_DETALHADOS = {
   'Entrada': [
@@ -40,17 +41,26 @@ const TIPOS_DETALHADOS = {
 
 const TIPOS_DOCUMENTO = [
   'Nota Fiscal',
+  'Nota Fiscal de Venda',
   'Recibo',
   'Pedido de Compra',
   'Ordem de Serviço',
-  'Devolução',
-  'Nota Fiscal de Venda',
-  'Recibo de Entrega',
   'Ordem de Consumo',
-  'Documento de Perda',
   'Documento de Transferência',
+  'Documento de Perda',
+  'Devolução',
   'Sem Documento'
 ];
+
+const formatarNumero = (num) => {
+  if (!num && num !== 0) return '';
+  return String(num).replace('.', ',');
+};
+
+const parseNumero = (str) => {
+  if (!str) return 0;
+  return parseFloat(String(str).replace(',', '.')) || 0;
+};
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData, isEditing, produtos, fornecedores }) {
   const [formData, setFormData] = useState(initialData || {
@@ -66,17 +76,24 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     tipo_documento: "Nota Fiscal",
     numero_documento: "",
     chave_documento: "",
+    serie_documento: "",
     data_documento: new Date().toISOString().split('T')[0],
     fornecedor_id: "",
     cliente_nome: "",
-    forma_aquisicao: "",
     motivo_movimentacao: "",
-    centro_custo: "",
+    centro_custo_id: "",
     observacoes: "",
     anexos: []
   });
 
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [showNovoLocal, setShowNovoLocal] = useState(false);
+  const [showNovoCentro, setShowNovoCentro] = useState(false);
+  const [novoLocal, setNovoLocal] = useState({ nome: "", descricao: "" });
+  const [novoCentro, setNovoCentro] = useState({ nome: "", tipo: "Setor", codigo: "", descricao: "" });
+
+  const queryClient = useQueryClient();
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: locais = [] } = useQuery({
     queryKey: ['locais'],
@@ -84,17 +101,62 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     initialData: [],
   });
 
+  const { data: centros = [] } = useQuery({
+    queryKey: ['centros', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CentroCusto.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    initialData: [],
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const createLocalMutation = useMutation({
+    mutationFn: async (data) => {
+      const allLocais = await base44.entities.LocalEstoque.list();
+      const maxNum = allLocais.reduce((max, l) => Math.max(max, parseInt(l.numero_local) || 0), 0);
+      return base44.entities.LocalEstoque.create({ ...data, numero_local: String(maxNum + 1) });
+    },
+    onSuccess: (newLocal) => {
+      queryClient.invalidateQueries({ queryKey: ['locais'] });
+      setFormData(prev => ({ ...prev, local_estoque_destino: newLocal.nome }));
+      setShowNovoLocal(false);
+      setNovoLocal({ nome: "", descricao: "" });
+      toast.success('Local cadastrado!');
+    },
+  });
+
+  const createCentroMutation = useMutation({
+    mutationFn: async (data) => {
+      const allCentros = await base44.entities.CentroCusto.list();
+      const maxNum = allCentros.reduce((max, c) => Math.max(max, parseInt(c.numero_centro) || 0), 0);
+      return base44.entities.CentroCusto.create({ 
+        ...data, 
+        empresa_id: empresaSelecionadaId,
+        numero_centro: String(maxNum + 1) 
+      });
+    },
+    onSuccess: (newCentro) => {
+      queryClient.invalidateQueries({ queryKey: ['centros'] });
+      setFormData(prev => ({ ...prev, centro_custo_id: newCentro.id }));
+      setShowNovoCentro(false);
+      setNovoCentro({ nome: "", tipo: "Setor", codigo: "", descricao: "" });
+      toast.success('Centro de custo cadastrado!');
+    },
+  });
+
   useEffect(() => {
-    if (formData.quantidade && formData.valor_unitario) {
-      const total = parseFloat(formData.quantidade) * parseFloat(formData.valor_unitario);
-      setFormData(prev => ({ ...prev, valor_total: total.toFixed(2) }));
+    const qtd = parseNumero(formData.quantidade);
+    const vlrUnit = parseNumero(formData.valor_unitario);
+    if (qtd > 0 && vlrUnit > 0) {
+      setFormData(prev => ({ ...prev, valor_total: formatarNumero((qtd * vlrUnit).toFixed(2)) }));
     }
   }, [formData.quantidade, formData.valor_unitario]);
 
   useEffect(() => {
     if (formData.tipo_movimentacao) {
       const primeiroTipo = TIPOS_DETALHADOS[formData.tipo_movimentacao]?.[0]?.value;
-      if (primeiroTipo && !formData.tipo_detalhado) {
+      if (primeiroTipo && (!formData.tipo_detalhado || !TIPOS_DETALHADOS[formData.tipo_movimentacao].find(t => t.value === formData.tipo_detalhado))) {
         setFormData(prev => ({ ...prev, tipo_detalhado: primeiroTipo }));
       }
     }
@@ -112,27 +174,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
-      const novoAnexo = {
-        nome: file.name,
-        url: file_url,
-        tipo: file.type
-      };
-
       setFormData(prev => ({
         ...prev,
-        anexos: [...(prev.anexos || []), novoAnexo]
+        anexos: [...(prev.anexos || []), { nome: file.name, url: file_url, tipo: file.type }]
       }));
 
-      toast.success('Arquivo anexado com sucesso!');
+      toast.success('Arquivo anexado!');
     } catch (error) {
-      toast.error('Erro ao fazer upload do arquivo');
+      toast.error('Erro ao fazer upload');
     } finally {
       setUploadingFile(false);
       e.target.value = '';
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.produto_id) {
@@ -140,24 +196,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    if (!formData.quantidade || parseFloat(formData.quantidade) <= 0) {
-      toast.error('Informe uma quantidade válida maior que zero!');
-      return;
-    }
-
-    if (!formData.tipo_detalhado) {
-      toast.error('Selecione o tipo detalhado da movimentação!');
+    const qtd = parseNumero(formData.quantidade);
+    if (!qtd || qtd <= 0) {
+      toast.error('Quantidade deve ser maior que zero!');
       return;
     }
 
     if (!formData.motivo_movimentacao?.trim()) {
-      toast.error('Informe o motivo/justificativa da movimentação!');
+      toast.error('Informe o motivo/justificativa!');
       return;
     }
 
+    const produto = produtos.find(p => p.id === formData.produto_id);
+    const estoqueDisponivel = produto?.estoque_atual || 0;
+
     if (formData.tipo_movimentacao === 'Entrada') {
       if (!formData.local_estoque_destino) {
-        toast.error('Informe o local de destino para entrada!');
+        toast.error('Informe o local de destino!');
         return;
       }
       if (formData.tipo_detalhado === 'Compra' && !formData.numero_documento) {
@@ -166,398 +221,464 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       }
     } else if (formData.tipo_movimentacao === 'Saída') {
       if (!formData.local_estoque_origem) {
-        toast.error('Informe o local de origem para saída!');
+        toast.error('Informe o local de origem!');
         return;
       }
       
-      const produto = produtos.find(p => p.id === formData.produto_id);
-      const estoqueDisponivel = produto?.estoque_atual || 0;
-      const qtdSaida = parseFloat(formData.quantidade);
+      if (estoqueDisponivel === 0) {
+        toast.error(`❌ SALDO ZERADO! O produto ${produto.nome_produto} não possui estoque disponível.`);
+        return;
+      }
       
-      if (qtdSaida > estoqueDisponivel) {
-        toast.error(`Saldo insuficiente! Disponível: ${estoqueDisponivel} ${produto?.unidade_medida || ''}`);
+      if (qtd > estoqueDisponivel) {
+        toast.error(`❌ SALDO INSUFICIENTE! Disponível: ${formatarNumero(estoqueDisponivel)} ${produto.unidade_medida}`);
         return;
       }
     } else if (formData.tipo_movimentacao === 'Transferência') {
       if (!formData.local_estoque_origem || !formData.local_estoque_destino) {
-        toast.error('Informe origem e destino para transferência!');
+        toast.error('Informe origem e destino!');
         return;
       }
       if (formData.local_estoque_origem === formData.local_estoque_destino) {
         toast.error('Origem e destino devem ser diferentes!');
         return;
       }
-    } else if (formData.tipo_movimentacao === 'Ajuste') {
-      if (!formData.motivo_movimentacao?.trim()) {
-        toast.error('Justificativa é obrigatória para ajustes!');
+      
+      if (estoqueDisponivel === 0) {
+        toast.error(`❌ SALDO ZERADO! O produto ${produto.nome_produto} não possui estoque disponível.`);
+        return;
+      }
+      
+      if (qtd > estoqueDisponivel) {
+        toast.error(`❌ SALDO INSUFICIENTE! Disponível: ${formatarNumero(estoqueDisponivel)} ${produto.unidade_medida}`);
         return;
       }
     }
 
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      quantidade: qtd,
+      valor_unitario: parseNumero(formData.valor_unitario),
+      valor_total: parseNumero(formData.valor_total)
+    });
   };
 
   const produtoSelecionado = produtos.find(p => p.id === formData.produto_id);
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
+  
+  const isTransferencia = formData.tipo_movimentacao === 'Transferência';
+  const mostrarValores = formData.tipo_movimentacao === 'Entrada' && (formData.tipo_detalhado === 'Compra' || formData.tipo_detalhado === 'Ajuste Positivo');
+  const mostrarDocumentoCompleto = formData.tipo_documento === 'Nota Fiscal' || formData.tipo_documento === 'Nota Fiscal de Venda';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <ArrowRightLeft className="w-5 h-5 text-white" />
-            </div>
-            {isEditing ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Tipo e Data */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Tipo Principal *</Label>
-                <Select value={formData.tipo_movimentacao} onValueChange={(value) => handleChange('tipo_movimentacao', value)}>
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Entrada">Entrada</SelectItem>
-                    <SelectItem value="Saída">Saída</SelectItem>
-                    <SelectItem value="Transferência">Transferência</SelectItem>
-                    <SelectItem value="Ajuste">Ajuste</SelectItem>
-                  </SelectContent>
-                </Select>
+    <>
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+        <Card className="shadow-xl border-slate-200 bg-white">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
+            <CardTitle className="flex items-center gap-3 text-slate-900">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+                <ArrowRightLeft className="w-5 h-5 text-white" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Tipo Detalhado *</Label>
-                <Select value={formData.tipo_detalhado} onValueChange={(value) => handleChange('tipo_detalhado', value)}>
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiposDetalhadosDisponiveis.map((tipo) => (
-                      <SelectItem key={tipo.value} value={tipo.value}>
-                        {tipo.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Data e Hora *</Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.data_movimentacao}
-                  onChange={(e) => handleChange('data_movimentacao', e.target.value)}
-                  required
-                  className="border-slate-300 focus:border-green-500"
-                />
-              </div>
-            </div>
-
-            {/* Produto e Quantidade */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Produto *</Label>
-                <Select value={formData.produto_id} onValueChange={(value) => handleChange('produto_id', value)}>
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione o produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {produtos.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.codigo_interno ? `[${p.codigo_interno}] ` : ''}{p.nome_produto} ({p.unidade_medida})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {produtoSelecionado && (
-                  <Alert className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Estoque atual: <strong>{produtoSelecionado.estoque_atual || 0} {produtoSelecionado.unidade_medida}</strong>
-                      {produtoSelecionado.preco_custo > 0 && ` | Custo: R$ ${produtoSelecionado.preco_custo.toFixed(2)}`}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Quantidade *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formData.quantidade}
-                  onChange={(e) => handleChange('quantidade', e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className="border-slate-300 focus:border-green-500 text-lg font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Locais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {(formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && (
+              {isEditing ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Local de Origem *</Label>
-                  <Select value={formData.local_estoque_origem} onValueChange={(value) => handleChange('local_estoque_origem', value)}>
-                    <SelectTrigger className="border-slate-300 focus:border-green-500">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locais.map((l) => (
-                        <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {(formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência') && (
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Local de Destino *</Label>
-                  <Select value={formData.local_estoque_destino} onValueChange={(value) => handleChange('local_estoque_destino', value)}>
-                    <SelectTrigger className="border-slate-300 focus:border-green-500">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locais.map((l) => (
-                        <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            {/* Valores */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Valor Unitário *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.valor_unitario}
-                  onChange={(e) => handleChange('valor_unitario', e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className="border-slate-300 focus:border-green-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Valor Total</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.valor_total}
-                  placeholder="0.00"
-                  className="border-slate-300 bg-slate-50 font-bold"
-                  readOnly
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Centro de Custo</Label>
-                <Input
-                  value={formData.centro_custo}
-                  onChange={(e) => handleChange('centro_custo', e.target.value)}
-                  placeholder="SETOR OU CENTRO DE CUSTO"
-                  className="border-slate-300 focus:border-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-            </div>
-
-            {/* Documento */}
-            <div className="border-t pt-6">
-              <h3 className="font-semibold text-slate-700 mb-4">Documento Fiscal/Comercial</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <Label>Tipo de Documento</Label>
-                  <Select value={formData.tipo_documento} onValueChange={(value) => handleChange('tipo_documento', value)}>
+                  <Label className="text-slate-700 font-medium">Tipo Principal *</Label>
+                  <Select value={formData.tipo_movimentacao} onValueChange={(value) => handleChange('tipo_movimentacao', value)}>
                     <SelectTrigger className="border-slate-300 focus:border-green-500">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_DOCUMENTO.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Número do Documento</Label>
-                  <Input
-                    value={formData.numero_documento}
-                    onChange={(e) => handleChange('numero_documento', e.target.value)}
-                    placeholder="000000"
-                    className="border-slate-300 focus:border-green-500 uppercase"
-                    style={{ textTransform: 'uppercase' }}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Chave do Documento</Label>
-                  <Input
-                    value={formData.chave_documento}
-                    onChange={(e) => handleChange('chave_documento', e.target.value)}
-                    placeholder="44 dígitos (NF-e)"
-                    maxLength={44}
-                    className="border-slate-300 focus:border-green-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data do Documento</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_documento}
-                    onChange={(e) => handleChange('data_documento', e.target.value)}
-                    className="border-slate-300 focus:border-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Fornecedor/Cliente */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {formData.tipo_movimentacao === 'Entrada' && (
-                <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <Select value={formData.fornecedor_id} onValueChange={(value) => handleChange('fornecedor_id', value)}>
-                    <SelectTrigger className="border-slate-300 focus:border-green-500">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fornecedores.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {formData.tipo_movimentacao === 'Saída' && (
-                <div className="space-y-2">
-                  <Label>Cliente/Destinatário</Label>
-                  <Input
-                    value={formData.cliente_nome}
-                    onChange={(e) => handleChange('cliente_nome', e.target.value)}
-                    placeholder="NOME DO CLIENTE OU DESTINATÁRIO"
-                    className="border-slate-300 focus:border-green-500 uppercase"
-                    style={{ textTransform: 'uppercase' }}
-                  />
-                </div>
-              )}
-
-              {formData.tipo_movimentacao === 'Entrada' && (
-                <div className="space-y-2">
-                  <Label>Forma de Aquisição</Label>
-                  <Select value={formData.forma_aquisicao} onValueChange={(value) => handleChange('forma_aquisicao', value)}>
-                    <SelectTrigger className="border-slate-300 focus:border-green-500">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Compra">Compra</SelectItem>
+                      <SelectItem value="Entrada">Entrada</SelectItem>
+                      <SelectItem value="Saída">Saída</SelectItem>
                       <SelectItem value="Transferência">Transferência</SelectItem>
-                      <SelectItem value="Devolução">Devolução</SelectItem>
-                      <SelectItem value="Bonificação">Bonificação</SelectItem>
-                      <SelectItem value="Doação">Doação</SelectItem>
+                      <SelectItem value="Ajuste">Ajuste</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-            </div>
 
-            {/* Motivo/Justificativa */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Motivo/Justificativa *</Label>
-              <Textarea
-                value={formData.motivo_movimentacao}
-                onChange={(e) => handleChange('motivo_movimentacao', e.target.value)}
-                placeholder="DESCREVA O MOTIVO OU JUSTIFICATIVA DESTA MOVIMENTAÇÃO..."
-                required
-                className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Tipo Detalhado *</Label>
+                  <Select value={formData.tipo_detalhado} onValueChange={(value) => handleChange('tipo_detalhado', value)}>
+                    <SelectTrigger className="border-slate-300 focus:border-green-500">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposDetalhadosDisponiveis.map((tipo) => (
+                        <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Observações */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Observações Complementares</Label>
-              <Textarea
-                value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="OBSERVAÇÕES ADICIONAIS..."
-                className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
-
-            {/* Anexos */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Anexar Documentos (PDF, XML, Imagens)</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="file"
-                  onChange={handleFileUpload}
-                  accept=".pdf,.xml,.jpg,.jpeg,.png"
-                  disabled={uploadingFile}
-                  className="border-slate-300 focus:border-green-500"
-                />
-                <Button type="button" disabled={uploadingFile} variant="outline">
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploadingFile ? 'Enviando...' : 'Anexar'}
-                </Button>
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Data e Hora *</Label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.data_movimentacao}
+                    onChange={(e) => handleChange('data_movimentacao', e.target.value)}
+                    required
+                    className="border-slate-300 focus:border-green-500"
+                  />
+                </div>
               </div>
-              {formData.anexos && formData.anexos.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {formData.anexos.map((anexo, idx) => (
-                    <div key={idx} className="text-xs flex items-center gap-2 bg-slate-50 p-2 rounded">
-                      <span>📎 {anexo.nome}</span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          const novosAnexos = formData.anexos.filter((_, i) => i !== idx);
-                          setFormData(prev => ({ ...prev, anexos: novosAnexos }));
-                        }}
-                      >
-                        <X className="w-3 h-3" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Produto *</Label>
+                  <Select value={formData.produto_id} onValueChange={(value) => handleChange('produto_id', value)}>
+                    <SelectTrigger className="border-slate-300 focus:border-green-500">
+                      <SelectValue placeholder="Selecione o produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {produtos.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.codigo_interno ? `[${p.codigo_interno}] ` : ''}{p.nome_produto} ({p.unidade_medida})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {produtoSelecionado && (
+                    <Alert className={`mt-2 ${produtoSelecionado.estoque_atual === 0 ? 'border-red-300 bg-red-50' : ''}`}>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Estoque: <strong>{formatarNumero(produtoSelecionado.estoque_atual || 0)} {produtoSelecionado.unidade_medida}</strong>
+                        {produtoSelecionado.estoque_atual === 0 && ' ⚠️ ZERADO'}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Quantidade *</Label>
+                  <Input
+                    value={formData.quantidade}
+                    onChange={(e) => handleChange('quantidade', e.target.value)}
+                    placeholder="0,00"
+                    required
+                    className="border-slate-300 focus:border-green-500 text-lg font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(formData.tipo_movimentacao === 'Saída' || isTransferencia) && (
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-medium">Local de Origem *</Label>
+                    <div className="flex gap-2">
+                      <Select value={formData.local_estoque_origem} onValueChange={(value) => handleChange('local_estoque_origem', value)} className="flex-1">
+                        <SelectTrigger className="border-slate-300 focus:border-green-500">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locais.map((l) => (
+                            <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)}>
+                        <Plus className="w-4 h-4" />
                       </Button>
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {(formData.tipo_movimentacao === 'Entrada' || isTransferencia) && (
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-medium">Local de Destino *</Label>
+                    <div className="flex gap-2">
+                      <Select value={formData.local_estoque_destino} onValueChange={(value) => handleChange('local_estoque_destino', value)} className="flex-1">
+                        <SelectTrigger className="border-slate-300 focus:border-green-500">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locais.map((l) => (
+                            <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {mostrarValores && !isTransferencia && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-medium">Valor Unitário</Label>
+                    <Input
+                      value={formData.valor_unitario}
+                      onChange={(e) => handleChange('valor_unitario', e.target.value)}
+                      placeholder="0,00"
+                      className="border-slate-300 focus:border-green-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-medium">Valor Total</Label>
+                    <Input
+                      value={formData.valor_total}
+                      placeholder="0,00"
+                      className="border-slate-300 bg-slate-50 font-bold"
+                      readOnly
+                    />
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Botões */}
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                <X className="w-4 h-4" />
+              {!isTransferencia && (
+                <div className="border-t pt-6">
+                  <h3 className="font-semibold text-slate-700 mb-4">Documento Fiscal/Comercial</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label>Tipo de Documento</Label>
+                      <Select value={formData.tipo_documento} onValueChange={(value) => handleChange('tipo_documento', value)}>
+                        <SelectTrigger className="border-slate-300 focus:border-green-500">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_DOCUMENTO.map((tipo) => (
+                            <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Número do Documento</Label>
+                      <Input
+                        value={formData.numero_documento}
+                        onChange={(e) => handleChange('numero_documento', e.target.value)}
+                        placeholder="000000"
+                        className="border-slate-300 focus:border-green-500 uppercase"
+                        style={{ textTransform: 'uppercase' }}
+                      />
+                    </div>
+
+                    {mostrarDocumentoCompleto && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Série</Label>
+                          <Input
+                            value={formData.serie_documento}
+                            onChange={(e) => handleChange('serie_documento', e.target.value)}
+                            placeholder="1"
+                            className="border-slate-300 focus:border-green-500"
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Chave de Acesso (44 dígitos)</Label>
+                          <Input
+                            value={formData.chave_documento}
+                            onChange={(e) => handleChange('chave_documento', e.target.value)}
+                            placeholder="44 dígitos"
+                            maxLength={44}
+                            className="border-slate-300 focus:border-green-500"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label>Data do Documento</Label>
+                      <Input
+                        type="date"
+                        value={formData.data_documento}
+                        onChange={(e) => handleChange('data_documento', e.target.value)}
+                        className="border-slate-300 focus:border-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {formData.tipo_movimentacao === 'Entrada' && (
+                  <div className="space-y-2">
+                    <Label>Fornecedor</Label>
+                    <Select value={formData.fornecedor_id} onValueChange={(value) => handleChange('fornecedor_id', value)}>
+                      <SelectTrigger className="border-slate-300 focus:border-green-500">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fornecedores.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.tipo_movimentacao === 'Saída' && (
+                  <div className="space-y-2">
+                    <Label>Cliente/Destinatário</Label>
+                    <Input
+                      value={formData.cliente_nome}
+                      onChange={(e) => handleChange('cliente_nome', e.target.value)}
+                      placeholder="NOME DO CLIENTE"
+                      className="border-slate-300 focus:border-green-500 uppercase"
+                      style={{ textTransform: 'uppercase' }}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Centro de Custo / Setor</Label>
+                  <div className="flex gap-2">
+                    <Select value={formData.centro_custo_id} onValueChange={(value) => handleChange('centro_custo_id', value)} className="flex-1">
+                      <SelectTrigger className="border-slate-300 focus:border-green-500">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {centros.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.codigo ? `[${c.codigo}] ` : ''}{c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoCentro(true)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-medium">Motivo/Justificativa *</Label>
+                <Textarea
+                  value={formData.motivo_movimentacao}
+                  onChange={(e) => handleChange('motivo_movimentacao', e.target.value)}
+                  placeholder="DESCREVA O MOTIVO..."
+                  required
+                  className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea
+                  value={formData.observacoes}
+                  onChange={(e) => handleChange('observacoes', e.target.value)}
+                  placeholder="OBSERVAÇÕES ADICIONAIS..."
+                  className="border-slate-300 focus:border-green-500 min-h-16 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
+                  <X className="w-4 h-4" />
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+                  <Save className="w-4 h-4" />
+                  {isEditing ? 'Atualizar' : 'Salvar'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Local de Estoque</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input
+                value={novoLocal.nome}
+                onChange={(e) => setNovoLocal({ ...novoLocal, nome: e.target.value })}
+                placeholder="NOME DO LOCAL"
+                className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={novoLocal.descricao}
+                onChange={(e) => setNovoLocal({ ...novoLocal, descricao: e.target.value })}
+                placeholder="DESCRIÇÃO"
+                className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "" }); }}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
-                <Save className="w-4 h-4" />
-                {isEditing ? 'Atualizar' : 'Salvar'} Movimentação
+              <Button onClick={() => createLocalMutation.mutate({ nome: novoLocal.nome.toUpperCase(), descricao: novoLocal.descricao?.toUpperCase() })} className="bg-green-600">
+                Salvar
               </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </motion.div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovoCentro} onOpenChange={setShowNovoCentro}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Centro de Custo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input
+                value={novoCentro.nome}
+                onChange={(e) => setNovoCentro({ ...novoCentro, nome: e.target.value })}
+                placeholder="NOME DO CENTRO DE CUSTO"
+                className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo *</Label>
+              <Select value={novoCentro.tipo} onValueChange={(value) => setNovoCentro({ ...novoCentro, tipo: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Setor">Setor</SelectItem>
+                  <SelectItem value="Departamento">Departamento</SelectItem>
+                  <SelectItem value="Filial">Filial</SelectItem>
+                  <SelectItem value="Projeto">Projeto</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Código</Label>
+              <Input
+                value={novoCentro.codigo}
+                onChange={(e) => setNovoCentro({ ...novoCentro, codigo: e.target.value })}
+                placeholder="CÓDIGO"
+                className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowNovoCentro(false); setNovoCentro({ nome: "", tipo: "Setor", codigo: "", descricao: "" }); }}>
+                Cancelar
+              </Button>
+              <Button onClick={() => createCentroMutation.mutate({ nome: novoCentro.nome.toUpperCase(), tipo: novoCentro.tipo, codigo: novoCentro.codigo?.toUpperCase() })} className="bg-green-600">
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

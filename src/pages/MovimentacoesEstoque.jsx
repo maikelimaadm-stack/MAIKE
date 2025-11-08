@@ -27,8 +27,7 @@ const getNextSystemNumber = async () => {
       ...movimentacoes.map(m => parseInt(m.numero_movimentacao) || 0)
     ].filter(n => n > 0 && n < 1000000000);
 
-    const nextNumber = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-    return nextNumber;
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch (error) {
     console.error('Erro ao obter próximo número:', error);
     return 1;
@@ -36,7 +35,7 @@ const getNextSystemNumber = async () => {
 };
 
 const calcularCustoMedio = (estoqueAtual, custoMedioAtual, quantidadeEntrada, custoEntrada) => {
-  if (estoqueAtual === 0) return custoEntrada;
+  if (estoqueAtual === 0 || !custoMedioAtual) return custoEntrada;
   
   const valorTotalAtual = estoqueAtual * custoMedioAtual;
   const valorTotalEntrada = quantidadeEntrada * custoEntrada;
@@ -85,6 +84,15 @@ export default function MovimentacoesEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: centros = [] } = useQuery({
+    queryKey: ['centros', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CentroCusto.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   useEffect(() => {
     const numerarMovimentacoes = async () => {
       const movSemNumero = movimentacoes.filter(m => !m.numero_movimentacao || m.numero_movimentacao === '');
@@ -97,7 +105,7 @@ export default function MovimentacoesEstoque() {
               numero_movimentacao: String(proximoNumero)
             });
           } catch (error) {
-            console.error(`Erro ao numerar movimentação ${mov.id}:`, error);
+            console.error(`Erro ao numerar:`, error);
           }
         }
         queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
@@ -121,12 +129,13 @@ export default function MovimentacoesEstoque() {
 
       if (data.tipo_movimentacao === 'Entrada') {
         novoEstoque = estoqueAtual + data.quantidade;
-        novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, data.quantidade, data.valor_unitario);
-      } else if (data.tipo_movimentacao === 'Saída') {
+        if (data.tipo_detalhado === 'Compra' && data.valor_unitario) {
+          novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, data.quantidade, data.valor_unitario);
+        }
+      } else if (data.tipo_movimentacao === 'Saída' || data.tipo_movimentacao === 'Transferência') {
         novoEstoque = estoqueAtual - data.quantidade;
       } else if (data.tipo_movimentacao === 'Ajuste') {
-        const tipoAjuste = data.tipo_detalhado;
-        if (tipoAjuste.includes('Positivo') || tipoAjuste === 'Inventário') {
+        if (data.tipo_detalhado.includes('Positivo')) {
           novoEstoque = estoqueAtual + data.quantidade;
         } else {
           novoEstoque = estoqueAtual - data.quantidade;
@@ -154,60 +163,17 @@ export default function MovimentacoesEstoque() {
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
       setShowForm(false);
       setEditingMovimentacao(null);
-      toast.success('Movimentação registrada com sucesso!');
+      toast.success('✅ Movimentação registrada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao registrar movimentação');
+      toast.error(error.message || 'Erro ao registrar');
     }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.MovimentacaoEstoque.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-      setShowForm(false);
-      setEditingMovimentacao(null);
-      toast.success('Movimentação atualizada com sucesso!');
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async ({ id, motivo }) => {
-      const mov = movimentacoes.find(m => m.id === id);
-      if (!mov) throw new Error('Movimentação não encontrada');
-
-      const produto = produtos.find(p => p.id === mov.produto_id);
-      if (!produto) throw new Error('Produto não encontrado');
-
-      let novoEstoque = produto.estoque_atual || 0;
-      
-      if (mov.tipo_movimentacao === 'Entrada') {
-        novoEstoque -= mov.quantidade;
-      } else if (mov.tipo_movimentacao === 'Saída') {
-        novoEstoque += mov.quantidade;
-      }
-
-      await base44.entities.MovimentacaoEstoque.update(id, {
-        status: 'Cancelada',
-        cancelado_por: user?.email || 'Sistema',
-        data_cancelamento: new Date().toISOString(),
-        motivo_cancelamento: motivo
-      });
-
-      await base44.entities.Produto.update(produto.id, {
-        estoque_atual: novoEstoque
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      toast.success('Movimentação cancelada com sucesso!');
-    },
   });
 
   const handleSubmit = async (formData) => {
     const produto = produtos.find(p => p.id === formData.produto_id);
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
+    const centro = centros.find(c => c.id === formData.centro_custo_id);
     
     const data = {
       empresa_id: empresaSelecionadaId,
@@ -217,22 +183,23 @@ export default function MovimentacoesEstoque() {
       produto_id: formData.produto_id,
       produto_nome: produto?.nome_produto,
       produto_codigo: produto?.codigo_interno,
-      quantidade: parseFloat(formData.quantidade),
+      quantidade: formData.quantidade,
       unidade_medida: produto?.unidade_medida,
       local_estoque_origem: formData.local_estoque_origem || undefined,
       local_estoque_destino: formData.local_estoque_destino || undefined,
-      valor_unitario: parseFloat(formData.valor_unitario),
-      valor_total: parseFloat(formData.valor_total),
+      valor_unitario: formData.valor_unitario || undefined,
+      valor_total: formData.valor_total || undefined,
       tipo_documento: formData.tipo_documento,
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_documento: formData.chave_documento || undefined,
+      serie_documento: formData.serie_documento || undefined,
       data_documento: formData.data_documento || undefined,
       fornecedor_id: formData.fornecedor_id || undefined,
       fornecedor_nome: fornecedor?.nome,
       cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
-      forma_aquisicao: formData.forma_aquisicao || undefined,
       motivo_movimentacao: formData.motivo_movimentacao?.toUpperCase(),
-      centro_custo: formData.centro_custo?.toUpperCase() || undefined,
+      centro_custo_id: formData.centro_custo_id || undefined,
+      centro_custo_nome: centro?.nome,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
       anexos: formData.anexos || []
     };
@@ -242,11 +209,7 @@ export default function MovimentacoesEstoque() {
       data.numero_movimentacao = String(proximoNumero);
     }
 
-    if (editingMovimentacao) {
-      updateMutation.mutate({ id: editingMovimentacao.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+    createMutation.mutate(data);
   };
 
   const handleEdit = (movimentacao) => {
@@ -258,24 +221,36 @@ export default function MovimentacoesEstoque() {
     const motivo = window.prompt('Informe o motivo do cancelamento:');
     if (!motivo) return;
     
-    if (window.confirm('⚠️ ATENÇÃO: Esta movimentação será cancelada e o estoque será revertido. Confirma?')) {
-      cancelMutation.mutate({ id, motivo });
+    if (window.confirm('⚠️ ATENÇÃO: Esta movimentação será cancelada e o estoque revertido. Confirma?')) {
+      try {
+        const mov = movimentacoes.find(m => m.id === id);
+        const produto = produtos.find(p => p.id === mov.produto_id);
+        
+        let novoEstoque = produto.estoque_atual || 0;
+        if (mov.tipo_movimentacao === 'Entrada') novoEstoque -= mov.quantidade;
+        else if (mov.tipo_movimentacao === 'Saída') novoEstoque += mov.quantidade;
+
+        await base44.entities.MovimentacaoEstoque.update(id, {
+          status: 'Cancelada',
+          cancelado_por: user?.email || 'Sistema',
+          data_cancelamento: new Date().toISOString(),
+          motivo_cancelamento: motivo.toUpperCase()
+        });
+
+        await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
+        
+        queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
+        queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        toast.success('Movimentação cancelada!');
+      } catch (error) {
+        toast.error('Erro ao cancelar');
+      }
     }
-  };
-
-  const handleNew = () => {
-    setEditingMovimentacao(null);
-    setShowForm(true);
-  };
-
-  const handleCancelForm = () => {
-    setShowForm(false);
-    setEditingMovimentacao(null);
   };
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Vlr Unit.', 'Vlr Total', 'Origem', 'Destino', 'Documento', 'Fornecedor/Cliente', 'Motivo'];
+    const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Origem', 'Destino', 'Documento', 'Motivo'];
     csvRows.push(headers.join(';'));
 
     movimentacoes.forEach(m => {
@@ -286,12 +261,9 @@ export default function MovimentacoesEstoque() {
         m.tipo_detalhado,
         m.produto_nome,
         m.quantidade,
-        m.valor_unitario,
-        m.valor_total,
         m.local_estoque_origem || '',
         m.local_estoque_destino || '',
         m.numero_documento || '',
-        m.fornecedor_nome || m.cliente_nome || '',
         m.motivo_movimentacao || ''
       ];
       csvRows.push(row.join(';'));
@@ -301,17 +273,15 @@ export default function MovimentacoesEstoque() {
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `movimentacoes_estoque_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `movimentacoes_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
     link.click();
-    toast.success('Dados exportados com sucesso!');
+    toast.success('Exportado!');
   };
 
   const totalMovimentacoes = movimentacoes.length;
   const totalEntradas = movimentacoes.filter(m => m.tipo_movimentacao === 'Entrada').length;
   const totalSaidas = movimentacoes.filter(m => m.tipo_movimentacao === 'Saída').length;
   const totalAjustes = movimentacoes.filter(m => m.tipo_movimentacao === 'Ajuste').length;
-  const valorTotalMovimentado = movimentacoes.reduce((sum, m) => sum + (m.valor_total || 0), 0);
-
   const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0));
 
   return (
@@ -357,7 +327,7 @@ export default function MovimentacoesEstoque() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-900">{totalAjustes}</div>
-            <p className="text-xs text-purple-600 mt-1">Correções/Inventário</p>
+            <p className="text-xs text-purple-600 mt-1">Correções</p>
           </CardContent>
         </Card>
 
@@ -375,13 +345,11 @@ export default function MovimentacoesEstoque() {
 
       {!showForm && (
         <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button onClick={handleExport} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Exportar CSV
-            </Button>
-          </div>
-          <Button onClick={handleNew} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
+          <Button onClick={handleExport} variant="outline" className="gap-2">
+            <Download className="w-4 h-4" />
+            Exportar CSV
+          </Button>
+          <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
             <Plus className="w-5 h-5" />
             Nova Movimentação
           </Button>
@@ -392,7 +360,7 @@ export default function MovimentacoesEstoque() {
         {showForm && (
           <FormularioMovimentacao
             onSubmit={handleSubmit}
-            onCancel={handleCancelForm}
+            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); }}
             initialData={editingMovimentacao}
             isEditing={!!editingMovimentacao}
             produtos={produtos}
