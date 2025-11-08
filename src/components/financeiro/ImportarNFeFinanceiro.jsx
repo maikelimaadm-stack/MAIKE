@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -6,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, Edit2 } from "lucide-react";
+import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, Edit2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ const ESTADOS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'M
 
 export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornecedores, produtos }) {
   const [processando, setProcessando] = useState(false);
+  const [xmlFile, setXmlFile] = useState(null);
   const [dadosNFe, setDadosNFe] = useState(null);
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
   const [itensNFe, setItensNFe] = useState([]);
@@ -51,6 +53,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
     centro_custo_id: "",
+    frete: "0,00",
+    desconto_total: "0,00",
+    outras_despesas: "0,00",
     observacoes: ""
   });
   
@@ -191,7 +196,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const adicionarParcela = () => {
     const ultimaParcela = parcelas[parcelas.length - 1];
     const proximaData = ultimaParcela ? calcularDataProximaMes(ultimaParcela.data) : dataVencimento;
-    const valorTotal = dadosNFe.valor_total;
+    const valorTotal = dadosNFe?.valor_total || 0;
     const newNumberOfParcelas = parcelas.length + 1;
     const equalParcelValue = valorTotal / newNumberOfParcelas;
 
@@ -219,7 +224,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       return;
     }
     const newParcelas = parcelas.filter((_, i) => i !== index);
-    const valorTotal = dadosNFe.valor_total;
+    const valorTotal = dadosNFe?.valor_total || 0;
     const equalParcelValue = valorTotal / newParcelas.length;
 
     const updatedParcelas = newParcelas.map(p => ({
@@ -255,18 +260,27 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setProcessando(true);
     
     try {
-      toast.info(`📄 Enviando: ${file.name}`);
+      toast.info(`📄 Processando: ${file.name}`);
       
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
+      setXmlFile(file_url);
+
+      toast.info('🔍 Extraindo dados do XML...');
       const response = await fetch(file_url);
       const xmlText = await response.text();
 
-      toast.info('🤖 Extraindo dados com IA...');
+      toast.info('🤖 Analisando nota fiscal...');
       
       const resultado = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extraia TODOS os dados desta NF-e incluindo produtos. Para data de emissão, retorne no formato YYYY-MM-DD. Retorne JSON conforme schema:
+        prompt: `Você é um extrator de dados de NF-e. Extraia os dados do XML abaixo e retorne EXATAMENTE no formato JSON solicitado.
 
+IMPORTANTE: 
+- Se o XML não for uma NF-e válida (modelo 55), retorne modelo como string vazia
+- Para campos que não existirem no XML, use null
+- Números devem ser sempre numéricos, não strings
+- CNPJ/CPF devem ter apenas números
+
+XML:
 ${xmlText}`,
         response_json_schema: {
           type: "object",
@@ -276,7 +290,6 @@ ${xmlText}`,
             serie: { type: "string" },
             chave: { type: "string" },
             data_emissao: { type: "string" },
-            valor_total: { type: "number" },
             cnpj_emitente: { type: ["string", "null"] },
             cpf_emitente: { type: ["string", "null"] },
             razao_social_emitente: { type: "string" },
@@ -290,6 +303,7 @@ ${xmlText}`,
             cep_emitente: { type: "string" },
             cfop: { type: "string" },
             natureza_operacao: { type: "string" },
+            valor_total: { type: "number" },
             itens: {
               type: "array",
               items: {
@@ -322,24 +336,24 @@ ${xmlText}`,
         return;
       }
 
-      console.log('📋 Data emissão extraída:', resultado.data_emissao);
+      console.log('✅ XML processado:', resultado);
       toast.success(`✅ ${resultado.itens.length} produto(s) encontrado(s)`);
       
       setDadosNFe(resultado);
       
       if (resultado.data_emissao) {
         setDataVencimento(resultado.data_emissao);
-        console.log('📅 Data vencimento setada:', resultado.data_emissao);
+        console.log('📅 Data vencimento:', resultado.data_emissao);
       } else {
         const hoje = new Date().toISOString().split('T')[0];
         setDataVencimento(hoje);
         console.log('📅 Data vencimento padrão (hoje):', hoje);
       }
       
-      const doc = resultado.cnpj_emitente || resultado.cpf_emitente;
+      const documentoEmitente = resultado.cnpj_emitente || resultado.cpf_emitente;
       const forn = fornecedores.find(f => 
-        f.cnpj?.replace(/\D/g, '') === doc?.replace(/\D/g, '') ||
-        f.cpf?.replace(/\D/g, '') === doc?.replace(/\D/g, '')
+        f.cnpj?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '') ||
+        f.cpf?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '')
       );
       
       if (forn) {
@@ -378,7 +392,7 @@ ${xmlText}`,
 
   useEffect(() => {
     if (etapa === 3 && dadosNFe?.itens) {
-      const itens = dadosNFe.itens.map((item, index) => {
+      const itensComAssociacao = dadosNFe.itens.map((item, index) => {
         const prod = produtos.find(p => 
           p.codigo_interno === item.codigo ||
           p.codigo_barras === item.codigo ||
@@ -403,12 +417,13 @@ ${xmlText}`,
           status: prod ? 'associado' : 'pendente',
           quantidade_ajustada: formatarNumero(item.quantidade || 0),
           valor_unitario_ajustado: formatarNumero(item.valor_unitario || 0),
+          desconto_item: "0,00",
           cfop_ajustado: item.cfop || '',
         };
       });
       
-      setItensNFe(itens);
-      setItensSelecionados(itens.map(i => i.index));
+      setItensNFe(itensComAssociacao);
+      setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
   }, [etapa, dadosNFe, produtos, unidadesMedida]);
 
@@ -464,11 +479,12 @@ ${xmlText}`,
     const pendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
     
     if (pendentes.length === 0) {
-      toast.error('❌ Nenhum produto pendente!');
+      toast.error('❌ Nenhum produto pendente selecionado!');
       return;
     }
     
     setShowCadastroEmMassa(true);
+    let cadastrados = 0;
 
     for (const item of pendentes) {
       try {
@@ -494,14 +510,16 @@ ${xmlText}`,
           }
           return i;
         }));
+        cadastrados++;
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for visual effect
       } catch (error) {
-        console.error('Erro:', error);
+        console.error('Erro ao cadastrar produto:', error);
       }
     }
 
     queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
     setShowCadastroEmMassa(false);
-    toast.success(`✅ ${pendentes.length} produto(s) cadastrado(s)!`);
+    toast.success(`✅ ${cadastrados} produto(s) cadastrado(s)!`);
   };
 
   const handleAtualizarItem = (index, campo, valor) => {
@@ -538,13 +556,22 @@ ${xmlText}`,
   };
 
   const handleSelecionarTodos = () => {
-    setItensSelecionados(itensSelecionados.length === itensNFe.length ? [] : itensNFe.map(i => i.index));
+    if (itensSelecionados.length === itensNFe.length && itensNFe.length > 0) {
+      setItensSelecionados([]);
+    } else {
+      setItensSelecionados(itensNFe.map(i => i.index));
+    }
   };
 
-  const handleConfirmar = () => {
+  const handleConfirmarImportacao = () => {
     const itensParaImportar = itensNFe.filter(i => itensSelecionados.includes(i.index));
     const pendentes = itensParaImportar.filter(i => i.status === 'pendente');
     
+    if (itensParaImportar.length === 0) {
+      toast.error('❌ Nenhum item selecionado!');
+      return;
+    }
+
     if (gerarEstoque && pendentes.length > 0) {
       toast.error(`❌ ${pendentes.length} produto(s) sem associação!`);
       return;
@@ -565,8 +592,8 @@ ${xmlText}`,
         toast.error('❌ Configure as parcelas!');
         return;
       }
-      const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
-      if (Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01) {
+      const totalParcelasCalculado = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+      if (Math.abs(totalParcelasCalculado - dadosNFe.valor_total) > 0.01) {
         toast.error('❌ Total das parcelas diferente do valor da NF-e!');
         return;
       }
@@ -595,9 +622,15 @@ ${xmlText}`,
         cfop: i.cfop_ajustado,
         unidade: i.unidade,
         quantidade: parseNumero(i.quantidade_ajustada),
-        valor_unitario: parseNumero(i.valor_unitario_ajustado)
+        valor_unitario: parseNumero(i.valor_unitario_ajustado),
+        desconto_item: parseNumero(i.desconto_item)
       })),
-      dadosComplementares,
+      dadosComplementares: {
+        ...dadosComplementares,
+        frete: parseNumero(dadosComplementares.frete),
+        desconto_total: parseNumero(dadosComplementares.desconto_total),
+        outras_despesas: parseNumero(dadosComplementares.outras_despesas)
+      },
       gerarFinanceiro,
       gerarEstoque,
       gerarLivroFiscal,
@@ -608,12 +641,13 @@ ${xmlText}`,
 
   const resetar = () => {
     setEtapa(1);
+    setXmlFile(null);
     setDadosNFe(null);
     setFornecedorSelecionado(null);
     setItensNFe([]);
     setItensSelecionados([]);
     setEditandoItemIndex(null);
-    setDadosComplementares({ local_estoque: "", centro_custo_id: "", observacoes: "" });
+    setDadosComplementares({ local_estoque: "", centro_custo_id: "", frete: "0,00", desconto_total: "0,00", outras_despesas: "0,00", observacoes: "" });
     setDataVencimento("");
     setGerarFinanceiro(true);
     setGerarEstoque(true);
@@ -634,8 +668,11 @@ ${xmlText}`,
   const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
     const qtd = parseNumero(item.quantidade_ajustada);
     const vlrUnit = parseNumero(item.valor_unitario_ajustado);
-    return sum + (qtd * vlrUnit);
+    const descItem = parseNumero(item.desconto_item || "0,00");
+    return sum + (qtd * vlrUnit - descItem);
   }, 0);
+
+  const totalAjustado = subtotalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
 
   const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
   const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - (dadosNFe?.valor_total || 0)) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
@@ -651,35 +688,51 @@ ${xmlText}`,
             </DialogTitle>
           </DialogHeader>
 
+          {/* ETAPA 1: UPLOAD */}
           {etapa === 1 && (
             <div className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55)</AlertDescription>
+                <AlertDescription>
+                  Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55) para importação automática.
+                </AlertDescription>
               </Alert>
 
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
-                <Upload className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto" />
+                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <p className="text-sm text-slate-600 mb-4">Selecione o arquivo XML da NF-e</p>
+                <Input
+                  type="file"
+                  accept=".xml"
+                  onChange={handleUploadXML}
+                  disabled={processando}
+                  className="max-w-md mx-auto"
+                />
                 {processando && (
                   <div className="mt-6">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600" />
-                    <p className="text-sm text-slate-600 mt-2">Processando...</p>
+                    <p className="text-sm text-slate-600 mt-2">Processando XML...</p>
                   </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* ETAPA 2: FORNECEDOR */}
           {etapa === 2 && dadosNFe && (
             <div className="space-y-4">
               <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <CardHeader>
+                  <CardTitle className="text-sm">Dados da NF-e</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div><strong>Número:</strong> {dadosNFe.numero}</div>
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
                   <div><strong>Valor:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
-                  <div className="col-span-2 md:col-span-4"><strong>Chave:</strong> <span className="font-mono text-xs">{dadosNFe.chave}</span></div>
+                  <div className="col-span-2 md:col-span-4">
+                    <strong>Chave:</strong> <span className="font-mono text-xs">{dadosNFe.chave}</span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -699,15 +752,17 @@ ${xmlText}`,
             </div>
           )}
 
-          {etapa === 3 && dadosNFe && itensNFe.length > 0 && (
+          {/* ETAPA 3: PRODUTOS */}
+          {etapa === 3 && dadosNFe && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold">Produtos da NF-e ({itensNFe.length})</h3>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
-                    {itensSelecionados.length === itensNFe.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                    {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
                   </Button>
-                  {itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
+                  {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
                     <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
                       <Plus className="w-3 h-3 mr-1" />
                       Cadastrar Selecionados ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
@@ -715,12 +770,17 @@ ${xmlText}`,
                   )}
                 </div>
               </div>
-
+              
               <div className="overflow-auto max-h-96 border rounded">
                 <Table>
                   <TableHeader className="sticky top-0 bg-white z-10">
                     <TableRow>
-                      <TableHead className="w-12"><Checkbox checked={itensSelecionados.length === itensNFe.length} onCheckedChange={handleSelecionarTodos} /></TableHead>
+                      <TableHead className="w-12">
+                        <Checkbox 
+                          checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0}
+                          onCheckedChange={handleSelecionarTodos}
+                        />
+                      </TableHead>
                       <TableHead className="w-16">Status</TableHead>
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
@@ -732,14 +792,23 @@ ${xmlText}`,
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => {
-                      const isEdit = editandoItemIndex === item.index;
-                      const total = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
-
+                      const isEditando = editandoItemIndex === item.index;
+                      const valorTotal = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado) - parseNumero(item.desconto_item || "0,00");
+                      
                       return (
-                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
-                          <TableCell><Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} /></TableCell>
+                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
                           <TableCell>
-                            {item.status === 'associado' ? <CheckCircle className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5 text-orange-600" />}
+                            <Checkbox 
+                              checked={itensSelecionados.includes(item.index)}
+                              onCheckedChange={() => handleToggleSelecao(item.index)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {item.status === 'associado' ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <AlertCircle className="w-5 h-5 text-orange-600" />
+                            )}
                           </TableCell>
                           <TableCell className="text-xs">
                             <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
@@ -747,19 +816,51 @@ ${xmlText}`,
                             <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo}</div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {isEdit ? <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-24 text-right" /> : <span className="font-mono">{item.quantidade_ajustada}</span>}
+                            {isEditando ? (
+                              <Input
+                                value={item.quantidade_ajustada}
+                                onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)}
+                                className="w-24 text-right"
+                              />
+                            ) : (
+                              <span className="font-mono">{item.quantidade_ajustada}</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {isEdit ? <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-28 text-right" /> : <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>}
+                            {isEditando ? (
+                              <Input
+                                value={item.valor_unitario_ajustado}
+                                onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
+                                className="w-28 text-right"
+                              />
+                            ) : (
+                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
+                            )}
                           </TableCell>
-                          <TableCell className="text-right text-slate-500">-</TableCell>
-                          <TableCell className="text-right font-mono font-bold text-green-700">R$ {formatarNumero(total)}</TableCell>
+                          <TableCell className="text-right">
+                            {isEditando ? (
+                              <Input
+                                value={item.desconto_item || "0,00"}
+                                onChange={(e) => handleAtualizarItem(item.index, 'desconto_item', e.target.value)}
+                                className="w-24 text-right"
+                              />
+                            ) : (
+                              <span className="font-mono text-slate-500">R$ {formatarNumero(parseNumero(item.desconto_item))}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</span>
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
-                              {isEdit ? (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)}><CheckCircle className="w-3 h-3 text-green-600" /></Button>
+                              {isEditando ? (
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600">
+                                  <CheckCircle className="w-3 h-3" />
+                                </Button>
                               ) : (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores"><Edit2 className="w-3 h-3" /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores">
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
                               )}
                               {item.status === 'pendente' && (
                                 <>
@@ -784,25 +885,34 @@ ${xmlText}`,
               </div>
 
               <Card className="bg-blue-50 border-blue-300">
-                <CardContent className="p-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Itens Selecionados:</span>
-                    <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold text-blue-700">
-                    <span>Subtotal Produtos:</span>
-                    <span>R$ {formatarNumero(subtotalItens)}</span>
+                <CardContent className="p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Itens Selecionados:</span>
+                      <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold text-blue-700">
+                      <span>Subtotal Produtos:</span>
+                      <span>R$ {formatarNumero(subtotalItens)}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)}>Voltar</Button>
-                <Button onClick={() => setEtapa(4)} className="bg-green-600">Avançar ({itensSelecionados.length} {itensSelecionados.length === 1 ? 'item' : 'itens'})</Button>
+                <Button 
+                  onClick={() => setEtapa(4)} 
+                  className="bg-green-600"
+                  disabled={itensSelecionados.length === 0}
+                >
+                  Avançar ({itensSelecionados.length} {itensSelecionados.length === 1 ? 'item' : 'itens'})
+                </Button>
               </div>
             </div>
           )}
 
+          {/* ETAPA 4: CONFIGURAÇÕES FINAIS */}
           {etapa === 4 && dadosNFe && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -830,11 +940,34 @@ ${xmlText}`,
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea value={dadosComplementares.observacoes} onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} rows={2} className="uppercase" style={{ textTransform: 'uppercase' }} placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..." />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Frete</Label>
+                  <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Desconto Geral</Label>
+                  <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Outras Despesas</Label>
+                  <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" />
+                </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea 
+                  value={dadosComplementares.observacoes} 
+                  onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
+                  rows={2}
+                  className="uppercase" 
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
+                />
+              </div>
+
+              {/* CHECKBOXES DE LANÇAMENTO */}
               <div className="space-y-4 p-4 bg-slate-50 rounded-lg border">
                 <div className="flex items-center space-x-3">
                   <Checkbox checked={gerarFinanceiro} onCheckedChange={setGerarFinanceiro} id="fin" />
@@ -849,7 +982,6 @@ ${xmlText}`,
                         <span className="text-red-600 font-bold">*</span>
                       </Label>
                       <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
-                      <p className="text-xs text-slate-500">⚠️ Campo obrigatório - preenchido com data de emissão da NF-e</p>
                     </div>
 
                     <div className="flex items-center space-x-3">
@@ -896,7 +1028,7 @@ ${xmlText}`,
                           </TableBody>
                         </Table>
 
-                        <Card className={`${Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                        <Card className={`${parcelasInvalidas ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
                           <CardContent className="p-3">
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="flex justify-between">
@@ -908,8 +1040,8 @@ ${xmlText}`,
                                 <span className="font-bold">R$ {formatarNumero(dadosNFe.valor_total)}</span>
                               </div>
                             </div>
-                            {Math.abs(totalParcelas - dadosNFe.valor_total) > 0.01 && (
-                              <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
+                            {parcelasInvalidas && (
+                              <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes ou inválidos!</p>
                             )}
                           </CardContent>
                         </Card>
@@ -930,22 +1062,36 @@ ${xmlText}`,
               </div>
 
               <Card className="bg-green-50 border-green-300">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal Produtos:</span>
-                    <span className="font-mono font-bold">R$ {formatarNumero(subtotalItens)}</span>
-                  </div>
-                  <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
-                    <span>TOTAL FINAL:</span>
-                    <span>R$ {formatarNumero(subtotalItens)}</span>
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal Produtos:</span>
+                      <span className="font-mono">R$ {formatarNumero(subtotalItens)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>+ Frete:</span>
+                      <span className="font-mono">R$ {dadosComplementares.frete}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>+ Outras Despesas:</span>
+                      <span className="font-mono">R$ {dadosComplementares.outras_despesas}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>- Desconto:</span>
+                      <span className="font-mono">R$ {dadosComplementares.desconto_total}</span>
+                    </div>
+                    <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
+                      <span>TOTAL FINAL:</span>
+                      <span>R$ {formatarNumero(totalAjustado)}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <div className="flex justify-between gap-3">
                 <Button variant="outline" onClick={() => setEtapa(3)}>Voltar</Button>
-                <Button onClick={handleConfirmar} className="bg-green-600 px-6" disabled={parcelasInvalidas}>
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                <Button onClick={handleConfirmarImportacao} className="bg-green-600 gap-2" disabled={gerarFinanceiro && parcelar && parcelasInvalidas}>
+                  <CheckCircle className="w-4 h-4" />
                   Confirmar e Importar ({itensSelecionados.length} {itensSelecionados.length === 1 ? 'item' : 'itens'})
                 </Button>
               </div>
@@ -954,6 +1100,7 @@ ${xmlText}`,
         </DialogContent>
       </Dialog>
 
+      {/* DIALOGS AUXILIARES */}
       <Dialog open={showNovoFornecedor} onOpenChange={setShowNovoFornecedor}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
