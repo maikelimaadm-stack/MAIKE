@@ -67,6 +67,7 @@ const ORDENACAO_OPCOES = [
 ];
 
 export default function RelatorioHistoricoEntregas() {
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
   const [orientacao, setOrientacao] = useState("paisagem");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('data_desc');
@@ -543,3 +544,4 @@ export default function RelatorioHistoricoEntregas() {
     </div>
   );
 }
+

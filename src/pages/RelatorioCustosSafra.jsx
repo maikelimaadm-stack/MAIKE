@@ -78,6 +78,9 @@ export default function RelatorioCustosSafra() {
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('numero_desc');
   const [tipoVisualizacao, setTipoVisualizacao] = useState('detalhado');
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico"); // New state
+  const [dataInicio, setDataInicio] = useState(""); // New state
+  const [dataFim, setDataFim] = useState(""); // New state
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -299,6 +302,9 @@ export default function RelatorioCustosSafra() {
     setAgrupamentosAtivos([]);
     setOrdenacao('numero_desc');
     setTipoVisualizacao('detalhado');
+    setTipoRelatorio('analitico'); // Reset new state
+    setDataInicio(''); // Reset new state
+    setDataFim(''); // Reset new state
   };
 
   const imprimir = () => window.print();
@@ -345,6 +351,20 @@ export default function RelatorioCustosSafra() {
                 <option value="paisagem">Paisagem</option>
               </select>
             </div>
+            {/* New: Tipo de Relatório */}
+            <div className="space-y-2">
+              <Label>Tipo de Relatório</Label>
+              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="analitico">Analítico</SelectItem>
+                  <SelectItem value="sintetico">Sintético</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* End New: Tipo de Relatório */}
             <div className="space-y-2">
               <Label>Tipo de Visualização</Label>
               <Select value={tipoVisualizacao} onValueChange={setTipoVisualizacao}>
