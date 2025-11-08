@@ -423,7 +423,7 @@ Retorne um JSON com esta estrutura EXATA:
         // Recalcular valor_total se quantidade ou valor_unitario mudaram
         if (campo === 'quantidade_ajustada' || campo === 'valor_unitario_ajustado' || campo === 'desconto_item') {
           const qtd = parseNumero(campo === 'quantidade_ajustada' ? valor : updated.quantidade_ajustada);
-          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustado' ? valor : updated.valor_unitario_ajustada);
+          const vlrUnit = parseNumero(campo === 'valor_unitario_ajustado' ? valor : updated.valor_unitario_ajustado);
           const desc = parseNumero(campo === 'desconto_item' ? valor : updated.desconto_item);
           updated.valor_total_ajustado = qtd * vlrUnit - desc;
         }
@@ -593,7 +593,7 @@ Retorne um JSON com esta estrutura EXATA:
       for (let i = 0; i < itensParaImportar.length; i++) {
         const item = itensParaImportar[i];
         const qtd = parseNumero(item.quantidade_ajustada);
-        const vlrUnit = parseNumero(item.valor_unitario_ajustada);
+        const vlrUnit = parseNumero(item.valor_unitario_ajustado);
 
         movimentacoes.push({
           tipo: 'Entrada',
@@ -648,7 +648,7 @@ Retorne um JSON com esta estrutura EXATA:
   const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
   const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
     const qtd = parseNumero(item.quantidade_ajustada);
-    const vlrUnit = parseNumero(item.valor_unitario_ajustada);
+    const vlrUnit = parseNumero(item.valor_unitario_ajustado);
     const desc = parseNumero(item.desconto_item || "0,00");
     return sum + (qtd * vlrUnit - desc);
   }, 0);
@@ -942,22 +942,6 @@ Retorne um JSON com esta estrutura EXATA:
 
           {etapa === 4 && (
             <div className="space-y-6">
-              <Card className="bg-blue-50 border-blue-300">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Resumo da Importação</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>NF-e Original:</span>
-                    <span className="font-semibold">R$ {formatarNumero(dadosNFe?.valor_total || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-blue-700 font-semibold">
-                    <span>Subtotal Produtos ({itensSelecionados.length} itens):</span>
-                    <span>R$ {formatarNumero(subtotalItens)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Local de Estoque *</Label>
