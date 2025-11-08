@@ -166,6 +166,7 @@ export default function Financeiro() {
   });
 
   const handleSubmit = (data) => {
+    console.log('📝 Salvando lançamento:', data);
     if (editingItem) {
       updateMutation.mutate({ id: editingItem.id, data });
     } else {
@@ -191,18 +192,20 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dadosImportacao) => {
     try {
+      console.log('🚀 Iniciando importação XML:', dadosImportacao);
+      
       const movimentacaoIds = [];
       
       // 1. Criar movimentações de estoque
-      if (dadosImportacao.gerarEstoque && dadosImportacao.itens) {
+      if (dadosImportacao.gerarEstoque && dadosImportacao.itens && dadosImportacao.itens.length > 0) {
         toast.info('📦 Lançando produtos no estoque...');
         
         for (const item of dadosImportacao.itens) {
           const numeroMov = await getNextNumeroMovimentacao(empresaSelecionadaId);
           
           const produto = produtos.find(p => p.id === item.produto_id);
-          const qtd = typeof item.quantidade === 'string' ? parseFloat(item.quantidade.replace(',', '.')) : item.quantidade;
-          const vlrUnit = typeof item.valor_unitario === 'string' ? parseFloat(item.valor_unitario.replace(',', '.')) : item.valor_unitario;
+          const qtd = item.quantidade;
+          const vlrUnit = item.valor_unitario;
           
           const custoAntes = produto?.preco_custo || 0;
           const saldoAntes = produto?.estoque_atual || 0;
@@ -249,11 +252,13 @@ export default function Financeiro() {
             preco_custo: custoDepois
           });
         }
+        
+        toast.success(`✅ ${dadosImportacao.itens.length} produto(s) lançado(s) no estoque!`);
       }
 
       // 2. Criar registro no livro fiscal
       let livroFiscalId = null;
-      if (dadosImportacao.gerarLivroFiscal) {
+      if (dadosImportacao.gerarLivroFiscal && dadosImportacao.itens && dadosImportacao.itens.length > 0) {
         toast.info('📚 Registrando no livro fiscal...');
         
         const numeroLivro = await getNextNumeroLivro(empresaSelecionadaId);
@@ -274,59 +279,63 @@ export default function Financeiro() {
           fornecedor_cnpj_cpf: fornecedor?.cnpj || fornecedor?.cpf,
           cfop: dadosImportacao.dadosNFe.cfop || '5102',
           natureza_operacao: dadosImportacao.dadosNFe.natureza_operacao || 'COMPRA PARA COMERCIALIZAÇÃO',
-          valor_produtos: dadosImportacao.itens?.reduce((s, i) => {
-            const qtd = typeof i.quantidade === 'string' ? parseFloat(i.quantidade.replace(',', '.')) : i.quantidade;
-            const vlr = typeof i.valor_unitario === 'string' ? parseFloat(i.valor_unitario.replace(',', '.')) : i.valor_unitario;
-            return s + (qtd * vlr);
-          }, 0) || 0,
+          valor_produtos: dadosImportacao.itens.reduce((s, i) => s + (i.quantidade * i.valor_unitario), 0),
           valor_total_nota: dadosImportacao.dadosNFe.valor_total,
-          itens: dadosImportacao.itens?.map(i => ({
+          itens: dadosImportacao.itens.map(i => ({
             produto_id: i.produto_id,
             produto_nome: i.produto_nome || i.descricao,
             codigo_produto: i.codigo,
             ncm: i.ncm,
             cfop: i.cfop,
-            quantidade: typeof i.quantidade === 'string' ? parseFloat(i.quantidade.replace(',', '.')) : i.quantidade,
+            quantidade: i.quantidade,
             unidade: i.unidade,
-            valor_unitario: typeof i.valor_unitario === 'string' ? parseFloat(i.valor_unitario.replace(',', '.')) : i.valor_unitario,
-            valor_total: typeof i.quantidade === 'string' && typeof i.valor_unitario === 'string'
-              ? parseFloat(i.quantidade.replace(',', '.')) * parseFloat(i.valor_unitario.replace(',', '.'))
-              : (i.quantidade * i.valor_unitario)
+            valor_unitario: i.valor_unitario,
+            valor_total: i.quantidade * i.valor_unitario
           })),
           movimentacao_estoque_ids: movimentacaoIds,
           status: 'Ativo'
         });
         
         livroFiscalId = livroFiscal.id;
+        toast.success('✅ Registro fiscal criado!');
       }
 
       // 3. Criar lançamento financeiro
       if (dadosImportacao.gerarFinanceiro) {
-        toast.info('💰 Criando lançamento financeiro...');
+        toast.info('💰 Preparando lançamento financeiro...');
         
         setEditingItem({
           tipo: 'Pagar',
+          tipo_documento: 'NF-e',
           fornecedor_id: dadosImportacao.fornecedor_id,
           numero_documento: dadosImportacao.dadosNFe.numero,
           chave_nfe: dadosImportacao.dadosNFe.chave,
           data_emissao: dadosImportacao.dadosNFe.data_emissao,
           data_vencimento: dadosImportacao.dadosNFe.data_emissao,
-          valor_original: dadosImportacao.dadosNFe.valor_total,
+          valor_original: String(dadosImportacao.dadosNFe.valor_total).replace('.', ','),
+          valor_juros: "0,00",
+          valor_multa: "0,00",
+          valor_desconto: "0,00",
+          observacoes: dadosImportacao.dadosComplementares?.observacoes || '',
           gerado_xml: true,
           livro_fiscal_id: livroFiscalId,
           movimentacao_estoque_ids: movimentacaoIds,
-          parcelas: dadosImportacao.parcelas > 1 ? dadosImportacao.parcelas : undefined
+          parcelar: dadosImportacao.parcelas > 1,
+          parcelas: [],
+          produtos_lancamento: []
         });
         setShowImportarXML(false);
         setShowForm(true);
-        toast.info('📝 Complete os dados do lançamento financeiro');
+        toast.info('📝 Complete os dados e salve o lançamento financeiro');
       } else {
         setShowImportarXML(false);
-        toast.success('✅ Importação concluída!');
+        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+        queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+        toast.success('✅ Importação concluída com sucesso!');
       }
       
     } catch (error) {
-      console.error('Erro na importação:', error);
+      console.error('❌ Erro na importação:', error);
       toast.error('Erro ao processar importação: ' + error.message);
     }
   };
@@ -358,18 +367,6 @@ export default function Financeiro() {
           <h1 className="text-3xl font-bold text-green-900">Controle Financeiro</h1>
           <p className="text-green-700">Gerenciar contas a pagar e receber</p>
         </div>
-        {!showForm && !showBaixa && (
-          <div className="flex gap-3">
-            <Button onClick={() => setShowImportarXML(true)} variant="outline" className="gap-2">
-              <FileText className="w-5 h-5" />
-              Importar NF-e (XML)
-            </Button>
-            <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="bg-green-600 gap-2">
-              <Plus className="w-5 h-5" />
-              Novo Lançamento
-            </Button>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -406,6 +403,19 @@ export default function Financeiro() {
           </CardContent>
         </Card>
       </div>
+
+      {!showForm && !showBaixa && (
+        <div className="flex gap-3">
+          <Button onClick={() => setShowImportarXML(true)} variant="outline" className="gap-2">
+            <FileText className="w-5 h-5" />
+            Importar NF-e (XML)
+          </Button>
+          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="bg-green-600 gap-2">
+            <Plus className="w-5 h-5" />
+            Novo Lançamento
+          </Button>
+        </div>
+      )}
 
       {showForm && (
         <FormularioFinanceiro
@@ -459,6 +469,8 @@ export default function Financeiro() {
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               isLoading={isLoading}
+              fornecedores={fornecedores}
+              produtos={produtos}
             />
           </TabsContent>
 
@@ -470,6 +482,8 @@ export default function Financeiro() {
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               isLoading={isLoading}
+              fornecedores={fornecedores}
+              produtos={produtos}
             />
           </TabsContent>
         </Tabs>

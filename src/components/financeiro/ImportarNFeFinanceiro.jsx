@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -445,6 +446,14 @@ Retorne o JSON estruturado conforme schema.`,
     const itensParaImportar = itensNFe.filter(i => itensSelecionados.includes(i.index));
     const itensPendentes = itensParaImportar.filter(i => i.status === 'pendente');
     
+    console.log('🔍 Confirmando importação:', {
+      total: itensParaImportar.length,
+      pendentes: itensPendentes.length,
+      gerarEstoque,
+      gerarFinanceiro,
+      gerarLivroFiscal
+    });
+    
     if (gerarEstoque && itensPendentes.length > 0) {
       toast.error(`❌ ${itensPendentes.length} produto(s) sem associação! Cadastre ou associe todos.`);
       return;
@@ -455,13 +464,7 @@ Retorne o JSON estruturado conforme schema.`,
       return;
     }
 
-    console.log('✅ Confirmando importação:', {
-      fornecedor: fornecedorSelecionado?.nome,
-      itens: itensParaImportar.length,
-      gerarFinanceiro,
-      gerarEstoque,
-      gerarLivroFiscal
-    });
+    console.log('✅ Enviando dados para importação...');
 
     onSuccess({
       dadosNFe,
@@ -606,9 +609,7 @@ Retorne o JSON estruturado conforme schema.`,
                     <div className="space-y-2">
                       <Label>Tipo de Pessoa *</Label>
                       <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
                           <SelectItem value="Física">Pessoa Física</SelectItem>
@@ -665,9 +666,7 @@ Retorne o JSON estruturado conforme schema.`,
                       <div className="space-y-2">
                         <Label>Estado (UF)</Label>
                         <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="UF" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
                           <SelectContent>
                             {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                           </SelectContent>
@@ -679,13 +678,15 @@ Retorne o JSON estruturado conforme schema.`,
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t">
-                      <Button type="button" variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
+                    <div className="flex justify-between gap-3 pt-4 border-t">
+                      <Button type="button" variant="outline" onClick={() => setEtapa(1)}>
+                        ← Voltar e Trocar XML
+                      </Button>
                       <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
                         {createFornecedorMutation.isPending ? (
                           <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
                         ) : (
-                          <><Save className="w-4 h-4 mr-2" />Salvar e Continuar</>
+                          <><Save className="w-4 h-4 mr-2" />Salvar e Continuar →</>
                         )}
                       </Button>
                     </div>
@@ -793,20 +794,18 @@ Retorne o JSON estruturado conforme schema.`,
                                       <Edit2 className="w-3 h-3" />
                                     </Button>
                                   )}
-                                  {item.status === 'pendente' && (
-                                    <>
-                                      <Button size="sm" variant="outline" onClick={() => { 
-                                        setItemEditando(item); 
-                                        setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN", categoria: "" }); 
-                                        setShowNovoProduto(true); 
-                                      }} title="Cadastrar novo">
-                                        <Plus className="w-3 h-3" />
-                                      </Button>
-                                      <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }} title="Associar existente">
-                                        <RefreshCw className="w-3 h-3" />
-                                      </Button>
-                                    </>
-                                  )}
+                                  
+                                  <Button size="sm" variant="outline" onClick={() => { 
+                                    setItemEditando(item); 
+                                    setNovoProduto({ nome: item.descricao, codigo: item.codigo, unidade: item.unidade || "UN", categoria: "" }); 
+                                    setShowNovoProduto(true); 
+                                  }} title="Cadastrar novo produto">
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                  
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }} title="Trocar/associar produto">
+                                    <RefreshCw className="w-3 h-3" />
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -820,14 +819,16 @@ Retorne o JSON estruturado conforme schema.`,
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    💡 <strong>Dica:</strong> Produtos em laranja precisam ser associados ou cadastrados. Use os botões <Plus className="w-3 h-3 inline" /> ou <RefreshCw className="w-3 h-3 inline" />
+                    💡 <strong>Dica:</strong> Use <Plus className="w-3 h-3 inline" /> para cadastrar novo produto ou <RefreshCw className="w-3 h-3 inline" /> para associar a um existente
                   </AlertDescription>
                 </Alert>
 
                 <div className="flex justify-between gap-3">
-                  <Button variant="outline" onClick={() => setEtapa(1)}>Voltar e Trocar XML</Button>
+                  <Button variant="outline" onClick={() => setEtapa(1)}>
+                    ← Voltar e Trocar XML
+                  </Button>
                   <Button onClick={() => setEtapa(4)} className="bg-green-600">
-                    Avançar para Configurações ({itensSelecionados.length} selecionados)
+                    Avançar para Configurações → ({itensSelecionados.length} selecionados)
                   </Button>
                 </div>
               </div>
@@ -930,7 +931,9 @@ Retorne o JSON estruturado conforme schema.`,
                 </Card>
 
                 <div className="flex justify-between gap-3">
-                  <Button variant="outline" onClick={() => setEtapa(3)}>Voltar para Produtos</Button>
+                  <Button variant="outline" onClick={() => setEtapa(3)}>
+                    ← Voltar para Produtos
+                  </Button>
                   <Button onClick={handleConfirmar} className="bg-green-600 text-lg px-6 py-6" disabled={processando}>
                     <CheckCircle className="w-5 h-5 mr-2" />
                     Confirmar e Importar
