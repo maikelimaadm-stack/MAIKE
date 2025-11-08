@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -79,12 +80,14 @@ export default function RelatorioCustosSafra() {
   const [tipoVisualizacao, setTipoVisualizacao] = useState('detalhado');
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem('colunas_relatorio_custos_safra');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('colunas_relatorio_custos_safra');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        }
       }
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
@@ -96,7 +99,7 @@ export default function RelatorioCustosSafra() {
   const [statusSelecionados, setStatusSelecionados] = useState([]);
   const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
 
   const { data: custos = [] } = useQuery({
     queryKey: ['custos_relatorio', empresaSelecionadaId],
@@ -272,7 +275,9 @@ export default function RelatorioCustosSafra() {
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
       const novasColunas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
-      localStorage.setItem('colunas_relatorio_custos_safra', JSON.stringify(novasColunas));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('colunas_relatorio_custos_safra', JSON.stringify(novasColunas));
+      }
       return novasColunas;
     });
   };
@@ -621,9 +626,11 @@ export default function RelatorioCustosSafra() {
                         {colunasVisiveis.includes('unidade') && <TableCell className="border border-black text-xs py-1">-</TableCell>}
                         {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(valorUnitarioMedio)}</TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
-                        {colunasVisiveis.filter(c => !['quantidade', 'quantidade_entregue', 'quantidade_restante', 'unidade', 'valor_unitario', 'valor_total'].includes(c)).slice(colunasVisiveis.indexOf('valor_total') + 1).map((_, i) => (
-                          <TableCell key={i} className="border border-black text-xs py-1">-</TableCell>
-                        ))}
+                        {/* Fill remaining cells if columns after valor_total are visible */}
+                        {colunasVisiveis.slice(colunasVisiveis.indexOf('valor_total') + 1).map((colId) => {
+                          const originalCol = COLUNAS_DISPONIVEIS.find(c => c.id === colId);
+                          return originalCol ? <TableCell key={colId} className="border border-black text-xs py-1">-</TableCell> : null;
+                        })}
                       </TableRow>
                     </TableBody>
                   </Table>

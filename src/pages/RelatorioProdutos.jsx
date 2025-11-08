@@ -38,15 +38,15 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'nome', label: 'Nome do Produto', default: true },
-  { id: 'codigo', label: 'Código Interno', default: true },
-  { id: 'barras', label: 'Cód. Barras', default: false }, // Added new column
+  { id: 'numero', label: 'Nº Produto', default: true },
+  { id: 'codigo', label: 'Código', default: true },
+  { id: 'barras', label: 'Cód. Barras', default: false },
+  { id: 'nome', label: 'Nome', default: true },
   { id: 'categoria', label: 'Categoria', default: true },
-  { id: 'unidade', label: 'Unidade', default: true },
-  { id: 'preco_custo', label: 'Preço Custo', default: true },
-  { id: 'preco_venda', label: 'Preço Venda', default: true },
+  { id: 'unidade', label: 'UN', default: true },
   { id: 'estoque', label: 'Estoque', default: true },
-  { id: 'estoque_min', label: 'Estoque Mínimo', default: false }, // Added new column
+  { id: 'custo', label: 'Custo', default: true },
+  { id: 'venda', label: 'Venda', default: true },
 ];
 
 const ORDENACAO_OPCOES = [
@@ -67,16 +67,21 @@ export default function RelatorioProdutos() {
   // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_produtos');
+    let initialVisibleColumns = [];
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch {
-        // Fallback to default if parsing fails (e.g., malformed JSON)
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        const parsedSaved = JSON.parse(saved);
+        // Filter out any old/invalid IDs and only keep IDs present in the new COLUNAS_DISPONIVEIS
+        initialVisibleColumns = parsedSaved.filter(id => COLUNAS_DISPONIVEIS.some(col => col.id === id));
+      } catch (e) {
+        console.error("Failed to parse colunas_relatorio_produtos from localStorage", e);
       }
     }
-    // Fallback to default if nothing saved
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    // If nothing valid was saved or saved list is empty, use defaults from COLUNAS_DISPONIVEIS
+    if (initialVisibleColumns.length === 0) {
+      initialVisibleColumns = COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    }
+    return initialVisibleColumns;
   });
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
@@ -392,12 +397,12 @@ export default function RelatorioProdutos() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 border-slate-300">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
@@ -489,37 +494,37 @@ export default function RelatorioProdutos() {
           <Table>
             <TableHeader>
               <TableRow className="border-black">
+                {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
                 {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome</TableHead>}
                 {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
                 {colunasVisiveis.includes('barras') && <TableHead className="border border-black text-xs font-bold py-1">Cód. Barras</TableHead>}
                 {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
                 {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
-                {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo</TableHead>}
-                {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right py-1">Venda</TableHead>}
                 {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
-                {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right py-1">Est. Mínimo</TableHead>}
+                {colunasVisiveis.includes('custo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo</TableHead>}
+                {colunasVisiveis.includes('venda') && <TableHead className="border border-black text-xs font-bold text-right py-1">Venda</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {produtosFiltrados.map((p) => (
+              {produtosFiltrados.map((p, index) => (
                 <TableRow key={p.id}>
+                  {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{index + 1}</TableCell>}
                   {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
                   {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
                   {colunasVisiveis.includes('barras') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_barras || '-'}</TableCell>}
                   {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
                   {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
-                  {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
-                  {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
                   {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
-                  {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
+                  {colunasVisiveis.includes('custo') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
+                  {colunasVisiveis.includes('venda') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
                 </TableRow>
               ))}
               <TableRow className="bg-gray-100 font-bold">
-                <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('preco_custo') ? 1 : 0)} className="border border-black text-xs py-1">
+                <TableCell colSpan={colunasVisiveis.includes('custo') ? colunasVisiveis.length -1 : colunasVisiveis.length} className="border border-black text-xs py-1">
                   TOTAL: {produtosFiltrados.length} produtos
                 </TableCell>
-                {colunasVisiveis.includes('preco_custo') && (
-                  <TableCell colSpan={colunasVisiveis.includes('preco_venda') || colunasVisiveis.includes('estoque') || colunasVisiveis.includes('estoque_min') ? 1 : undefined} className="border border-black text-xs text-right py-1">
+                {colunasVisiveis.includes('custo') && (
+                  <TableCell className="border border-black text-xs text-right py-1">
                     Valor Estoque: R$ {formatarNumero(valorTotalEstoque)}
                   </TableCell>
                 )}

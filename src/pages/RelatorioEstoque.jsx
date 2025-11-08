@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -31,18 +32,16 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'numero', label: 'Nº', default: true },
-  { id: 'nome', label: 'Nome', default: true },
+  { id: 'numero', label: 'Nº Produto', default: true },
   { id: 'codigo', label: 'Código', default: true },
+  { id: 'nome', label: 'Nome do Produto', default: true },
   { id: 'categoria', label: 'Categoria', default: true },
-  { id: 'unidade', label: 'Unidade', default: true },
-  { id: 'estoque', label: 'Estoque Atual', default: true },
-  { id: 'estoque_min', label: 'Estoque Mínimo', default: true },
-  { id: 'preco_custo', label: 'Preço Custo', default: true },
-  { id: 'preco_venda', label: 'Preço Venda', default: true },
+  { id: 'unidade', label: 'UN', default: true },
+  { id: 'estoque_atual', label: 'Estoque Atual', default: true },
+  { id: 'estoque_minimo', label: 'Estoque Mínimo', default: true },
+  { id: 'custo_unitario', label: 'Custo Unitário', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
   { id: 'local', label: 'Local', default: false },
-  { id: 'situacao', label: 'Situação', default: true },
 ];
 
 const ORDENACAO_OPCOES = [
@@ -68,7 +67,10 @@ export default function RelatorioEstoque() {
     const saved = localStorage.getItem('colunas_relatorio_estoque');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        // Filter out any old column IDs that are no longer available
+        const parsedSaved = JSON.parse(saved);
+        const validColumnIds = COLUNAS_DISPONIVEIS.map(c => c.id);
+        return parsedSaved.filter(id => validColumnIds.includes(id));
       } catch {
         return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
       }
@@ -222,7 +224,7 @@ export default function RelatorioEstoque() {
   const desmarcarTodasCategorias = () => setCategoriasSelecionadas([]);
   const selecionarTodosProdutos = () => setProdutosSelecionados(produtosUnicos.map(p => p.id));
   const desmarcarTodosProdutos = () => setProdutosSelecionados([]);
-  const selecionarTodosLocais = () => setLocaisSelecionados(locaisUnicos);
+  const selecionarTodosLocais = () => setLocaisSelecionados(locaisUnicas);
   const desmarcarTodosLocais = () => setLocaisSelecionados([]);
 
   return (
@@ -385,16 +387,20 @@ export default function RelatorioEstoque() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 border-slate-300">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem key={coluna.id} checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)}>
+                  <DropdownMenuCheckboxItem
+                    key={coluna.id}
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onCheckedChange={() => toggleColuna(coluna.id)}
+                  >
                     {coluna.label}
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -466,18 +472,16 @@ export default function RelatorioEstoque() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-black">
-                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
-                      {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome</TableHead>}
+                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº Produto</TableHead>}
                       {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
+                      {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome do Produto</TableHead>}
                       {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
                       {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
-                      {colunasVisiveis.includes('estoque') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
-                      {colunasVisiveis.includes('estoque_min') && <TableHead className="border border-black text-xs font-bold text-right py-1">Mínimo</TableHead>}
-                      {colunasVisiveis.includes('preco_custo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo</TableHead>}
-                      {colunasVisiveis.includes('preco_venda') && <TableHead className="border border-black text-xs font-bold text-right py-1">Venda</TableHead>}
+                      {colunasVisiveis.includes('estoque_atual') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Atual</TableHead>}
+                      {colunasVisiveis.includes('estoque_minimo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Mínimo</TableHead>}
+                      {colunasVisiveis.includes('custo_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo Unitário</TableHead>}
                       {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
                       {colunasVisiveis.includes('local') && <TableHead className="border border-black text-xs font-bold py-1">Local</TableHead>}
-                      {colunasVisiveis.includes('situacao') && <TableHead className="border border-black text-xs font-bold py-1">Situação</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -488,13 +492,11 @@ export default function RelatorioEstoque() {
                         {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
                         {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
                         {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
-                        {colunasVisiveis.includes('estoque') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
-                        {colunasVisiveis.includes('estoque_min') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
-                        {colunasVisiveis.includes('preco_custo') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
-                        {colunasVisiveis.includes('preco_venda') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_venda || 0)}</TableCell>}
+                        {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
+                        {colunasVisiveis.includes('estoque_minimo') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
+                        {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">R$ {formatarNumero(p.valor_total_estoque)}</TableCell>}
                         {colunasVisiveis.includes('local') && <TableCell className="border border-gray-300 text-xs py-1">{p.local_estoque || '-'}</TableCell>}
-                        {colunasVisiveis.includes('situacao') && <TableCell className={`border border-gray-300 text-xs py-1 ${p.situacao === 'Baixo' ? 'font-bold text-red-600' : ''}`}>{p.situacao}</TableCell>}
                       </TableRow>
                     ))}
                     <TableRow className="bg-gray-100 font-bold">

@@ -221,9 +221,6 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleCancel = async (id) => {
-    const motivo = window.prompt('Informe o motivo do cancelamento:');
-    if (!motivo) return;
-    
     if (window.confirm('⚠️ ATENÇÃO: Esta movimentação será cancelada e o estoque revertido. Confirma?')) {
       try {
         const mov = movimentacoes.find(m => m.id === id);
@@ -237,7 +234,7 @@ export default function MovimentacoesEstoque() {
           status: 'Cancelada',
           cancelado_por: user?.email || 'Sistema',
           data_cancelamento: new Date().toISOString(),
-          motivo_cancelamento: motivo.toUpperCase()
+          motivo_cancelamento: 'CANCELAMENTO SOLICITADO'
         });
 
         await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });

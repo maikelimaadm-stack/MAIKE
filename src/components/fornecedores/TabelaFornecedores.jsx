@@ -207,7 +207,7 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                     Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (

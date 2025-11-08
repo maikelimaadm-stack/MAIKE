@@ -32,6 +32,7 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº', default: true },
   { id: 'data', label: 'Data', default: true },
   { id: 'tipo', label: 'Tipo', default: true },
   { id: 'placa', label: 'Placa', default: true },
@@ -588,12 +589,12 @@ export default function RelatorioPesagens() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 border-slate-300">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
@@ -708,6 +709,7 @@ export default function RelatorioPesagens() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-black">
+                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
                       {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
                       {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
                       {colunasVisiveis.includes('placa') && <TableHead className="border border-black text-xs font-bold py-1">Placa</TableHead>}
@@ -721,8 +723,9 @@ export default function RelatorioPesagens() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registros.map((p) => (
+                    {registros.map((p, rowIndex) => (
                       <TableRow key={p.id}>
+                        {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{rowIndex + 1}</TableCell>}
                         {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(p.data_pesagem)}</TableCell>}
                         {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{p.tipo_pesagem}</TableCell>}
                         {colunasVisiveis.includes('placa') && <TableCell className="border border-gray-300 text-xs uppercase py-1">{p.placa_caminhao}</TableCell>}

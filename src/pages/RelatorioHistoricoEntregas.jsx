@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -42,15 +43,15 @@ const formatarData = (dataString) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'data', label: 'Data', default: true },
+  { id: 'numero', label: 'Nº', default: true },
+  { id: 'data', label: 'Data Entrega', default: true },
   { id: 'safra', label: 'Safra', default: true },
   { id: 'fornecedor', label: 'Fornecedor', default: true },
   { id: 'produto', label: 'Produto', default: true },
   { id: 'quantidade', label: 'Quantidade', default: true },
   { id: 'unidade', label: 'Unidade', default: true },
-  { id: 'numero_nfe', label: 'Nº NF-e', default: true },
-  { id: 'chave_nfe', label: 'Chave NF-e', default: false },
-  { id: 'observacoes_nfe', label: 'Obs. NF-e', default: false },
+  { id: 'nfe', label: 'Nº NF-e', default: true },
+  { id: 'chave', label: 'Chave NF-e', default: false },
   { id: 'observacoes', label: 'Observações', default: false },
 ];
 
@@ -74,7 +75,17 @@ export default function RelatorioHistoricoEntregas() {
     const saved = localStorage.getItem('colunas_relatorio_historico_entregas');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Ensure that old column IDs are mapped to new ones if necessary, and filter out removed ones
+        const currentValidColumns = COLUNAS_DISPONIVEIS.map(c => c.id);
+        const mappedColumns = parsed.map(id => {
+          if (id === 'numero_nfe') return 'nfe';
+          if (id === 'chave_nfe') return 'chave';
+          // 'observacoes_nfe' would simply be filtered out if it's not in currentValidColumns
+          return id;
+        }).filter(id => currentValidColumns.includes(id));
+
+        return Array.from(new Set(mappedColumns)); // Use Set to remove duplicates
       } catch {
         return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
       }
@@ -393,16 +404,20 @@ export default function RelatorioHistoricoEntregas() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 border-slate-300">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem key={coluna.id} checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)}>
+                  <DropdownMenuCheckboxItem
+                    key={coluna.id}
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onCheckedChange={() => toggleColuna(coluna.id)}
+                  >
                     {coluna.label}
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -474,30 +489,30 @@ export default function RelatorioHistoricoEntregas() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-black">
-                      {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
+                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
+                      {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data Entrega</TableHead>}
                       {colunasVisiveis.includes('safra') && <TableHead className="border border-black text-xs font-bold py-1">Safra</TableHead>}
                       {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornecedor</TableHead>}
                       {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
                       {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
                       {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
-                      {colunasVisiveis.includes('numero_nfe') && <TableHead className="border border-black text-xs font-bold py-1">Nº NF-e</TableHead>}
-                      {colunasVisiveis.includes('chave_nfe') && <TableHead className="border border-black text-xs font-bold py-1">Chave NF-e</TableHead>}
-                      {colunasVisiveis.includes('observacoes_nfe') && <TableHead className="border border-black text-xs font-bold py-1">Obs. NF-e</TableHead>}
+                      {colunasVisiveis.includes('nfe') && <TableHead className="border border-black text-xs font-bold py-1">Nº NF-e</TableHead>}
+                      {colunasVisiveis.includes('chave') && <TableHead className="border border-black text-xs font-bold py-1">Chave NF-e</TableHead>}
                       {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registros.map((e) => (
+                    {registros.map((e, index) => (
                       <TableRow key={e.id}>
+                        {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{index + 1}</TableCell>}
                         {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(e.data_entrega)}</TableCell>}
                         {colunasVisiveis.includes('safra') && <TableCell className="border border-gray-300 text-xs py-1">{e.safra_nome}</TableCell>}
                         {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{e.fornecedor_nome}</TableCell>}
                         {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{e.produto_nome}</TableCell>}
                         {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(e.quantidade_entregue)}</TableCell>}
                         {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{e.unidade_medida}</TableCell>}
-                        {colunasVisiveis.includes('numero_nfe') && <TableCell className="border border-gray-300 text-xs py-1">{e.numero_nfe || '-'}</TableCell>}
-                        {colunasVisiveis.includes('chave_nfe') && <TableCell className="border border-gray-300 text-xs py-1">{e.chave_nfe || '-'}</TableCell>}
-                        {colunasVisiveis.includes('observacoes_nfe') && <TableCell className="border border-gray-300 text-xs py-1">{e.observacoes_nfe || '-'}</TableCell>}
+                        {colunasVisiveis.includes('nfe') && <TableCell className="border border-gray-300 text-xs py-1">{e.numero_nfe || '-'}</TableCell>}
+                        {colunasVisiveis.includes('chave') && <TableCell className="border border-gray-300 text-xs py-1">{e.chave_nfe || '-'}</TableCell>}
                         {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1">{e.observacoes || '-'}</TableCell>}
                       </TableRow>
                     ))}

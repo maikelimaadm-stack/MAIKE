@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -344,7 +345,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                     Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (

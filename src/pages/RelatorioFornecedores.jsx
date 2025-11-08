@@ -33,15 +33,15 @@ import {
 } from "@/components/ui/select";
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº Cadastro', default: true },
   { id: 'nome', label: 'Nome', default: true },
-  { id: 'tipo', label: 'Tipo Pessoa', default: true },
-  { id: 'documento', label: 'CPF/CNPJ', default: true },
+  { id: 'tipo', label: 'Tipo', default: true },
+  { id: 'cpf_cnpj', label: 'CPF/CNPJ', default: true },
   { id: 'telefone', label: 'Telefone', default: true },
   { id: 'email', label: 'E-mail', default: true },
   { id: 'cidade', label: 'Cidade', default: true },
-  { id: 'estado', label: 'Estado', default: false },
+  { id: 'estado', label: 'Estado', default: true },
   { id: 'endereco', label: 'Endereço', default: false },
-  { id: 'cep', label: 'CEP', default: false },
 ];
 
 const ORDENACAO_OPCOES = [
@@ -381,12 +381,12 @@ export default function RelatorioFornecedores() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 border-slate-300">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
@@ -478,29 +478,29 @@ export default function RelatorioFornecedores() {
           <Table>
             <TableHeader>
               <TableRow className="border-black">
+                {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº Cadastro</TableHead>}
                 {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome</TableHead>}
                 {colunasVisiveis.includes('tipo') && <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>}
-                {colunasVisiveis.includes('documento') && <TableHead className="border border-black text-xs font-bold py-1">CPF/CNPJ</TableHead>}
+                {colunasVisiveis.includes('cpf_cnpj') && <TableHead className="border border-black text-xs font-bold py-1">CPF/CNPJ</TableHead>}
                 {colunasVisiveis.includes('telefone') && <TableHead className="border border-black text-xs font-bold py-1">Telefone</TableHead>}
                 {colunasVisiveis.includes('email') && <TableHead className="border border-black text-xs font-bold py-1">E-mail</TableHead>}
                 {colunasVisiveis.includes('cidade') && <TableHead className="border border-black text-xs font-bold py-1">Cidade</TableHead>}
                 {colunasVisiveis.includes('estado') && <TableHead className="border border-black text-xs font-bold py-1">Estado</TableHead>}
                 {colunasVisiveis.includes('endereco') && <TableHead className="border border-black text-xs font-bold py-1">Endereço</TableHead>}
-                {colunasVisiveis.includes('cep') && <TableHead className="border border-black text-xs font-bold py-1">CEP</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {fornecedoresFiltrados.map((f) => (
                 <TableRow key={f.id}>
+                  {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{f.numero || '-'}</TableCell>}
                   {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{f.nome}</TableCell>}
                   {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{f.tipo_pessoa}</TableCell>}
-                  {colunasVisiveis.includes('documento') && <TableCell className="border border-gray-300 text-xs py-1">{f.tipo_pessoa === 'Física' ? f.cpf || '-' : f.cnpj || '-'}</TableCell>}
+                  {colunasVisiveis.includes('cpf_cnpj') && <TableCell className="border border-gray-300 text-xs py-1">{f.tipo_pessoa === 'Física' ? f.cpf || '-' : f.cnpj || '-'}</TableCell>}
                   {colunasVisiveis.includes('telefone') && <TableCell className="border border-gray-300 text-xs py-1">{f.telefone || '-'}</TableCell>}
                   {colunasVisiveis.includes('email') && <TableCell className="border border-gray-300 text-xs py-1">{f.email || '-'}</TableCell>}
                   {colunasVisiveis.includes('cidade') && <TableCell className="border border-gray-300 text-xs py-1">{f.cidade || '-'}</TableCell>}
                   {colunasVisiveis.includes('estado') && <TableCell className="border border-gray-300 text-xs uppercase py-1">{f.estado || '-'}</TableCell>}
                   {colunasVisiveis.includes('endereco') && <TableCell className="border border-gray-300 text-xs py-1">{f.endereco || '-'}</TableCell>}
-                  {colunasVisiveis.includes('cep') && <TableCell className="border border-gray-300 text-xs py-1">{f.cep || '-'}</TableCell>}
                 </TableRow>
               ))}
               <TableRow className="bg-gray-100 font-bold">
