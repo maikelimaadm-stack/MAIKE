@@ -202,11 +202,14 @@ export default function Produtos() {
     setShowForm(true);
   };
 
-  const handleDelete = (id, skipConfirm = false) => {
+  const handleDelete = async (id, skipConfirm = false) => {
     if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este produto? Esta ação não pode ser desfeita.')) {
-      return deleteMutation.mutateAsync(id);
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+      }
     }
-    return Promise.reject('Cancelado');
   };
 
   const handlePrint = (produto) => {
