@@ -166,13 +166,31 @@ export default function Produtos() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Produto.delete(id),
+    mutationFn: async (id) => {
+      // Verificar se existem movimentações relacionadas
+      const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
+      const movimentacoesRelacionadas = todasMovimentacoes.filter(m => m.produto_id === id);
+      
+      if (movimentacoesRelacionadas.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este produto possui ${movimentacoesRelacionadas.length} movimentação(ões) de estoque registrada(s). Não é possível excluir.`);
+      }
+
+      // Verificar se existem custos de safra relacionados
+      const todosCustos = await base44.entities.CustoSafra.list();
+      const custosRelacionados = todosCustos.filter(c => c.produto_id === id);
+      
+      if (custosRelacionados.length > 0) {
+        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este produto possui ${custosRelacionados.length} lançamento(s) em custos de safra. Não é possível excluir.`);
+      }
+
+      return base44.entities.Produto.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       toast.success('Produto excluído com sucesso!');
     },
-    onError: () => {
-      toast.error('Erro ao excluir produto. Tente novamente.');
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao excluir produto. Tente novamente.');
     }
   });
 

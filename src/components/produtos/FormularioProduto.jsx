@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -129,9 +130,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       return;
     }
 
+    if (!formData.codigo_interno?.trim()) {
+      toast.error('Código interno é obrigatório!');
+      return;
+    }
+
     const data = {
       nome_produto: formData.nome_produto?.toUpperCase(),
-      codigo_interno: formData.codigo_interno?.toUpperCase() || undefined,
+      codigo_interno: formData.codigo_interno?.toUpperCase(), // No longer optional
       codigo_barras: formData.codigo_barras || undefined,
       categoria: formData.categoria?.toUpperCase() || undefined,
       descricao: formData.descricao?.toUpperCase() || undefined,
@@ -218,11 +224,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Código Interno</Label>
+                  <Label className="text-slate-700 font-medium">Código Interno *</Label> {/* Label updated */}
                   <Input
                     value={formData.codigo_interno}
                     onChange={(e) => handleChange('codigo_interno', e.target.value)}
                     placeholder="CÓDIGO INTERNO"
+                    required {/* Added required prop */}
                     className="border-slate-300 focus:border-green-500 uppercase"
                     style={{ textTransform: 'uppercase' }}
                   />
@@ -337,7 +344,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="flex gap-2">
                   <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
                     <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                      <SelectValue placeholder="Selecione um local" />
+                        <SelectValue placeholder="Selecione um local" />
                     </SelectTrigger>
                     <SelectContent>
                       {locais.map((loc) => (

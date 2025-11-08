@@ -173,45 +173,49 @@ export default function MovimentacoesEstoque() {
   });
 
   const handleSubmit = async (formData) => {
-    const produto = produtos.find(p => p.id === formData.produto_id);
-    const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
-    const centro = centros.find(c => c.id === formData.centro_custo_id);
-    
-    const data = {
-      empresa_id: empresaSelecionadaId,
-      tipo_movimentacao: formData.tipo_movimentacao,
-      tipo_detalhado: formData.tipo_detalhado,
-      data_movimentacao: formData.data_movimentacao,
-      produto_id: formData.produto_id,
-      produto_nome: produto?.nome_produto,
-      produto_codigo: produto?.codigo_interno,
-      quantidade: formData.quantidade,
-      unidade_medida: produto?.unidade_medida,
-      local_estoque_origem: formData.local_estoque_origem || undefined,
-      local_estoque_destino: formData.local_estoque_destino || undefined,
-      valor_unitario: formData.valor_unitario || undefined,
-      valor_total: formData.valor_total || undefined,
-      tipo_documento: formData.tipo_documento,
-      numero_documento: formData.numero_documento?.toUpperCase() || undefined,
-      chave_documento: formData.chave_documento || undefined,
-      serie_documento: formData.serie_documento || undefined,
-      data_documento: formData.data_documento || undefined,
-      fornecedor_id: formData.fornecedor_id || undefined,
-      fornecedor_nome: fornecedor?.nome,
-      cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
-      motivo_movimentacao: formData.motivo_movimentacao?.toUpperCase(),
-      centro_custo_id: formData.centro_custo_id || undefined,
-      centro_custo_nome: centro?.nome,
-      observacoes: formData.observacoes?.toUpperCase() || undefined,
-      anexos: formData.anexos || []
-    };
+    try {
+      const produto = produtos.find(p => p.id === formData.produto_id);
+      const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
+      const centro = centros.find(c => c.id === formData.centro_custo_id);
+      
+      const data = {
+        empresa_id: empresaSelecionadaId,
+        tipo_movimentacao: formData.tipo_movimentacao,
+        tipo_detalhado: formData.tipo_detalhado,
+        data_movimentacao: formData.data_movimentacao,
+        produto_id: formData.produto_id,
+        produto_nome: produto?.nome_produto,
+        produto_codigo: produto?.codigo_interno,
+        quantidade: formData.quantidade,
+        unidade_medida: produto?.unidade_medida,
+        local_estoque_origem: formData.local_estoque_origem || undefined,
+        local_estoque_destino: formData.local_estoque_destino || undefined,
+        valor_unitario: formData.valor_unitario || undefined,
+        valor_total: formData.valor_total || undefined,
+        tipo_documento: formData.tipo_documento,
+        numero_documento: formData.numero_documento?.toUpperCase() || undefined,
+        chave_documento: formData.chave_documento || undefined,
+        serie_documento: formData.serie_documento || undefined,
+        data_documento: formData.data_documento || undefined,
+        fornecedor_id: formData.fornecedor_id || undefined,
+        fornecedor_nome: fornecedor?.nome,
+        cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
+        motivo_movimentacao: formData.motivo_movimentacao?.toUpperCase(),
+        centro_custo_id: formData.centro_custo_id || undefined,
+        centro_custo_nome: centro?.nome,
+        observacoes: formData.observacoes?.toUpperCase() || undefined,
+        anexos: formData.anexos || []
+      };
 
-    if (!editingMovimentacao) {
-      const proximoNumero = await getNextSystemNumber();
-      data.numero_movimentacao = String(proximoNumero);
+      if (!editingMovimentacao) {
+        const proximoNumero = await getNextSystemNumber();
+        data.numero_movimentacao = String(proximoNumero);
+      }
+
+      await createMutation.mutateAsync(data);
+    } catch (error) {
+      console.error('Erro ao salvar movimentação:', error);
     }
-
-    createMutation.mutate(data);
   };
 
   const handleEdit = (movimentacao) => {
