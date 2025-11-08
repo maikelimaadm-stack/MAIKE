@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +17,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '';
-  return String(num).replace('.', ',');
+  const numStr = String(num).replace('.', ',');
+  const [inteiro, decimal] = numStr.split(',');
+  const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return decimal !== undefined ? `${inteiroFormatado},${decimal}` : inteiroFormatado;
 };
 
 const parseNumero = (str) => {
@@ -172,16 +176,16 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             <AlertDescription>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div>
-                  <strong>Nº:</strong> {lancamento.numero_lancamento}
+                  <strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento))}
                 </div>
                 <div>
                   <strong>Tipo:</strong> {lancamento.tipo}
                 </div>
                 <div>
-                  <strong>Valor Total:</strong> {formatarMoeda(lancamento.valor_total)}
+                  <strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total)}
                 </div>
                 <div>
-                  <strong>Saldo:</strong> <span className="text-blue-700 font-bold">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total)}</span>
+                  <strong>Vlr. Saldo:</strong> <span className="text-red-700 font-bold">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total)}</span>
                 </div>
               </div>
             </AlertDescription>

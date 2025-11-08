@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -111,6 +112,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias'],
     queryFn: () => base44.entities.Categoria.list(),
+    initialData: [],
+  });
+
+  const { data: unidadesMedida = [] } = useQuery({
+    queryKey: ['unidades_medida'],
+    queryFn: () => base44.entities.UnidadeMedida.list(),
     initialData: [],
   });
 
@@ -359,13 +366,17 @@ ${xmlText}`,
           p.nome_produto?.toLowerCase().includes(item.descricao?.toLowerCase())
         );
 
+        const unidadeXML = item.unidade?.toUpperCase();
+        const unidadeCadastrada = unidadesMedida.find(u => u.sigla === unidadeXML);
+        const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (unidadeXML || 'UN');
+
         return {
           index,
           codigo: item.codigo || '',
           descricao: item.descricao || '',
           ncm: item.ncm || '',
           cfop: item.cfop || '',
-          unidade: item.unidade || 'UN',
+          unidade: unidadeFinal,
           quantidade: item.quantidade || 0,
           valor_unitario: item.valor_unitario || 0,
           produto_id: prod?.id,
@@ -380,7 +391,7 @@ ${xmlText}`,
       setItensNFe(itens);
       setItensSelecionados(itens.map(i => i.index));
     }
-  }, [etapa, dadosNFe, produtos]);
+  }, [etapa, dadosNFe, produtos, unidadesMedida]);
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
@@ -507,12 +518,12 @@ ${xmlText}`,
     }
     
     if (gerarEstoque && !dadosComplementares.local_estoque) {
-      toast.error('❌ Selecione o local!');
+      toast.error('❌ OBRIGATÓRIO: Selecione o Local de Estoque!');
       return;
     }
 
     if (gerarFinanceiro && !dataVencimento) {
-      toast.error('❌ Defina a data de vencimento padrão!');
+      toast.error('❌ OBRIGATÓRIO: Defina a Data de Vencimento!');
       return;
     }
 
@@ -527,19 +538,32 @@ ${xmlText}`,
         return;
       }
       if (parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0)) {
-        toast.error('❌ Todas as parcelas devem ter data e valor válidos!');
+        toast.error('❌ OBRIGATÓRIO: Todas parcelas precisam de data e valor válidos!');
         return;
       }
     }
 
     console.log('✅ Confirmando:', {
-      itens: itensParaImportar.length,
-      gerarEstoque,
-      gerarFinanceiro,
-      gerarLivroFiscal,
+      dadosNFe,
+      fornecedor_id: fornecedorSelecionado.id,
       dataVencimento,
+      itens: itensParaImportar.map(i => ({
+        produto_id: i.produto_id,
+        produto_nome: i.produto_nome,
+        descricao: i.descricao,
+        codigo: i.codigo,
+        ncm: i.ncm,
+        cfop: i.cfop_ajustado,
+        unidade: i.unidade,
+        quantidade: parseNumero(i.quantidade_ajustada),
+        valor_unitario: parseNumero(i.valor_unitario_ajustado)
+      })),
+      dadosComplementares,
+      gerarFinanceiro,
+      gerarEstoque,
+      gerarLivroFiscal,
       parcelar,
-      parcelas: parcelar ? parcelas : []
+      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : []
     });
 
     onSuccess({
@@ -791,13 +815,17 @@ ${xmlText}`,
                 {gerarFinanceiro && (
                   <div className="ml-8 p-4 bg-white rounded border space-y-4">
                     <div className="space-y-2">
-                      <Label>Data de Vencimento (padrão) *</Label>
+                      <Label className="flex items-center gap-2">
+                        Data de Vencimento (padrão)
+                        <span className="text-red-600 font-bold">*</span>
+                      </Label>
                       <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
+                      <p className="text-xs text-slate-500">⚠️ Campo obrigatório para gerar lançamento financeiro</p>
                     </div>
 
                     <div className="flex items-center space-x-3">
                       <Checkbox checked={parcelar} onCheckedChange={(v) => { setParcelar(v); if (!v) setParcelas([]); }} id="parcelar" />
-                      <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento</label>
+                      <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento (cria lançamentos separados)</label>
                     </div>
 
                     {parcelar && (
@@ -814,8 +842,8 @@ ${xmlText}`,
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-16">Nº</TableHead>
-                              <TableHead>Vencimento</TableHead>
-                              <TableHead className="text-right">Valor</TableHead>
+                              <TableHead>Vencimento *</TableHead>
+                              <TableHead className="text-right">Valor *</TableHead>
                               <TableHead className="w-12"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -870,13 +898,17 @@ ${xmlText}`,
                   <div className="ml-8 p-3 bg-white rounded border">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Local *</Label>
+                        <Label className="flex items-center gap-2">
+                          Local de Estoque
+                          <span className="text-red-600 font-bold">*</span>
+                        </Label>
                         <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })}>
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione o local" /></SelectTrigger>
                           <SelectContent>
                             {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-slate-500">⚠️ Campo obrigatório para entrada em estoque</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Centro Custo</Label>
@@ -898,7 +930,7 @@ ${xmlText}`,
 
                 <div className="space-y-2">
                   <Label>Observações</Label>
-                  <Textarea value={dadosComplementares.observacoes} onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} rows={2} />
+                  <Textarea value={dadosComplementares.observacoes} onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} rows={2} className="uppercase" style={{ textTransform: 'uppercase' }} />
                 </div>
               </div>
 
@@ -906,13 +938,14 @@ ${xmlText}`,
                 <CardContent className="p-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span>Fornecedor:</span><strong>{fornecedorSelecionado?.nome}</strong></div>
                   <div className="flex justify-between"><span>Produtos:</span><strong>{itensSelecionados.length} de {itensNFe.length}</strong></div>
+                  <div className="flex justify-between"><span>Data Emissão:</span><strong>{formatarDataParaBR(dadosNFe.data_emissao)}</strong></div>
                   {gerarFinanceiro && (
                     <>
                       <div className="flex justify-between"><span>Vencimento:</span><strong>{formatarDataParaBR(dataVencimento)}</strong></div>
                       {parcelar && <div className="flex justify-between"><span>Parcelas:</span><strong>{parcelas.length}x</strong></div>}
                     </>
                   )}
-                  <div className="flex justify-between text-lg font-bold text-green-700 border-t pt-2"><span>Valor NF-e:</span><span>{formatarMoeda(dadosNFe.valor_total)}</span></div>
+                  <div className="flex justify-between text-lg font-bold text-green-700 border-t pt-2"><span>Vlr. NF-e:</span><span>{formatarMoeda(dadosNFe.valor_total)}</span></div>
                 </CardContent>
               </Card>
 

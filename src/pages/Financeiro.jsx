@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -171,13 +172,41 @@ export default function Financeiro() {
       const baixas = await base44.entities.BaixaFinanceira.list();
       const temBaixas = baixas.some(b => b.lancamento_id === id);
       if (temBaixas) {
-        throw new Error('❌ Possui baixas!');
+        throw new Error('❌ Possui baixas! Cancele-as primeiro.');
       }
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       toast.success('✅ Excluído!');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    }
+  });
+
+  const cancelarBaixaMutation = useMutation({
+    mutationFn: async (lancamento) => {
+      const allBaixas = await base44.entities.BaixaFinanceira.list();
+      const baixasDoLancamento = allBaixas.filter(b => b.lancamento_id === lancamento.id);
+      
+      if (baixasDoLancamento.length === 0) {
+        throw new Error('Nenhuma baixa encontrada para este lançamento!');
+      }
+
+      for (const baixa of baixasDoLancamento) {
+        await base44.entities.BaixaFinanceira.delete(baixa.id);
+      }
+
+      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+        valor_pago: 0,
+        valor_saldo: lancamento.valor_total,
+        status: 'Pendente'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      toast.success('✅ Baixa(s) cancelada(s)!');
     },
     onError: (error) => {
       toast.error(error.message);
@@ -198,7 +227,7 @@ export default function Financeiro() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('⚠️ EXCLUIR LANÇAMENTO?')) {
+    if (window.confirm('⚠️ EXCLUIR LANÇAMENTO? Se o lançamento possuir baixas, elas devem ser canceladas primeiro.')) {
       deleteMutation.mutate(id);
     }
   };
@@ -206,6 +235,12 @@ export default function Financeiro() {
   const handleBaixa = (item) => {
     setItemBaixa(item);
     setShowBaixa(true);
+  };
+
+  const handleCancelarBaixa = (lancamento) => {
+    if (window.confirm('⚠️ CANCELAR TODAS AS BAIXAS DESTE LANÇAMENTO?\n\nIsso irá restaurar o lançamento para status Pendente.')) {
+      cancelarBaixaMutation.mutate(lancamento);
+    }
   };
 
   const handleImportarXMLSuccess = async (dados) => {
@@ -219,17 +254,23 @@ export default function Financeiro() {
         
         for (const item of dados.itens) {
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
-          const prod = produtos.find(p => p.id === item.produto_id);
+          const prod = products.find(p => p.id === item.produto_id) || produtos.find(p => p.codigo_produto === item.codigo); // Added fallback to find by codigo
           
+          if (!prod) {
+            console.warn(`Produto com ID ${item.produto_id} ou código ${item.codigo} não encontrado. Pulando movimentação de estoque para este item.`);
+            toast.warning(`⚠️ Produto ${item.produto_nome} (${item.codigo}) não encontrado, pulando estoque.`);
+            continue;
+          }
+
           const mov = await base44.entities.MovimentacaoEstoque.create({
             empresa_id: empresaSelecionadaId,
             numero_movimentacao: String(num),
             tipo_movimentacao: 'Entrada',
             tipo_detalhado: 'COMPRA',
             data_movimentacao: new Date().toISOString(),
-            produto_id: item.produto_id,
-            produto_nome: item.produto_nome?.toUpperCase(),
-            produto_codigo: item.codigo?.toUpperCase(),
+            produto_id: prod.id, // Use found product ID
+            produto_nome: prod.nome_produto?.toUpperCase(),
+            produto_codigo: prod.codigo_produto?.toUpperCase(),
             quantidade: item.quantidade,
             unidade_medida: item.unidade?.toUpperCase(),
             local_estoque_destino: dados.dadosComplementares.local_estoque?.toUpperCase(),
@@ -256,7 +297,7 @@ export default function Financeiro() {
           
           movIds.push(mov.id);
           
-          await base44.entities.Produto.update(item.produto_id, {
+          await base44.entities.Produto.update(prod.id, {
             estoque_atual: (prod?.estoque_atual || 0) + item.quantidade,
             preco_custo: mov.custo_medio_depois
           });
@@ -514,6 +555,7 @@ export default function Financeiro() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
+              onCancelarBaixa={handleCancelarBaixa}
               isLoading={isLoading}
               fornecedores={fornecedores}
               produtos={produtos}
@@ -527,6 +569,7 @@ export default function Financeiro() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
+              onCancelarBaixa={handleCancelarBaixa}
               isLoading={isLoading}
               fornecedores={fornecedores}
               produtos={produtos}
