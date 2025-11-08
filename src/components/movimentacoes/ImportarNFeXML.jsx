@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -196,7 +197,16 @@ Retorne um JSON com esta estrutura EXATA:
   "chave": "string (44 dígitos)",
   "data_emissao": "YYYY-MM-DD",
   "cnpj_emitente": "string (apenas números)",
+  "cpf_emitente": "string (apenas números se for PF, senão null)",
   "razao_social_emitente": "string",
+  "inscricao_estadual_emitente": "string ou null",
+  "telefone_emitente": "string ou null",
+  "email_emitente": "string ou null",
+  "endereco_emitente": "string (logradouro + número)",
+  "bairro_emitente": "string ou null",
+  "cidade_emitente": "string",
+  "estado_emitente": "string (UF - 2 letras)",
+  "cep_emitente": "string (apenas números)",
   "valor_total": number,
   "itens": [
     {
@@ -220,7 +230,16 @@ Retorne um JSON com esta estrutura EXATA:
             chave: { type: "string" },
             data_emissao: { type: "string" },
             cnpj_emitente: { type: "string" },
+            cpf_emitente: { type: ["string", "null"] },
             razao_social_emitente: { type: "string" },
+            inscricao_estadual_emitente: { type: ["string", "null"] },
+            telefone_emitente: { type: ["string", "null"] },
+            email_emitente: { type: ["string", "null"] },
+            endereco_emitente: { type: "string" },
+            bairro_emitente: { type: ["string", "null"] },
+            cidade_emitente: { type: "string" },
+            estado_emitente: { type: "string" },
+            cep_emitente: { type: "string" },
             valor_total: { type: "number" },
             itens: {
               type: "array",
@@ -261,14 +280,35 @@ Retorne um JSON com esta estrutura EXATA:
       setDadosNFe(resultado);
       setEtapa(2);
       
+      const documentoEmitente = resultado.cnpj_emitente || resultado.cpf_emitente;
       const fornecedor = fornecedores.find(f => 
-        f.cnpj?.replace(/\D/g, '') === resultado.cnpj_emitente?.replace(/\D/g, '')
+        f.cnpj?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '') ||
+        f.cpf?.replace(/\D/g, '') === documentoEmitente?.replace(/\D/g, '')
       );
       
       if (fornecedor) {
         setFornecedorSelecionado(fornecedor);
         toast.success('✅ Fornecedor identificado automaticamente!');
         setTimeout(() => setEtapa(3), 500);
+      } else {
+        // Preencher automaticamente os dados do fornecedor do XML
+        const enderecoCompleto = resultado.bairro_emitente 
+          ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
+          : resultado.endereco_emitente;
+
+        setNovoFornecedor({
+          tipo_pessoa: resultado.cnpj_emitente ? "Jurídica" : "Física",
+          nome: resultado.razao_social_emitente || "",
+          cnpj: resultado.cnpj_emitente || "",
+          cpf: resultado.cpf_emitente || "",
+          inscricao_estadual: resultado.inscricao_estadual_emitente || "",
+          telefone: resultado.telefone_emitente || "",
+          email: resultado.email_emitente || "",
+          endereco: enderecoCompleto || "",
+          cidade: resultado.cidade_emitente || "",
+          estado: resultado.estado_emitente || "",
+          cep: resultado.cep_emitente || ""
+        });
       }
 
     } catch (error) {
@@ -511,8 +551,8 @@ Retorne um JSON com esta estrutura EXATA:
                   <Alert className="bg-orange-50 border-orange-300">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     <AlertDescription>
-                      Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong> (CNPJ: {dadosNFe.cnpj_emitente})
-                      <Button size="sm" className="ml-4" onClick={() => { setNovoFornecedor({ ...novoFornecedor, nome: dadosNFe.razao_social_emitente, cnpj: dadosNFe.cnpj_emitente }); setShowNovoFornecedor(true); }}>
+                      Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong> (CNPJ: {dadosNFe.cnpj_emitente || dadosNFe.cpf_emitente})
+                      <Button size="sm" className="ml-4" onClick={() => { setShowNovoFornecedor(true); }}>
                         <Plus className="w-3 h-3 mr-1" />
                         Cadastrar
                       </Button>
