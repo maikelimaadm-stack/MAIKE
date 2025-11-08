@@ -16,6 +16,7 @@ import RelatorioEstoque from './pages/RelatorioEstoque';
 import GerenciarSafras from './pages/GerenciarSafras';
 import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
 import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
+import CentrosCusto from './pages/CentrosCusto';
 import Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "GerenciarSafras": GerenciarSafras,
     "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
     "MovimentacoesEstoque": MovimentacoesEstoque,
+    "CentrosCusto": CentrosCusto,
 }
 
 export const pagesConfig = {

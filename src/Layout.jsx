@@ -86,6 +86,10 @@ const navigationItems = [
         title: "Locais de Estoque",
         url: createPageUrl("LocaisEstoque"),
       },
+      {
+        title: "Centros de Custo",
+        url: createPageUrl("CentrosCusto"),
+      },
     ],
   },
   {

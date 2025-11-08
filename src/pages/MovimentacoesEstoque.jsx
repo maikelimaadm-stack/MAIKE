@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle, FileUp } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { format } from "date-fns";
 
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
+import ImportarNFeXML from "../components/movimentacoes/ImportarNFeXML";
 
 const getNextSystemNumber = async () => {
   try {
@@ -47,6 +49,7 @@ const calcularCustoMedio = (estoqueAtual, custoMedioAtual, quantidadeEntrada, cu
 export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
+  const [showImportXML, setShowImportXML] = useState(false);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -278,6 +281,68 @@ export default function MovimentacoesEstoque() {
     toast.success('Exportado!');
   };
 
+  const handleImportacaoXML = async ({ fornecedor_id, dadosNFe, itens, dadosComplementares, xmlFile }) => {
+    const centro = centros.find(c => c.id === dadosComplementares.centro_custo_id);
+    
+    for (const item of itens) {
+      const produto = produtos.find(p => p.id === item.produto_id);
+      
+      if (!produto) {
+        console.warn(`Produto com ID ${item.produto_id} não encontrado, pulando item.`);
+        continue; // Skip this item if product not found
+      }
+
+      const estoqueAtual = produto?.estoque_atual || 0;
+      const custoMedioAtual = produto?.preco_custo || 0;
+      const novoEstoque = estoqueAtual + item.quantidade;
+      const novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, item.quantidade, item.valor_unitario);
+
+      const proximoNumero = await getNextSystemNumber();
+
+      await base44.entities.MovimentacaoEstoque.create({
+        empresa_id: empresaSelecionadaId,
+        numero_movimentacao: String(proximoNumero),
+        tipo_movimentacao: 'Entrada',
+        tipo_detalhado: 'Compra',
+        data_movimentacao: new Date().toISOString(), // Use current date for mov. creation, NFe date for doc date
+        produto_id: item.produto_id,
+        produto_nome: produto?.nome_produto,
+        produto_codigo: produto?.codigo_interno,
+        quantidade: item.quantidade,
+        unidade_medida: produto?.unidade_medida,
+        local_estoque_destino: dadosComplementares.local_estoque,
+        valor_unitario: item.valor_unitario,
+        valor_total: item.quantidade * item.valor_unitario,
+        tipo_documento: 'Nota Fiscal',
+        numero_documento: dadosNFe.numero,
+        serie_documento: dadosNFe.serie,
+        chave_documento: dadosNFe.chave,
+        data_documento: dadosNFe.data_emissao,
+        fornecedor_id: fornecedor_id,
+        fornecedor_nome: fornecedores.find(f => f.id === fornecedor_id)?.nome,
+        motivo_movimentacao: `IMPORTAÇÃO XML NF-E ${dadosNFe.numero}`,
+        centro_custo_id: dadosComplementares.centro_custo_id,
+        centro_custo_nome: centro?.nome,
+        observacoes: dadosComplementares.observacoes?.toUpperCase(),
+        saldo_antes: estoqueAtual,
+        saldo_depois: novoEstoque,
+        custo_medio_antes: custoMedioAtual,
+        custo_medio_depois: novoCustoMedio,
+        usuario_responsavel: user?.email || 'Sistema',
+        status: 'Ativa',
+        anexos: [{ nome: `NF-e ${dadosNFe.numero} XML`, url: xmlFile, tipo: 'application/xml' }]
+      });
+
+      await base44.entities.Produto.update(item.produto_id, {
+        estoque_atual: novoEstoque,
+        preco_custo: novoCustoMedio
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
+    queryClient.invalidateQueries({ queryKey: ['produtos'] });
+  };
+
   const totalMovimentacoes = movimentacoes.length;
   const totalEntradas = movimentacoes.filter(m => m.tipo_movimentacao === 'Entrada').length;
   const totalSaidas = movimentacoes.filter(m => m.tipo_movimentacao === 'Saída').length;
@@ -345,10 +410,16 @@ export default function MovimentacoesEstoque() {
 
       {!showForm && (
         <div className="flex justify-between items-center">
-          <Button onClick={handleExport} variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Exportar CSV
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={handleExport} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </Button>
+            <Button onClick={() => setShowImportXML(true)} variant="outline" className="gap-2 border-blue-300 text-blue-700">
+              <FileUp className="w-4 h-4" />
+              Importar NF-e (XML)
+            </Button>
+          </div>
           <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
             <Plus className="w-5 h-5" />
             Nova Movimentação
@@ -374,6 +445,15 @@ export default function MovimentacoesEstoque() {
         onEdit={handleEdit}
         onCancel={handleCancel}
         isLoading={isLoading}
+      />
+
+      <ImportarNFeXML
+        open={showImportXML}
+        onClose={() => setShowImportXML(false)}
+        onSuccess={handleImportacaoXML}
+        produtos={produtos}
+        fornecedores={fornecedores}
+        centrosDeCusto={centros} // Assuming ImportarNFeXML might need centros for selection
       />
     </div>
   );
