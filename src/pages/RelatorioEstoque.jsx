@@ -46,31 +46,26 @@ const COLUNAS_DISPONIVEIS_ANALITICO = [
 const COLUNAS_DISPONIVEIS_SINTETICO = [
   { id: 'agrupamento', label: 'Agrupamento', default: true },
   { id: 'quantidade_itens', label: 'Qtd Itens', default: true },
-  { id: 'unidade_medida', label: 'Unidade', default: true },
   { id: 'estoque_total', label: 'Estoque Total', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
 ];
 
 const COLUNAS_DISPONIVEIS_POR_NFE = [
   { id: 'nfe', label: 'NF-e', default: true },
-  { id: 'serie', label: 'Série', default: true },
   { id: 'data', label: 'Data', default: true },
   { id: 'fornecedor', label: 'Fornecedor', default: true },
   { id: 'produto', label: 'Produto', default: true },
-  { id: 'codigo', label: 'Código', default: true },
-  { id: 'unidade', label: 'UN', default: true },
   { id: 'quantidade', label: 'Quantidade', default: true },
   { id: 'valor_unitario', label: 'Vlr Unit.', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
-  { id: 'local', label: 'Local Destino', default: true },
+  { id: 'local', label: 'Local', default: true },
 ];
 
 const COLUNAS_DISPONIVEIS_POR_LOCAL = [
   { id: 'local', label: 'Local', default: true },
-  { id: 'codigo', label: 'Código', default: true },
   { id: 'produto', label: 'Produto', default: true },
+  { id: 'codigo', label: 'Código', default: true },
   { id: 'categoria', label: 'Categoria', default: true },
-  { id: 'unidade', label: 'UN', default: true },
   { id: 'estoque_atual', label: 'Estoque', default: true },
   { id: 'custo_unitario', label: 'Custo Unit.', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
@@ -91,7 +86,7 @@ const ORDENACAO_OPCOES = [
 
 export default function RelatorioEstoque() {
   const [orientacao, setOrientacao] = useState("paisagem");
-  const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico"); // analitico, sintetico, por_nfe, por_local
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('nome_asc');
   const [filtroSituacao, setFiltroSituacao] = useState('todos');
@@ -109,6 +104,7 @@ export default function RelatorioEstoque() {
     return getColunasDisponiveis().filter(c => c.default).map(c => c.id);
   });
 
+  // Reset colunas quando mudar tipo de relatório
   React.useEffect(() => {
     setColunasVisiveis(getColunasDisponiveis().filter(c => c.default).map(c => c.id));
   }, [tipoRelatorio]);
@@ -209,6 +205,7 @@ export default function RelatorioEstoque() {
 
   const dadosRelatorio = useMemo(() => {
     if (tipoRelatorio === 'sintetico') {
+      // Agrupar e somar
       const grupos = {};
       const campoAgrupamento = agrupamentosAtivos[0] || 'categoria';
       
@@ -225,7 +222,6 @@ export default function RelatorioEstoque() {
           grupos[chave] = {
             agrupamento: chave,
             quantidade_itens: 0,
-            unidade_medida: p.unidade_medida,
             estoque_total: 0,
             valor_total: 0
           };
@@ -248,6 +244,7 @@ export default function RelatorioEstoque() {
       });
       return { tipo: 'por_local', dados: grupos };
     } else {
+      // Analítico - com agrupamento opcional
       if (agrupamentosAtivos.length === 0) {
         return { tipo: 'analitico', dados: { "Todos os Produtos": produtosFiltrados } };
       }
@@ -309,6 +306,7 @@ export default function RelatorioEstoque() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Controles */}
       <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
@@ -325,6 +323,7 @@ export default function RelatorioEstoque() {
         </Button>
       </div>
 
+      {/* Filtros */}
       <Card className="shadow-lg border-green-200 print:hidden">
         <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
           <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
@@ -531,6 +530,7 @@ export default function RelatorioEstoque() {
         </CardContent>
       </Card>
 
+      {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
           @media print {
@@ -546,6 +546,7 @@ export default function RelatorioEstoque() {
         `}} />
 
         <div className="print-area p-8 print:p-0">
+          {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-1 mb-2">
             <div className="flex items-center justify-between gap-3">
               {empresaAtual?.logotipo_url ? (
@@ -587,14 +588,13 @@ export default function RelatorioEstoque() {
             </div>
           </div>
 
-          {/* SINTÉTICO */}
+          {/* Conteúdo do Relatório */}
           {dadosRelatorio.tipo === 'sintetico' && (
             <Table>
               <TableHeader>
                 <TableRow className="border-black">
                   {colunasVisiveis.includes('agrupamento') && <TableHead className="border border-black text-xs font-bold py-1">Agrupamento</TableHead>}
                   {colunasVisiveis.includes('quantidade_itens') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Itens</TableHead>}
-                  {colunasVisiveis.includes('unidade_medida') && <TableHead className="border border-black text-xs font-bold py-1">Unidade</TableHead>}
                   {colunasVisiveis.includes('estoque_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Total</TableHead>}
                   {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
                 </TableRow>
@@ -604,15 +604,13 @@ export default function RelatorioEstoque() {
                   <TableRow key={idx}>
                     {colunasVisiveis.includes('agrupamento') && <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo.agrupamento}</TableCell>}
                     {colunasVisiveis.includes('quantidade_itens') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.quantidade_itens}</TableCell>}
-                    {colunasVisiveis.includes('unidade_medida') && <TableCell className="border border-gray-300 text-xs py-1">{grupo.unidade_medida || 'Variado'}</TableCell>}
                     {colunasVisiveis.includes('estoque_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(grupo.estoque_total)}</TableCell>}
                     {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(grupo.valor_total)}</TableCell>}
                   </TableRow>
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
-                  {colunasVisiveis.includes('agrupamento') && <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>}
+                  <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
                   {colunasVisiveis.includes('quantidade_itens') && <TableCell className="border border-black text-xs text-right py-1">{totalItens}</TableCell>}
-                  {colunasVisiveis.includes('unidade_medida') && <TableCell className="border border-black text-xs py-1">-</TableCell>}
                   {colunasVisiveis.includes('estoque_total') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(produtosFiltrados.reduce((s,p) => s + (p.estoque_atual||0), 0))}</TableCell>}
                   {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalValorEstoque)}</TableCell>}
                 </TableRow>
@@ -620,7 +618,6 @@ export default function RelatorioEstoque() {
             </Table>
           )}
 
-          {/* POR NF-e */}
           {dadosRelatorio.tipo === 'por_nfe' && (
             <div>
               {Object.entries(
@@ -632,20 +629,16 @@ export default function RelatorioEstoque() {
                 }, {})
               ).map(([nfe, itens], idx) => {
                 const totalNfe = itens.reduce((s, m) => s + (m.valor_total || 0), 0);
-                const totalQtdNfe = itens.reduce((s, m) => s + (m.quantidade || 0), 0);
                 return (
                   <div key={idx} className="mb-4">
                     <div className="bg-gray-200 px-2 py-1 mb-1">
-                      <h3 className="font-bold text-xs">
-                        NF-e: {nfe} • Série: {itens[0]?.serie_documento || '-'} • {itens[0]?.fornecedor_nome} • {format(new Date(itens[0]?.data_movimentacao), 'dd/MM/yyyy')} • {itens.length} item(ns)
-                      </h3>
+                      <h3 className="font-bold text-xs">NF-e: {nfe} • {itens[0]?.fornecedor_nome} • {itens.length} item(ns)</h3>
                     </div>
                     <Table>
                       <TableHeader>
                         <TableRow className="border-black">
-                          {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
+                          {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
                           {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
-                          {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
                           {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
                           {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit.</TableHead>}
                           {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Total</TableHead>}
@@ -655,9 +648,8 @@ export default function RelatorioEstoque() {
                       <TableBody>
                         {itens.map((m) => (
                           <TableRow key={m.id}>
-                            {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{m.produto_codigo || '-'}</TableCell>}
+                            {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{format(new Date(m.data_movimentacao), 'dd/MM/yyyy')}</TableCell>}
                             {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{m.produto_nome}</TableCell>}
-                            {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{m.unidade_medida}</TableCell>}
                             {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(m.quantidade)}</TableCell>}
                             {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(m.valor_unitario || 0)}</TableCell>}
                             {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(m.valor_total || 0)}</TableCell>}
@@ -665,11 +657,9 @@ export default function RelatorioEstoque() {
                           </TableRow>
                         ))}
                         <TableRow className="bg-gray-100 font-bold">
-                          <TableCell colSpan={colunasVisiveis.filter(c => !['quantidade', 'valor_total', 'local'].includes(c)).length} className="border border-black text-xs py-1">
+                          <TableCell colSpan={colunasVisiveis.filter(c => !['valor_total'].includes(c)).length} className="border border-black text-xs py-1">
                             SUBTOTAL NF-e {nfe}
                           </TableCell>
-                          {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdNfe)}</TableCell>}
-                          {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-black text-xs py-1"></TableCell>}
                           {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalNfe)}</TableCell>}
                           {colunasVisiveis.includes('local') && <TableCell className="border border-black text-xs py-1"></TableCell>}
                         </TableRow>
@@ -681,11 +671,9 @@ export default function RelatorioEstoque() {
             </div>
           )}
 
-          {/* POR LOCAL */}
           {dadosRelatorio.tipo === 'por_local' && (
             Object.entries(dadosRelatorio.dados).map(([local, produtos], idx) => {
               const totalLocal = produtos.reduce((s, p) => s + (p.valor_total_estoque || 0), 0);
-              const totalQtdLocal = produtos.reduce((s, p) => s + (p.estoque_atual || 0), 0);
               return (
                 <div key={idx} className="mb-4">
                   <div className="bg-gray-200 px-2 py-1 mb-1">
@@ -694,10 +682,9 @@ export default function RelatorioEstoque() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-black">
-                        {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
                         {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                        {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
                         {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
-                        {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
                         {colunasVisiveis.includes('estoque_atual') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
                         {colunasVisiveis.includes('custo_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo Unit.</TableHead>}
                         {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
@@ -706,21 +693,18 @@ export default function RelatorioEstoque() {
                     <TableBody>
                       {produtos.map((p) => (
                         <TableRow key={p.id}>
-                          {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
                           {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
+                          {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
                           {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
-                          {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
                           {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
                           {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
                           {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(p.valor_total_estoque)}</TableCell>}
                         </TableRow>
                       ))}
                       <TableRow className="bg-gray-100 font-bold">
-                        <TableCell colSpan={colunasVisiveis.filter(c => !['estoque_atual', 'valor_total'].includes(c)).length} className="border border-black text-xs py-1">
+                        <TableCell colSpan={colunasVisiveis.filter(c => c !== 'valor_total').length} className="border border-black text-xs py-1">
                           SUBTOTAL {local}
                         </TableCell>
-                        {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdLocal)}</TableCell>}
-                        {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-black text-xs py-1"></TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalLocal)}</TableCell>}
                       </TableRow>
                     </TableBody>
@@ -730,11 +714,9 @@ export default function RelatorioEstoque() {
             })
           )}
 
-          {/* ANALÍTICO */}
           {dadosRelatorio.tipo === 'analitico' && (
             Object.entries(dadosRelatorio.dados).map(([grupo, registros], idx) => {
               const totalGrupo = registros.reduce((sum, p) => sum + (p.valor_total_estoque || 0), 0);
-              const totalQtdGrupo = registros.reduce((sum, p) => sum + (p.estoque_atual || 0), 0);
               return (
                 <div key={idx} className="mb-4">
                   {agrupamentosAtivos.length > 0 && (
@@ -773,14 +755,10 @@ export default function RelatorioEstoque() {
                         </TableRow>
                       ))}
                       <TableRow className="bg-gray-100 font-bold">
-                        <TableCell colSpan={colunasVisiveis.filter(c => !['estoque_atual', 'valor_total'].includes(c)).length} className="border border-black text-xs py-1">
+                        <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
                           SUBTOTAL ({registros.length})
                         </TableCell>
-                        {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdGrupo)}</TableCell>}
-                        {colunasVisiveis.includes('estoque_minimo') && <TableCell className="border border-black text-xs py-1"></TableCell>}
-                        {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-black text-xs py-1"></TableCell>}
                         {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
-                        {colunasVisiveis.includes('local') && <TableCell className="border border-black text-xs py-1"></TableCell>}
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -789,6 +767,7 @@ export default function RelatorioEstoque() {
             })
           )}
 
+          {/* Rodapé */}
           {tipoRelatorio !== 'por_nfe' && (
             <div className="mt-4 border-t-2 border-black pt-2">
               <div className="flex justify-between items-center">
