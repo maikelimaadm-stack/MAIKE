@@ -189,7 +189,7 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dados) => {
     try {
-      console.log('🚀 Dados recebidos:', dados);
+      console.log('🚀 Iniciando importação:', dados);
       
       const movIds = [];
       
@@ -290,8 +290,6 @@ export default function Financeiro() {
       if (dados.gerarFinanceiro) {
         toast.info('💰 Abrindo formulário financeiro...');
         
-        console.log('📦 Produtos para formulário:', dados.itens);
-        
         setEditingItem({
           tipo: 'Pagar',
           tipo_documento: 'NF-e',
@@ -300,28 +298,20 @@ export default function Financeiro() {
           chave_nfe: dados.dadosNFe.chave,
           data_emissao: dados.dadosNFe.data_emissao,
           data_vencimento: dados.dataVencimento,
-          valor_original: formatarNumero(dados.dadosNFe.valor_total),
-          valor_juros: "0,00",
-          valor_multa: "0,00",
-          valor_desconto: "0,00",
+          valor_original: dados.dadosNFe.valor_total,
+          valor_juros: 0,
+          valor_multa: 0,
+          valor_desconto: 0,
           observacoes: dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-e ${dados.dadosNFe.numero}`,
           parcelar: dados.parcelar || false,
-          parcelas: dados.parcelas?.map(p => ({
-            data: p.data,
-            valor: formatarNumero(p.valor)
-          })) || [],
+          parcelas: dados.parcelas || [],
           produtos_lancamento: dados.itens.map(i => ({
             produto_id: i.produto_id,
             produto_nome: i.produto_nome,
-            quantidade: formatarNumero(i.quantidade),
-            valor_unitario: formatarNumero(i.valor_unitario),
-            desconto: "0,00"
+            quantidade: i.quantidade,
+            valor_unitario: i.valor_unitario,
+            desconto: 0
           }))
-        });
-        
-        console.log('✅ Dados iniciais do form:', {
-          produtos: dados.itens.length,
-          parcelas: dados.parcelas?.length || 0
         });
         
         setShowImportarXML(false);

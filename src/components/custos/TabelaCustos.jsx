@@ -340,9 +340,8 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
                     <Settings className="w-4 h-4" />
-                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">

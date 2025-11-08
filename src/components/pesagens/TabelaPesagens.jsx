@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, FileText, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Loader2 } from "lucide-react";
+import { Edit, Trash2, Printer, Search, Scale, Settings, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,7 +55,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
 ];
 
-export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, isLoading }) {
+export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   
   // Carregar configuração de colunas do localStorage
@@ -271,11 +271,11 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <CardTitle className="flex items-center gap-3 text-slate-900">
               <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
+                <Scale className="w-5 h-5 text-white" />
               </div>
               Registros de Pesagens
               <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-                {filteredPesagens.length} {filteredPesagens.length === 1 ? 'registro' : 'registros'}
+                {sortedPesagens.length} {sortedPesagens.length === 1 ? 'pesagem' : 'pesagens'}
               </Badge>
               {selectedItems.length > 0 && (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
@@ -310,7 +310,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
               <div className="relative flex-1 md:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por nº, placa, motorista, produto..."
+                  placeholder="Buscar por placa, motorista, produto..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -319,12 +319,11 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
                     <Settings className="w-4 h-4" />
-                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (
@@ -484,7 +483,7 @@ export default function TabelaPesagens({ pesagens, onEdit, onDelete, onPrint, is
                     <TableRow>
                       <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
                         <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <FileText className="w-12 h-12" />
+                          <Scale className="w-12 h-12" />
                           <p className="text-lg font-medium">Nenhum registro encontrado</p>
                           <p className="text-sm">
                             {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando uma nova pesagem'}

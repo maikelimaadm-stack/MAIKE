@@ -158,7 +158,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" title="Ordenar">
                     <ArrowUpDown className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -174,7 +174,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" title="Configurar Colunas">
                     <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
