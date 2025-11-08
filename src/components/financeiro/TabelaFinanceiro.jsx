@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,21 +18,34 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 const formatarData = (dataString) => {
   if (!dataString) return '-';
-  return new Date(dataString).toLocaleDateString('pt-BR');
+  try {
+    const date = new Date(dataString + 'T00:00:00'); // Ensure date is parsed as UTC to avoid timezone issues with YYYY-MM-DD
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR');
+  } catch {
+    return '-';
+  }
 };
 
 const calcularDias = (dataVencimento) => {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const venc = new Date(dataVencimento);
-  venc.setHours(0, 0, 0, 0);
-  const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-  
-  if (diff > 0) return `${diff}d p/ vencer`;
-  if (diff < 0) return `${Math.abs(diff)}d vencido`;
-  return 'Vence hoje';
+  if (!dataVencimento) return '-';
+  try {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const venc = new Date(dataVencimento + 'T00:00:00'); // Ensure date is parsed as UTC to avoid timezone issues
+    if (isNaN(venc.getTime())) return '-';
+    venc.setHours(0, 0, 0, 0);
+    const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
+    
+    if (diff > 0) return `${diff}d p/ vencer`;
+    if (diff < 0) return `${Math.abs(diff)}d vencido`;
+    return 'Vence hoje';
+  } catch {
+    return '-';
+  }
 };
 
 const getBadgeStyle = (status) => {
