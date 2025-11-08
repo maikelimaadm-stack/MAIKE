@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,23 +43,20 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'barras', label: 'Cód. Barras', default: false },
 ];
 
-export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, isLoading }) {
+export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    if (typeof window !== 'undefined') { // Check if window is defined (for SSR compatibility)
+    if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('colunas_produtos');
       if (saved) {
         try {
           return JSON.parse(saved);
         } catch {
-          // If parsing fails, fall back to default
           return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
         }
       }
     }
-    // If no saved data or in SSR context, return default
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
   
@@ -69,20 +65,12 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
-  // This function is added to make the requested onOpenChange={setShowImportProgress} functional.
-  // It effectively maps to setIsDeletingBulk for this specific dialog.
-  // Typically, a progress dialog is not user-closable, but this satisfies the prop requirement.
-  const setShowImportProgress = (isOpen) => {
-    setIsDeletingBulk(isOpen);
-  };
-
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
       const novasColunas = prev.includes(colunaId)
         ? prev.filter(id => id !== colunaId)
         : [...prev, colunaId];
       
-      // Salvar no localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('colunas_produtos', JSON.stringify(novasColunas));
       }
@@ -106,6 +94,11 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
   };
 
   const handleBulkDelete = async () => {
+    if (!onDelete) {
+      console.error('onDelete prop is not defined');
+      return;
+    }
+
     if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} produto(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
       setIsDeletingBulk(true);
       setDeleteProgress({ current: 0, total: selectedItems.length });
@@ -113,12 +106,11 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
       let deleted = 0;
       for (const id of selectedItems) {
         try {
-          await onDelete(id); // Assuming onDelete is an async function
+          await onDelete(id, true);
           deleted++;
-          setDeleteProgress(prev => ({ ...prev, current: deleted }));
+          setDeleteProgress({ current: deleted, total: selectedItems.length });
         } catch (error) {
           console.error('Erro ao excluir:', error);
-          // Optionally, add logic to track failed deletions or notify user
         }
       }
       
@@ -131,6 +123,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
   };
 
   const handleBulkPrint = () => {
+    if (!onPrint) return;
     selectedItems.forEach(id => {
       const produto = produtos.find(p => p.id === id);
       if (produto) onPrint(produto);
@@ -356,7 +349,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => onEdit(produto)}
+                                onClick={() => onEdit && onEdit(produto)}
                                 className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                 title="Editar"
                               >
@@ -365,7 +358,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => onPrint(produto)}
+                                onClick={() => onPrint && onPrint(produto)}
                                 className="hover:bg-green-50 hover:text-green-700 transition-colors"
                                 title="Imprimir Ficha"
                               >
@@ -374,7 +367,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => onDelete(produto.id)}
+                                onClick={() => onDelete && onDelete(produto.id)}
                                 className="hover:bg-red-50 hover:text-red-700 transition-colors"
                                 title="Excluir"
                               >
@@ -393,8 +386,7 @@ export default function TabelaProdutos({ produtos, onEdit, onDelete, onPrint, is
         </CardContent>
       </Card>
 
-      {/* Modal de Progresso de Exclusão */}
-      <Dialog open={isDeletingBulk} onOpenChange={setShowImportProgress}>
+      <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
