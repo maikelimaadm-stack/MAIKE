@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +30,7 @@ const formatarNumero = (numero) => {
   return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-const COLUNAS_DISPONIVEIS = [
+const COLUNAS_DISPONIVEIS_ANALITICO = [
   { id: 'numero', label: 'Nº Produto', default: true },
   { id: 'codigo', label: 'Código', default: true },
   { id: 'nome', label: 'Nome do Produto', default: true },
@@ -41,7 +40,35 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'estoque_minimo', label: 'Estoque Mínimo', default: true },
   { id: 'custo_unitario', label: 'Custo Unitário', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
-  { id: 'local', label: 'Local', default: false },
+  { id: 'local', label: 'Local', default: true },
+];
+
+const COLUNAS_DISPONIVEIS_SINTETICO = [
+  { id: 'agrupamento', label: 'Agrupamento', default: true },
+  { id: 'quantidade_itens', label: 'Qtd Itens', default: true },
+  { id: 'estoque_total', label: 'Estoque Total', default: true },
+  { id: 'valor_total', label: 'Valor Total', default: true },
+];
+
+const COLUNAS_DISPONIVEIS_POR_NFE = [
+  { id: 'nfe', label: 'NF-e', default: true },
+  { id: 'data', label: 'Data', default: true },
+  { id: 'fornecedor', label: 'Fornecedor', default: true },
+  { id: 'produto', label: 'Produto', default: true },
+  { id: 'quantidade', label: 'Quantidade', default: true },
+  { id: 'valor_unitario', label: 'Vlr Unit.', default: true },
+  { id: 'valor_total', label: 'Valor Total', default: true },
+  { id: 'local', label: 'Local', default: true },
+];
+
+const COLUNAS_DISPONIVEIS_POR_LOCAL = [
+  { id: 'local', label: 'Local', default: true },
+  { id: 'produto', label: 'Produto', default: true },
+  { id: 'codigo', label: 'Código', default: true },
+  { id: 'categoria', label: 'Categoria', default: true },
+  { id: 'estoque_atual', label: 'Estoque', default: true },
+  { id: 'custo_unitario', label: 'Custo Unit.', default: true },
+  { id: 'valor_total', label: 'Valor Total', default: true },
 ];
 
 const ORDENACAO_OPCOES = [
@@ -59,28 +86,34 @@ const ORDENACAO_OPCOES = [
 
 export default function RelatorioEstoque() {
   const [orientacao, setOrientacao] = useState("paisagem");
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico"); // analitico, sintetico, por_nfe, por_local
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('nome_asc');
   const [filtroSituacao, setFiltroSituacao] = useState('todos');
   
-  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem('colunas_relatorio_estoque');
-    if (saved) {
-      try {
-        // Filter out any old column IDs that are no longer available
-        const parsedSaved = JSON.parse(saved);
-        const validColumnIds = COLUNAS_DISPONIVEIS.map(c => c.id);
-        return parsedSaved.filter(id => validColumnIds.includes(id));
-      } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
-      }
+  const getColunasDisponiveis = () => {
+    switch (tipoRelatorio) {
+      case 'sintetico': return COLUNAS_DISPONIVEIS_SINTETICO;
+      case 'por_nfe': return COLUNAS_DISPONIVEIS_POR_NFE;
+      case 'por_local': return COLUNAS_DISPONIVEIS_POR_LOCAL;
+      default: return COLUNAS_DISPONIVEIS_ANALITICO;
     }
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  };
+
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    return getColunasDisponiveis().filter(c => c.default).map(c => c.id);
   });
+
+  // Reset colunas quando mudar tipo de relatório
+  React.useEffect(() => {
+    setColunasVisiveis(getColunasDisponiveis().filter(c => c.default).map(c => c.id));
+  }, [tipoRelatorio]);
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
   const [locaisSelecionados, setLocaisSelecionados] = useState([]);
+  const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState([]);
+  const [nfesSelecionadas, setNfesSelecionadas] = useState([]);
   const [buscaNome, setBuscaNome] = useState("");
   const [buscaCodigo, setBuscaCodigo] = useState("");
 
@@ -99,6 +132,20 @@ export default function RelatorioEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: movimentacoes = [] } = useQuery({
+    queryKey: ['movimentacoes_nfe', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoEstoque.list('-data_movimentacao');
+      return all.filter(m => 
+        m.empresa_id === empresaSelecionadaId && 
+        m.status === 'Ativa' && 
+        m.chave_documento && 
+        m.tipo_movimentacao === 'Entrada'
+      );
+    },
+    enabled: !!empresaSelecionadaId && (tipoRelatorio === 'por_nfe'),
+  });
+
   const { data: empresaAtual } = useQuery({
     queryKey: ['empresa-atual-relatorio', empresaSelecionadaId],
     queryFn: async () => {
@@ -112,6 +159,8 @@ export default function RelatorioEstoque() {
   const categoriasUnicas = [...new Set(produtos.map(p => p.categoria))].filter(Boolean);
   const produtosUnicos = produtos.map(p => ({ id: p.id, nome: p.nome_produto }));
   const locaisUnicos = [...new Set(produtos.map(p => p.local_estoque))].filter(Boolean);
+  const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_nome))].filter(Boolean);
+  const nfesUnicas = [...new Set(movimentacoes.map(m => m.numero_documento))].filter(Boolean);
 
   const produtosFiltrados = useMemo(() => {
     let filtered = produtos.filter(p => {
@@ -127,70 +176,103 @@ export default function RelatorioEstoque() {
 
     filtered.sort((a, b) => {
       switch (ordenacao) {
-        case 'nome_asc':
-          return (a.nome_produto || '').localeCompare(b.nome_produto || '');
-        case 'nome_desc':
-          return (b.nome_produto || '').localeCompare(a.nome_produto || '');
-        case 'codigo_asc':
-          return (a.codigo_interno || '').localeCompare(b.codigo_interno || '');
-        case 'codigo_desc':
-          return (b.codigo_interno || '').localeCompare(a.codigo_interno || '');
-        case 'estoque_asc':
-          return (a.estoque_atual || 0) - (b.estoque_atual || 0);
-        case 'estoque_desc':
-          return (b.estoque_atual || 0) - (a.estoque_atual || 0);
-        case 'categoria_asc':
-          return (a.categoria || '').localeCompare(b.categoria || '');
-        case 'categoria_desc':
-          return (b.categoria || '').localeCompare(a.categoria || '');
-        case 'valor_asc':
-          return (a.valor_total_estoque || 0) - (b.valor_total_estoque || 0);
-        case 'valor_desc':
-          return (b.valor_total_estoque || 0) - (a.valor_total_estoque || 0);
-        default:
-          return 0;
+        case 'nome_asc': return (a.nome_produto || '').localeCompare(b.nome_produto || '');
+        case 'nome_desc': return (b.nome_produto || '').localeCompare(a.nome_produto || '');
+        case 'codigo_asc': return (a.codigo_interno || '').localeCompare(b.codigo_interno || '');
+        case 'codigo_desc': return (b.codigo_interno || '').localeCompare(a.codigo_interno || '');
+        case 'estoque_asc': return (a.estoque_atual || 0) - (b.estoque_atual || 0);
+        case 'estoque_desc': return (b.estoque_atual || 0) - (a.estoque_atual || 0);
+        case 'categoria_asc': return (a.categoria || '').localeCompare(b.categoria || '');
+        case 'categoria_desc': return (b.categoria || '').localeCompare(a.categoria || '');
+        case 'valor_asc': return (a.valor_total_estoque || 0) - (b.valor_total_estoque || 0);
+        case 'valor_desc': return (b.valor_total_estoque || 0) - (a.valor_total_estoque || 0);
+        default: return 0;
       }
     });
 
     return filtered;
   }, [produtos, categoriasSelecionadas, produtosSelecionados, locaisSelecionados, buscaNome, buscaCodigo, filtroSituacao, ordenacao]);
 
-  const produtosAgrupados = useMemo(() => {
-    if (agrupamentosAtivos.length === 0) {
-      return { "Todos os Produtos": produtosFiltrados };
-    }
-
-    const grupos = {};
-    produtosFiltrados.forEach(p => {
-      let chaveArray = [];
-      agrupamentosAtivos.forEach(tipo => {
-        let valor;
-        switch (tipo) {
-          case "categoria":
-            valor = p.categoria || "Sem categoria";
-            break;
-          case "local":
-            valor = p.local_estoque || "Sem local";
-            break;
-          case "situacao":
-            valor = p.situacao || "Sem situação";
-            break;
-          default:
-            valor = "Sem classificação";
-        }
-        chaveArray.push(valor);
-      });
-      const chave = chaveArray.join(" → ");
-      if (!grupos[chave]) grupos[chave] = [];
-      grupos[chave].push(p);
+  const movimentacoesFiltradas = useMemo(() => {
+    return movimentacoes.filter(m => {
+      if (fornecedoresSelecionados.length > 0 && !fornecedoresSelecionados.includes(m.fornecedor_nome)) return false;
+      if (nfesSelecionadas.length > 0 && !nfesSelecionadas.includes(m.numero_documento)) return false;
+      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(m.local_estoque_destino)) return false;
+      if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_id)) return false;
+      return true;
     });
-    return grupos;
-  }, [produtosFiltrados, agrupamentosAtivos]);
+  }, [movimentacoes, fornecedoresSelecionados, nfesSelecionadas, locaisSelecionados, produtosSelecionados]);
+
+  const dadosRelatorio = useMemo(() => {
+    if (tipoRelatorio === 'sintetico') {
+      // Agrupar e somar
+      const grupos = {};
+      const campoAgrupamento = agrupamentosAtivos[0] || 'categoria';
+      
+      produtosFiltrados.forEach(p => {
+        let chave;
+        switch (campoAgrupamento) {
+          case 'categoria': chave = p.categoria || 'Sem categoria'; break;
+          case 'local': chave = p.local_estoque || 'Sem local'; break;
+          case 'situacao': chave = p.situacao || 'Sem situação'; break;
+          default: chave = 'Sem classificação';
+        }
+        
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            agrupamento: chave,
+            quantidade_itens: 0,
+            estoque_total: 0,
+            valor_total: 0
+          };
+        }
+        
+        grupos[chave].quantidade_itens++;
+        grupos[chave].estoque_total += p.estoque_atual || 0;
+        grupos[chave].valor_total += p.valor_total_estoque || 0;
+      });
+      
+      return { tipo: 'sintetico', dados: Object.values(grupos) };
+    } else if (tipoRelatorio === 'por_nfe') {
+      return { tipo: 'por_nfe', dados: movimentacoesFiltradas };
+    } else if (tipoRelatorio === 'por_local') {
+      const grupos = {};
+      produtosFiltrados.forEach(p => {
+        const local = p.local_estoque || 'Sem local';
+        if (!grupos[local]) grupos[local] = [];
+        grupos[local].push(p);
+      });
+      return { tipo: 'por_local', dados: grupos };
+    } else {
+      // Analítico - com agrupamento opcional
+      if (agrupamentosAtivos.length === 0) {
+        return { tipo: 'analitico', dados: { "Todos os Produtos": produtosFiltrados } };
+      }
+
+      const grupos = {};
+      produtosFiltrados.forEach(p => {
+        let chaveArray = [];
+        agrupamentosAtivos.forEach(tipo => {
+          let valor;
+          switch (tipo) {
+            case "categoria": valor = p.categoria || "Sem categoria"; break;
+            case "local": valor = p.local_estoque || "Sem local"; break;
+            case "situacao": valor = p.situacao || "Sem situação"; break;
+            default: valor = "Sem classificação";
+          }
+          chaveArray.push(valor);
+        });
+        const chave = chaveArray.join(" → ");
+        if (!grupos[chave]) grupos[chave] = [];
+        grupos[chave].push(p);
+      });
+      return { tipo: 'analitico', dados: grupos };
+    }
+  }, [tipoRelatorio, produtosFiltrados, movimentacoesFiltradas, agrupamentosAtivos]);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
       const novasColunas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
-      localStorage.setItem('colunas_relatorio_estoque', JSON.stringify(novasColunas));
       return novasColunas;
     });
   };
@@ -207,6 +289,8 @@ export default function RelatorioEstoque() {
     setCategoriasSelecionadas([]);
     setProdutosSelecionados([]);
     setLocaisSelecionados([]);
+    setFornecedoresSelecionados([]);
+    setNfesSelecionadas([]);
     setBuscaNome("");
     setBuscaCodigo("");
     setFiltroSituacao('todos');
@@ -219,13 +303,6 @@ export default function RelatorioEstoque() {
   const totalItens = produtosFiltrados.length;
   const totalValorEstoque = produtosFiltrados.reduce((sum, p) => sum + (p.valor_total_estoque || 0), 0);
   const totalEstoqueBaixo = produtosFiltrados.filter(p => p.situacao === 'Baixo').length;
-
-  const selecionarTodasCategorias = () => setCategoriasSelecionadas(categoriasUnicas);
-  const desmarcarTodasCategorias = () => setCategoriasSelecionadas([]);
-  const selecionarTodosProdutos = () => setProdutosSelecionados(produtosUnicos.map(p => p.id));
-  const desmarcarTodosProdutos = () => setProdutosSelecionados([]);
-  const selecionarTodosLocais = () => setLocaisSelecionados(locaisUnicas);
-  const desmarcarTodosLocais = () => setLocaisSelecionados([]);
 
   return (
     <div className="p-6 space-y-6">
@@ -254,113 +331,160 @@ export default function RelatorioEstoque() {
         <CardContent className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
+              <Label>Tipo de Relatório</Label>
+              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
+                  <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
+                  <SelectItem value="por_nfe">Por NF-e</SelectItem>
+                  <SelectItem value="por_local">Por Local de Estoque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Orientação</Label>
-              <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
-                <option value="retrato">Retrato</option>
-                <option value="paisagem">Paisagem</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ordenar Por</Label>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
+              <Select value={orientacao} onValueChange={setOrientacao}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ORDENACAO_OPCOES.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
+                  <SelectItem value="retrato">Retrato</SelectItem>
+                  <SelectItem value="paisagem">Paisagem</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Situação do Estoque</Label>
-              <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="baixo">Estoque Baixo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {tipoRelatorio === 'analitico' && (
+              <div className="space-y-2">
+                <Label>Ordenar Por</Label>
+                <Select value={ordenacao} onValueChange={setOrdenacao}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDENACAO_OPCOES.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
+              <div className="space-y-2">
+                <Label>Situação do Estoque</Label>
+                <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="baixo">Estoque Baixo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Buscar por Nome</Label>
-              <Input placeholder="Digite o nome..." value={buscaNome} onChange={(e) => setBuscaNome(e.target.value)} />
+          {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Buscar por Nome</Label>
+                <Input placeholder="Digite o nome..." value={buscaNome} onChange={(e) => setBuscaNome(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Buscar por Código</Label>
+                <Input placeholder="Digite o código..." value={buscaCodigo} onChange={(e) => setBuscaCodigo(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Buscar por Código</Label>
-              <Input placeholder="Digite o código..." value={buscaCodigo} onChange={(e) => setBuscaCodigo(e.target.value)} />
-            </div>
-          </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>Agrupar Por (Múltipla Seleção)</Label>
-            <div className="flex flex-wrap gap-2">
-              {['categoria', 'local', 'situacao'].map((tipo) => (
-                <Button key={tipo} variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} size="sm" onClick={() => toggleAgrupamento(tipo)} className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}>
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                  {agrupamentosAtivos.includes(tipo) && (
-                    <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                      {agrupamentosAtivos.indexOf(tipo) + 1}
-                    </span>
-                  )}
-                </Button>
-              ))}
+          {tipoRelatorio !== 'por_nfe' && (
+            <div className="space-y-2">
+              <Label>Agrupar Por (Múltipla Seleção)</Label>
+              <div className="flex flex-wrap gap-2">
+                {['categoria', 'local', 'situacao'].map((tipo) => (
+                  <Button 
+                    key={tipo} 
+                    variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => toggleAgrupamento(tipo)} 
+                    className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}
+                  >
+                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                    {agrupamentosAtivos.includes(tipo) && (
+                      <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                        {agrupamentosAtivos.indexOf(tipo) + 1}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              {tipoRelatorio === 'sintetico' && agrupamentosAtivos.length === 0 && (
+                <p className="text-xs text-orange-600">* No modo Sintético, selecione apenas 1 agrupamento (será usado: {agrupamentosAtivos[0] || 'categoria'})</p>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="flex gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Categorias</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasCategorias}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasCategorias}>Nenhum</Button>
+            {tipoRelatorio === 'por_nfe' && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm mb-2">Fornecedores</h4>
+                      {fornecedoresUnicos.map(f => (
+                        <div key={f} className="flex items-center space-x-2">
+                          <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
+                          <label className="text-sm cursor-pointer">{f}</label>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {categoriasUnicas.map(c => (
-                    <div key={c} className="flex items-center space-x-2">
-                      <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
-                      <label className="text-sm cursor-pointer">{c}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </PopoverContent>
+                </Popover>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Produtos</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>Nenhum</Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">NF-e {nfesSelecionadas.length > 0 && `(${nfesSelecionadas.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm mb-2">Notas Fiscais</h4>
+                      {nfesUnicas.map(nfe => (
+                        <div key={nfe} className="flex items-center space-x-2">
+                          <Checkbox checked={nfesSelecionadas.includes(nfe)} onCheckedChange={() => toggleFiltro(nfesSelecionadas, setNfesSelecionadas, nfe)} />
+                          <label className="text-sm cursor-pointer">{nfe}</label>
+                        </div>
+                      ))}
                     </div>
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
+
+            {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local' || tipoRelatorio === 'sintetico') && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-96 overflow-auto">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm mb-2">Categorias</h4>
+                    {categoriasUnicas.map(c => (
+                      <div key={c} className="flex items-center space-x-2">
+                        <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
+                        <label className="text-sm cursor-pointer">{c}</label>
+                      </div>
+                    ))}
                   </div>
-                  {produtosUnicos.map(p => (
-                    <div key={p.id} className="flex items-center space-x-2">
-                      <Checkbox checked={produtosSelecionados.includes(p.id)} onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, p.id)} />
-                      <label className="text-sm cursor-pointer">{p.nome}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            )}
 
             <Popover>
               <PopoverTrigger asChild>
@@ -368,13 +492,7 @@ export default function RelatorioEstoque() {
               </PopoverTrigger>
               <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Locais</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosLocais}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosLocais}>Nenhum</Button>
-                    </div>
-                  </div>
+                  <h4 className="font-semibold text-sm mb-2">Locais</h4>
                   {locaisUnicos.map(l => (
                     <div key={l} className="flex items-center space-x-2">
                       <Checkbox checked={locaisSelecionados.includes(l)} onCheckedChange={() => toggleFiltro(locaisSelecionados, setLocaisSelecionados, l)} />
@@ -387,15 +505,15 @@ export default function RelatorioEstoque() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-slate-300">
+                <Button variant="outline" className="gap-2">
                   <Settings className="w-4 h-4" />
                   Colunas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                {getColunasDisponiveis().map((coluna) => (
                   <DropdownMenuCheckboxItem
                     key={coluna.id}
                     checked={colunasVisiveis.includes(coluna.id)}
@@ -428,6 +546,7 @@ export default function RelatorioEstoque() {
         `}} />
 
         <div className="print-area p-8 print:p-0">
+          {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-1 mb-2">
             <div className="flex items-center justify-between gap-3">
               {empresaAtual?.logotipo_url ? (
@@ -453,70 +572,210 @@ export default function RelatorioEstoque() {
               </div>
             </div>
             <div>
-              <h2 className="text-base font-bold">Relatório de Estoque</h2>
-              <p className="text-xs text-gray-600">
-                {totalItens} produto(s) • Valor: R$ {formatarNumero(totalValorEstoque)} • Estoque Baixo: {totalEstoqueBaixo}
-              </p>
+              <h2 className="text-base font-bold">
+                Relatório de Estoque - {
+                  tipoRelatorio === 'analitico' ? 'ANALÍTICO' :
+                  tipoRelatorio === 'sintetico' ? 'SINTÉTICO' :
+                  tipoRelatorio === 'por_nfe' ? 'POR NF-e' :
+                  'POR LOCAL'
+                }
+              </h2>
+              {tipoRelatorio !== 'por_nfe' && (
+                <p className="text-xs text-gray-600">
+                  {totalItens} produto(s) • Valor: R$ {formatarNumero(totalValorEstoque)} • Estoque Baixo: {totalEstoqueBaixo}
+                </p>
+              )}
             </div>
           </div>
 
-          {Object.entries(produtosAgrupados).map(([grupo, registros], idx) => {
-            const totalGrupo = registros.reduce((sum, p) => sum + (p.valor_total_estoque || 0), 0);
-            return (
-              <div key={idx} className="mb-4">
-                {agrupamentosAtivos.length > 0 && (
-                  <div className="bg-gray-200 px-2 py-1 mb-1">
-                    <h3 className="font-bold text-xs">{grupo} ({registros.length} produto(s))</h3>
+          {/* Conteúdo do Relatório */}
+          {dadosRelatorio.tipo === 'sintetico' && (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-black">
+                  {colunasVisiveis.includes('agrupamento') && <TableHead className="border border-black text-xs font-bold py-1">Agrupamento</TableHead>}
+                  {colunasVisiveis.includes('quantidade_itens') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd Itens</TableHead>}
+                  {colunasVisiveis.includes('estoque_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Total</TableHead>}
+                  {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dadosRelatorio.dados.map((grupo, idx) => (
+                  <TableRow key={idx}>
+                    {colunasVisiveis.includes('agrupamento') && <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo.agrupamento}</TableCell>}
+                    {colunasVisiveis.includes('quantidade_itens') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.quantidade_itens}</TableCell>}
+                    {colunasVisiveis.includes('estoque_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(grupo.estoque_total)}</TableCell>}
+                    {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(grupo.valor_total)}</TableCell>}
+                  </TableRow>
+                ))}
+                <TableRow className="bg-gray-100 font-bold">
+                  <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
+                  {colunasVisiveis.includes('quantidade_itens') && <TableCell className="border border-black text-xs text-right py-1">{totalItens}</TableCell>}
+                  {colunasVisiveis.includes('estoque_total') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(produtosFiltrados.reduce((s,p) => s + (p.estoque_atual||0), 0))}</TableCell>}
+                  {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalValorEstoque)}</TableCell>}
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
+
+          {dadosRelatorio.tipo === 'por_nfe' && (
+            <div>
+              {Object.entries(
+                dadosRelatorio.dados.reduce((acc, m) => {
+                  const nfe = m.numero_documento || 'Sem NF-e';
+                  if (!acc[nfe]) acc[nfe] = [];
+                  acc[nfe].push(m);
+                  return acc;
+                }, {})
+              ).map(([nfe, itens], idx) => {
+                const totalNfe = itens.reduce((s, m) => s + (m.valor_total || 0), 0);
+                return (
+                  <div key={idx} className="mb-4">
+                    <div className="bg-gray-200 px-2 py-1 mb-1">
+                      <h3 className="font-bold text-xs">NF-e: {nfe} • {itens[0]?.fornecedor_nome} • {itens.length} item(ns)</h3>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-black">
+                          {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
+                          {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                          {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
+                          {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit.</TableHead>}
+                          {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Total</TableHead>}
+                          {colunasVisiveis.includes('local') && <TableHead className="border border-black text-xs font-bold py-1">Local</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {itens.map((m) => (
+                          <TableRow key={m.id}>
+                            {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{format(new Date(m.data_movimentacao), 'dd/MM/yyyy')}</TableCell>}
+                            {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{m.produto_nome}</TableCell>}
+                            {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(m.quantidade)}</TableCell>}
+                            {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(m.valor_unitario || 0)}</TableCell>}
+                            {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(m.valor_total || 0)}</TableCell>}
+                            {colunasVisiveis.includes('local') && <TableCell className="border border-gray-300 text-xs py-1">{m.local_estoque_destino || '-'}</TableCell>}
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-gray-100 font-bold">
+                          <TableCell colSpan={colunasVisiveis.filter(c => !['valor_total'].includes(c)).length} className="border border-black text-xs py-1">
+                            SUBTOTAL NF-e {nfe}
+                          </TableCell>
+                          {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalNfe)}</TableCell>}
+                          {colunasVisiveis.includes('local') && <TableCell className="border border-black text-xs py-1"></TableCell>}
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   </div>
-                )}
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-black">
-                      {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº Produto</TableHead>}
-                      {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
-                      {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Nome do Produto</TableHead>}
-                      {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
-                      {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
-                      {colunasVisiveis.includes('estoque_atual') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Atual</TableHead>}
-                      {colunasVisiveis.includes('estoque_minimo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque Mínimo</TableHead>}
-                      {colunasVisiveis.includes('custo_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo Unitário</TableHead>}
-                      {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
-                      {colunasVisiveis.includes('local') && <TableHead className="border border-black text-xs font-bold py-1">Local</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registros.map((p) => (
-                      <TableRow key={p.id}>
-                        {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{p.numero_produto}</TableCell>}
-                        {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
-                        {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
-                        {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
-                        {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
-                        {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
-                        {colunasVisiveis.includes('estoque_minimo') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
-                        {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
-                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">R$ {formatarNumero(p.valor_total_estoque)}</TableCell>}
-                        {colunasVisiveis.includes('local') && <TableCell className="border border-gray-300 text-xs py-1">{p.local_estoque || '-'}</TableCell>}
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
-                        SUBTOTAL ({registros.length} produto(s))
-                      </TableCell>
-                      {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            );
-          })}
-
-          <div className="mt-4 border-t-2 border-black pt-2">
-            <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL: {totalItens} produto(s) • Estoque Baixo: {totalEstoqueBaixo}</div>
-              <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValorEstoque)}</div>
+                );
+              })}
             </div>
-          </div>
+          )}
+
+          {dadosRelatorio.tipo === 'por_local' && (
+            Object.entries(dadosRelatorio.dados).map(([local, produtos], idx) => {
+              const totalLocal = produtos.reduce((s, p) => s + (p.valor_total_estoque || 0), 0);
+              return (
+                <div key={idx} className="mb-4">
+                  <div className="bg-gray-200 px-2 py-1 mb-1">
+                    <h3 className="font-bold text-xs">{local} • {produtos.length} produto(s)</h3>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black">
+                        {colunasVisiveis.includes('produto') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                        {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
+                        {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
+                        {colunasVisiveis.includes('estoque_atual') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
+                        {colunasVisiveis.includes('custo_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo Unit.</TableHead>}
+                        {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {produtos.map((p) => (
+                        <TableRow key={p.id}>
+                          {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
+                          {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
+                          {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
+                          {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
+                          {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
+                          {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">R$ {formatarNumero(p.valor_total_estoque)}</TableCell>}
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableCell colSpan={colunasVisiveis.filter(c => c !== 'valor_total').length} className="border border-black text-xs py-1">
+                          SUBTOTAL {local}
+                        </TableCell>
+                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalLocal)}</TableCell>}
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })
+          )}
+
+          {dadosRelatorio.tipo === 'analitico' && (
+            Object.entries(dadosRelatorio.dados).map(([grupo, registros], idx) => {
+              const totalGrupo = registros.reduce((sum, p) => sum + (p.valor_total_estoque || 0), 0);
+              return (
+                <div key={idx} className="mb-4">
+                  {agrupamentosAtivos.length > 0 && (
+                    <div className="bg-gray-200 px-2 py-1 mb-1">
+                      <h3 className="font-bold text-xs">{grupo} ({registros.length} produto(s))</h3>
+                    </div>
+                  )}
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black">
+                        {colunasVisiveis.includes('numero') && <TableHead className="border border-black text-xs font-bold py-1">Nº</TableHead>}
+                        {colunasVisiveis.includes('codigo') && <TableHead className="border border-black text-xs font-bold py-1">Código</TableHead>}
+                        {colunasVisiveis.includes('nome') && <TableHead className="border border-black text-xs font-bold py-1">Produto</TableHead>}
+                        {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
+                        {colunasVisiveis.includes('unidade') && <TableHead className="border border-black text-xs font-bold py-1">UN</TableHead>}
+                        {colunasVisiveis.includes('estoque_atual') && <TableHead className="border border-black text-xs font-bold text-right py-1">Estoque</TableHead>}
+                        {colunasVisiveis.includes('estoque_minimo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Mínimo</TableHead>}
+                        {colunasVisiveis.includes('custo_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Custo</TableHead>}
+                        {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Total</TableHead>}
+                        {colunasVisiveis.includes('local') && <TableHead className="border border-black text-xs font-bold py-1">Local</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {registros.map((p) => (
+                        <TableRow key={p.id}>
+                          {colunasVisiveis.includes('numero') && <TableCell className="border border-gray-300 text-xs py-1">{p.numero_produto}</TableCell>}
+                          {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{p.codigo_interno || '-'}</TableCell>}
+                          {colunasVisiveis.includes('nome') && <TableCell className="border border-gray-300 text-xs py-1">{p.nome_produto}</TableCell>}
+                          {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{p.categoria || '-'}</TableCell>}
+                          {colunasVisiveis.includes('unidade') && <TableCell className="border border-gray-300 text-xs py-1">{p.unidade_medida}</TableCell>}
+                          {colunasVisiveis.includes('estoque_atual') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_atual || 0)}</TableCell>}
+                          {colunasVisiveis.includes('estoque_minimo') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(p.estoque_minimo || 0)}</TableCell>}
+                          {colunasVisiveis.includes('custo_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">R$ {formatarNumero(p.preco_custo || 0)}</TableCell>}
+                          {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right font-semibold py-1">R$ {formatarNumero(p.valor_total_estoque)}</TableCell>}
+                          {colunasVisiveis.includes('local') && <TableCell className="border border-gray-300 text-xs py-1">{p.local_estoque || '-'}</TableCell>}
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableCell colSpan={colunasVisiveis.length - (colunasVisiveis.includes('valor_total') ? 1 : 0)} className="border border-black text-xs py-1">
+                          SUBTOTAL ({registros.length})
+                        </TableCell>
+                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">R$ {formatarNumero(totalGrupo)}</TableCell>}
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })
+          )}
+
+          {/* Rodapé */}
+          {tipoRelatorio !== 'por_nfe' && (
+            <div className="mt-4 border-t-2 border-black pt-2">
+              <div className="flex justify-between items-center">
+                <div className="text-xs font-bold">TOTAL: {totalItens} produto(s) • Estoque Baixo: {totalEstoqueBaixo}</div>
+                <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValorEstoque)}</div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
             <p>Impresso em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
