@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,16 @@ const getNextSystemNumber = async () => {
   }
 };
 
+const calcularCustoMedio = (estoqueAtual, custoMedioAtual, quantidadeEntrada, custoEntrada) => {
+  if (estoqueAtual === 0) return custoEntrada;
+  
+  const valorTotalAtual = estoqueAtual * custoMedioAtual;
+  const valorTotalEntrada = quantidadeEntrada * custoEntrada;
+  const novoEstoque = estoqueAtual + quantidadeEntrada;
+  
+  return (valorTotalAtual + valorTotalEntrada) / novoEstoque;
+};
+
 export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
@@ -42,11 +52,16 @@ export default function MovimentacoesEstoque() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: movimentacoes, isLoading } = useQuery({
     queryKey: ['movimentacoes', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list('-created_date');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status !== 'Cancelada');
     },
     initialData: [],
     enabled: !!empresaSelecionadaId,
@@ -96,22 +111,41 @@ export default function MovimentacoesEstoque() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
+      const produto = produtos.find(p => p.id === data.produto_id);
+      if (!produto) throw new Error('Produto não encontrado');
+
+      const estoqueAtual = produto.estoque_atual || 0;
+      const custoMedioAtual = produto.preco_custo || 0;
+      let novoEstoque = estoqueAtual;
+      let novoCustoMedio = custoMedioAtual;
+
+      if (data.tipo_movimentacao === 'Entrada') {
+        novoEstoque = estoqueAtual + data.quantidade;
+        novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, data.quantidade, data.valor_unitario);
+      } else if (data.tipo_movimentacao === 'Saída') {
+        novoEstoque = estoqueAtual - data.quantidade;
+      } else if (data.tipo_movimentacao === 'Ajuste') {
+        const tipoAjuste = data.tipo_detalhado;
+        if (tipoAjuste.includes('Positivo') || tipoAjuste === 'Inventário') {
+          novoEstoque = estoqueAtual + data.quantidade;
+        } else {
+          novoEstoque = estoqueAtual - data.quantidade;
+        }
+      }
+
+      data.saldo_antes = estoqueAtual;
+      data.saldo_depois = novoEstoque;
+      data.custo_medio_antes = custoMedioAtual;
+      data.custo_medio_depois = novoCustoMedio;
+      data.usuario_responsavel = user?.email || 'Sistema';
+      data.status = 'Ativa';
+
       const result = await base44.entities.MovimentacaoEstoque.create(data);
       
-      const produto = produtos.find(p => p.id === data.produto_id);
-      if (produto) {
-        let novoEstoque = produto.estoque_atual || 0;
-        
-        if (data.tipo_movimentacao === 'Entrada') {
-          novoEstoque += data.quantidade;
-        } else if (data.tipo_movimentacao === 'Saída') {
-          novoEstoque -= data.quantidade;
-        }
-        
-        await base44.entities.Produto.update(produto.id, {
-          estoque_atual: novoEstoque
-        });
-      }
+      await base44.entities.Produto.update(produto.id, {
+        estoque_atual: novoEstoque,
+        preco_custo: novoCustoMedio
+      });
       
       return result;
     },
@@ -122,6 +156,9 @@ export default function MovimentacoesEstoque() {
       setEditingMovimentacao(null);
       toast.success('Movimentação registrada com sucesso!');
     },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao registrar movimentação');
+    }
   });
 
   const updateMutation = useMutation({
@@ -134,35 +171,70 @@ export default function MovimentacoesEstoque() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.MovimentacaoEstoque.delete(id),
+  const cancelMutation = useMutation({
+    mutationFn: async ({ id, motivo }) => {
+      const mov = movimentacoes.find(m => m.id === id);
+      if (!mov) throw new Error('Movimentação não encontrada');
+
+      const produto = produtos.find(p => p.id === mov.produto_id);
+      if (!produto) throw new Error('Produto não encontrado');
+
+      let novoEstoque = produto.estoque_atual || 0;
+      
+      if (mov.tipo_movimentacao === 'Entrada') {
+        novoEstoque -= mov.quantidade;
+      } else if (mov.tipo_movimentacao === 'Saída') {
+        novoEstoque += mov.quantidade;
+      }
+
+      await base44.entities.MovimentacaoEstoque.update(id, {
+        status: 'Cancelada',
+        cancelado_por: user?.email || 'Sistema',
+        data_cancelamento: new Date().toISOString(),
+        motivo_cancelamento: motivo
+      });
+
+      await base44.entities.Produto.update(produto.id, {
+        estoque_atual: novoEstoque
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-      toast.success('Movimentação excluída com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      toast.success('Movimentação cancelada com sucesso!');
     },
   });
 
   const handleSubmit = async (formData) => {
     const produto = produtos.find(p => p.id === formData.produto_id);
+    const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
     
     const data = {
       empresa_id: empresaSelecionadaId,
       tipo_movimentacao: formData.tipo_movimentacao,
+      tipo_detalhado: formData.tipo_detalhado,
       data_movimentacao: formData.data_movimentacao,
       produto_id: formData.produto_id,
       produto_nome: produto?.nome_produto,
+      produto_codigo: produto?.codigo_interno,
       quantidade: parseFloat(formData.quantidade),
       unidade_medida: produto?.unidade_medida,
       local_estoque_origem: formData.local_estoque_origem || undefined,
       local_estoque_destino: formData.local_estoque_destino || undefined,
-      numero_nfe: formData.numero_nfe?.toUpperCase() || undefined,
-      chave_nfe: formData.chave_nfe || undefined,
+      valor_unitario: parseFloat(formData.valor_unitario),
+      valor_total: parseFloat(formData.valor_total),
+      tipo_documento: formData.tipo_documento,
+      numero_documento: formData.numero_documento?.toUpperCase() || undefined,
+      chave_documento: formData.chave_documento || undefined,
+      data_documento: formData.data_documento || undefined,
       fornecedor_id: formData.fornecedor_id || undefined,
-      fornecedor_nome: formData.fornecedor_id ? fornecedores.find(f => f.id === formData.fornecedor_id)?.nome : undefined,
-      cliente_destino: formData.cliente_destino?.toUpperCase() || undefined,
-      valor_unitario: formData.valor_unitario ? parseFloat(formData.valor_unitario) : undefined,
-      valor_total: formData.valor_total ? parseFloat(formData.valor_total) : undefined,
-      observacoes: formData.observacoes?.toUpperCase() || undefined
+      fornecedor_nome: fornecedor?.nome,
+      cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
+      forma_aquisicao: formData.forma_aquisicao || undefined,
+      motivo_movimentacao: formData.motivo_movimentacao?.toUpperCase(),
+      centro_custo: formData.centro_custo?.toUpperCase() || undefined,
+      observacoes: formData.observacoes?.toUpperCase() || undefined,
+      anexos: formData.anexos || []
     };
 
     if (!editingMovimentacao) {
@@ -182,11 +254,13 @@ export default function MovimentacoesEstoque() {
     setShowForm(true);
   };
 
-  const handleDelete = (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta movimentação? Esta ação não pode ser desfeita.')) {
-      return deleteMutation.mutateAsync(id);
+  const handleCancel = async (id) => {
+    const motivo = window.prompt('Informe o motivo do cancelamento:');
+    if (!motivo) return;
+    
+    if (window.confirm('⚠️ ATENÇÃO: Esta movimentação será cancelada e o estoque será revertido. Confirma?')) {
+      cancelMutation.mutate({ id, motivo });
     }
-    return Promise.reject('Cancelado');
   };
 
   const handleNew = () => {
@@ -201,23 +275,24 @@ export default function MovimentacoesEstoque() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Tipo', 'Data', 'Produto', 'Quantidade', 'Local Origem', 'Local Destino', 'Nº NF-e', 'Fornecedor', 'Cliente/Destino', 'Valor Unit.', 'Valor Total', 'Observações'];
+    const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Vlr Unit.', 'Vlr Total', 'Origem', 'Destino', 'Documento', 'Fornecedor/Cliente', 'Motivo'];
     csvRows.push(headers.join(';'));
 
     movimentacoes.forEach(m => {
       const row = [
+        m.numero_movimentacao,
+        format(new Date(m.data_movimentacao), 'dd/MM/yyyy HH:mm'),
         m.tipo_movimentacao,
-        format(new Date(m.data_movimentacao), 'dd/MM/yyyy'),
+        m.tipo_detalhado,
         m.produto_nome,
         m.quantidade,
+        m.valor_unitario,
+        m.valor_total,
         m.local_estoque_origem || '',
         m.local_estoque_destino || '',
-        m.numero_nfe || '',
-        m.fornecedor_nome || '',
-        m.cliente_destino || '',
-        m.valor_unitario || '',
-        m.valor_total || '',
-        m.observacoes || ''
+        m.numero_documento || '',
+        m.fornecedor_nome || m.cliente_nome || '',
+        m.motivo_movimentacao || ''
       ];
       csvRows.push(row.join(';'));
     });
@@ -231,30 +306,17 @@ export default function MovimentacoesEstoque() {
     toast.success('Dados exportados com sucesso!');
   };
 
-  const downloadTemplate = () => {
-    const csvRows = [];
-    const headers = ['Tipo', 'Data', 'Produto', 'Quantidade', 'Local Origem', 'Local Destino', 'Nº NF-e', 'Fornecedor', 'Cliente/Destino', 'Valor Unit.', 'Valor Total', 'Observações'];
-    csvRows.push(headers.join(';'));
-    
-    const example = ['Entrada', '04/11/2025', 'PRODUTO EXEMPLO', '100', '', 'ARMAZÉM 1', '123456', 'FORNECEDOR EXEMPLO', '', '10.50', '1050.00', 'OBSERVAÇÕES'];
-    csvRows.push(example.join(';'));
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'modelo_movimentacoes_estoque.csv';
-    link.click();
-  };
-
   const totalMovimentacoes = movimentacoes.length;
   const totalEntradas = movimentacoes.filter(m => m.tipo_movimentacao === 'Entrada').length;
   const totalSaidas = movimentacoes.filter(m => m.tipo_movimentacao === 'Saída').length;
-  const totalTransferencias = movimentacoes.filter(m => m.tipo_movimentacao === 'Transferência').length;
+  const totalAjustes = movimentacoes.filter(m => m.tipo_movimentacao === 'Ajuste').length;
+  const valorTotalMovimentado = movimentacoes.reduce((sum, m) => sum + (m.valor_total || 0), 0);
+
+  const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0));
 
   return (
     <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-green-700">Total</CardTitle>
@@ -262,7 +324,7 @@ export default function MovimentacoesEstoque() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-900">{totalMovimentacoes}</div>
-            <p className="text-xs text-green-600 mt-1">Movimentações registradas</p>
+            <p className="text-xs text-green-600 mt-1">Movimentações ativas</p>
           </CardContent>
         </Card>
 
@@ -273,7 +335,7 @@ export default function MovimentacoesEstoque() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-900">{totalEntradas}</div>
-            <p className="text-xs text-blue-600 mt-1">Entradas de estoque</p>
+            <p className="text-xs text-blue-600 mt-1">Recebimentos</p>
           </CardContent>
         </Card>
 
@@ -284,18 +346,29 @@ export default function MovimentacoesEstoque() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-900">{totalSaidas}</div>
-            <p className="text-xs text-orange-600 mt-1">Saídas de estoque</p>
+            <p className="text-xs text-orange-600 mt-1">Vendas/Consumos</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Transferências</CardTitle>
+            <CardTitle className="text-sm font-medium text-green-700">Ajustes</CardTitle>
             <Package className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{totalTransferencias}</div>
-            <p className="text-xs text-purple-600 mt-1">Entre locais</p>
+            <div className="text-3xl font-bold text-purple-900">{totalAjustes}</div>
+            <p className="text-xs text-purple-600 mt-1">Correções/Inventário</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-red-50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Alertas</CardTitle>
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-900">{produtosEstoqueBaixo.length}</div>
+            <p className="text-xs text-red-600 mt-1">Estoque crítico</p>
           </CardContent>
         </Card>
       </div>
@@ -306,10 +379,6 @@ export default function MovimentacoesEstoque() {
             <Button onClick={handleExport} variant="outline" className="gap-2">
               <Download className="w-4 h-4" />
               Exportar CSV
-            </Button>
-            <Button onClick={downloadTemplate} variant="outline" className="gap-2">
-              <FileSpreadsheet className="w-4 h-4" />
-              Baixar Modelo
             </Button>
           </div>
           <Button onClick={handleNew} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
@@ -335,7 +404,7 @@ export default function MovimentacoesEstoque() {
       <TabelaMovimentacoes
         movimentacoes={movimentacoes}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onCancel={handleCancel}
         isLoading={isLoading}
       />
     </div>
