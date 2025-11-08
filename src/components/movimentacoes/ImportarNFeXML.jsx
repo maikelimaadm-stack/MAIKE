@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -25,6 +24,16 @@ const parseNumero = (str) => {
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
+const ESTADOS_BRASIL = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 
+  'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+];
+
+const UNIDADES_MEDIDA = [
+  'UN', 'KG', 'G', 'MG', 'L', 'ML', 'M', 'M2', 'M3', 'CM', 'MM', 
+  'CX', 'PC', 'SC', 'FD', 'TON', 'KIT', 'JG', 'PAR', 'DZ'
+];
+
 export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, fornecedores }) {
   const [etapa, setEtapa] = useState(1);
   const [processando, setProcessando] = useState(false);
@@ -46,8 +55,28 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [showTrocarProduto, setShowTrocarProduto] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
-  const [novoFornecedor, setNovoFornecedor] = useState({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "" });
-  const [novoProduto, setNovoProduto] = useState({ nome: "", codigo: "", ncm: "", unidade: "", categoria: "" });
+  const [novoFornecedor, setNovoFornecedor] = useState({ 
+    tipo_pessoa: "Jurídica", 
+    nome: "", 
+    cnpj: "", 
+    cpf: "",
+    inscricao_estadual: "",
+    telefone: "",
+    email: "",
+    endereco: "",
+    cidade: "",
+    estado: "",
+    cep: ""
+  });
+  const [novoProduto, setNovoProduto] = useState({ 
+    nome: "", 
+    codigo: "", 
+    codigo_barras: "",
+    ncm: "", 
+    unidade: "UN", 
+    categoria: "",
+    descricao: ""
+  });
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -67,6 +96,12 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: categorias = [] } = useQuery({
+    queryKey: ['categorias'],
+    queryFn: () => base44.entities.Categoria.list(),
+    initialData: [],
+  });
+
   const createFornecedorMutation = useMutation({
     mutationFn: async (data) => {
       const allFornecedores = await base44.entities.Fornecedor.list();
@@ -81,7 +116,20 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
       queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
       setFornecedorSelecionado(newFornecedor);
       setShowNovoFornecedor(false);
-      toast.success('Fornecedor cadastrado!');
+      setNovoFornecedor({ 
+        tipo_pessoa: "Jurídica", 
+        nome: "", 
+        cnpj: "", 
+        cpf: "",
+        inscricao_estadual: "",
+        telefone: "",
+        email: "",
+        endereco: "",
+        cidade: "",
+        estado: "",
+        cep: ""
+      });
+      toast.success('✅ Fornecedor cadastrado!');
       setEtapa(3);
     },
   });
@@ -110,7 +158,16 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
       setItensNFe(itensAtualizados);
       setShowNovoProduto(false);
       setItemEditando(null);
-      toast.success('Produto cadastrado e associado!');
+      setNovoProduto({ 
+        nome: "", 
+        codigo: "", 
+        codigo_barras: "",
+        ncm: "", 
+        unidade: "UN", 
+        categoria: "",
+        descricao: ""
+      });
+      toast.success('✅ Produto cadastrado e associado!');
     },
   });
 
@@ -268,7 +325,14 @@ Retorne um JSON com esta estrutura EXATA:
       tipo_pessoa: novoFornecedor.tipo_pessoa,
       nome: novoFornecedor.nome.toUpperCase(),
       cnpj: novoFornecedor.cnpj?.replace(/\D/g, ''),
-      cpf: novoFornecedor.cpf?.replace(/\D/g, '')
+      cpf: novoFornecedor.cpf?.replace(/\D/g, ''),
+      inscricao_estadual: novoFornecedor.inscricao_estadual?.toUpperCase(),
+      telefone: novoFornecedor.telefone,
+      email: novoFornecedor.email?.toLowerCase(),
+      endereco: novoFornecedor.endereco?.toUpperCase(),
+      cidade: novoFornecedor.cidade?.toUpperCase(),
+      estado: novoFornecedor.estado,
+      cep: novoFornecedor.cep?.replace(/\D/g, '')
     });
   };
 
@@ -281,8 +345,10 @@ Retorne um JSON com esta estrutura EXATA:
     createProdutoMutation.mutate({
       nome_produto: novoProduto.nome.toUpperCase(),
       codigo_interno: novoProduto.codigo?.toUpperCase(),
+      codigo_barras: novoProduto.codigo_barras,
       unidade_medida: novoProduto.unidade.toUpperCase(),
       categoria: novoProduto.categoria?.toUpperCase(),
+      descricao: novoProduto.descricao?.toUpperCase(),
       preco_custo: itemEditando?.valor_unitario || 0
     });
   };
@@ -502,7 +568,7 @@ Retorne um JSON com esta estrutura EXATA:
                           <div className="flex gap-1">
                             {item.status === 'pendente' && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, ncm: item.ncm, unidade: item.unidade, categoria: "" }); setShowNovoProduto(true); }}>
+                                <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
                                   <Plus className="w-3 h-3 mr-1" />
                                   Novo
                                 </Button>
@@ -593,13 +659,14 @@ Retorne um JSON com esta estrutura EXATA:
       </Dialog>
 
       <Dialog open={showNovoFornecedor} onOpenChange={setShowNovoFornecedor}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar Fornecedor</DialogTitle>
+            <DialogTitle>Cadastrar Novo Fornecedor</DialogTitle>
+            <DialogDescription>Preencha os dados do fornecedor para continuar a importação</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tipo *</Label>
+              <Label>Tipo de Pessoa *</Label>
               <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -610,26 +677,84 @@ Retorne um JSON com esta estrutura EXATA:
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
-              <Label>Nome/Razão Social *</Label>
+              <Label>{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
               <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
-            {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
+
+            <div className="grid grid-cols-2 gap-4">
+              {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>CNPJ *</Label>
+                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Inscrição Estadual</Label>
+                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label>CPF *</Label>
+                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>CNPJ *</Label>
-                <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                <Label>Telefone</Label>
+                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" />
               </div>
-            ) : (
               <div className="space-y-2">
-                <Label>CPF *</Label>
-                <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
+                <Label>E-mail</Label>
+                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" />
               </div>
-            )}
-            <div className="flex justify-end gap-3">
+            </div>
+
+            <div className="space-y-2">
+              <Label>Endereço</Label>
+              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              </div>
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>CEP</Label>
+                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowNovoFornecedor(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarFornecedor} className="bg-green-600">
-                <Save className="w-4 h-4 mr-2" />
-                Salvar
+              <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+                {createFornecedorMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar e Continuar
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -637,44 +762,95 @@ Retorne um JSON com esta estrutura EXATA:
       </Dialog>
 
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar Produto</DialogTitle>
+            <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription>Preencha os dados do produto para associá-lo à NF-e</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome *</Label>
+              <Label>Nome do Produto *</Label>
               <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Código</Label>
+                <Label>Código Interno</Label>
                 <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Unidade *</Label>
-                <Input value={novoProduto.unidade} onChange={(e) => setNovoProduto({ ...novoProduto, unidade: e.target.value })} placeholder="UN, KG, LT" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <Label>Código de Barras</Label>
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>NCM</Label>
+                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} />
               </div>
             </div>
-            <div className="flex justify-end gap-3">
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Unidade de Medida *</Label>
+                <Select value={novoProduto.unidade} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un}>{un}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarProduto} className="bg-green-600">Salvar</Button>
+              <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
+                {createProdutoMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar e Associar
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showTrocarProduto} onOpenChange={setShowTrocarProduto}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Trocar por Produto Existente</DialogTitle>
+            <DialogDescription>Selecione um produto cadastrado para associar</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
@@ -682,11 +858,15 @@ Retorne um JSON com esta estrutura EXATA:
               <TableBody>
                 {produtos.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.codigo_interno}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
                     <TableCell className="text-sm">{p.nome_produto}</TableCell>
+                    <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
                     <TableCell>{p.unidade_medida}</TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => handleTrocarProduto(p)}>Selecionar</Button>
+                      <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Selecionar
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
