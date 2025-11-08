@@ -1,179 +1,189 @@
-
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Save, X, Tag, Barcode, Hash, FileText, DollarSign, TrendingUp, Box, Plus, Warehouse } from "lucide-react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Package, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 
-export default function FormularioProduto({ onSubmit, onCancel, initialData = null, isEditing = false }) {
-  const [formData, setFormData] = useState({
-    nome_produto: initialData?.nome_produto || "",
-    codigo_interno: initialData?.codigo_interno || "",
-    codigo_barras: initialData?.codigo_barras || "",
-    categoria: initialData?.categoria || "",
-    descricao: initialData?.descricao || "",
-    unidade_medida: initialData?.unidade_medida || "UN",
-    preco_custo: initialData?.preco_custo || "",
-    preco_venda: initialData?.preco_venda || "",
-    estoque_atual: initialData?.estoque_atual || 0,
-    estoque_minimo: initialData?.estoque_minimo || 0,
-    local_estoque: initialData?.local_estoque || "",
-    observacoes: initialData?.observacoes || ""
+export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing }) {
+  const [formData, setFormData] = useState(initialData || {
+    nome_produto: "",
+    codigo_interno: "",
+    codigo_barras: "",
+    categoria: "",
+    descricao: "",
+    unidade_medida: "",
+    preco_custo: "",
+    preco_venda: "",
+    estoque_minimo: "0",
+    local_estoque: "",
+    observacoes: ""
   });
 
-  const [showUnidadeDialog, setShowUnidadeDialog] = useState(false);
-  const [showCategoriaDialog, setShowCategoriaDialog] = useState(false);
-  const [showLocalDialog, setShowLocalDialog] = useState(false);
-  const [newUnidade, setNewUnidade] = useState({ sigla: "", descricao: "" });
-  const [newCategoria, setNewCategoria] = useState({ nome: "", subcategoria: "", descricao: "" });
-  const [newLocal, setNewLocal] = useState({ nome: "", descricao: "", capacidade: "" });
+  const [showNovaUnidade, setShowNovaUnidade] = useState(false);
+  const [showNovaCategoria, setShowNovaCategoria] = useState(false);
+  const [showNovoLocal, setShowNovoLocal] = useState(false);
+  const [novaUnidade, setNovaUnidade] = useState({ sigla: "", descricao: "" });
+  const [novaCategoria, setNovaCategoria] = useState({ nome: "", subcategoria: "", descricao: "" });
+  const [novoLocal, setNovoLocal] = useState({ nome: "", descricao: "", capacidade: "" });
 
   const queryClient = useQueryClient();
 
-  // Buscar unidades de medida
   const { data: unidades = [] } = useQuery({
-    queryKey: ['unidades_medida'],
-    queryFn: async () => {
-      const data = await base44.entities.UnidadeMedida.list();
-      return data.sort((a, b) => a.sigla.localeCompare(b.sigla));
-    },
+    queryKey: ['unidades'],
+    queryFn: () => base44.entities.UnidadeMedida.list(),
+    initialData: [],
   });
 
-  // Buscar categorias
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias'],
-    queryFn: async () => {
-      const data = await base44.entities.Categoria.list();
-      return data.sort((a, b) => a.nome.localeCompare(b.nome));
-    },
+    queryFn: () => base44.entities.Categoria.list(),
+    initialData: [],
   });
 
-  // Buscar locais de estoque
   const { data: locais = [] } = useQuery({
-    queryKey: ['locais_estoque'],
-    queryFn: async () => {
-      const data = await base44.entities.LocalEstoque.list();
-      return data.sort((a, b) => a.nome.localeCompare(b.nome));
-    },
+    queryKey: ['locais'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+    initialData: [],
   });
 
-  // Mutation para criar unidade
   const createUnidadeMutation = useMutation({
-    mutationFn: (data) => base44.entities.UnidadeMedida.create(data),
+    mutationFn: async (data) => {
+      const allUnidades = await base44.entities.UnidadeMedida.list();
+      const maxNum = allUnidades.reduce((max, u) => {
+        const num = parseInt(u.numero_unidade);
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 0);
+      const proximoNumero = maxNum + 1;
+      return base44.entities.UnidadeMedida.create({ ...data, numero_unidade: String(proximoNumero) });
+    },
     onSuccess: (newUnidade) => {
-      queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
-      setFormData(prev => ({ ...prev, unidade_medida: newUnidade.sigla }));
-      setShowUnidadeDialog(false);
-      setNewUnidade({ sigla: "", descricao: "" });
+      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      setFormData({ ...formData, unidade_medida: newUnidade.sigla });
+      setShowNovaUnidade(false);
+      setNovaUnidade({ sigla: "", descricao: "" });
       toast.success('Unidade cadastrada com sucesso!');
     },
   });
 
-  // Mutation para criar categoria
   const createCategoriaMutation = useMutation({
-    mutationFn: (data) => base44.entities.Categoria.create(data),
-    onSuccess: (newCat) => {
+    mutationFn: async (data) => {
+      const allCategorias = await base44.entities.Categoria.list();
+      const maxNum = allCategorias.reduce((max, c) => {
+        const num = parseInt(c.numero_categoria);
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 0);
+      const proximoNumero = maxNum + 1;
+      return base44.entities.Categoria.create({ ...data, numero_categoria: String(proximoNumero) });
+    },
+    onSuccess: (newCategoria) => {
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
-      setFormData(prev => ({ ...prev, categoria: newCat.nome }));
-      setShowCategoriaDialog(false);
-      setNewCategoria({ nome: "", subcategoria: "", descricao: "" });
+      setFormData({ ...formData, categoria: newCategoria.nome });
+      setShowNovaCategoria(false);
+      setNovaCategoria({ nome: "", subcategoria: "", descricao: "" });
       toast.success('Categoria cadastrada com sucesso!');
     },
   });
 
-  // Mutation para criar local
   const createLocalMutation = useMutation({
-    mutationFn: (data) => base44.entities.LocalEstoque.create(data),
-    onSuccess: (newLoc) => {
-      queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
-      setFormData(prev => ({ ...prev, local_estoque: newLoc.nome }));
-      setShowLocalDialog(false);
-      setNewLocal({ nome: "", descricao: "", capacidade: "" });
-      toast.success('Local cadastrado com sucesso!');
+    mutationFn: async (data) => {
+      const allLocais = await base44.entities.LocalEstoque.list();
+      const maxNum = allLocais.reduce((max, l) => {
+        const num = parseInt(l.numero_local);
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 0);
+      const proximoNumero = maxNum + 1;
+      return base44.entities.LocalEstoque.create({ ...data, numero_local: String(proximoNumero) });
+    },
+    onSuccess: (newLocal) => {
+      queryClient.invalidateQueries({ queryKey: ['locais'] });
+      setFormData({ ...formData, local_estoque: newLocal.nome });
+      setShowNovoLocal(false);
+      setNovoLocal({ nome: "", descricao: "", capacidade: "" });
+      toast.success('Local de estoque cadastrado com sucesso!');
     },
   });
+
+  const handleChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validação antes de enviar
-    if (!formData.nome_produto || !formData.nome_produto.trim()) {
+    if (!formData.nome_produto?.trim()) {
       toast.error('Nome do produto é obrigatório!');
       return;
     }
 
-    // Garantir que os campos numéricos estão no formato correto
-    const dataToSubmit = {
-      ...formData,
+    const data = {
+      nome_produto: formData.nome_produto?.toUpperCase(),
+      codigo_interno: formData.codigo_interno?.toUpperCase() || undefined,
+      codigo_barras: formData.codigo_barras || undefined,
+      categoria: formData.categoria?.toUpperCase() || undefined,
+      descricao: formData.descricao?.toUpperCase() || undefined,
+      unidade_medida: formData.unidade_medida?.toUpperCase(),
       preco_custo: parseFloat(formData.preco_custo) || 0,
       preco_venda: parseFloat(formData.preco_venda) || 0,
-      estoque_atual: parseFloat(formData.estoque_atual) || 0,
-      estoque_minimo: parseFloat(formData.estoque_minimo) || 0
+      estoque_minimo: parseFloat(formData.estoque_minimo) || 0,
+      local_estoque: formData.local_estoque?.toUpperCase() || undefined,
+      observacoes: formData.observacoes?.toUpperCase() || undefined
     };
 
-    onSubmit(dataToSubmit);
-  };
-
-  const handleChange = (field, value) => {
-    if (typeof value === 'string' && !['codigo_barras', 'preco_custo', 'preco_venda', 'estoque_atual', 'estoque_minimo'].includes(field)) {
-      value = value.toUpperCase();
+    // Não incluir estoque_atual - será gerenciado por movimentações
+    if (!isEditing) {
+      data.estoque_atual = 0;
     }
-    setFormData(prev => ({ ...prev, [field]: value }));
+
+    onSubmit(data);
   };
 
-  const handleSaveUnidade = (e) => {
-    e.preventDefault();
-    if (!newUnidade.sigla || !newUnidade.descricao) {
+  const handleSalvarUnidade = () => {
+    if (!novaUnidade.sigla || !novaUnidade.descricao) {
       toast.error('Preencha todos os campos obrigatórios!');
       return;
     }
-    const dataToSend = {
-      sigla: newUnidade.sigla.toUpperCase(),
-      descricao: newUnidade.descricao.toUpperCase()
-    };
-    createUnidadeMutation.mutate(dataToSend);
+    createUnidadeMutation.mutate({
+      sigla: novaUnidade.sigla.toUpperCase(),
+      descricao: novaUnidade.descricao.toUpperCase()
+    });
   };
 
-  const handleSaveCategoria = (e) => {
-    e.preventDefault();
-    if (!newCategoria.nome) {
+  const handleSalvarCategoria = () => {
+    if (!novaCategoria.nome) {
       toast.error('Nome da categoria é obrigatório!');
       return;
     }
-    const dataToSend = {
-      nome: newCategoria.nome.toUpperCase(),
-      subcategoria: newCategoria.subcategoria?.toUpperCase() || undefined,
-      descricao: newCategoria.descricao?.toUpperCase() || undefined
-    };
-    createCategoriaMutation.mutate(dataToSend);
+    createCategoriaMutation.mutate({
+      nome: novaCategoria.nome.toUpperCase(),
+      subcategoria: novaCategoria.subcategoria?.toUpperCase() || undefined,
+      descricao: novaCategoria.descricao?.toUpperCase() || undefined
+    });
   };
 
-  const handleSaveLocal = (e) => {
-    e.preventDefault();
-    if (!newLocal.nome) {
+  const handleSalvarLocal = () => {
+    if (!novoLocal.nome) {
       toast.error('Nome do local é obrigatório!');
       return;
     }
-    const dataToSend = {
-      nome: newLocal.nome.toUpperCase(),
-      descricao: newLocal.descricao?.toUpperCase() || undefined,
-      capacidade: newLocal.capacidade?.toUpperCase() || undefined
-    };
-    createLocalMutation.mutate(dataToSend);
+    createLocalMutation.mutate({
+      nome: novoLocal.nome.toUpperCase(),
+      descricao: novoLocal.descricao?.toUpperCase() || undefined,
+      capacidade: novoLocal.capacidade?.toUpperCase() || undefined
+    });
   };
 
   return (
@@ -194,101 +204,69 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Identificação */}
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Package className="w-4 h-4 text-green-600" />
-                  Nome do Produto *
-                </Label>
-                <Input
-                  value={formData.nome_produto}
-                  onChange={(e) => handleChange('nome_produto', e.target.value)}
-                  placeholder="NOME DO PRODUTO"
-                  required
-                  className="border-slate-300 focus:border-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Hash className="w-4 h-4 text-blue-600" />
-                    Código Interno
-                  </Label>
+                  <Label className="text-slate-700 font-medium">Nome do Produto *</Label>
                   <Input
-                    value={formData.codigo_interno}
-                    onChange={(e) => handleChange('codigo_interno', e.target.value)}
-                    placeholder="CÓDIGO"
+                    value={formData.nome_produto}
+                    onChange={(e) => handleChange('nome_produto', e.target.value)}
+                    placeholder="NOME DO PRODUTO"
+                    required
                     className="border-slate-300 focus:border-green-500 uppercase"
                     style={{ textTransform: 'uppercase' }}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Barcode className="w-4 h-4 text-purple-600" />
-                    Código de Barras
-                  </Label>
+                  <Label className="text-slate-700 font-medium">Código Interno</Label>
                   <Input
-                    value={formData.codigo_barras}
-                    onChange={(e) => handleChange('codigo_barras', e.target.value)}
-                    placeholder="EAN/UPC"
-                    className="border-slate-300 focus:border-green-500"
+                    value={formData.codigo_interno}
+                    onChange={(e) => handleChange('codigo_interno', e.target.value)}
+                    placeholder="CÓDIGO INTERNO"
+                    className="border-slate-300 focus:border-green-500 uppercase"
+                    style={{ textTransform: 'uppercase' }}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-orange-600" />
-                    Categoria
-                  </Label>
+                  <Label className="text-slate-700 font-medium">Código de Barras</Label>
+                  <Input
+                    value={formData.codigo_barras}
+                    onChange={(e) => handleChange('codigo_barras', e.target.value)}
+                    placeholder="7891234567890"
+                    className="border-slate-300 focus:border-green-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Categoria</Label>
                   <div className="flex gap-2">
                     <Select value={formData.categoria} onValueChange={(value) => handleChange('categoria', value)}>
                       <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue placeholder="Selecione..." />
+                        <SelectValue placeholder="Selecione uma categoria" />
                       </SelectTrigger>
                       <SelectContent>
                         {categorias.map((cat) => (
                           <SelectItem key={cat.id} value={cat.nome}>
-                            {cat.nome}{cat.subcategoria ? ` - ${cat.subcategoria}` : ''}
+                            {cat.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowCategoriaDialog(true)}>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              {/* Descrição */}
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-600" />
-                  Descrição
-                </Label>
-                <Textarea
-                  value={formData.descricao}
-                  onChange={(e) => handleChange('descricao', e.target.value)}
-                  placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..."
-                  className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-
-              {/* Unidade e Preços */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Box className="w-4 h-4 text-cyan-600" />
-                    Unidade de Medida
-                  </Label>
+                  <Label className="text-slate-700 font-medium">Unidade de Medida *</Label>
                   <div className="flex gap-2">
                     <Select value={formData.unidade_medida} onValueChange={(value) => handleChange('unidade_medida', value)}>
                       <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue />
+                        <SelectValue placeholder="Selecione uma unidade" />
                       </SelectTrigger>
                       <SelectContent>
                         {unidades.map((un) => (
@@ -298,126 +276,99 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowUnidadeDialog(true)}>
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-amber-600" />
-                    Preço de Custo
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.preco_custo}
-                    onChange={(e) => handleChange('preco_custo', parseFloat(e.target.value) || 0)}
-                    placeholder="0,00"
-                    className="border-slate-300 focus:border-green-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    Preço de Venda
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.preco_venda}
-                    onChange={(e) => handleChange('preco_venda', parseFloat(e.target.value) || 0)}
-                    placeholder="0,00"
-                    className="border-slate-300 focus:border-green-500"
-                  />
-                </div>
               </div>
 
-              {/* Estoque */}
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-medium">Descrição</Label>
+                <Textarea
+                  value={formData.descricao}
+                  onChange={(e) => handleChange('descricao', e.target.value)}
+                  placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..."
+                  className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Box className="w-4 h-4 text-green-600" />
-                    Estoque Atual
-                  </Label>
+                  <Label className="text-slate-700 font-medium">Preço de Custo</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    min="0"
-                    value={formData.estoque_atual}
-                    onChange={(e) => handleChange('estoque_atual', parseFloat(e.target.value) || 0)}
-                    placeholder="0"
-                    className="border-slate-300 focus:border-green-500 text-lg font-semibold"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Box className="w-4 h-4 text-orange-600" />
-                    Estoque Mínimo
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.estoque_minimo}
-                    onChange={(e) => handleChange('estoque_minimo', parseFloat(e.target.value) || 0)}
-                    placeholder="0"
+                    value={formData.preco_custo}
+                    onChange={(e) => handleChange('preco_custo', e.target.value)}
+                    placeholder="0.00"
                     className="border-slate-300 focus:border-green-500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium flex items-center gap-2">
-                    <Warehouse className="w-4 h-4 text-indigo-600" />
-                    Local de Estoque
-                  </Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
-                      <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locais.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.nome}>
-                            {loc.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowLocalDialog(true)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Label className="text-slate-700 font-medium">Preço de Venda</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.preco_venda}
+                    onChange={(e) => handleChange('preco_venda', e.target.value)}
+                    placeholder="0.00"
+                    className="border-slate-300 focus:border-green-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-700 font-medium">Estoque Mínimo</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.estoque_minimo}
+                    onChange={(e) => handleChange('estoque_minimo', e.target.value)}
+                    placeholder="0"
+                    className="border-slate-300 focus:border-green-500"
+                  />
                 </div>
               </div>
 
-              {/* Observações */}
               <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-600" />
-                  Observações
-                </Label>
+                <Label className="text-slate-700 font-medium">Local de Estoque</Label>
+                <div className="flex gap-2">
+                  <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
+                    <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
+                      <SelectValue placeholder="Selecione um local" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locais.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.nome}>
+                          {loc.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-medium">Observações</Label>
                 <Textarea
                   value={formData.observacoes}
-                  onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
-                  placeholder="INFORMAÇÕES ADICIONAIS SOBRE O PRODUTO..."
+                  onChange={(e) => handleChange('observacoes', e.target.value)}
+                  placeholder="OBSERVAÇÕES GERAIS..."
                   className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                {onCancel && (
-                  <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                    <X className="w-4 h-4" />
-                    Cancelar
-                  </Button>
-                )}
+                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
+                  <X className="w-4 h-4" />
+                  Cancelar
+                </Button>
                 <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
                   <Save className="w-4 h-4" />
                   {isEditing ? 'Atualizar' : 'Salvar'} Produto
@@ -428,125 +379,144 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData = nu
         </Card>
       </motion.div>
 
-      {/* Dialog Nova Unidade */}
-      <Dialog open={showUnidadeDialog} onOpenChange={setShowUnidadeDialog}>
-        <DialogContent>
+      {/* Modal Nova Unidade */}
+      <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Unidade de Medida</DialogTitle>
-            <DialogDescription>Cadastre uma nova unidade de medida</DialogDescription>
+            <DialogDescription>Cadastre uma nova unidade para usar no produto</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveUnidade} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label>Sigla *</Label>
               <Input
-                value={newUnidade.sigla}
-                onChange={(e) => setNewUnidade({ ...newUnidade, sigla: e.target.value.toUpperCase() })}
-                placeholder="EX: UN, KG, LT"
-                required
-                maxLength={5}
+                value={novaUnidade.sigla}
+                onChange={(e) => setNovaUnidade({ ...novaUnidade, sigla: e.target.value })}
+                placeholder="EX: KG, UN, LT"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+                maxLength={10}
               />
             </div>
             <div className="space-y-2">
               <Label>Descrição *</Label>
               <Input
-                value={newUnidade.descricao}
-                onChange={(e) => setNewUnidade({ ...newUnidade, descricao: e.target.value.toUpperCase() })}
-                placeholder="UNIDADE, QUILOGRAMA, LITRO"
-                required
+                value={novaUnidade.descricao}
+                onChange={(e) => setNovaUnidade({ ...novaUnidade, descricao: e.target.value })}
+                placeholder="DESCRIÇÃO DA UNIDADE"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowUnidadeDialog(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createUnidadeMutation.isPending}>
-                {createUnidadeMutation.isPending ? 'Salvando...' : 'Salvar'}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSalvarUnidade} className="bg-green-600 hover:bg-green-700">
+                Salvar Unidade
               </Button>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Nova Categoria */}
-      <Dialog open={showCategoriaDialog} onOpenChange={setShowCategoriaDialog}>
-        <DialogContent>
+      {/* Modal Nova Categoria */}
+      <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Categoria</DialogTitle>
-            <DialogDescription>Cadastre uma nova categoria de produto</DialogDescription>
+            <DialogDescription>Cadastre uma nova categoria para usar no produto</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveCategoria} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome da Categoria *</Label>
+              <Label>Nome *</Label>
               <Input
-                value={newCategoria.nome}
-                onChange={(e) => setNewCategoria({ ...newCategoria, nome: e.target.value.toUpperCase() })}
-                placeholder="INSUMOS, FERRAMENTAS, ETC"
-                required
+                value={novaCategoria.nome}
+                onChange={(e) => setNovaCategoria({ ...novaCategoria, nome: e.target.value })}
+                placeholder="NOME DA CATEGORIA"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Subcategoria (Opcional)</Label>
+              <Label>Subcategoria</Label>
               <Input
-                value={newCategoria.subcategoria}
-                onChange={(e) => setNewCategoria({ ...newCategoria, subcategoria: e.target.value.toUpperCase() })}
-                placeholder="EX: HERBICIDAS, FUNGICIDAS"
+                value={novaCategoria.subcategoria}
+                onChange={(e) => setNovaCategoria({ ...novaCategoria, subcategoria: e.target.value })}
+                placeholder="SUBCATEGORIA"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Descrição (Opcional)</Label>
+              <Label>Descrição</Label>
               <Textarea
-                value={newCategoria.descricao}
-                onChange={(e) => setNewCategoria({ ...newCategoria, descricao: e.target.value.toUpperCase() })}
+                value={novaCategoria.descricao}
+                onChange={(e) => setNovaCategoria({ ...novaCategoria, descricao: e.target.value })}
                 placeholder="DESCRIÇÃO DA CATEGORIA"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCategoriaDialog(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createCategoriaMutation.isPending}>
-                {createCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSalvarCategoria} className="bg-green-600 hover:bg-green-700">
+                Salvar Categoria
               </Button>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Novo Local */}
-      <Dialog open={showLocalDialog} onOpenChange={setShowLocalDialog}>
-        <DialogContent>
+      {/* Modal Novo Local */}
+      <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Local de Estoque</DialogTitle>
-            <DialogDescription>Cadastre um novo local de estoque</DialogDescription>
+            <DialogDescription>Cadastre um novo local para usar no produto</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveLocal} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome do Local *</Label>
+              <Label>Nome *</Label>
               <Input
-                value={newLocal.nome}
-                onChange={(e) => setNewLocal({ ...newLocal, nome: e.target.value.toUpperCase() })}
-                placeholder="GALPÃO 1, DEPÓSITO A, ETC"
-                required
+                value={novoLocal.nome}
+                onChange={(e) => setNovoLocal({ ...novoLocal, nome: e.target.value })}
+                placeholder="NOME DO LOCAL"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={novoLocal.descricao}
+                onChange={(e) => setNovoLocal({ ...novoLocal, descricao: e.target.value })}
+                placeholder="DESCRIÇÃO DO LOCAL"
+                className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
             <div className="space-y-2">
               <Label>Capacidade</Label>
               <Input
-                value={newLocal.capacidade}
-                onChange={(e) => setNewLocal({ ...newLocal, capacidade: e.target.value.toUpperCase() })}
-                placeholder="EX: 500 SACAS, 10 TONELADAS"
+                value={novoLocal.capacidade}
+                onChange={(e) => setNovoLocal({ ...novoLocal, capacidade: e.target.value })}
+                placeholder="CAPACIDADE DO LOCAL"
                 className="uppercase"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowLocalDialog(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createLocalMutation.isPending}>
-                {createLocalMutation.isPending ? 'Salvando...' : 'Salvar'}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSalvarLocal} className="bg-green-600 hover:bg-green-700">
+                Salvar Local
               </Button>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </>
