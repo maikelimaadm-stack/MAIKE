@@ -3,8 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Users, Calendar, Settings, BarChart3, Eye, Table as TableIcon, List } from "lucide-react";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Package, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Users, Calendar, Settings, BarChart3, Eye, Table as TableIcon, List, TrendingDown } from "lucide-react";
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, subMonths } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,13 +15,14 @@ import { Badge } from "@/components/ui/badge";
 const CORES = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 const TIPOS_CARTAO = [
-  { id: 'produtos', label: 'Total de Produtos', icon: Package, cor: 'green', entidade: 'Produto' },
-  { id: 'estoque_valor', label: 'Valor em Estoque', icon: DollarSign, cor: 'blue', entidade: 'Produto' },
-  { id: 'estoque_baixo', label: 'Estoque Baixo', icon: AlertTriangle, cor: 'orange', entidade: 'Produto' },
-  { id: 'contas_pagar', label: 'Contas a Pagar', icon: ShoppingCart, cor: 'red', entidade: 'LancamentoFinanceiro' },
-  { id: 'contas_receber', label: 'Contas a Receber', icon: TrendingUp, cor: 'green', entidade: 'LancamentoFinanceiro' },
-  { id: 'fornecedores', label: 'Fornecedores', icon: Users, cor: 'purple', entidade: 'Fornecedor' },
-  { id: 'vencidos', label: 'Títulos Vencidos', icon: Calendar, cor: 'red', entidade: 'LancamentoFinanceiro' },
+  { id: 'produtos', label: 'Total de Produtos', icon: Package, cor: 'green', entidade: 'Produto', tipoValor: 'numero' },
+  { id: 'estoque_valor', label: 'Valor em Estoque', icon: DollarSign, cor: 'blue', entidade: 'Produto', tipoValor: 'moeda' },
+  { id: 'estoque_baixo', label: 'Estoque Baixo', icon: AlertTriangle, cor: 'orange', entidade: 'Produto', tipoValor: 'numero' },
+  { id: 'contas_pagar', label: 'Contas a Pagar', icon: TrendingDown, cor: 'red', entidade: 'LancamentoFinanceiro', tipoValor: 'moeda' },
+  { id: 'contas_receber', label: 'Contas a Receber', icon: TrendingUp, cor: 'green', entidade: 'LancamentoFinanceiro', tipoValor: 'moeda' },
+  { id: 'fornecedores', label: 'Fornecedores', icon: Users, cor: 'purple', entidade: 'Fornecedor', tipoValor: 'numero' },
+  { id: 'vencidos', label: 'Títulos Vencidos', icon: Calendar, cor: 'red', entidade: 'LancamentoFinanceiro', tipoValor: 'numero' },
+  { id: 'movimentacoes_mes', label: 'Movimentações (Mês)', icon: ShoppingCart, cor: 'indigo', entidade: 'MovimentacaoEstoque', tipoValor: 'numero' },
 ];
 
 const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -85,9 +86,13 @@ export default function Home() {
     const valorEstoque = produtos.reduce((sum, p) => sum + ((p.preco_custo || 0) * (p.estoque_atual || 0)), 0);
     const estoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0));
     
-    const contasPagar = lancamentosFinanceiros.filter(l => l.tipo === 'Pagar' && l.status !== 'Pago' && l.status !== 'Cancelado');
-    const contasReceber = lancamentosFinanceiros.filter(l => l.tipo === 'Receber' && l.status !== 'Pago' && l.status !== 'Cancelado');
+    const contasPagar = lancamentosFinanceiros.filter(l => l.tipo === 'Pagar' && l.status !== 'Pago' && l.status !== 'Cancelado' && !l.lancamento_pai_id);
+    const contasReceber = lancamentosFinanceiros.filter(l => l.tipo === 'Receber' && l.status !== 'Pago' && l.status !== 'Cancelado' && !l.lancamento_pai_id);
     const vencidos = lancamentosFinanceiros.filter(l => new Date(l.data_vencimento) < new Date() && l.status === 'Pendente');
+    
+    const mesAtual = new Date();
+    const inicioMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 1);
+    const movimentacoesMes = movimentacoes.filter(m => new Date(m.data_movimentacao) >= inicioMes);
     
     return {
       produtos: { valor: totalProdutos, dados: produtos },
@@ -97,8 +102,9 @@ export default function Home() {
       contas_receber: { valor: contasReceber.reduce((sum, c) => sum + (c.valor_saldo || c.valor_total || 0), 0), dados: contasReceber },
       fornecedores: { valor: fornecedores.length, dados: fornecedores },
       vencidos: { valor: vencidos.length, dados: vencidos },
+      movimentacoes_mes: { valor: movimentacoesMes.length, dados: movimentacoesMes },
     };
-  }, [produtos, lancamentosFinanceiros, fornecedores]);
+  }, [produtos, lancamentosFinanceiros, fornecedores, movimentacoes]);
 
   const dadosGraficos = useMemo(() => {
     const movimentacoesMes = [];
@@ -134,8 +140,36 @@ export default function Home() {
     });
     const estoquePorCategoria = Object.entries(categorias).map(([name, value]) => ({ name, value }));
 
-    return { movimentacoesMes, estoquePorCategoria };
-  }, [movimentacoes, produtos]);
+    const fluxoCaixaMes = [];
+    for (let i = 5; i >= 0; i--) {
+      const mes = subMonths(new Date(), i);
+      const inicioMes = new Date(mes.getFullYear(), mes.getMonth(), 1);
+      const fimMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
+      
+      const recebido = lancamentosFinanceiros.filter(l => 
+        l.tipo === 'Receber' && 
+        l.status === 'Pago' &&
+        new Date(l.data_vencimento) >= inicioMes && 
+        new Date(l.data_vencimento) <= fimMes
+      ).reduce((s, l) => s + (l.valor_pago || l.valor_total || 0), 0);
+      
+      const pago = lancamentosFinanceiros.filter(l => 
+        l.tipo === 'Pagar' && 
+        l.status === 'Pago' &&
+        new Date(l.data_vencimento) >= inicioMes && 
+        new Date(l.data_vencimento) <= fimMes
+      ).reduce((s, l) => s + (l.valor_pago || l.valor_total || 0), 0);
+      
+      fluxoCaixaMes.push({
+        mes: format(mes, 'MMM/yy'),
+        receitas: recebido,
+        despesas: pago,
+        saldo: recebido - pago
+      });
+    }
+
+    return { movimentacoesMes, estoquePorCategoria, fluxoCaixaMes };
+  }, [movimentacoes, produtos, lancamentosFinanceiros]);
 
   const toggleCartao = (cartaoId) => {
     setCartoesVisiveis(prev => {
@@ -154,6 +188,13 @@ export default function Home() {
   };
 
   const abrirDetalhes = (tipoCartao) => {
+    const stat = estatisticas[tipoCartao];
+    const tipo = TIPOS_CARTAO.find(t => t.id === tipoCartao);
+    
+    if (tipo?.tipoValor === 'moeda' && (!stat.dados || stat.dados.length === 0)) {
+      return;
+    }
+    
     setShowDetalhesCartao(tipoCartao);
     setTipoVisualizacao('resumo');
   };
@@ -181,15 +222,17 @@ export default function Home() {
         {TIPOS_CARTAO.filter(tipo => cartoesVisiveis.includes(tipo.id)).map((tipo) => {
           const Icon = tipo.icon;
           const stat = estatisticas[tipo.id];
-          const valorFormatado = ['estoque_valor', 'contas_pagar', 'contas_receber'].includes(tipo.id) 
+          const valorFormatado = tipo.tipoValor === 'moeda'
             ? formatarMoeda(stat.valor)
             : stat.valor.toLocaleString('pt-BR');
+          
+          const temDetalhes = stat.dados && stat.dados.length > 0;
 
           return (
             <Card 
               key={tipo.id} 
-              className={`shadow-lg border-${tipo.cor}-200 bg-gradient-to-br from-white to-${tipo.cor}-50 cursor-pointer hover:shadow-xl transition-shadow`}
-              onClick={() => abrirDetalhes(tipo.id)}
+              className={`shadow-lg border-${tipo.cor}-200 bg-gradient-to-br from-white to-${tipo.cor}-50 ${temDetalhes ? 'cursor-pointer hover:shadow-xl transition-shadow' : ''}`}
+              onClick={() => temDetalhes && abrirDetalhes(tipo.id)}
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-slate-700">{tipo.label}</CardTitle>
@@ -197,10 +240,12 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className={`text-3xl font-bold text-${tipo.cor}-900`}>{valorFormatado}</div>
-                <Button variant="ghost" size="sm" className="mt-2 w-full gap-2 hover:bg-white/50">
-                  <Eye className="w-3 h-3" />
-                  Ver Detalhes
-                </Button>
+                {temDetalhes && (
+                  <Button variant="ghost" size="sm" className="mt-2 w-full gap-2 hover:bg-white/50">
+                    <Eye className="w-3 h-3" />
+                    Ver Detalhes
+                  </Button>
+                )}
               </CardContent>
             </Card>
           );
@@ -211,7 +256,7 @@ export default function Home() {
         {graficosVisiveis.includes('movimentacoes_mes') && (
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="text-slate-900">Movimentações de Estoque (Últimos 6 Meses)</CardTitle>
+              <CardTitle className="text-slate-900">Movimentações de Estoque (6 Meses)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -253,6 +298,28 @@ export default function Home() {
                   </Pie>
                   <Tooltip />
                 </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {graficosVisiveis.includes('fluxo_caixa') && (
+          <Card className="shadow-lg lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-slate-900">Fluxo de Caixa (6 Meses)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={dadosGraficos.fluxoCaixaMes}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => formatarMoeda(value)} />
+                  <Legend />
+                  <Line type="monotone" dataKey="receitas" stroke="#10b981" name="Receitas" strokeWidth={2} />
+                  <Line type="monotone" dataKey="despesas" stroke="#ef4444" name="Despesas" strokeWidth={2} />
+                  <Line type="monotone" dataKey="saldo" stroke="#3b82f6" name="Saldo" strokeWidth={2} />
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -299,6 +366,12 @@ export default function Home() {
                 Estoque por Categoria
               </label>
             </div>
+            <div className="flex items-center space-x-3">
+              <Checkbox checked={graficosVisiveis.includes('fluxo_caixa')} onCheckedChange={() => toggleGrafico('fluxo_caixa')} />
+              <label className="cursor-pointer flex-1" onClick={() => toggleGrafico('fluxo_caixa')}>
+                Fluxo de Caixa (Receitas x Despesas)
+              </label>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -308,12 +381,14 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="flex justify-between items-center">
               <span>{TIPOS_CARTAO.find(t => t.id === showDetalhesCartao)?.label}</span>
-              <Tabs value={tipoVisualizacao} onValueChange={setTipoVisualizacao} className="w-auto">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="resumo" className="gap-1"><List className="w-3 h-3" />Resumo</TabsTrigger>
-                  <TabsTrigger value="tabela" className="gap-1"><TableIcon className="w-3 h-3" />Tabela</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {estatisticas[showDetalhesCartao]?.dados?.length > 0 && (
+                <Tabs value={tipoVisualizacao} onValueChange={setTipoVisualizacao} className="w-auto">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="resumo" className="gap-1"><List className="w-3 h-3" />Resumo</TabsTrigger>
+                    <TabsTrigger value="tabela" className="gap-1"><TableIcon className="w-3 h-3" />Tabela</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -327,10 +402,22 @@ export default function Home() {
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Estoque Baixo</div><div className="text-2xl font-bold text-orange-600">{produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0)).length}</div></CardContent></Card>
                   </>
                 )}
-                {['contas_pagar', 'contas_receber', 'vencidos'].includes(showDetalhesCartao) && (
+                {showDetalhesCartao === 'estoque_baixo' && (
+                  <>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Produtos Baixos</div><div className="text-2xl font-bold text-orange-600">{estatisticas.estoque_baixo.dados.length}</div></CardContent></Card>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">% do Total</div><div className="text-2xl font-bold">{produtos.length > 0 ? ((estatisticas.estoque_baixo.dados.length / produtos.length) * 100).toFixed(0) : 0}%</div></CardContent></Card>
+                  </>
+                )}
+                {['contas_pagar', 'contas_receber'].includes(showDetalhesCartao) && (
                   <>
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Quantidade</div><div className="text-2xl font-bold">{estatisticas[showDetalhesCartao].dados.length}</div></CardContent></Card>
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Valor Total</div><div className="text-2xl font-bold">{formatarMoeda(estatisticas[showDetalhesCartao].valor)}</div></CardContent></Card>
+                  </>
+                )}
+                {showDetalhesCartao === 'vencidos' && (
+                  <>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Quantidade</div><div className="text-2xl font-bold text-red-600">{estatisticas.vencidos.dados.length}</div></CardContent></Card>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Valor Total</div><div className="text-2xl font-bold text-red-600">{formatarMoeda(estatisticas.vencidos.dados.reduce((s, v) => s + (v.valor_saldo || v.valor_total || 0), 0))}</div></CardContent></Card>
                   </>
                 )}
                 {showDetalhesCartao === 'fornecedores' && (
@@ -338,6 +425,13 @@ export default function Home() {
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Total</div><div className="text-2xl font-bold">{fornecedores.length}</div></CardContent></Card>
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Pessoa Física</div><div className="text-2xl font-bold">{fornecedores.filter(f => f.tipo_pessoa === 'Física').length}</div></CardContent></Card>
                     <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Pessoa Jurídica</div><div className="text-2xl font-bold">{fornecedores.filter(f => f.tipo_pessoa === 'Jurídica').length}</div></CardContent></Card>
+                  </>
+                )}
+                {showDetalhesCartao === 'movimentacoes_mes' && (
+                  <>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Total Mês</div><div className="text-2xl font-bold">{estatisticas.movimentacoes_mes.valor}</div></CardContent></Card>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Entradas</div><div className="text-2xl font-bold text-green-600">{estatisticas.movimentacoes_mes.dados.filter(m => m.tipo_movimentacao === 'Entrada').length}</div></CardContent></Card>
+                    <Card><CardContent className="p-4"><div className="text-xs text-slate-600">Saídas</div><div className="text-2xl font-bold text-red-600">{estatisticas.movimentacoes_mes.dados.filter(m => m.tipo_movimentacao === 'Saída').length}</div></CardContent></Card>
                   </>
                 )}
               </div>
@@ -356,11 +450,20 @@ export default function Home() {
                           <TableHead className="text-right">Valor</TableHead>
                         </>
                       )}
+                      {showDetalhesCartao === 'estoque_baixo' && (
+                        <>
+                          <TableHead>Produto</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead className="text-right">Atual</TableHead>
+                          <TableHead className="text-right">Mínimo</TableHead>
+                          <TableHead className="text-right">Diferença</TableHead>
+                        </>
+                      )}
                       {['contas_pagar', 'contas_receber', 'vencidos'].includes(showDetalhesCartao) && (
                         <>
                           <TableHead>Nº</TableHead>
                           <TableHead>Vencimento</TableHead>
-                          <TableHead>{showDetalhesCartao === 'contas_pagar' ? 'Fornecedor' : 'Cliente'}</TableHead>
+                          <TableHead>{showDetalhesCartao === 'contas_pagar' || showDetalhesCartao === 'vencidos' ? 'Fornecedor' : 'Cliente'}</TableHead>
                           <TableHead className="text-right">Saldo</TableHead>
                           <TableHead>Status</TableHead>
                         </>
@@ -371,6 +474,14 @@ export default function Home() {
                           <TableHead>Tipo</TableHead>
                           <TableHead>Cidade</TableHead>
                           <TableHead>Telefone</TableHead>
+                        </>
+                      )}
+                      {showDetalhesCartao === 'movimentacoes_mes' && (
+                        <>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Quantidade</TableHead>
                         </>
                       )}
                     </TableRow>
@@ -384,6 +495,15 @@ export default function Home() {
                             <TableCell className="font-mono text-xs">{item.codigo_interno || '-'}</TableCell>
                             <TableCell className="text-right font-semibold">{item.estoque_atual || 0}</TableCell>
                             <TableCell className="text-right">{formatarMoeda((item.preco_custo || 0) * (item.estoque_atual || 0))}</TableCell>
+                          </>
+                        )}
+                        {showDetalhesCartao === 'estoque_baixo' && (
+                          <>
+                            <TableCell>{item.nome_produto}</TableCell>
+                            <TableCell className="font-mono text-xs">{item.codigo_interno || '-'}</TableCell>
+                            <TableCell className="text-right text-orange-600 font-semibold">{item.estoque_atual || 0}</TableCell>
+                            <TableCell className="text-right">{item.estoque_minimo || 0}</TableCell>
+                            <TableCell className="text-right text-red-600 font-bold">{(item.estoque_minimo || 0) - (item.estoque_atual || 0)}</TableCell>
                           </>
                         )}
                         {['contas_pagar', 'contas_receber', 'vencidos'].includes(showDetalhesCartao) && (
@@ -401,6 +521,14 @@ export default function Home() {
                             <TableCell><Badge variant="outline">{item.tipo_pessoa}</Badge></TableCell>
                             <TableCell className="text-xs">{item.cidade || '-'}</TableCell>
                             <TableCell className="text-xs">{item.telefone || '-'}</TableCell>
+                          </>
+                        )}
+                        {showDetalhesCartao === 'movimentacoes_mes' && (
+                          <>
+                            <TableCell className="text-xs">{new Date(item.data_movimentacao).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell><Badge className={item.tipo_movimentacao === 'Entrada' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>{item.tipo_movimentacao}</Badge></TableCell>
+                            <TableCell>{item.produto_nome}</TableCell>
+                            <TableCell className="text-right font-mono">{item.quantidade}</TableCell>
                           </>
                         )}
                       </TableRow>
