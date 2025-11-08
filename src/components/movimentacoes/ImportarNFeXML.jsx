@@ -186,11 +186,16 @@ export default function ImportarNFeXML({ open, onClose, onSuccess, produtos, for
 
     setProcessando(true);
     try {
+      // Mostrar nome do arquivo
+      toast.info(`📄 Processando: ${file.name}`);
+      
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
+      toast.info('🔍 Extraindo dados do XML...');
       const response = await fetch(file_url);
       const xmlText = await response.text();
 
+      toast.info('🤖 Analisando nota fiscal...');
       const resultado = await base44.integrations.Core.InvokeLLM({
         prompt: `Você é um extrator de dados de NF-e. Extraia os dados do XML abaixo e retorne EXATAMENTE no formato JSON solicitado.
 
@@ -275,6 +280,8 @@ Retorne um JSON com esta estrutura EXATA:
         return;
       }
 
+      toast.info('✅ XML processado com sucesso!');
+      
       const movimentacoes = await base44.entities.MovimentacaoEstoque.list();
       const jaImportada = movimentacoes.find(m => m.chave_documento === resultado.chave);
       
