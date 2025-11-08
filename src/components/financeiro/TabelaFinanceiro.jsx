@@ -1,11 +1,10 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, DollarSign, Search, Settings, Eye, ArrowUpDown } from "lucide-react";
+import { Edit, Trash2, DollarSign, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -22,7 +21,7 @@ const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currenc
 const formatarData = (dataString) => {
   if (!dataString) return '-';
   try {
-    const date = new Date(dataString + 'T00:00:00'); // Ensure date is parsed as UTC to avoid timezone issues with YYYY-MM-DD
+    const date = new Date(dataString + 'T00:00:00');
     if (isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('pt-BR');
   } catch {
@@ -35,7 +34,7 @@ const calcularDias = (dataVencimento) => {
   try {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const venc = new Date(dataVencimento + 'T00:00:00'); // Ensure date is parsed as UTC to avoid timezone issues
+    const venc = new Date(dataVencimento + 'T00:00:00');
     if (isNaN(venc.getTime())) return '-';
     venc.setHours(0, 0, 0, 0);
     const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
@@ -78,7 +77,8 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, isLoading, fornecedores, produtos }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [ordenacao, setOrdenacao] = useState("vencimento_asc");
+  const [sortField, setSortField] = useState("vencimento");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -102,6 +102,22 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     localStorage.setItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`, JSON.stringify(novasColunas));
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-green-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-green-600" />;
+  };
+
   const lancamentosFiltrados = lancamentos.filter((l) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -114,22 +130,68 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   });
 
   const lancamentosOrdenados = [...lancamentosFiltrados].sort((a, b) => {
-    switch (ordenacao) {
-      case 'vencimento_asc':
-        return new Date(a.data_vencimento) - new Date(b.data_vencimento);
-      case 'vencimento_desc':
-        return new Date(b.data_vencimento) - new Date(a.data_vencimento);
-      case 'valor_asc':
-        return (a.valor_total || 0) - (b.valor_total || 0);
-      case 'valor_desc':
-        return (b.valor_total || 0) - (a.valor_total || 0);
-      case 'status_asc':
-        return (a.status || '').localeCompare(b.status || '');
-      case 'status_desc':
-        return (b.status || '').localeCompare(a.status || '');
+    let aValue, bValue;
+
+    switch (sortField) {
+      case 'numero':
+        aValue = parseInt(a.numero_lancamento) || 0;
+        bValue = parseInt(b.numero_lancamento) || 0;
+        break;
+      case 'emissao':
+        aValue = new Date(a.data_emissao).getTime();
+        bValue = new Date(b.data_emissao).getTime();
+        break;
+      case 'vencimento':
+        aValue = new Date(a.data_vencimento).getTime();
+        bValue = new Date(b.data_vencimento).getTime();
+        break;
+      case 'fornecedor_cliente':
+        aValue = (a.fornecedor_nome || a.cliente_nome || '').toLowerCase();
+        bValue = (b.fornecedor_nome || b.cliente_nome || '').toLowerCase();
+        break;
+      case 'documento':
+        aValue = (a.numero_documento || '').toLowerCase();
+        bValue = (b.numero_documento || '').toLowerCase();
+        break;
+      case 'valor_original':
+        aValue = a.valor_original || 0;
+        bValue = b.valor_original || 0;
+        break;
+      case 'valor_total':
+        aValue = a.valor_total || 0;
+        bValue = b.valor_total || 0;
+        break;
+      case 'valor_pago':
+        aValue = a.valor_pago || 0;
+        bValue = b.valor_pago || 0;
+        break;
+      case 'saldo':
+        aValue = a.valor_saldo || a.valor_total || 0;
+        bValue = b.valor_saldo || b.valor_total || 0;
+        break;
+      case 'status':
+        aValue = (a.status || '').toLowerCase();
+        bValue = (b.status || '').toLowerCase();
+        break;
+      case 'safra':
+        aValue = (a.safra_nome || '').toLowerCase();
+        bValue = (b.safra_nome || '').toLowerCase();
+        break;
+      case 'centro_custo':
+        aValue = (a.centro_custo_nome || '').toLowerCase();
+        bValue = (b.centro_custo_nome || '').toLowerCase();
+        break;
+      case 'forma_pagamento':
+        aValue = (a.forma_pagamento_nome || '').toLowerCase();
+        bValue = (b.forma_pagamento_nome || '').toLowerCase();
+        break;
       default:
         return 0;
     }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
 
   const abrirDetalhes = (lancamento) => {
@@ -158,22 +220,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" title="Ordenar">
-                    <ArrowUpDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Ordenar Por</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem checked={ordenacao === 'vencimento_asc'} onCheckedChange={() => setOrdenacao('vencimento_asc')}>Vencimento (Próximo)</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={ordenacao === 'vencimento_desc'} onCheckedChange={() => setOrdenacao('vencimento_desc')}>Vencimento (Distante)</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={ordenacao === 'valor_desc'} onCheckedChange={() => setOrdenacao('valor_desc')}>Valor (Maior)</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={ordenacao === 'valor_asc'} onCheckedChange={() => setOrdenacao('valor_asc')}>Valor (Menor)</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={ordenacao === 'status_asc'} onCheckedChange={() => setOrdenacao('status_asc')}>Status (A-Z)</DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" title="Configurar Colunas">
                     <Settings className="w-4 h-4" />
                   </Button>
@@ -196,20 +242,72 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  {colunasVisiveis.includes('numero') && <TableHead>Nº</TableHead>}
-                  {colunasVisiveis.includes('emissao') && <TableHead>Emissão</TableHead>}
-                  {colunasVisiveis.includes('vencimento') && <TableHead>Vencimento</TableHead>}
+                  {colunasVisiveis.includes('numero') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('numero')}>
+                      <div className="flex items-center">Nº {getSortIcon('numero')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('emissao') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('emissao')}>
+                      <div className="flex items-center">Emissão {getSortIcon('emissao')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('vencimento') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('vencimento')}>
+                      <div className="flex items-center">Vencimento {getSortIcon('vencimento')}</div>
+                    </TableHead>
+                  )}
                   {colunasVisiveis.includes('dias') && <TableHead>Dias</TableHead>}
-                  {colunasVisiveis.includes('fornecedor_cliente') && <TableHead>{tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}</TableHead>}
-                  {colunasVisiveis.includes('documento') && <TableHead>Documento</TableHead>}
-                  {colunasVisiveis.includes('valor_original') && <TableHead className="text-right">Vlr Original</TableHead>}
-                  {colunasVisiveis.includes('valor_total') && <TableHead className="text-right">Vlr Total</TableHead>}
-                  {colunasVisiveis.includes('valor_pago') && <TableHead className="text-right">Pago</TableHead>}
-                  {colunasVisiveis.includes('saldo') && <TableHead className="text-right">Saldo</TableHead>}
-                  {colunasVisiveis.includes('status') && <TableHead>Status</TableHead>}
-                  {colunasVisiveis.includes('safra') && <TableHead>Safra</TableHead>}
-                  {colunasVisiveis.includes('centro_custo') && <TableHead>Centro Custo</TableHead>}
-                  {colunasVisiveis.includes('forma_pagamento') && <TableHead>Forma Pgto</TableHead>}
+                  {colunasVisiveis.includes('fornecedor_cliente') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('fornecedor_cliente')}>
+                      <div className="flex items-center">{tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'} {getSortIcon('fornecedor_cliente')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('documento') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('documento')}>
+                      <div className="flex items-center">Documento {getSortIcon('documento')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('valor_original') && (
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('valor_original')}>
+                      <div className="flex items-center justify-end">Vlr Original {getSortIcon('valor_original')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('valor_total') && (
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('valor_total')}>
+                      <div className="flex items-center justify-end">Vlr Total {getSortIcon('valor_total')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('valor_pago') && (
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('valor_pago')}>
+                      <div className="flex items-center justify-end">Pago {getSortIcon('valor_pago')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('saldo') && (
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('saldo')}>
+                      <div className="flex items-center justify-end">Saldo {getSortIcon('saldo')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('status') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
+                      <div className="flex items-center">Status {getSortIcon('status')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('safra') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('safra')}>
+                      <div className="flex items-center">Safra {getSortIcon('safra')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('centro_custo') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('centro_custo')}>
+                      <div className="flex items-center">Centro Custo {getSortIcon('centro_custo')}</div>
+                    </TableHead>
+                  )}
+                  {colunasVisiveis.includes('forma_pagamento') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('forma_pagamento')}>
+                      <div className="flex items-center">Forma Pgto {getSortIcon('forma_pagamento')}</div>
+                    </TableHead>
+                  )}
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -242,11 +340,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           <TableCell className="max-w-xs truncate">
                             <div className="flex items-center gap-2">
                               <span>{lancamento.fornecedor_nome || lancamento.cliente_nome || '-'}</span>
-                              {(tipo === 'Pagar' && lancamento.fornecedor_id) && (
-                                <Button size="sm" variant="ghost" onClick={() => abrirDetalhes(lancamento)} className="h-6 w-6 p-0">
-                                  <Eye className="w-3 h-3" />
-                                </Button>
-                              )}
+                              <Button size="sm" variant="ghost" onClick={() => abrirDetalhes(lancamento)} className="h-6 w-6 p-0">
+                                <Eye className="w-3 h-3" />
+                              </Button>
                             </div>
                           </TableCell>
                         )}
