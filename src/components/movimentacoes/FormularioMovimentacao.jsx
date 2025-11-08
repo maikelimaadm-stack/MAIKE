@@ -28,8 +28,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     observacoes: ""
   });
 
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-
   const { data: locais = [] } = useQuery({
     queryKey: ['locais'],
     queryFn: () => base44.entities.LocalEstoque.list(),
@@ -60,7 +58,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    // Validações específicas por tipo
     if (formData.tipo_movimentacao === 'Entrada') {
       if (!formData.local_estoque_destino) {
         toast.error('Informe o local de destino para entrada!');
@@ -273,7 +270,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label>Valor Unitário</Label>
                     <Input
@@ -292,9 +289,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       type="number"
                       step="0.01"
                       value={formData.valor_total}
-                      onChange={(e) => handleChange('valor_total', e.target.value)}
                       placeholder="0.00"
-                      className="border-slate-300 focus:border-green-500"
+                      className="border-slate-300 focus:border-green-500 bg-slate-50"
                       readOnly
                     />
                   </div>

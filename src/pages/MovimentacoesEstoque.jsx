@@ -2,27 +2,11 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
@@ -54,11 +38,6 @@ const getNextSystemNumber = async () => {
 export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
-  const [showImportProgress, setShowImportProgress] = useState(false);
-  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
-  const [showErrorDialog, setShowErrorDialog] = useState(false);
-  const [importErrors, setImportErrors] = useState([]);
-  const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -91,7 +70,6 @@ export default function MovimentacoesEstoque() {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Numerar movimentações existentes
   useEffect(() => {
     const numerarMovimentacoes = async () => {
       const movSemNumero = movimentacoes.filter(m => !m.numero_movimentacao || m.numero_movimentacao === '');
@@ -120,7 +98,6 @@ export default function MovimentacoesEstoque() {
     mutationFn: async (data) => {
       const result = await base44.entities.MovimentacaoEstoque.create(data);
       
-      // Atualizar estoque do produto
       const produto = produtos.find(p => p.id === data.produto_id);
       if (produto) {
         let novoEstoque = produto.estoque_atual || 0;
@@ -277,7 +254,6 @@ export default function MovimentacoesEstoque() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -324,7 +300,6 @@ export default function MovimentacoesEstoque() {
         </Card>
       </div>
 
-      {/* Botões */}
       {!showForm && (
         <div className="flex justify-between items-center">
           <div className="flex gap-3">
@@ -344,7 +319,6 @@ export default function MovimentacoesEstoque() {
         </div>
       )}
 
-      {/* Formulário */}
       <AnimatePresence>
         {showForm && (
           <FormularioMovimentacao
@@ -358,7 +332,6 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
-      {/* Tabela */}
       <TabelaMovimentacoes
         movimentacoes={movimentacoes}
         onEdit={handleEdit}
