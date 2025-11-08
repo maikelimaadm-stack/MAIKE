@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Save, X, Plus, Trash2, Package } from "lucide-react";
+import { DollarSign, Save, X, Plus, Trash2, Package, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
@@ -26,6 +25,11 @@ const parseNumero = (str) => {
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return "R$ 0,00";
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, safras }) {
   const [abaAtiva, setAbaAtiva] = useState("dados");
   const [formData, setFormData] = useState({
@@ -33,7 +37,6 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     fornecedor_id: "",
     cliente_nome: "",
     safra_id: "",
-    produto_id: "",
     centro_custo_id: "",
     plano_contas_id: "",
     grupo_id: "",
@@ -51,7 +54,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     parcelar: false,
     parcelas: [],
     produtos_lancamento: [],
-    ...initialData // Apply initialData here, overwriting defaults if present
+    ...initialData
   });
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
@@ -107,8 +110,8 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       setFormData(prev => ({
         ...prev,
         parcelas: [
-          { data: prev.data_vencimento, valor: valorParcela },
-          { data: calcularDataProximaMes(prev.data_vencimento), valor: valorParcela }
+          { data: prev.data_vencimento, valor: formatarNumero(valorParcela) },
+          { data: calcularDataProximaMes(prev.data_vencimento), valor: formatarNumero(valorParcela) }
         ]
       }));
     }
@@ -128,7 +131,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
     
     setFormData(prev => ({
       ...prev,
-      parcelas: [...prev.parcelas, { data: proximaData, valor: valorParcela }]
+      parcelas: [...prev.parcelas, { data: proximaData, valor: formatarNumero(valorParcela) }]
     }));
   };
 
@@ -202,7 +205,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
   const aplicarTotalProdutos = () => {
     const total = calcularTotalProdutos();
     setFormData(prev => ({ ...prev, valor_original: formatarNumero(total) }));
-    toast.success('Valor original atualizado com base nos produtos!');
+    toast.success('Valor atualizado com produtos!');
   };
 
   const handleChange = (field, value) => {
@@ -229,7 +232,6 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
     const safra = safras.find(s => s.id === formData.safra_id);
-    const produto = produtos.find(p => p.id === formData.produto_id);
     const centro = centros.find(c => c.id === formData.centro_custo_id);
     const plano = planos.find(p => p.id === formData.plano_contas_id);
     const grupo = grupos.find(g => g.id === formData.grupo_id);
@@ -243,8 +245,6 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
       safra_id: formData.safra_id || undefined,
       safra_nome: safra ? `${safra.ano_inicio}/${safra.ano_fim}` : undefined,
-      produto_id: formData.produto_id || undefined,
-      produto_nome: produto?.nome_produto,
       centro_custo_id: formData.centro_custo_id || undefined,
       centro_custo_nome: centro?.nome,
       plano_contas_id: formData.plano_contas_id || undefined,
@@ -262,7 +262,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       valor_multa: parseNumero(formData.valor_multa),
       valor_desconto: parseNumero(formData.valor_desconto),
       observacoes: formData.observacoes?.toUpperCase() || undefined,
-      parcelas: formData.parcelar ? formData.parcelas : undefined,
+      parcelas: formData.parcelar ? formData.parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : undefined,
       produtos_lancamento: formData.produtos_lancamento.length > 0 ? formData.produtos_lancamento : undefined
     };
 
@@ -270,7 +270,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
   };
 
   const valorTotal = parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
-  const totalParcelas = (formData.parcelas || []).reduce((sum, p) => sum + (parseNumero(String(p.valor)) || 0), 0);
+  const totalParcelas = (formData.parcelas || []).reduce((sum, p) => sum + parseNumero(p.valor), 0);
   const totalProdutos = calcularTotalProdutos();
 
   return (
@@ -293,7 +293,10 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                   <Package className="w-4 h-4" />
                   Produtos ({formData.produtos_lancamento.length})
                 </TabsTrigger>
-                <TabsTrigger value="pagamento">Pagamento</TabsTrigger>
+                <TabsTrigger value="pagamento" className="gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Vencimento/Parcelas
+                </TabsTrigger>
               </TabsList>
 
               <form onSubmit={handleSubmit}>
@@ -302,9 +305,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <div className="space-y-2">
                       <Label>Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Pagar">Conta a Pagar</SelectItem>
                           <SelectItem value="Receber">Conta a Receber</SelectItem>
@@ -315,9 +316,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <div className="space-y-2">
                       <Label>Tipo Documento *</Label>
                       <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="NF-e">NF-e</SelectItem>
                           <SelectItem value="NFC-e">NFC-e</SelectItem>
@@ -339,13 +338,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <div className="space-y-2">
                       <Label>Fornecedor *</Label>
                       <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
-                          {fornecedores.map(f => (
-                            <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                          ))}
+                          {fornecedores.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -362,34 +357,16 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <div className="space-y-2">
                       <Label>Safra</Label>
                       <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione (opcional)" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                         <SelectContent>
-                          {safras.map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>
-                          ))}
+                          {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Produto (Opcional)</Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.produto_id} onValueChange={(v) => handleChange('produto_id', v)} className="flex-1">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {produtos.map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <Label>Data Emissão *</Label>
+                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
                     </div>
                   </div>
 
@@ -398,13 +375,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       <Label>Centro de Custo</Label>
                       <div className="flex gap-2">
                         <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {centros.map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                            ))}
+                            {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
@@ -417,13 +390,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       <Label>Plano de Contas</Label>
                       <div className="flex gap-2">
                         <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
-                            ))}
+                            {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
@@ -436,13 +405,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       <Label>Grupo</Label>
                       <div className="flex gap-2">
                         <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => (
-                              <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>
-                            ))}
+                            {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
@@ -452,34 +417,18 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label>Data Emissão *</Label>
-                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Data Vencimento *</Label>
-                      <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Forma de Pagamento</Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {formasPagamento.map(f => (
-                              <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <div className="flex gap-2">
+                      <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {formasPagamento.map(f => <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
 
@@ -503,7 +452,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       <CardContent className="p-12 text-center text-slate-400">
                         <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Nenhum produto adicionado</p>
-                        <p className="text-xs mt-1">Clique em "Adicionar Produto" para começar</p>
+                        <p className="text-xs mt-1">Produtos são opcionais</p>
                       </CardContent>
                     </Card>
                   ) : (
@@ -527,13 +476,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                                 <TableCell>
                                   <div className="flex gap-2">
                                     <Select value={prod.produto_id} onValueChange={(v) => atualizarProduto(idx, 'produto_id', v)} className="flex-1">
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Selecione" />
-                                      </SelectTrigger>
+                                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                                       <SelectContent>
-                                        {produtos.map(p => (
-                                          <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
-                                        ))}
+                                        {produtos.map(p => <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>)}
                                       </SelectContent>
                                     </Select>
                                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
@@ -550,7 +495,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                                 <TableCell>
                                   <Input value={prod.desconto} onChange={(e) => atualizarProduto(idx, 'desconto', e.target.value)} className="w-24 text-right" placeholder="0,00" />
                                 </TableCell>
-                                <TableCell className="text-right font-mono font-bold">R$ {formatarNumero(total.toFixed(2))}</TableCell>
+                                <TableCell className="text-right font-mono font-bold">{formatarMoeda(total)}</TableCell>
                                 <TableCell>
                                   <Button type="button" variant="ghost" size="icon" onClick={() => removerProduto(idx)} className="hover:bg-red-50 hover:text-red-700">
                                     <Trash2 className="w-4 h-4" />
@@ -562,19 +507,19 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                         </TableBody>
                       </Table>
 
-                      <Card className="bg-blue-50 border-blue-300">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-center">
+                      {totalProdutos > 0 && (
+                        <Card className="bg-blue-50 border-blue-300">
+                          <CardContent className="p-4 flex justify-between items-center">
                             <span className="font-semibold">Total dos Produtos:</span>
                             <div className="flex items-center gap-3">
-                              <span className="text-2xl font-bold text-blue-700">R$ {formatarNumero(totalProdutos.toFixed(2))}</span>
+                              <span className="text-2xl font-bold text-blue-700">{formatarMoeda(totalProdutos)}</span>
                               <Button type="button" size="sm" onClick={aplicarTotalProdutos} variant="outline">
                                 Aplicar ao Valor Original
                               </Button>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                          </CardContent>
+                        </Card>
+                      )}
                     </>
                   )}
                 </TabsContent>
@@ -606,7 +551,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                     <CardContent className="p-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-slate-700">Valor Total:</span>
-                        <span className="text-2xl font-bold text-blue-700">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
+                        <span className="text-2xl font-bold text-blue-700">{formatarMoeda(valorTotal)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -614,14 +559,21 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                   {!initialData && (
                     <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
                       <div className="flex items-center space-x-2">
-                        <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} />
-                        <label className="font-semibold">Parcelar este lançamento</label>
+                        <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
+                        <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar este lançamento</label>
                       </div>
+
+                      {!formData.parcelar && (
+                        <div className="space-y-2">
+                          <Label>Data de Vencimento *</Label>
+                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                        </div>
+                      )}
 
                       {formData.parcelar && (
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                            <Label>Configure as parcelas:</Label>
+                            <Label>Configurar Parcelas ({formData.parcelas.length})</Label>
                             <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
                               <Plus className="w-4 h-4" />
                               Adicionar Parcela
@@ -631,9 +583,9 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Parcela</TableHead>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Valor</TableHead>
+                                <TableHead className="w-16">Nº</TableHead>
+                                <TableHead>Data Vencimento</TableHead>
+                                <TableHead className="text-right">Valor (R$)</TableHead>
                                 <TableHead className="w-12"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -645,7 +597,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                                     <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
                                   </TableCell>
                                   <TableCell>
-                                    <Input value={formatarNumero(parcela.valor)} onChange={(e) => atualizarParcela(index, 'valor', parseNumero(e.target.value))} placeholder="0,00" />
+                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" />
                                   </TableCell>
                                   <TableCell>
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2}>
@@ -659,16 +611,18 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
 
                           <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
                             <CardContent className="p-3">
-                              <div className="flex justify-between text-sm">
-                                <span>Total Parcelas:</span>
-                                <span className="font-bold">R$ {formatarNumero(totalParcelas.toFixed(2))}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span>Valor Lançamento:</span>
-                                <span className="font-bold">R$ {formatarNumero(valorTotal.toFixed(2))}</span>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Total Parcelas:</span>
+                                  <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Valor Lançamento:</span>
+                                  <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                                </div>
                               </div>
                               {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                                <p className="text-xs text-red-600 mt-2">⚠️ Valores devem ser iguais!</p>
+                                <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores devem ser iguais!</p>
                               )}
                             </CardContent>
                           </Card>
@@ -698,62 +652,11 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
         </Card>
       </motion.div>
 
-      <DialogCadastroRapido
-        tipo="centro_custo"
-        open={showDialogCentro}
-        onClose={() => setShowDialogCentro(false)}
-        onSuccess={(id) => {
-          queryClient.invalidateQueries({ queryKey: ['centros_form'] });
-          handleChange('centro_custo_id', id);
-          setShowDialogCentro(false);
-        }}
-      />
-
-      <DialogCadastroRapido
-        tipo="plano_contas"
-        open={showDialogPlano}
-        onClose={() => setShowDialogPlano(false)}
-        onSuccess={(id) => {
-          queryClient.invalidateQueries({ queryKey: ['planos_form'] });
-          handleChange('plano_contas_id', id);
-          setShowDialogPlano(false);
-        }}
-        tipoFinanceiro={formData.tipo === 'Pagar' ? 'Despesa' : 'Receita'}
-      />
-
-      <DialogCadastroRapido
-        tipo="grupo_financeiro"
-        open={showDialogGrupo}
-        onClose={() => setShowDialogGrupo(false)}
-        onSuccess={(id) => {
-          queryClient.invalidateQueries({ queryKey: ['grupos_form'] });
-          handleChange('grupo_id', id);
-          setShowDialogGrupo(false);
-        }}
-        tipoFinanceiro={formData.tipo === 'Pagar' ? 'Despesa' : 'Receita'}
-      />
-
-      <DialogCadastroRapido
-        tipo="forma_pagamento"
-        open={showDialogForma}
-        onClose={() => setShowDialogForma(false)}
-        onSuccess={(id) => {
-          queryClient.invalidateQueries({ queryKey: ['formas_form'] });
-          handleChange('forma_pagamento_id', id);
-          setShowDialogForma(false);
-        }}
-      />
-
-      <DialogCadastroRapido
-        tipo="produto"
-        open={showDialogProduto}
-        onClose={() => setShowDialogProduto(false)}
-        onSuccess={(id) => {
-          queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-          handleChange('produto_id', id);
-          setShowDialogProduto(false);
-        }}
-      />
+      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_form'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
+      <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_form'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} tipoFinanceiro={formData.tipo === 'Pagar' ? 'Despesa' : 'Receita'} />
+      <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_form'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} tipoFinanceiro={formData.tipo === 'Pagar' ? 'Despesa' : 'Receita'} />
+      <DialogCadastroRapido tipo="forma_pagamento" open={showDialogForma} onClose={() => setShowDialogForma(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['formas_form'] }); handleChange('forma_pagamento_id', id); setShowDialogForma(false); }} />
+      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] }); setShowDialogProduto(false); }} />
     </>
   );
 }
