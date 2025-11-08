@@ -4,12 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, Download, Upload } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro";
-import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro";
-import BaixaFinanceira from "../components/financeiro/BaixaFinanceira";
+import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
+import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
+import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
@@ -68,7 +67,6 @@ export default function Financeiro() {
     mutationFn: async (data) => {
       const numero = await getNextNumber(empresaSelecionadaId);
       
-      // Calcular valor total
       const valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
       
       const lancamento = {
@@ -81,7 +79,6 @@ export default function Financeiro() {
         status: 'Pendente'
       };
 
-      // Se for parcelado, criar as parcelas
       if (data.total_parcelas && data.total_parcelas > 1) {
         const lancamentoPai = await base44.entities.LancamentoFinanceiro.create(lancamento);
         
@@ -200,7 +197,6 @@ export default function Financeiro() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Cabeçalho */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-green-900">Controle Financeiro</h1>
@@ -214,7 +210,6 @@ export default function Financeiro() {
         )}
       </div>
 
-      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-lg border-red-200 bg-gradient-to-br from-white to-red-50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -250,7 +245,6 @@ export default function Financeiro() {
         </Card>
       </div>
 
-      {/* Formulário ou Baixa */}
       {showForm && (
         <FormularioFinanceiro
           onSubmit={handleSubmit}
@@ -274,7 +268,6 @@ export default function Financeiro() {
         />
       )}
 
-      {/* Tabelas com Abas */}
       {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
