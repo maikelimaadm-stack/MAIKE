@@ -549,7 +549,7 @@ ${xmlText}`,
       gerarEstoque,
       gerarLivroFiscal,
       parcelar,
-      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : []
+      parcelas: parcelar ? parcelas : []
     });
   };
 
@@ -722,7 +722,7 @@ ${xmlText}`,
                   <TableBody>
                     {itensNFe.map((item) => {
                       const isEdit = editandoItemIndex === item.index;
-                      const total = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustado);
+                      const total = parseNumero(item.quantidade_ajustada) * parseNumero(item.valor_unitario_ajustada);
 
                       return (
                         <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
@@ -738,7 +738,7 @@ ${xmlText}`,
                             {isEdit ? <Input value={item.quantidade_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)} className="w-20" /> : <span className="font-mono">{item.quantidade_ajustada}</span>}
                           </TableCell>
                           <TableCell className="text-right">
-                            {isEdit ? <Input value={item.valor_unitario_ajustado} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)} className="w-24" /> : <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>}
+                            {isEdit ? <Input value={item.valor_unitario_ajustada} onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustada', e.target.value)} className="w-24" /> : <span className="font-mono">R$ {item.valor_unitario_ajustada}</span>}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-green-700">R$ {formatarNumero(total)}</TableCell>
                           <TableCell>
