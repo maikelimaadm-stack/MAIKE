@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft, DollarSign, Home } from "lucide-react";
+import { Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, Thermometer, Building2, ChevronDown, TrendingUp, ArrowRightLeft, DollarSign, Home, BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
@@ -82,6 +82,16 @@ const navigationItems = [
     ],
   },
   {
+    title: "Fiscal",
+    icon: BookOpen,
+    submenu: [
+      {
+        title: "Livros Fiscais",
+        url: createPageUrl("LivrosFiscais"),
+      },
+    ],
+  },
+  {
     title: "Cadastros",
     icon: FolderOpen,
     submenu: [
@@ -138,6 +148,10 @@ const navigationItems = [
       {
         title: "Histórico de Entregas",
         url: createPageUrl("RelatorioHistoricoEntregas"),
+      },
+      {
+        title: "Relatório Financeiro",
+        url: createPageUrl("RelatorioFinanceiro"),
       },
       {
         title: "Lista de Fornecedores",

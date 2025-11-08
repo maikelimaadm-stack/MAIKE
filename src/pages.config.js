@@ -23,6 +23,7 @@ import FormasPagamento from './pages/FormasPagamento';
 import GruposFinanceiros from './pages/GruposFinanceiros';
 import Financeiro from './pages/Financeiro';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
+import LivrosFiscais from './pages/LivrosFiscais';
 import Layout from './Layout.jsx';
 
 
@@ -52,6 +53,7 @@ export const PAGES = {
     "GruposFinanceiros": GruposFinanceiros,
     "Financeiro": Financeiro,
     "RelatorioFinanceiro": RelatorioFinanceiro,
+    "LivrosFiscais": LivrosFiscais,
 }
 
 export const pagesConfig = {
