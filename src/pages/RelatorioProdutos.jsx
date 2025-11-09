@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, Package } from "lucide-react";
+import { Printer, Settings, Package, FileText } from "lucide-react"; // Added FileText
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -30,11 +30,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Added Select imports
+} from "@/components/ui/select";
+import { toast } from "sonner"; // Added toast
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog imports
+import CartoesResumo from "../components/shared/CartoesResumo"; // Added CartoesResumo
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
   return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+const formatarMoeda = (valor) => {
+  if (typeof valor !== 'number') return '0,00';
+  return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const COLUNAS_DISPONIVEIS = [
@@ -63,6 +71,7 @@ const ORDENACAO_OPCOES = [
 export default function RelatorioProdutos() {
   const [orientacao, setOrientacao] = useState("retrato");
   const [ordenacao, setOrdenacao] = useState('nome_asc');
+  const [showConfig, setShowConfig] = useState(false); // New state for config dialog
 
   // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -86,12 +95,12 @@ export default function RelatorioProdutos() {
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [produtosSelecionados, setProdutosSelecionados] = useState([]);
-  const [unidadesSelecionadas, setUnidadesSelecionadas] = useState([]); // Added new state
+  const [unidadesSelecionadas, setUnidadesSelecionadas] = useState([]);
 
   // Filtros de busca por texto
-  const [buscaCodigo, setBuscaCodigo] = useState(""); // Added new state
-  const [buscaBarras, setBuscaBarras] = useState(""); // Added new state
-  const [buscaNome, setBuscaNome] = useState(""); // Added new state
+  const [buscaCodigo, setBuscaCodigo] = useState("");
+  const [buscaBarras, setBuscaBarras] = useState("");
+  const [buscaNome, setBuscaNome] = useState("");
 
   // Pegar empresa selecionada
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -119,16 +128,16 @@ export default function RelatorioProdutos() {
 
   const categoriasUnicas = [...new Set(produtos.map(p => p.categoria))].filter(Boolean);
   const produtosUnicos = produtos.map(p => ({ id: p.id, nome: p.nome_produto }));
-  const unidadesUnicas = [...new Set(produtos.map(p => p.unidade_medida))].filter(Boolean); // Added new unique list
+  const unidadesUnicas = [...new Set(produtos.map(p => p.unidade_medida))].filter(Boolean);
 
   const produtosFiltrados = useMemo(() => {
     let filtered = produtos.filter(p => {
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(p.categoria)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(p.id)) return false;
-      if (unidadesSelecionadas.length > 0 && !unidadesSelecionadas.includes(p.unidade_medida)) return false; // Added filter
-      if (buscaCodigo && !p.codigo_interno?.toLowerCase().includes(buscaCodigo.toLowerCase())) return false; // Added filter
-      if (buscaBarras && !p.codigo_barras?.includes(buscaBarras)) return false; // Added filter
-      if (buscaNome && !p.nome_produto?.toLowerCase().includes(buscaNome.toLowerCase())) return false; // Added filter
+      if (unidadesSelecionadas.length > 0 && !unidadesSelecionadas.includes(p.unidade_medida)) return false;
+      if (buscaCodigo && !p.codigo_interno?.toLowerCase().includes(buscaCodigo.toLowerCase())) return false;
+      if (buscaBarras && !p.codigo_barras?.includes(buscaBarras)) return false;
+      if (buscaNome && !p.nome_produto?.toLowerCase().includes(buscaNome.toLowerCase())) return false;
       return true;
     });
 
@@ -181,10 +190,10 @@ export default function RelatorioProdutos() {
   const limparFiltros = () => {
     setCategoriasSelecionadas([]);
     setProdutosSelecionados([]);
-    setUnidadesSelecionadas([]); // Added reset
-    setBuscaCodigo(""); // Added reset
-    setBuscaBarras(""); // Added reset
-    setBuscaNome(""); // Added reset
+    setUnidadesSelecionadas([]);
+    setBuscaCodigo("");
+    setBuscaBarras("");
+    setBuscaNome("");
   };
 
   const selecionarTodasCategorias = () => {
@@ -211,217 +220,220 @@ export default function RelatorioProdutos() {
     setUnidadesSelecionadas([]);
   };
 
-  const imprimir = () => {
-    window.print();
-  };
+  // Removed the 'imprimir' function as window.print() is called directly now.
 
   const valorTotalEstoque = produtosFiltrados.reduce((sum, p) => sum + ((p.preco_custo || 0) * (p.estoque_atual || 0)), 0);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <Package className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Lista de Produtos</h1>
-            <p className="text-green-700">Configure e imprima o relatório</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Lista de Produtos</h1>
+          <p className="text-xs text-slate-600">Relatório completo</p>
         </div>
-        <Button onClick={imprimir} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </Button>
+          <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
-      <Card className="shadow-lg border-green-200 print:hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Orientação</Label>
-              <select
-                value={orientacao}
-                onChange={(e) => setOrientacao(e.target.value)}
-                className="w-full h-10 px-3 border rounded-md"
-              >
-                <option value="retrato">Retrato</option>
-                <option value="paisagem">Paisagem</option>
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Ordenar Por</Label>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Ordenar por..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORDENACAO_OPCOES.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Buscas por texto */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Buscar por Nome</Label>
-              <Input
-                placeholder="Digite o nome..."
-                value={buscaNome}
-                onChange={(e) => setBuscaNome(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Buscar por Código</Label>
-              <Input
-                placeholder="Digite o código interno..."
-                value={buscaCodigo}
-                onChange={(e) => setBuscaCodigo(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Buscar por Cód. Barras</Label>
-              <Input
-                placeholder="Digite o código de barras..."
-                value={buscaBarras}
-                onChange={(e) => setBuscaBarras(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="sm:max-w-[700px] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Configurações do Relatório</DialogTitle>
+          </DialogHeader>
+          <Card className="shadow-none border-none"> {/* Removed shadow-lg border-green-200 */}
+            <CardContent className="p-6 space-y-4"> {/* Kept p-6 space-y-4 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Selecione Produtos</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>
-                        Todos
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>
-                        Nenhum
-                      </Button>
-                    </div>
-                  </div>
-                  {produtosUnicos.map(produto => (
-                    <div key={produto.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={produtosSelecionados.includes(produto.id)}
-                        onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, produto.id)}
-                      />
-                      <label className="text-sm cursor-pointer">{produto.nome}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Selecione Categorias</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasCategorias}>
-                        Todos
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasCategorias}>
-                        Nenhum
-                      </Button>
-                    </div>
-                  </div>
-                  {categoriasUnicas.map(categoria => (
-                    <div key={categoria} className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={categoriasSelecionadas.includes(categoria)}
-                        onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, categoria)}
-                      />
-                      <label className="text-sm cursor-pointer">{categoria}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  Unidades {unidadesSelecionadas.length > 0 && `(${unidadesSelecionadas.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Unidades de Medida</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasUnidades}>
-                        Todos
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasUnidades}>
-                        Nenhum
-                      </Button>
-                    </div>
-                  </div>
-                  {unidadesUnicas.map(unidade => (
-                    <div key={unidade} className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={unidadesSelecionadas.includes(unidade)}
-                        onCheckedChange={() => toggleFiltro(unidadesSelecionadas, setUnidadesSelecionadas, unidade)}
-                      />
-                      <label className="text-sm cursor-pointer">{unidade}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-slate-300">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
+                  <Label>Orientação</Label>
+                  <select
+                    value={orientacao}
+                    onChange={(e) => setOrientacao(e.target.value)}
+                    className="w-full h-10 px-3 border rounded-md"
                   >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <option value="retrato">Retrato</option>
+                    <option value="paisagem">Paisagem</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Ordenar Por</Label>
+                  <Select value={ordenacao} onValueChange={setOrdenacao}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Ordenar por..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDENACAO_OPCOES.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Buscas por texto */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Buscar por Nome</Label>
+                  <Input
+                    placeholder="Digite o nome..."
+                    value={buscaNome}
+                    onChange={(e) => setBuscaNome(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Buscar por Código</Label>
+                  <Input
+                    placeholder="Digite o código interno..."
+                    value={buscaCodigo}
+                    onChange={(e) => setBuscaCodigo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Buscar por Cód. Barras</Label>
+                  <Input
+                    placeholder="Digite o código de barras..."
+                    value={buscaBarras}
+                    onChange={(e) => setBuscaBarras(e.target.value)}
+                  />
+                </div>
+              </div>
 
+              <div className="flex gap-3 flex-wrap">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Selecione Produtos</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>
+                            Todos
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>
+                            Nenhum
+                          </Button>
+                        </div>
+                      </div>
+                      {produtosUnicos.map(produto => (
+                        <div key={produto.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={produtosSelecionados.includes(produto.id)}
+                            onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, produto.id)}
+                          />
+                          <label className="text-sm cursor-pointer">{produto.nome}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Selecione Categorias</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasCategorias}>
+                            Todos
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasCategorias}>
+                            Nenhum
+                          </Button>
+                        </div>
+                      </div>
+                      {categoriasUnicas.map(categoria => (
+                        <div key={categoria} className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={categoriasSelecionadas.includes(categoria)}
+                            onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, categoria)}
+                          />
+                          <label className="text-sm cursor-pointer">{categoria}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      Unidades {unidadesSelecionadas.length > 0 && `(${unidadesSelecionadas.length})`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Unidades de Medida</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodasUnidades}>
+                            Todos
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodasUnidades}>
+                            Nenhum
+                          </Button>
+                        </div>
+                      </div>
+                      {unidadesUnicas.map(unidade => (
+                        <div key={unidade} className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={unidadesSelecionadas.includes(unidade)}
+                            onCheckedChange={() => toggleFiltro(unidadesSelecionadas, setUnidadesSelecionadas, unidade)}
+                          />
+                          <label className="text-sm cursor-pointer">{unidade}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2 border-slate-300">
+                      <Settings className="w-4 h-4" />
+                      Colunas
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
+                    <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {COLUNAS_DISPONIVEIS.map((coluna) => (
+                      <DropdownMenuCheckboxItem
+                        key={coluna.id}
+                        checked={colunasVisiveis.includes(coluna.id)}
+                        onCheckedChange={() => toggleColuna(coluna.id)}
+                      >
+                        {coluna.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
+      
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
           @media print {

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, TrendingUp } from "lucide-react";
+import { FileText, Printer, Settings, BarChart3 } from "lucide-react"; // Updated lucide-react import
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -25,6 +25,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner"; // New import
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // New import
+import CartoesResumo from "../components/shared/CartoesResumo"; // New import
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -54,7 +57,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'valor_unitario', label: 'Valor Unit.', default: true },
   { id: 'valor_total', label: 'Valor Total', default: true },
   { id: 'prazo_entrega', label: 'Prazo Entrega', default: true },
-  { id: 'data_entrega', label: 'Data Entrega', default: false },
+  { id: 'data_entrega', label: 'Data Entr.', default: false },
   { id: 'status', label: 'Status', default: true },
   { id: 'forma_pagamento', label: 'Forma Pagamento', default: false },
   { id: 'observacoes', label: 'Observações', default: false },
@@ -78,10 +81,11 @@ export default function RelatorioCustosSafra() {
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('numero_desc');
   const [tipoVisualizacao, setTipoVisualizacao] = useState('detalhado');
-  const [tipoRelatorio, setTipoRelatorio] = useState("analitico"); // New state
-  const [dataInicio, setDataInicio] = useState(""); // New state
-  const [dataFim, setDataFim] = useState(""); // New state
-  
+  const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [showConfig, setShowConfig] = useState(false); // NEW STATE ADDED
+
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('colunas_relatorio_custos_safra');
@@ -102,7 +106,8 @@ export default function RelatorioCustosSafra() {
   const [statusSelecionados, setStatusSelecionados] = useState([]);
   const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
-  const empresaSelecionadaId = typeof window !== 'undefined' ? localStorage.getItem('empresa_selecionada_id') : null;
+  // CHANGED: Removed typeof window !== 'undefined' check as per outline
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: custos = [] } = useQuery({
     queryKey: ['custos_relatorio', empresaSelecionadaId],
@@ -302,9 +307,11 @@ export default function RelatorioCustosSafra() {
     setAgrupamentosAtivos([]);
     setOrdenacao('numero_desc');
     setTipoVisualizacao('detalhado');
-    setTipoRelatorio('analitico'); // Reset new state
-    setDataInicio(''); // Reset new state
-    setDataFim(''); // Reset new state
+    setTipoRelatorio('analitico');
+    setDataInicio('');
+    setDataFim('');
+    setShowConfig(false); // Close config dialog
+    toast.info("Filtros limpos com sucesso."); // Show toast notification
   };
 
   const imprimir = () => window.print();
@@ -321,217 +328,225 @@ export default function RelatorioCustosSafra() {
   const desmarcarTodosStatus = () => setStatusSelecionados([]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <TrendingUp className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Relatório de Custos de Safra</h1>
-            <p className="text-green-700">Configure e imprima o relatório</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-2"> {/* Changed main div classes */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"> {/* Changed header div classes */}
+        <div> {/* Removed previous flex items-center gap-3 div */}
+          {/* Removed icon div and icon */}
+          <h1 className="text-xl font-bold text-slate-900">Relatório de Custos de Safra</h1> {/* Changed h1 classes */}
+          <p className="text-xs text-slate-600">Análise e impressão</p> {/* Changed p classes and text */}
         </div>
-        <Button onClick={imprimir} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2"> {/* Added flex gap-2 for buttons */}
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </Button>
+          <Button onClick={imprimir} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"> {/* Changed button classes */}
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
-      <Card className="shadow-lg border-green-200 print:hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Orientação</Label>
-              <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
-                <option value="retrato">Retrato</option>
-                <option value="paisagem">Paisagem</option>
-              </select>
-            </div>
-            {/* New: Tipo de Relatório */}
-            <div className="space-y-2">
-              <Label>Tipo de Relatório</Label>
-              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="analitico">Analítico</SelectItem>
-                  <SelectItem value="sintetico">Sintético</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {/* End New: Tipo de Relatório */}
-            <div className="space-y-2">
-              <Label>Tipo de Visualização</Label>
-              <Select value={tipoVisualizacao} onValueChange={setTipoVisualizacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="detalhado">Detalhado (Todos Lançamentos)</SelectItem>
-                  <SelectItem value="agrupado">Agrupado (Soma Valores)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ordenar Por</Label>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORDENACAO_OPCOES.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Buscar em Observações</Label>
-              <Input placeholder="Digite para buscar..." value={buscaObservacoes} onChange={(e) => setBuscaObservacoes(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Agrupar Por (Múltipla Seleção)</Label>
-            <div className="flex flex-wrap gap-2">
-              {['safra', 'fornecedor', 'produto', 'status'].map((tipo) => (
-                <Button key={tipo} variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} size="sm" onClick={() => toggleAgrupamento(tipo)} className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}>
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                  {agrupamentosAtivos.includes(tipo) && (
-                    <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                      {agrupamentosAtivos.indexOf(tipo) + 1}
-                    </span>
-                  )}
-                </Button>
-              ))}
-            </div>
-            {agrupamentosAtivos.length > 0 && (
-              <p className="text-xs text-slate-600">
-                <strong>Ordem:</strong> {agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
-              </p>
-            )}
-          </div>
-
-          <div className="flex gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">Safras {safrasSelecionadas.length > 0 && `(${safrasSelecionadas.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
+      {/* Dialog for Filters and Configurations */}
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:hidden">
+          <DialogHeader>
+            <DialogTitle>Filtros e Configurações</DialogTitle>
+          </DialogHeader>
+          <Card className="shadow-none border-0"> {/* Removed shadow and border, now inside dialog. Removed old CardHeader */}
+            <CardContent className="p-0 space-y-4"> {/* Changed padding to p-0 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Selecione Safras</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosSafras}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosSafras}>Nenhum</Button>
-                    </div>
-                  </div>
-                  {safrasUnicas.map(safra => (
-                    <div key={safra} className="flex items-center space-x-2">
-                      <Checkbox checked={safrasSelecionadas.includes(safra)} onCheckedChange={() => toggleFiltro(safrasSelecionadas, setSafrasSelecionadas, safra)} />
-                      <label className="text-sm cursor-pointer">{safra}</label>
-                    </div>
+                  <Label>Orientação</Label>
+                  <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
+                    <option value="retrato">Retrato</option>
+                    <option value="paisagem">Paisagem</option>
+                  </select>
+                </div>
+                {/* New: Tipo de Relatório */}
+                <div className="space-y-2">
+                  <Label>Tipo de Relatório</Label>
+                  <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="analitico">Analítico</SelectItem>
+                      <SelectItem value="sintetico">Sintético</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* End New: Tipo de Relatório */}
+                <div className="space-y-2">
+                  <Label>Tipo de Visualização</Label>
+                  <Select value={tipoVisualizacao} onValueChange={setTipoVisualizacao}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="detalhado">Detalhado (Todos Lançamentos)</SelectItem>
+                      <SelectItem value="agrupado">Agrupado (Soma Valores)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Ordenar Por</Label>
+                  <Select value={ordenacao} onValueChange={setOrdenacao}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDENACAO_OPCOES.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Buscar em Observações</Label>
+                  <Input placeholder="Digite para buscar..." value={buscaObservacoes} onChange={(e) => setBuscaObservacoes(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Agrupar Por (Múltipla Seleção)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {['safra', 'fornecedor', 'produto', 'status'].map((tipo) => (
+                    <Button key={tipo} variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} size="sm" onClick={() => toggleAgrupamento(tipo)} className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}>
+                      {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                      {agrupamentosAtivos.includes(tipo) && (
+                        <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                          {agrupamentosAtivos.indexOf(tipo) + 1}
+                        </span>
+                      )}
+                    </Button>
                   ))}
                 </div>
-              </PopoverContent>
-            </Popover>
+                {agrupamentosAtivos.length > 0 && (
+                  <p className="text-xs text-slate-600">
+                    <strong>Ordem:</strong> {agrupamentosAtivos.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' → ')}
+                  </p>
+                )}
+              </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Fornecedores</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosFornecedores}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosFornecedores}>Nenhum</Button>
+              <div className="flex gap-3 flex-wrap">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">Safras {safrasSelecionadas.length > 0 && `(${safrasSelecionadas.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Selecione Safras</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosSafras}>Todos</Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosSafras}>Nenhum</Button>
+                        </div>
+                      </div>
+                      {safrasUnicas.map(safra => (
+                        <div key={safra} className="flex items-center space-x-2">
+                          <Checkbox checked={safrasSelecionadas.includes(safra)} onCheckedChange={() => toggleFiltro(safrasSelecionadas, setSafrasSelecionadas, safra)} />
+                          <label className="text-sm cursor-pointer">{safra}</label>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {fornecedoresUnicos.map(f => (
-                    <div key={f} className="flex items-center space-x-2">
-                      <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
-                      <label className="text-sm cursor-pointer">{f}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </PopoverContent>
+                </Popover>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Produtos</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>Nenhum</Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Fornecedores</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosFornecedores}>Todos</Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosFornecedores}>Nenhum</Button>
+                        </div>
+                      </div>
+                      {fornecedoresUnicos.map(f => (
+                        <div key={f} className="flex items-center space-x-2">
+                          <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
+                          <label className="text-sm cursor-pointer">{f}</label>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {produtosUnicos.map(p => (
-                    <div key={p} className="flex items-center space-x-2">
-                      <Checkbox checked={produtosSelecionados.includes(p)} onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, p)} />
-                      <label className="text-sm cursor-pointer">{p}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </PopoverContent>
+                </Popover>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">Status {statusSelecionados.length > 0 && `(${statusSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-semibold text-sm">Status</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosStatus}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosStatus}>Nenhum</Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                        <h4 className="font-semibold text-sm">Produtos</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>Todos</Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>Nenhum</Button>
+                        </div>
+                      </div>
+                      {produtosUnicos.map(p => (
+                        <div key={p} className="flex items-center space-x-2">
+                          <Checkbox checked={produtosSelecionados.includes(p)} onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, p)} />
+                          <label className="text-sm cursor-pointer">{p}</label>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {statusUnicos.map(s => (
-                    <div key={s} className="flex items-center space-x-2">
-                      <Checkbox checked={statusSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(statusSelecionados, setStatusSelecionados, s)} />
-                      <label className="text-sm cursor-pointer">{s}</label>
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">Status {statusSelecionados.length > 0 && `(${statusSelecionados.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold text-sm">Status</h4>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosStatus}>Todos</Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosStatus}>Nenhum</Button>
+                        </div>
+                      </div>
+                      {statusUnicos.map(s => (
+                        <div key={s} className="flex items-center space-x-2">
+                          <Checkbox checked={statusSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(statusSelecionados, setStatusSelecionados, s)} />
+                          <label className="text-sm cursor-pointer">{s}</label>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </PopoverContent>
+                </Popover>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem key={coluna.id} checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)}>
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Settings className="w-4 h-4" />
+                      Colunas
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {COLUNAS_DISPONIVEIS.map((coluna) => (
+                      <DropdownMenuCheckboxItem key={coluna.id} checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)}>
+                        {coluna.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-            <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
-          </div>
-        </CardContent>
-      </Card>
+                <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
+
 
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
@@ -637,7 +652,7 @@ export default function RelatorioCustosSafra() {
                         );
                       })}
                       <TableRow className="bg-gray-100 font-bold">
-                        <TableCell colSpan={Math.max(1, colunasVisiveis.indexOf('quantidade') > -1 ? colunasVisiveis.indexOf('quantidade') : 0)} className="border border-black text-xs py-1">
+                        <TableCell colSpan={colunasVisiveis.indexOf('quantidade') > -1 ? colunasVisiveis.indexOf('quantidade') : (colunasVisiveis.length > 0 ? 1 : 0)} className="border border-black text-xs py-1">
                           SUBTOTAL ({registros.length} registro(s))
                         </TableCell>
                         {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{formatarNumero(totalQtdGrupo)}</TableCell>}

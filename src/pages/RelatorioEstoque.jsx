@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, Package } from "lucide-react";
+import { FileText, Printer, Settings, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -24,6 +25,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -90,6 +94,7 @@ export default function RelatorioEstoque() {
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('nome_asc');
   const [filtroSituacao, setFiltroSituacao] = useState('todos');
+  const [showConfig, setShowConfig] = useState(false); // State for the config dialog
   
   const getColunasDisponiveis = () => {
     switch (tipoRelatorio) {
@@ -298,237 +303,250 @@ export default function RelatorioEstoque() {
     setOrdenacao('nome_asc');
   };
 
-  const imprimir = () => window.print();
-
   const totalItens = produtosFiltrados.length;
   const totalValorEstoque = produtosFiltrados.reduce((sum, p) => sum + (p.valor_total_estoque || 0), 0);
   const totalEstoqueBaixo = produtosFiltrados.filter(p => p.situacao === 'Baixo').length;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Controles */}
-      <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <Package className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Relatório de Estoque</h1>
-            <p className="text-green-700">Configure e imprima o relatório</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Relatório de Estoque</h1>
+          <p className="text-xs text-slate-600">Posição atual</p>
         </div>
-        <Button onClick={imprimir} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2 print:hidden"> {/* Added print:hidden here */}
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </Button>
+          <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <Card className="shadow-lg border-green-200 print:hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Relatório</Label>
-              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
-                  <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
-                  <SelectItem value="por_nfe">Por NF-e</SelectItem>
-                  <SelectItem value="por_local">Por Local de Estoque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Orientação</Label>
-              <Select value={orientacao} onValueChange={setOrientacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="retrato">Retrato</SelectItem>
-                  <SelectItem value="paisagem">Paisagem</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {tipoRelatorio === 'analitico' && (
-              <div className="space-y-2">
-                <Label>Ordenar Por</Label>
-                <Select value={ordenacao} onValueChange={setOrdenacao}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDENACAO_OPCOES.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
-              <div className="space-y-2">
-                <Label>Situação do Estoque</Label>
-                <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="baixo">Estoque Baixo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+      {/* Cartões de Resumo - Visível apenas fora da impressão */}
+      <div className="print:hidden">
+        <CartoesResumo
+          data={[
+            { id: 'total_itens', label: 'Total de Itens', value: totalItens, icon: Package },
+            { id: 'valor_total', label: 'Valor Total do Estoque', value: `R$ ${formatarNumero(totalValorEstoque)}`, icon: FileText },
+            { id: 'estoque_baixo', label: 'Itens em Estoque Baixo', value: totalEstoqueBaixo, icon: FileText, subText: "Verificar reposição" },
+          ]}
+        />
+      </div>
 
-          {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Buscar por Nome</Label>
-                <Input placeholder="Digite o nome..." value={buscaNome} onChange={(e) => setBuscaNome(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Buscar por Código</Label>
-                <Input placeholder="Digite o código..." value={buscaCodigo} onChange={(e) => setBuscaCodigo(e.target.value)} />
-              </div>
-            </div>
-          )}
-
-          {tipoRelatorio !== 'por_nfe' && (
-            <div className="space-y-2">
-              <Label>Agrupar Por (Múltipla Seleção)</Label>
-              <div className="flex flex-wrap gap-2">
-                {['categoria', 'local', 'situacao'].map((tipo) => (
-                  <Button 
-                    key={tipo} 
-                    variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} 
-                    size="sm" 
-                    onClick={() => toggleAgrupamento(tipo)} 
-                    className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}
-                  >
-                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                    {agrupamentosAtivos.includes(tipo) && (
-                      <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                        {agrupamentosAtivos.indexOf(tipo) + 1}
-                      </span>
-                    )}
-                  </Button>
-                ))}
-              </div>
-              {tipoRelatorio === 'sintetico' && agrupamentosAtivos.length === 0 && (
-                <p className="text-xs text-orange-600">* No modo Sintético, selecione apenas 1 agrupamento (será usado: {agrupamentosAtivos[0] || 'categoria'})</p>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-3 flex-wrap">
-            {tipoRelatorio === 'por_nfe' && (
-              <>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-h-96 overflow-auto">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm mb-2">Fornecedores</h4>
-                      {fornecedoresUnicos.map(f => (
-                        <div key={f} className="flex items-center space-x-2">
-                          <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
-                          <label className="text-sm cursor-pointer">{f}</label>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">NF-e {nfesSelecionadas.length > 0 && `(${nfesSelecionadas.length})`}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-h-96 overflow-auto">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm mb-2">Notas Fiscais</h4>
-                      {nfesUnicas.map(nfe => (
-                        <div key={nfe} className="flex items-center space-x-2">
-                          <Checkbox checked={nfesSelecionadas.includes(nfe)} onCheckedChange={() => toggleFiltro(nfesSelecionadas, setNfesSelecionadas, nfe)} />
-                          <label className="text-sm cursor-pointer">{nfe}</label>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </>
-            )}
-
-            {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local' || tipoRelatorio === 'sintetico') && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 max-h-96 overflow-auto">
+      {/* Configurações em Modal/Dialog */}
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Filtros e Configurações do Relatório</DialogTitle>
+          </DialogHeader>
+          <Card className="shadow-none border-none"> {/* Removed shadow and border as it's inside a dialog */}
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Relatório</Label>
+                  <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
+                      <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
+                      <SelectItem value="por_nfe">Por NF-e</SelectItem>
+                      <SelectItem value="por_local">Por Local de Estoque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Orientação</Label>
+                  <Select value={orientacao} onValueChange={setOrientacao}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="retrato">Retrato</SelectItem>
+                      <SelectItem value="paisagem">Paisagem</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {tipoRelatorio === 'analitico' && (
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm mb-2">Categorias</h4>
-                    {categoriasUnicas.map(c => (
-                      <div key={c} className="flex items-center space-x-2">
-                        <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
-                        <label className="text-sm cursor-pointer">{c}</label>
-                      </div>
+                    <Label>Ordenar Por</Label>
+                    <Select value={ordenacao} onValueChange={setOrdenacao}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORDENACAO_OPCOES.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
+                  <div className="space-y-2">
+                    <Label>Situação do Estoque</Label>
+                    <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="baixo">Estoque Baixo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local') && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Buscar por Nome</Label>
+                    <Input placeholder="Digite o nome..." value={buscaNome} onChange={(e) => setBuscaNome(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Buscar por Código</Label>
+                    <Input placeholder="Digite o código..." value={buscaCodigo} onChange={(e) => setBuscaCodigo(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {tipoRelatorio !== 'por_nfe' && (
+                <div className="space-y-2">
+                  <Label>Agrupar Por (Múltipla Seleção)</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['categoria', 'local', 'situacao'].map((tipo) => (
+                      <Button 
+                        key={tipo} 
+                        variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => toggleAgrupamento(tipo)} 
+                        className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}
+                      >
+                        {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                        {agrupamentosAtivos.includes(tipo) && (
+                          <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                            {agrupamentosAtivos.indexOf(tipo) + 1}
+                          </span>
+                        )}
+                      </Button>
                     ))}
                   </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Locais {locaisSelecionados.length > 0 && `(${locaisSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-2">Locais</h4>
-                  {locaisUnicos.map(l => (
-                    <div key={l} className="flex items-center space-x-2">
-                      <Checkbox checked={locaisSelecionados.includes(l)} onCheckedChange={() => toggleFiltro(locaisSelecionados, setLocaisSelecionados, l)} />
-                      <label className="text-sm cursor-pointer">{l}</label>
-                    </div>
-                  ))}
+                  {tipoRelatorio === 'sintetico' && agrupamentosAtivos.length === 0 && (
+                    <p className="text-xs text-orange-600">* No modo Sintético, selecione apenas 1 agrupamento (será usado: {agrupamentosAtivos[0] || 'categoria'})</p>
+                  )}
                 </div>
-              </PopoverContent>
-            </Popover>
+              )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {getColunasDisponiveis().map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <div className="flex gap-3 flex-wrap">
+                {tipoRelatorio === 'por_nfe' && (
+                  <>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 max-h-96 overflow-auto">
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-sm mb-2">Fornecedores</h4>
+                          {fornecedoresUnicos.map(f => (
+                            <div key={f} className="flex items-center space-x-2">
+                              <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
+                              <label className="text-sm cursor-pointer">{f}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
 
-            <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
-          </div>
-        </CardContent>
-      </Card>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline">NF-e {nfesSelecionadas.length > 0 && `(${nfesSelecionadas.length})`}</Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 max-h-96 overflow-auto">
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-sm mb-2">Notas Fiscais</h4>
+                          {nfesUnicas.map(nfe => (
+                            <div key={nfe} className="flex items-center space-x-2">
+                              <Checkbox checked={nfesSelecionadas.includes(nfe)} onCheckedChange={() => toggleFiltro(nfesSelecionadas, setNfesSelecionadas, nfe)} />
+                              <label className="text-sm cursor-pointer">{nfe}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </>
+                )}
+
+                {(tipoRelatorio === 'analitico' || tipoRelatorio === 'por_local' || tipoRelatorio === 'sintetico') && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 max-h-96 overflow-auto">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm mb-2">Categorias</h4>
+                        {categoriasUnicas.map(c => (
+                          <div key={c} className="flex items-center space-x-2">
+                            <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
+                            <label className="text-sm cursor-pointer">{c}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">Locais {locaisSelecionados.length > 0 && `(${locaisSelecionados.length})`}</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 max-h-96 overflow-auto">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm mb-2">Locais</h4>
+                      {locaisUnicos.map(l => (
+                        <div key={l} className="flex items-center space-x-2">
+                          <Checkbox checked={locaisSelecionados.includes(l)} onCheckedChange={() => toggleFiltro(locaisSelecionados, setLocaisSelecionados, l)} />
+                          <label className="text-sm cursor-pointer">{l}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Settings className="w-4 h-4" />
+                      Colunas
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {getColunasDisponiveis().map((coluna) => (
+                      <DropdownMenuCheckboxItem
+                        key={coluna.id}
+                        checked={colunasVisiveis.includes(coluna.id)}
+                        onCheckedChange={() => toggleColuna(coluna.id)}
+                      >
+                        {coluna.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
 
       {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
@@ -541,7 +559,7 @@ export default function RelatorioEstoque() {
             body * { visibility: hidden; }
             .print-area, .print-area * { visibility: visible; }
             .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            header, nav, .no-print { display: none !important; }
+            header, nav, .no-print, .print\\:hidden { display: none !important; }
           }
         `}} />
 

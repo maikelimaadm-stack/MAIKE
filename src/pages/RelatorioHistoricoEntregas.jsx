@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, Truck } from "lucide-react";
+import { FileText, Printer, Settings, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -25,6 +25,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -71,6 +74,7 @@ export default function RelatorioHistoricoEntregas() {
   const [orientacao, setOrientacao] = useState("paisagem");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('data_desc');
+  const [showConfig, setShowConfig] = useState(false); // New state for config dialog
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_historico_entregas');
@@ -249,8 +253,6 @@ export default function RelatorioHistoricoEntregas() {
     setOrdenacao('data_desc');
   };
 
-  const imprimir = () => window.print();
-
   const totalEntregas = entregasFiltradas.length;
   const totalQuantidade = entregasFiltradas.reduce((sum, e) => sum + (e.quantidade_entregue || 0), 0);
 
@@ -262,173 +264,24 @@ export default function RelatorioHistoricoEntregas() {
   const desmarcarTodosProdutos = () => setProdutosSelecionados([]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-2">
       {/* Controles */}
-      <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <Truck className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Histórico de Entregas</h1>
-            <p className="text-green-700">Configure e imprima o relatório</p>
-          </div>
+      <div className="print:hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Histórico de Entregas</h1>
+          <p className="text-xs text-slate-600">Relatório de entregas</p>
         </div>
-        <Button onClick={imprimir} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </Button>
+          <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
-
-      {/* Filtros */}
-      <Card className="shadow-lg border-green-200 print:hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Orientação</Label>
-              <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
-                <option value="retrato">Retrato</option>
-                <option value="paisagem">Paisagem</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ordenar Por</Label>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORDENACAO_OPCOES.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Data Início</Label>
-              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fim</Label>
-              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Agrupar Por (Múltipla Seleção)</Label>
-            <div className="flex flex-wrap gap-2">
-              {['safra', 'fornecedor', 'produto'].map((tipo) => (
-                <Button key={tipo} variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} size="sm" onClick={() => toggleAgrupamento(tipo)} className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}>
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                  {agrupamentosAtivos.includes(tipo) && (
-                    <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                      {agrupamentosAtivos.indexOf(tipo) + 1}
-                    </span>
-                  )}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Safras {safrasSelecionadas.length > 0 && `(${safrasSelecionadas.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Safras</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosSafras}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosSafras}>Nenhum</Button>
-                    </div>
-                  </div>
-                  {safrasUnicas.map(safra => (
-                    <div key={safra} className="flex items-center space-x-2">
-                      <Checkbox checked={safrasSelecionadas.includes(safra)} onCheckedChange={() => toggleFiltro(safrasSelecionadas, setSafrasSelecionadas, safra)} />
-                      <label className="text-sm cursor-pointer">{safra}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Fornecedores</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosFornecedores}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosFornecedores}>Nenhum</Button>
-                    </div>
-                  </div>
-                  {fornecedoresUnicos.map(f => (
-                    <div key={f} className="flex items-center space-x-2">
-                      <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
-                      <label className="text-sm cursor-pointer">{f}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 max-h-96 overflow-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
-                    <h4 className="font-semibold text-sm">Produtos</h4>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>Todos</Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>Nenhum</Button>
-                    </div>
-                  </div>
-                  {produtosUnicos.map(p => (
-                    <div key={p} className="flex items-center space-x-2">
-                      <Checkbox checked={produtosSelecionados.includes(p)} onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, p)} />
-                      <label className="text-sm cursor-pointer">{p}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-slate-300">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {COLUNAS_DISPONIVEIS.map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
@@ -541,7 +394,158 @@ export default function RelatorioHistoricoEntregas() {
           </div>
         </div>
       </div>
+
+      {/* Filtros e Configurações Dialog */}
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-green-900">Filtros e Configurações</DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4 pt-4"> {/* CardContent moved here */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label>Orientação</Label>
+                <select value={orientacao} onChange={(e) => setOrientacao(e.target.value)} className="w-full h-10 px-3 border rounded-md">
+                  <option value="retrato">Retrato</option>
+                  <option value="paisagem">Paisagem</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ordenar Por</Label>
+                <Select value={ordenacao} onValueChange={setOrdenacao}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDENACAO_OPCOES.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Data Início</Label>
+                <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Fim</Label>
+                <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Agrupar Por (Múltipla Seleção)</Label>
+              <div className="flex flex-wrap gap-2">
+                {['safra', 'fornecedor', 'produto'].map((tipo) => (
+                  <Button key={tipo} variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} size="sm" onClick={() => toggleAgrupamento(tipo)} className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}>
+                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                    {agrupamentosAtivos.includes(tipo) && (
+                      <span className="ml-2 bg-white text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                        {agrupamentosAtivos.indexOf(tipo) + 1}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">Safras {safrasSelecionadas.length > 0 && `(${safrasSelecionadas.length})`}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-96 overflow-auto">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                      <h4 className="font-semibold text-sm">Safras</h4>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosSafras}>Todos</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosSafras}>Nenhum</Button>
+                      </div>
+                    </div>
+                    {safrasUnicas.map(safra => (
+                      <div key={safra} className="flex items-center space-x-2">
+                        <Checkbox checked={safrasSelecionadas.includes(safra)} onCheckedChange={() => toggleFiltro(safrasSelecionadas, setSafrasSelecionadas, safra)} />
+                        <label className="text-sm cursor-pointer">{safra}</label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">Fornecedores {fornecedoresSelecionados.length > 0 && `(${fornecedoresSelecionados.length})`}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-96 overflow-auto">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                      <h4 className="font-semibold text-sm">Fornecedores</h4>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosFornecedores}>Todos</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosFornecedores}>Nenhum</Button>
+                      </div>
+                    </div>
+                    {fornecedoresUnicos.map(f => (
+                      <div key={f} className="flex items-center space-x-2">
+                        <Checkbox checked={fornecedoresSelecionados.includes(f)} onCheckedChange={() => toggleFiltro(fornecedoresSelecionados, setFornecedoresSelecionados, f)} />
+                        <label className="text-sm cursor-pointer">{f}</label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">Produtos {produtosSelecionados.length > 0 && `(${produtosSelecionados.length})`}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-96 overflow-auto">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center mb-3 sticky top-0 bg-white pb-2">
+                      <h4 className="font-semibold text-sm">Produtos</h4>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={selecionarTodosProdutos}>Todos</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={desmarcarTodosProdutos}>Nenhum</Button>
+                      </div>
+                    </div>
+                    {produtosUnicos.map(p => (
+                      <div key={p} className="flex items-center space-x-2">
+                        <Checkbox checked={produtosSelecionados.includes(p)} onCheckedChange={() => toggleFiltro(produtosSelecionados, setProdutosSelecionados, p)} />
+                        <label className="text-sm cursor-pointer">{p}</label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-slate-300">
+                    <Settings className="w-4 h-4" />
+                    Colunas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {COLUNAS_DISPONIVEIS.map((coluna) => (
+                    <DropdownMenuCheckboxItem
+                      key={coluna.id}
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onCheckedChange={() => toggleColuna(coluna.id)}
+                    >
+                      {coluna.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

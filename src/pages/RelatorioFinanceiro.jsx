@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, DollarSign } from "lucide-react";
+import { Printer, Settings, DollarSign, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -20,6 +21,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+// CartoesResumo imported but not used in the provided outline's render section
+// import CartoesResumo from "../components/shared/CartoesResumo"; 
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -57,7 +62,8 @@ export default function RelatorioFinanceiro() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [agrupamento, setAgrupamento] = useState("status");
-  
+  const [showConfig, setShowConfig] = useState(false); // New state for dialog
+
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     return tipoRelatorio === 'analitico' 
       ? COLUNAS_ANALITICO.filter(c => c.default).map(c => c.id)
@@ -165,6 +171,7 @@ export default function RelatorioFinanceiro() {
     setStatusFiltro([]);
     setDataInicio('');
     setDataFim('');
+    toast.info("Filtros limpos!");
   };
 
   const imprimir = () => window.print();
@@ -180,143 +187,146 @@ export default function RelatorioFinanceiro() {
   const colunasDisponiveis = tipoRelatorio === 'analitico' ? COLUNAS_ANALITICO : COLUNAS_SINTETICO;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="print:hidden flex justify-between items-start gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-            <DollarSign className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-green-900">Relatório Financeiro</h1>
-            <p className="text-green-700">Configure e imprima o relatório</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 print:hidden">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Relatório Financeiro</h1>
+          <p className="text-xs text-slate-600">Análise financeira</p>
         </div>
-        <Button onClick={imprimir} className="bg-green-600 hover:bg-green-700 gap-2">
-          <Printer className="w-4 h-4" />
-          Imprimir
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </Button>
+          <Button onClick={imprimir} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Printer className="w-3.5 h-3.5" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
-      <Card className="shadow-lg border-green-200 print:hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="text-green-900">Filtros e Configurações</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Relatório</Label>
-              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
-                  <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Orientação</Label>
-              <Select value={orientacao} onValueChange={setOrientacao}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="retrato">Retrato</SelectItem>
-                  <SelectItem value="paisagem">Paisagem</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={tipoFiltro} onValueChange={setTipoFiltro}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="Pagar">Contas a Pagar</SelectItem>
-                  <SelectItem value="Receber">Contas a Receber</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {tipoRelatorio === 'sintetico' && (
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle className="text-green-900">Filtros e Configurações</DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Agrupar Por</Label>
-                <Select value={agrupamento} onValueChange={setAgrupamento}>
+                <Label>Tipo de Relatório</Label>
+                <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="status">Status</SelectItem>
-                    <SelectItem value="fornecedor">Fornecedor/Cliente</SelectItem>
-                    <SelectItem value="centro_custo">Centro de Custo</SelectItem>
-                    <SelectItem value="safra">Safra</SelectItem>
-                    <SelectItem value="grupo">Grupo Financeiro</SelectItem>
+                    <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
+                    <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
-          </div>
+              
+              <div className="space-y-2">
+                <Label>Orientação</Label>
+                <Select value={orientacao} onValueChange={setOrientacao}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="retrato">Retrato</SelectItem>
+                    <SelectItem value="paisagem">Paisagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Data Início</Label>
-              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fim</Label>
-              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select value={tipoFiltro} onValueChange={setTipoFiltro}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="Pagar">Contas a Pagar</SelectItem>
+                    <SelectItem value="Receber">Contas a Receber</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="flex gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline">Status {statusFiltro.length > 0 && `(${statusFiltro.length})`}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64">
+              {tipoRelatorio === 'sintetico' && (
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm mb-2">Status</h4>
-                  {['Pendente', 'Pago Parcial', 'Pago', 'Vencido', 'Cancelado'].map(s => (
-                    <div key={s} className="flex items-center space-x-2">
-                      <Checkbox checked={statusFiltro.includes(s)} onCheckedChange={() => toggleStatus(s)} />
-                      <label className="text-sm cursor-pointer">{s}</label>
-                    </div>
-                  ))}
+                  <Label>Agrupar Por</Label>
+                  <Select value={agrupamento} onValueChange={setAgrupamento}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="status">Status</SelectItem>
+                      <SelectItem value="fornecedor">Fornecedor/Cliente</SelectItem>
+                      <SelectItem value="centro_custo">Centro de Custo</SelectItem>
+                      <SelectItem value="safra">Safra</SelectItem>
+                      <SelectItem value="grupo">Grupo Financeiro</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </PopoverContent>
-            </Popover>
+              )}
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {colunasDisponiveis.map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data Início</Label>
+                <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Fim</Label>
+                <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              </div>
+            </div>
 
-            <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+            <div className="flex gap-3 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">Status {statusFiltro.length > 0 && `(${statusFiltro.length})`}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm mb-2">Status</h4>
+                    {['Pendente', 'Pago Parcial', 'Pago', 'Vencido', 'Cancelado'].map(s => (
+                      <div key={s} className="flex items-center space-x-2">
+                        <Checkbox checked={statusFiltro.includes(s)} onCheckedChange={() => toggleStatus(s)} />
+                        <label className="text-sm cursor-pointer">{s}</label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Colunas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {colunasDisponiveis.map((coluna) => (
+                    <DropdownMenuCheckboxItem
+                      key={coluna.id}
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onCheckedChange={() => toggleColuna(coluna.id)}
+                    >
+                      {coluna.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
@@ -396,7 +406,7 @@ export default function RelatorioFinanceiro() {
                   </TableRow>
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell colSpan={colunasVisiveis.length - 3} className="border border-black text-xs py-1">
+                  <TableCell colSpan={colunasVisiveis.filter(cId => cId !== 'valor_total' && cId !== 'valor_pago' && cId !== 'saldo').length} className="border border-black text-xs py-1">
                     TOTAL ({lancamentosFiltrados.length} lançamentos)
                   </TableCell>
                   {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">{formatarMoeda(totais.total)}</TableCell>}
@@ -427,7 +437,8 @@ export default function RelatorioFinanceiro() {
                   </TableRow>
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
+                  {/* Need to ensure correct colSpan for synthetic report totals */}
+                  <TableCell colSpan={colunasVisiveis.filter(cId => cId === 'agrupamento').length} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
                   {colunasVisiveis.includes('quantidade') && <TableCell className="border border-black text-xs text-right py-1">{lancamentosFiltrados.length}</TableCell>}
                   {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">{formatarMoeda(totais.total)}</TableCell>}
                   {colunasVisiveis.includes('valor_pago') && <TableCell className="border border-black text-xs text-right py-1">{formatarMoeda(totais.pago)}</TableCell>}
