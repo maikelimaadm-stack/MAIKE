@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, X } from "lucide-react";
+import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, X, ChevronRight, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -81,7 +82,7 @@ const DEFAULT_MENU = [
 ];
 
 const ICONS_DISPONIVEIS = [
-  'Home', 'Scale', 'TrendingUp', 'ArrowRightLeft', 'DollarSign', 'BookOpen', 
+  'Home', 'Scale', 'TrendingUp', 'ArrowRightLeft', 'DollarSign', 'BookOpen',
   'FolderOpen', 'FileText', 'Shield', 'Package', 'Users', 'Settings'
 ];
 
@@ -91,19 +92,27 @@ export default function ConfiguracoesGerais() {
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
   });
 
+  const [expandedMenus, setExpandedMenus] = useState({}); // New state for expanding/collapsing menus
   const [showAddMenuItem, setShowAddMenuItem] = useState(false);
   const [showAddSubmenu, setShowAddSubmenu] = useState(false);
+  const [showAddSubSubmenu, setShowAddSubSubmenu] = useState(false); // New state for sub-submenu dialog
   const [showEditMenuItem, setShowEditMenuItem] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [parentMenuForSubmenu, setParentMenuForSubmenu] = useState(null);
+  const [parentSubmenuForSubSubmenu, setParentSubmenuForSubSubmenu] = useState(null); // New state for sub-submenu parent
 
   const [newMenuItem, setNewMenuItem] = useState({ title: "", url: "", icon: "Home" });
   const [newSubmenuItem, setNewSubmenuItem] = useState({ title: "", url: "" });
+  const [newSubSubmenuItem, setNewSubSubmenuItem] = useState({ title: "", url: "" }); // New state for new sub-submenu item
 
   const saveMenu = (newMenu) => {
     setMenuItems(newMenu);
     localStorage.setItem('custom_menu', JSON.stringify(newMenu));
     toast.success('✅ Menu atualizado! Recarregue a página.');
+  };
+
+  const toggleMenu = (menuId) => {
+    setExpandedMenus(prev => ({ ...prev, [menuId]: !prev[menuId] }));
   };
 
   const handleDragEnd = (result) => {
@@ -129,7 +138,7 @@ export default function ConfiguracoesGerais() {
       icon: newMenuItem.icon,
     };
 
-    saveMenu([...menuItems, newItem]);
+    saveMenu([...menuItems, newItem].sort((a, b) => a.title.localeCompare(b.title))); // Sort after adding
     setNewMenuItem({ title: "", url: "", icon: "Home" });
     setShowAddMenuItem(false);
   };
@@ -140,13 +149,13 @@ export default function ConfiguracoesGerais() {
       return;
     }
 
-    const updatedMenu = menuItems.map(item => 
-      item.id === editingItem.id 
+    const updatedMenu = menuItems.map(item =>
+      item.id === editingItem.id
         ? { ...item, title: editingItem.title, icon: editingItem.icon, url: editingItem.url }
         : item
     );
 
-    saveMenu(updatedMenu);
+    saveMenu(updatedMenu.sort((a, b) => a.title.localeCompare(b.title))); // Sort after editing
     setShowEditMenuItem(false);
     setEditingItem(null);
     toast.success('✅ Menu editado!');
@@ -160,13 +169,12 @@ export default function ConfiguracoesGerais() {
 
     const updatedMenu = menuItems.map(item => {
       if (item.id === parentMenuForSubmenu) {
-        return {
-          ...item,
-          submenu: [
-            ...(item.submenu || []),
-            { id: `submenu-${Date.now()}`, title: newSubmenuItem.title, url: newSubmenuItem.url }
-          ]
-        };
+        const newSubmenu = [
+          ...(item.submenu || []),
+          { id: `submenu-${Date.now()}`, title: newSubmenuItem.title, url: newSubmenuItem.url }
+        ].sort((a, b) => a.title.localeCompare(b.title)); // Sort submenus after adding
+
+        return { ...item, submenu: newSubmenu };
       }
       return item;
     });
@@ -175,6 +183,38 @@ export default function ConfiguracoesGerais() {
     setNewSubmenuItem({ title: "", url: "" });
     setParentMenuForSubmenu(null);
     setShowAddSubmenu(false);
+  };
+
+  const handleAddSubSubmenuItem = () => { // New function for sub-submenu
+    if (!newSubSubmenuItem.title || !newSubSubmenuItem.url || !parentMenuForSubmenu || !parentSubmenuForSubSubmenu) {
+      toast.error('Preencha todos os campos!');
+      return;
+    }
+
+    const updatedMenu = menuItems.map(item => {
+      if (item.id === parentMenuForSubmenu) {
+        const updatedSubmenu = (item.submenu || []).map(sub => {
+          if (sub.id === parentSubmenuForSubSubmenu) {
+            const newSubSubmenu = [
+              ...(sub.submenu || []),
+              { id: `subsubmenu-${Date.now()}`, title: newSubSubmenuItem.title, url: newSubSubmenuItem.url }
+            ].sort((a, b) => a.title.localeCompare(b.title)); // Sort sub-submenus after adding
+
+            return { ...sub, submenu: newSubSubmenu };
+          }
+          return sub;
+        });
+
+        return { ...item, submenu: updatedSubmenu };
+      }
+      return item;
+    });
+
+    saveMenu(updatedMenu);
+    setNewSubSubmenuItem({ title: "", url: "" });
+    setParentMenuForSubmenu(null);
+    setParentSubmenuForSubSubmenu(null);
+    setShowAddSubSubmenu(false);
   };
 
   const handleDeleteMenuItem = (id) => {
@@ -198,6 +238,29 @@ export default function ConfiguracoesGerais() {
     }
   };
 
+  const handleDeleteSubSubmenuItem = (menuId, submenuId, subSubmenuId) => { // New function for deleting sub-submenu
+    if (window.confirm('Deseja excluir este sub-subitem?')) {
+      const updatedMenu = menuItems.map(item => {
+        if (item.id === menuId) {
+          return {
+            ...item,
+            submenu: item.submenu.map(sub => {
+              if (sub.id === submenuId) {
+                return {
+                  ...sub,
+                  submenu: (sub.submenu || []).filter(subsub => subsub.id !== subSubmenuId)
+                };
+              }
+              return sub;
+            })
+          };
+        }
+        return item;
+      });
+      saveMenu(updatedMenu);
+    }
+  };
+
   const handleResetMenu = () => {
     if (window.confirm('⚠️ Resetar menu? Todas personalizações serão perdidas.')) {
       saveMenu(DEFAULT_MENU);
@@ -213,6 +276,9 @@ export default function ConfiguracoesGerais() {
     setEditingItem({ ...item });
     setShowEditMenuItem(true);
   };
+
+  // Order menu alfabeticamente for display
+  const sortedMenuItems = [...menuItems].sort((a, b) => a.title.localeCompare(b.title));
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -244,20 +310,24 @@ export default function ConfiguracoesGerais() {
         <TabsContent value="menus" className="space-y-3 mt-3">
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Editor de Menus</CardTitle>
+              <CardTitle className="text-sm">Editor de Menus (com Submenus Aninhados)</CardTitle>
               <CardDescription className="text-xs">
-                Arraste para reordenar, edite ou adicione novos itens
+                Arraste, edite ou adicione. Menus ordenados alfabeticamente automaticamente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Button onClick={() => setShowAddMenuItem(true)} size="sm" className="h-8 gap-1 text-xs">
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={() => setShowAddMenuItem(true)} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                   <Plus className="w-3 h-3" />
-                  Novo Menu
+                  Novo Menu Principal
                 </Button>
                 <Button onClick={() => setShowAddSubmenu(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
                   <Plus className="w-3 h-3" />
-                  Novo Submenu
+                  Novo Submenu (Nível 1)
+                </Button>
+                <Button onClick={() => setShowAddSubSubmenu(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                  <Plus className="w-3 h-3" />
+                  Novo Sub-Submenu (Nível 2)
                 </Button>
                 <Button onClick={handleResetMenu} variant="outline" size="sm" className="h-8 text-xs">
                   <RotateCcw className="w-3 h-3 mr-1" />
@@ -272,7 +342,7 @@ export default function ConfiguracoesGerais() {
                 <Droppable droppableId="menu">
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                      {menuItems.map((item, index) => (
+                      {sortedMenuItems.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id} index={index}>
                           {(provided) => (
                             <div
@@ -284,6 +354,20 @@ export default function ConfiguracoesGerais() {
                                 <div {...provided.dragHandleProps}>
                                   <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-move" />
                                 </div>
+                                {item.submenu && ( // Toggle for main menu item with submenu
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => toggleMenu(item.id)}
+                                    className="h-6 w-6"
+                                  >
+                                    {expandedMenus[item.id] ? (
+                                      <ChevronDown className="w-3 h-3" />
+                                    ) : (
+                                      <ChevronRight className="w-3 h-3" />
+                                    )}
+                                  </Button>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <div className="font-semibold text-xs">{item.title}</div>
                                   {item.url && <div className="text-[10px] text-slate-500">URL: {item.url}</div>}
@@ -313,22 +397,66 @@ export default function ConfiguracoesGerais() {
                                 </Button>
                               </div>
 
-                              {item.submenu && item.submenu.length > 0 && (
+                              {/* SUBMENU NÍVEL 1 */}
+                              {item.submenu && item.submenu.length > 0 && expandedMenus[item.id] && (
                                 <div className="ml-6 space-y-1 border-l-2 border-slate-200 pl-2">
-                                  {item.submenu.map((sub) => (
-                                    <div key={sub.id} className="flex items-center justify-between py-1">
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-medium">{sub.title}</div>
-                                        <div className="text-[10px] text-slate-500">URL: {sub.url}</div>
+                                  {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                                    <div key={sub.id}>
+                                      <div className="flex items-center justify-between py-1 bg-slate-50 px-2 rounded">
+                                        {sub.submenu && ( // Toggle for submenu item with sub-submenu
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => toggleMenu(sub.id)}
+                                            className="h-5 w-5"
+                                          >
+                                            {expandedMenus[sub.id] ? (
+                                              <ChevronDown className="w-3 h-3" />
+                                            ) : (
+                                              <ChevronRight className="w-3 h-3" />
+                                            )}
+                                          </Button>
+                                        )}
+                                        <div className="flex-1 min-w-0 ml-1">
+                                          <div className="text-xs font-medium">{sub.title}</div>
+                                          {sub.url && <div className="text-[10px] text-slate-500">URL: {sub.url}</div>}
+                                          {sub.submenu && (
+                                            <div className="text-[10px] text-slate-500">
+                                              {sub.submenu.length} sub-subitem(ns)
+                                            </div>
+                                          )}
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDeleteSubmenuItem(item.id, sub.id)}
+                                          className="h-6 w-6 text-red-600 hover:bg-red-50"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
                                       </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDeleteSubmenuItem(item.id, sub.id)}
-                                        className="h-6 w-6 text-red-600 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </Button>
+
+                                      {/* SUBMENU NÍVEL 2 (Sub-Submenu) */}
+                                      {sub.submenu && sub.submenu.length > 0 && expandedMenus[sub.id] && (
+                                        <div className="ml-6 space-y-1 border-l-2 border-emerald-200 pl-2 mt-1">
+                                          {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
+                                            <div key={subsub.id} className="flex items-center justify-between py-1 bg-emerald-50 px-2 rounded">
+                                              <div className="flex-1 min-w-0">
+                                                <div className="text-xs font-medium">{subsub.title}</div>
+                                                {subsub.url && <div className="text-[10px] text-slate-500">URL: {subsub.url}</div>}
+                                              </div>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleDeleteSubSubmenuItem(item.id, sub.id, subsub.id)}
+                                                className="h-6 w-6 text-red-600 hover:bg-red-50"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -454,40 +582,26 @@ export default function ConfiguracoesGerais() {
         </TabsContent>
       </Tabs>
 
-      {/* DIALOG: ADICIONAR MENU */}
+      {/* DIALOG: ADICIONAR MENU PRINCIPAL */}
       <Dialog open={showAddMenuItem} onOpenChange={setShowAddMenuItem}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">Novo Menu</DialogTitle>
-            <DialogDescription className="text-xs">
-              Crie um novo item no menu principal
-            </DialogDescription>
+            <DialogTitle className="text-sm">Novo Menu Principal</DialogTitle>
+            <DialogDescription className="text-xs">Crie um novo item no menu</DialogDescription>
           </DialogHeader>
           <div className="space-y-2.5">
             <div className="space-y-1.5">
               <Label className="text-xs">Título *</Label>
-              <Input
-                value={newMenuItem.title}
-                onChange={(e) => setNewMenuItem({ ...newMenuItem, title: e.target.value })}
-                placeholder="Ex: Relatórios"
-                className="h-8 text-xs"
-              />
+              <Input value={newMenuItem.title} onChange={(e) => setNewMenuItem({ ...newMenuItem, title: e.target.value })} placeholder="Ex: Relatórios" className="h-8 text-xs" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Página (URL) *</Label>
-              <Input
-                value={newMenuItem.url}
-                onChange={(e) => setNewMenuItem({ ...newMenuItem, url: e.target.value })}
-                placeholder="Ex: Relatorios"
-                className="h-8 text-xs"
-              />
+              <Input value={newMenuItem.url} onChange={(e) => setNewMenuItem({ ...newMenuItem, url: e.target.value })} placeholder="Ex: Relatorios" className="h-8 text-xs" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Ícone</Label>
               <Select value={newMenuItem.icon} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, icon: v })}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ICONS_DISPONIVEIS.map(iconName => (
                     <SelectItem key={iconName} value={iconName} className="text-xs">{iconName}</SelectItem>
@@ -496,12 +610,91 @@ export default function ConfiguracoesGerais() {
               </Select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddMenuItem(false)} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button onClick={handleAddMenuItem} size="sm" className="h-8 text-xs">
-                Adicionar
-              </Button>
+              <Button variant="outline" onClick={() => setShowAddMenuItem(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleAddMenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: ADICIONAR SUBMENU NÍVEL 1 */}
+      <Dialog open={showAddSubmenu} onOpenChange={setShowAddSubmenu}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Novo Submenu (Nível 1)</DialogTitle>
+            <DialogDescription className="text-xs">Adicione submenu a um menu principal</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2.5">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Menu Principal</Label>
+              <Select value={parentMenuForSubmenu || ''} onValueChange={setParentMenuForSubmenu}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {sortedMenuItems.map(item => (
+                    <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Título *</Label>
+              <Input value={newSubmenuItem.title} onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, title: e.target.value })} placeholder="Ex: Plano de Contas" className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Página (URL) *</Label>
+              <Input value={newSubmenuItem.url} onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, url: e.target.value })} placeholder="Ex: PlanoContas" className="h-8 text-xs" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddSubmenu(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleAddSubmenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: ADICIONAR SUB-SUBMENU NÍVEL 2 */}
+      <Dialog open={showAddSubSubmenu} onOpenChange={setShowAddSubSubmenu}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Novo Sub-Submenu (Nível 2)</DialogTitle>
+            <DialogDescription className="text-xs">Adicione sub-submenu a um submenu existente</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2.5">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Menu Principal</Label>
+              <Select value={parentMenuForSubmenu || ''} onValueChange={(v) => { setParentMenuForSubmenu(v); setParentSubmenuForSubSubmenu(null); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {sortedMenuItems.filter(m => m.submenu && m.submenu.length > 0).map(item => (
+                    <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {parentMenuForSubmenu && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Submenu (Nível 1)</Label>
+                <Select value={parentSubmenuForSubSubmenu || ''} onValueChange={setParentSubmenuForSubSubmenu}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {sortedMenuItems.find(m => m.id === parentMenuForSubmenu)?.submenu?.map(sub => (
+                      <SelectItem key={sub.id} value={sub.id} className="text-xs">{sub.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Título *</Label>
+              <Input value={newSubSubmenuItem.title} onChange={(e) => setNewSubSubmenuItem({ ...newSubSubmenuItem, title: e.target.value })} placeholder="Ex: Cadastro de Contas" className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Página (URL) *</Label>
+              <Input value={newSubSubmenuItem.url} onChange={(e) => setNewSubSubmenuItem({ ...newSubSubmenuItem, url: e.target.value })} placeholder="Ex: CadastroContas" className="h-8 text-xs" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddSubSubmenu(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleAddSubSubmenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
             </div>
           </div>
         </DialogContent>
@@ -512,36 +705,24 @@ export default function ConfiguracoesGerais() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Editar Menu</DialogTitle>
-            <DialogDescription className="text-xs">
-              Altere o título, URL ou ícone
-            </DialogDescription>
+            <DialogDescription className="text-xs">Altere título, URL ou ícone</DialogDescription>
           </DialogHeader>
           {editingItem && (
             <div className="space-y-2.5">
               <div className="space-y-1.5">
                 <Label className="text-xs">Título *</Label>
-                <Input
-                  value={editingItem.title}
-                  onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
-                  className="h-8 text-xs"
-                />
+                <Input value={editingItem.title} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} className="h-8 text-xs" />
               </div>
               {editingItem.url !== undefined && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Página (URL)</Label>
-                  <Input
-                    value={editingItem.url || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })}
-                    className="h-8 text-xs"
-                  />
+                  <Input value={editingItem.url || ''} onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })} className="h-8 text-xs" />
                 </div>
               )}
               <div className="space-y-1.5">
                 <Label className="text-xs">Ícone</Label>
                 <Select value={editingItem.icon} onValueChange={(v) => setEditingItem({ ...editingItem, icon: v })}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ICONS_DISPONIVEIS.map(iconName => (
                       <SelectItem key={iconName} value={iconName} className="text-xs">{iconName}</SelectItem>
@@ -550,71 +731,13 @@ export default function ConfiguracoesGerais() {
                 </Select>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setShowEditMenuItem(false)} size="sm" className="h-8 text-xs">
-                  Cancelar
-                </Button>
-                <Button onClick={handleEditMenuItem} size="sm" className="h-8 text-xs">
-                  <Check className="w-3 h-3 mr-1" />
-                  Salvar
+                <Button variant="outline" onClick={() => setShowEditMenuItem(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+                <Button onClick={handleEditMenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  <Check className="w-3 h-3 mr-1" />Salvar
                 </Button>
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOG: ADICIONAR SUBMENU */}
-      <Dialog open={showAddSubmenu} onOpenChange={setShowAddSubmenu}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Novo Submenu</DialogTitle>
-            <DialogDescription className="text-xs">
-              Adicione submenu a um menu
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Menu Principal</Label>
-              <Select value={parentMenuForSubmenu || ''} onValueChange={setParentMenuForSubmenu}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {menuItems.map(item => (
-                    <SelectItem key={item.id} value={item.id} className="text-xs">
-                      {item.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Título *</Label>
-              <Input
-                value={newSubmenuItem.title}
-                onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, title: e.target.value })}
-                placeholder="Ex: Relatório de Vendas"
-                className="h-8 text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Página (URL) *</Label>
-              <Input
-                value={newSubmenuItem.url}
-                onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, url: e.target.value })}
-                placeholder="Ex: RelatorioVendas"
-                className="h-8 text-xs"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddSubmenu(false)} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button onClick={handleAddSubmenuItem} size="sm" className="h-8 text-xs">
-                Adicionar
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

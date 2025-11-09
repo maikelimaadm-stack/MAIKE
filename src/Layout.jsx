@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -6,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,6 +32,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
@@ -42,7 +48,7 @@ const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
   { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
     id: "financeiro",
     title: "Financeiro",
@@ -94,11 +100,37 @@ const DEFAULT_MENU = [
   { id: "usuarios", title: "Usuários", url: "Usuarios", icon: "Shield" },
 ];
 
+// Função para achatar menu e pegar todas as páginas
+const getAllPages = (menuItems) => {
+  const pages = [];
+  
+  const traverse = (items, categoria = '') => {
+    items.forEach(item => {
+      if (item.url) {
+        pages.push({
+          id: item.id,
+          title: item.title,
+          url: item.url,
+          categoria: categoria || 'Geral'
+        });
+      }
+      if (item.submenu) {
+        traverse(item.submenu, item.title);
+      }
+    });
+  };
+  
+  traverse(menuItems);
+  return pages;
+};
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = useState(null);
   const [weather, setWeather] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
@@ -180,13 +212,31 @@ export default function Layout({ children, currentPageName }) {
     return false;
   };
 
+  // Busca global
+  const allPages = getAllPages(menuItems);
+  const filteredPages = searchTerm 
+    ? allPages.filter(p => 
+        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : allPages;
+
+  // Agrupar por categoria
+  const pagesByCategory = filteredPages.reduce((acc, page) => {
+    if (!acc[page.categoria]) acc[page.categoria] = [];
+    acc[page.categoria].push(page);
+    return acc;
+  }, {});
+
+  // Ordenar alfabeticamente
+  const sortedMenuItems = [...menuItems].sort((a, b) => a.title.localeCompare(b.title));
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* HEADER SUPERIOR - LOGO E INFORMAÇÕES */}
+      {/* HEADER SUPERIOR */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
-            {/* LOGO + NOME EMPRESA */}
             <div className="flex items-center gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
@@ -209,7 +259,6 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
 
-            {/* CLIMA E STATUS */}
             <div className="hidden lg:flex items-center gap-6">
               {weather && (
                 <>
@@ -246,7 +295,6 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
 
-            {/* USER + SETTINGS */}
             <div className="flex items-center gap-2">
               {empresas.length > 0 && (
                 <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
@@ -262,6 +310,10 @@ export default function Layout({ children, currentPageName }) {
                   </SelectContent>
                 </Select>
               )}
+
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
+                <Search className="w-4 h-4 text-slate-600" />
+              </Button>
 
               <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
                 <Bell className="w-4 h-4 text-slate-600" />
@@ -321,7 +373,7 @@ export default function Layout({ children, currentPageName }) {
                     <SheetTitle className="text-left text-sm">Menu</SheetTitle>
                   </SheetHeader>
                   <div className="mt-4 space-y-1">
-                    {menuItems.map((item) => {
+                    {sortedMenuItems.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
                       
                       if (item.submenu) {
@@ -375,53 +427,51 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </div>
 
-      {/* BARRA DE NAVEGAÇÃO - VERDE QUANDO ATIVO */}
+      {/* BARRA DE NAVEGAÇÃO COM HOVER */}
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
-            {/* DESKTOP MENU */}
             <div className="hidden md:flex items-center gap-0.5">
-              {menuItems.map((item) => {
+              {sortedMenuItems.map((item) => {
                 const Icon = iconsMap[item.icon] || Home;
                 const active = isActive(item);
 
                 if (item.submenu) {
                   return (
-                    <DropdownMenu key={item.id}>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                            active 
-                              ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {item.title}
-                          <ChevronDown className="w-3 h-3 opacity-50" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-52 mt-1">
-                        <DropdownMenuLabel className="text-xs text-slate-500">{item.title}</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {item.submenu.map((sub) => (
-                          <DropdownMenuItem key={sub.id} asChild>
+                    <div key={item.id} className="relative group">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
+                          active 
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {item.title}
+                        <ChevronDown className="w-3 h-3 opacity-50" />
+                      </Button>
+                      
+                      {/* SUBMENU NO HOVER */}
+                      <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div className="py-1">
+                          {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
                             <Link 
+                              key={sub.id}
                               to={createPageUrl(sub.url)}
-                              className={`text-xs cursor-pointer ${
+                              className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
                                 location.pathname === createPageUrl(sub.url)
                                   ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                  : ''
+                                  : 'text-slate-700'
                               }`}
                             >
                               {sub.title}
                             </Link>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   );
                 }
 
@@ -447,7 +497,71 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </nav>
 
-      {/* MAIN CONTENT */}
+      {/* DIALOG DE BUSCA GLOBAL */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Search className="w-4 h-4 text-emerald-600" />
+              Buscar em todo o sistema
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Digite para buscar páginas..."
+              className="pl-10 h-10"
+              autoFocus
+            />
+            {searchTerm && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto mt-4">
+            {Object.keys(pagesByCategory).length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Nenhuma página encontrada</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(pagesByCategory)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([categoria, pages]) => (
+                  <div key={categoria}>
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">{categoria}</h3>
+                    <div className="space-y-1">
+                      {pages.sort((a, b) => a.title.localeCompare(b.title)).map((page) => (
+                        <Link
+                          key={page.id}
+                          to={createPageUrl(page.url)}
+                          onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
+                          className="block px-3 py-2 text-sm hover:bg-emerald-50 rounded-md transition-colors"
+                        >
+                          <div className="font-medium text-slate-900">{page.title}</div>
+                          <div className="text-xs text-slate-500">{categoria}</div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <main className="max-w-[1600px] mx-auto">
         {children}
       </main>
