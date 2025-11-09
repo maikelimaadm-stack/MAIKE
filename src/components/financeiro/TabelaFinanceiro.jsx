@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,16 +23,23 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
-const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return "R$ 0,00";
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0";
-  return numero.toLocaleString('pt-BR');
+  const num = typeof numero === 'number' ? numero : parseFloat(String(numero).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(num)) return "0";
+  return num.toLocaleString('pt-BR');
 };
 
 const formatarNumeroDecimal = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const num = typeof numero === 'number' ? numero : parseFloat(String(numero).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(num)) return "0,00";
+  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const formatarData = (dataString) => {
@@ -80,7 +88,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'vencimento', label: 'Vencimento', default: true },
   { id: 'dias', label: 'Dias', default: true },
   { id: 'fornecedor_cliente', label: 'Fornecedor/Cliente', default: true },
-  { id: 'documento', label: 'Documento', default: true },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: true },
+  { id: 'documento', label: 'Nº Doc', default: true },
   { id: 'valor_original', label: 'Vlr. Original', default: false },
   { id: 'valor_total', label: 'Vlr. Total', default: true },
   { id: 'valor_pago', label: 'Vlr. Pago', default: true },
@@ -142,7 +151,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       l.numero_lancamento?.toLowerCase().includes(search) ||
       l.fornecedor_nome?.toLowerCase().includes(search) ||
       l.cliente_nome?.toLowerCase().includes(search) ||
-      l.numero_documento?.toLowerCase().includes(search)
+      l.numero_documento?.toLowerCase().includes(search) ||
+      l.tipo_documento?.toLowerCase().includes(search)
     );
   });
 
@@ -165,6 +175,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       case 'fornecedor_cliente':
         aValue = (a.fornecedor_nome || a.cliente_nome || '').toLowerCase();
         bValue = (b.fornecedor_nome || b.cliente_nome || '').toLowerCase();
+        break;
+      case 'tipo_documento':
+        aValue = (a.tipo_documento || '').toLowerCase();
+        bValue = (b.tipo_documento || '').toLowerCase();
         break;
       case 'documento':
         aValue = (a.numero_documento || '').toLowerCase();
@@ -227,9 +241,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento.fornecedor_id);
 
-  console.log('🔍 DEBUG - Lancamento exemplo:', lancamentosOrdenados[0]);
-  console.log('🔍 Produtos lancamento:', lancamentosOrdenados[0]?.produtos_lancamento);
-
   return (
     <>
       <Card className="shadow-xl border-slate-200">
@@ -289,9 +300,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <div className="flex items-center">{tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'} {getSortIcon('fornecedor_cliente')}</div>
                     </TableHead>
                   )}
+                  {colunasVisiveis.includes('tipo_documento') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('tipo_documento')}>
+                      <div className="flex items-center">Tipo Doc {getSortIcon('tipo_documento')}</div>
+                    </TableHead>
+                  )}
                   {colunasVisiveis.includes('documento') && (
                     <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('documento')}>
-                      <div className="flex items-center">Documento {getSortIcon('documento')}</div>
+                      <div className="flex items-center">Nº Doc {getSortIcon('documento')}</div>
                     </TableHead>
                   )}
                   {colunasVisiveis.includes('valor_original') && (
@@ -378,7 +394,12 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                   {lancamento.fornecedor_nome || lancamento.cliente_nome || '-'}
                                 </TableCell>
                               )}
-                              {colunasVisiveis.includes('documento') && <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>}
+                              {colunasVisiveis.includes('tipo_documento') && (
+                                <TableCell className="text-xs">{lancamento.tipo_documento || '-'}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('documento') && (
+                                <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>
+                              )}
                               {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento.valor_original || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento.valor_total || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento.valor_pago || 0)}</TableCell>}
@@ -465,8 +486,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   <div><strong>Tipo:</strong> {detalhesAberto.tipo}</div>
                   <div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div>
                   <div><strong>Vencimento:</strong> {formatarData(detalhesAberto.data_vencimento)}</div>
-                  <div><strong>Documento:</strong> {detalhesAberto.numero_documento || '-'}</div>
                   <div><strong>Tipo Doc:</strong> {detalhesAberto.tipo_documento || '-'}</div>
+                  <div><strong>Nº Doc:</strong> {detalhesAberto.numero_documento || '-'}</div>
                   {detalhesAberto.chave_nfe && (
                     <div className="col-span-2"><strong>Chave NF-e:</strong> <span className="font-mono text-xs">{detalhesAberto.chave_nfe}</span></div>
                   )}

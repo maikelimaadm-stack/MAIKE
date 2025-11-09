@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -64,11 +65,12 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       ...defaults,
       ...initialData,
       tipo: initialData.tipo || defaults.tipo,
+      tipo_documento: initialData.tipo_documento || defaults.tipo_documento,
       valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : defaults.valor_original,
       valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
       valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
-      numero_documento: initialData.numero_documento ? initialData.numero_documento.replace('NOTA FISCAL: ', '') : '',
+      numero_documento: initialData.numero_documento || '',
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
         valor: formatarNumero(p.valor || 0)
@@ -231,7 +233,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
       grupo_nome: grupo?.descricao,
       forma_pagamento_id: formData.forma_pagamento_id || undefined,
       forma_pagamento_nome: forma?.descricao,
-      numero_documento: formData.numero_documento ? `NOTA FISCAL: ${formData.numero_documento.toUpperCase()}` : undefined,
+      numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_nfe: formData.chave_nfe || undefined,
       data_emissao: formData.data_emissao,
       data_vencimento: formData.data_vencimento,

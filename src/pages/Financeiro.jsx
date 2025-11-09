@@ -284,7 +284,7 @@ export default function Financeiro() {
             saldo_antes: prod?.estoque_atual || 0,
             saldo_depois: (prod?.estoque_atual || 0) + item.quantidade,
             tipo_documento: 'Nota Fiscal',
-            numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
+            numero_documento: dados.dadosNFe.numero,
             chave_documento: dados.dadosNFe.chave,
             data_documento: dados.dadosNFe.data_emissao,
             fornecedor_id: dados.fornecedor_id,
@@ -365,7 +365,7 @@ export default function Financeiro() {
         }));
 
         if (dados.parcelar && dados.parcelas?.length > 0) {
-          console.log('📋 Criando', dados.parcelas.length, 'lançamentos separados com produtos');
+          console.log('📋 Criando', dados.parcelas.length, 'lançamentos separados - TODAS com produtos');
           
           for (let i = 0; i < dados.parcelas.length; i++) {
             const parcela = dados.parcelas[i];
@@ -378,7 +378,7 @@ export default function Financeiro() {
               tipo_documento: 'NF-e',
               fornecedor_id: dados.fornecedor_id,
               fornecedor_nome: forn?.nome?.toUpperCase(),
-              numero_documento: dados.dadosNFe.numero, // Changed from `NOTA FISCAL: ${dados.dadosNFe.numero}`
+              numero_documento: dados.dadosNFe.numero,
               chave_nfe: dados.dadosNFe.chave,
               data_emissao: dados.dadosNFe.data_emissao,
               data_vencimento: parcela.data,
@@ -393,12 +393,12 @@ export default function Financeiro() {
               observacoes: `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero} - PARCELA ${i + 1}/${dados.parcelas.length}${dados.dadosComplementares?.observacoes ? ' - ' + dados.dadosComplementares.observacoes.toUpperCase() : ''}`,
               numero_parcela: i + 1,
               total_parcelas: dados.parcelas.length,
-              produtos_lancamento: i === 0 ? produtosLancamento : [],
+              produtos_lancamento: produtosLancamento,
               gerado_xml: true
             });
           }
           
-          toast.success(`✅ ${dados.parcelas.length} lançamentos criados!`);
+          toast.success(`✅ ${dados.parcelas.length} lançamentos criados (TODAS com produtos)!`);
         } else {
           const numero = await getNextNumber(empresaSelecionadaId);
           
@@ -409,7 +409,7 @@ export default function Financeiro() {
             tipo_documento: 'NF-e',
             fornecedor_id: dados.fornecedor_id,
             fornecedor_nome: forn?.nome?.toUpperCase(),
-            numero_documento: dados.dadosNFe.numero, // Changed from `NOTA FISCAL: ${dados.dadosNFe.numero}`
+            numero_documento: dados.dadosNFe.numero,
             chave_nfe: dados.dadosNFe.chave,
             data_emissao: dados.dadosNFe.data_emissao,
             data_vencimento: dados.dataVencimento,
