@@ -14,6 +14,7 @@ import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, Refres
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
@@ -50,9 +51,17 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [buscaProduto, setBuscaProduto] = useState("");
+  
+  const [showDialogLocal, setShowDialogLocal] = useState(false);
+  const [showDialogCentro, setShowDialogCentro] = useState(false);
+  const [showDialogPlano, setShowDialogPlano] = useState(false);
+  const [showDialogGrupo, setShowDialogGrupo] = useState(false);
+  
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
     centro_custo_id: "",
+    plano_contas_id: "",
+    grupo_id: "",
     frete: "0,00",
     desconto_total: "0,00",
     outras_despesas: "0,00",
@@ -97,6 +106,24 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     queryFn: async () => {
       const all = await base44.entities.CentroCusto.list();
       return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: planos = [] } = useQuery({
+    queryKey: ['planos_import', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PlanoContas.list('codigo');
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.tipo === 'Despesa');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: grupos = [] } = useQuery({
+    queryKey: ['grupos_import', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoFinanceiro.list();
+      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false && g.tipo === 'Despesa');
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -511,7 +538,7 @@ ${xmlText}`,
           return i;
         }));
         cadastrados++;
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for visual effect
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error('Erro ao cadastrar produto:', error);
       }
@@ -586,6 +613,16 @@ ${xmlText}`,
       toast.error('❌ OBRIGATÓRIO: Defina a Data de Vencimento!');
       return;
     }
+    
+    if (gerarFinanceiro && !dadosComplementares.plano_contas_id) {
+      toast.error('❌ OBRIGATÓRIO: Selecione o Plano de Contas!');
+      return;
+    }
+
+    if (gerarFinanceiro && !dadosComplementares.grupo_id) {
+      toast.error('❌ OBRIGATÓRIO: Selecione o Grupo Financeiro!');
+      return;
+    }
 
     if (gerarFinanceiro && parcelar) {
       if (parcelas.length === 0) {
@@ -606,7 +643,8 @@ ${xmlText}`,
     console.log('✅ Confirmando importação:', {
       dadosNFe,
       dataVencimento,
-      fornecedor_id: fornecedorSelecionado.id
+      fornecedor_id: fornecedorSelecionado.id,
+      dadosComplementares
     });
 
     onSuccess({
@@ -626,10 +664,14 @@ ${xmlText}`,
         desconto_item: parseNumero(i.desconto_item)
       })),
       dadosComplementares: {
-        ...dadosComplementares,
+        local_estoque: dadosComplementares.local_estoque,
+        centro_custo_id: dadosComplementares.centro_custo_id,
+        plano_contas_id: dadosComplementares.plano_contas_id,
+        grupo_id: dadosComplementares.grupo_id,
         frete: parseNumero(dadosComplementares.frete),
         desconto_total: parseNumero(dadosComplementares.desconto_total),
-        outras_despesas: parseNumero(dadosComplementares.outras_despesas)
+        outras_despesas: parseNumero(dadosComplementares.outras_despesas),
+        observacoes: dadosComplementares.observacoes
       },
       gerarFinanceiro,
       gerarEstoque,
@@ -647,7 +689,7 @@ ${xmlText}`,
     setItensNFe([]);
     setItensSelecionados([]);
     setEditandoItemIndex(null);
-    setDadosComplementares({ local_estoque: "", centro_custo_id: "", frete: "0,00", desconto_total: "0,00", outras_despesas: "0,00", observacoes: "" });
+    setDadosComplementares({ local_estoque: "", centro_custo_id: "", plano_contas_id: "", grupo_id: "", frete: "0,00", desconto_total: "0,00", outras_despesas: "0,00", observacoes: "" });
     setDataVencimento("");
     setGerarFinanceiro(true);
     setGerarEstoque(true);
@@ -915,58 +957,6 @@ ${xmlText}`,
           {/* ETAPA 4: CONFIGURAÇÕES FINAIS */}
           {etapa === 4 && dadosNFe && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    Local de Estoque
-                    {gerarEstoque && <span className="text-red-600 font-bold">*</span>}
-                  </Label>
-                  <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
-                  <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Frete</Label>
-                  <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Desconto Geral</Label>
-                  <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Outras Despesas</Label>
-                  <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea 
-                  value={dadosComplementares.observacoes} 
-                  onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
-                  rows={2}
-                  className="uppercase" 
-                  style={{ textTransform: 'uppercase' }}
-                  placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
-                />
-              </div>
-
               {/* CHECKBOXES DE LANÇAMENTO */}
               <div className="space-y-4 p-4 bg-slate-50 rounded-lg border">
                 <div className="flex items-center space-x-3">
@@ -976,6 +966,38 @@ ${xmlText}`,
 
                 {gerarFinanceiro && (
                   <div className="ml-8 p-4 bg-white rounded border space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Plano de Contas</Label>
+                        <div className="flex gap-2">
+                          <Select value={dadosComplementares.plano_contas_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, plano_contas_id: v })} className="flex-1">
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {planos.map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Grupo Financeiro</Label>
+                        <div className="flex gap-2">
+                          <Select value={dadosComplementares.grupo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, grupo_id: v })} className="flex-1">
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {grupos.map(g => <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label className="flex items-center gap-2">
                         Data de Vencimento
@@ -1055,10 +1077,76 @@ ${xmlText}`,
                   <label htmlFor="est" className="font-semibold cursor-pointer">📦 Entrada em Estoque</label>
                 </div>
 
+                {gerarEstoque && (
+                  <div className="ml-8 p-4 bg-white rounded border space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          Local de Estoque
+                          <span className="text-red-600 font-bold">*</span>
+                        </Label>
+                        <div className="flex gap-2">
+                          <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })} className="flex-1">
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Centro de Custo</Label>
+                        <div className="flex gap-2">
+                          <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })} className="flex-1">
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Frete</Label>
+                        <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Desconto Geral</Label>
+                        <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Outras Despesas</Label>
+                        <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center space-x-3">
                   <Checkbox checked={gerarLivroFiscal} onCheckedChange={setGerarLivroFiscal} id="liv" />
                   <label htmlFor="liv" className="font-semibold cursor-pointer">📚 Livro Fiscal</label>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea 
+                  value={dadosComplementares.observacoes} 
+                  onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
+                  rows={2}
+                  className="uppercase" 
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
+                />
               </div>
 
               <Card className="bg-green-50 border-green-300">
@@ -1314,6 +1402,11 @@ ${xmlText}`,
           </DialogHeader>
         </DialogContent>
       </Dialog>
+
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais'] }); const local = locais.find(l => l.id === id); if (local) setDadosComplementares({ ...dadosComplementares, local_estoque: local.nome }); setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_import'] }); setDadosComplementares({ ...dadosComplementares, centro_custo_id: id }); setShowDialogCentro(false); }} />
+      <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_import'] }); setDadosComplementares({ ...dadosComplementares, plano_contas_id: id }); setShowDialogPlano(false); }} tipoFinanceiro="Despesa" />
+      <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_import'] }); setDadosComplementares({ ...dadosComplementares, grupo_id: id }); setShowDialogGrupo(false); }} tipoFinanceiro="Despesa" />
     </>
   );
 }
