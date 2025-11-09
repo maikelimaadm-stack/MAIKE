@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle, FileUp } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeXML from "../components/movimentacoes/ImportarNFeXML";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const getNextSystemNumber = async () => {
   try {
@@ -30,7 +31,7 @@ const getNextSystemNumber = async () => {
 
     return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch (error) {
-    console.error('Erro ao obter próximo número:', error);
+    console.error('Erro:', error);
     return 1;
   }
 };
@@ -107,7 +108,7 @@ export default function MovimentacoesEstoque() {
               numero_movimentacao: String(proximoNumero)
             });
           } catch (error) {
-            console.error(`Erro ao numerar:`, error);
+            console.error(`Erro:`, error);
           }
         }
         queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
@@ -168,7 +169,7 @@ export default function MovimentacoesEstoque() {
       toast.success('✅ Movimentação registrada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao registrar');
+      toast.error(error.message || 'Erro');
     }
   });
 
@@ -214,7 +215,7 @@ export default function MovimentacoesEstoque() {
 
       await createMutation.mutateAsync(data);
     } catch (error) {
-      console.error('Erro ao salvar movimentação:', error);
+      console.error('Erro:', error);
     }
   };
 
@@ -224,7 +225,7 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleCancel = async (id) => {
-    if (window.confirm('⚠️ ATENÇÃO: Esta movimentação será cancelada e o estoque revertido. Confirma?')) {
+    if (window.confirm('⚠️ Cancelar movimentação e reverter estoque?')) {
       try {
         const mov = movimentacoes.find(m => m.id === id);
         const produto = produtos.find(p => p.id === mov.produto_id);
@@ -237,16 +238,16 @@ export default function MovimentacoesEstoque() {
           status: 'Cancelada',
           cancelado_por: user?.email || 'Sistema',
           data_cancelamento: new Date().toISOString(),
-          motivo_cancelamento: 'CANCELAMENTO SOLICITADO'
+          motivo_cancelamento: 'CANCELAMENTO'
         });
 
         await base44.entities.Produto.update(produto.id, { estoque_atual: novoEstoque });
         
         queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
         queryClient.invalidateQueries({ queryKey: ['produtos'] });
-        toast.success('Movimentação cancelada!');
+        toast.success('Cancelada!');
       } catch (error) {
-        toast.error('Erro ao cancelar');
+        toast.error('Erro');
       }
     }
   };
@@ -349,82 +350,42 @@ export default function MovimentacoesEstoque() {
   const totalAjustes = movimentacoes.filter(m => m.tipo_movimentacao === 'Ajuste').length;
   const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0));
 
+  const cartoes = [
+    { id: 'total', label: 'Total Movimentações', valor: totalMovimentacoes, sublabel: 'Registros ativos', icon: ArrowRightLeft, cor: 'slate', tipo: 'numero' },
+    { id: 'entradas', label: 'Entradas', valor: totalEntradas, sublabel: 'Recebimentos', icon: TrendingUp, cor: 'blue', tipo: 'numero' },
+    { id: 'saidas', label: 'Saídas', valor: totalSaidas, sublabel: 'Expedições', icon: TrendingDown, cor: 'orange', tipo: 'numero' },
+    { id: 'ajustes', label: 'Ajustes', valor: totalAjustes, sublabel: 'Correções', icon: Package, cor: 'violet', tipo: 'numero' },
+    { id: 'alertas', label: 'Estoque Crítico', valor: produtosEstoqueBaixo.length, sublabel: 'Produtos baixos', icon: AlertTriangle, cor: 'red', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total</CardTitle>
-            <ArrowRightLeft className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalMovimentacoes}</div>
-            <p className="text-xs text-green-600 mt-1">Movimentações ativas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Entradas</CardTitle>
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{totalEntradas}</div>
-            <p className="text-xs text-blue-600 mt-1">Recebimentos</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-orange-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Saídas</CardTitle>
-            <TrendingDown className="h-5 w-5 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-900">{totalSaidas}</div>
-            <p className="text-xs text-orange-600 mt-1">Vendas/Consumos</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Ajustes</CardTitle>
-            <Package className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{totalAjustes}</div>
-            <p className="text-xs text-purple-600 mt-1">Correções</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-red-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Alertas</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-900">{produtosEstoqueBaixo.length}</div>
-            <p className="text-xs text-red-600 mt-1">Estoque crítico</p>
-          </CardContent>
-        </Card>
-      </div>
-
+    <div className="p-4 md:p-6 space-y-3">
       {!showForm && (
-        <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button onClick={handleExport} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Exportar CSV
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Movimentações de Estoque</h1>
+              <p className="text-xs text-slate-600">Controle de entradas e saídas</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
             </Button>
-            <Button onClick={() => setShowImportXML(true)} variant="outline" className="gap-2 border-blue-300 text-blue-700">
-              <FileUp className="w-4 h-4" />
-              Importar NF-e (XML)
+            <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileUp className="w-3.5 h-3.5" />
+              Importar NF-e
+            </Button>
+            <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-900 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Nova Movimentação
             </Button>
           </div>
-          <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
-            <Plus className="w-5 h-5" />
-            Nova Movimentação
-          </Button>
-        </div>
+        </>
       )}
 
       <AnimatePresence>
@@ -440,12 +401,7 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
-      <TabelaMovimentacoes
-        movimentacoes={movimentacoes}
-        onEdit={handleEdit}
-        onCancel={handleCancel}
-        isLoading={isLoading}
-      />
+      {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={handleEdit} onCancel={handleCancel} isLoading={isLoading} />}
 
       <ImportarNFeXML
         open={showImportXML}

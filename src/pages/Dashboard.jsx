@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Scale, TrendingUp, TrendingDown, Package, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -28,6 +27,7 @@ import {
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
 import TicketPesagem from "../components/pesagens/TicketPesagem";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -36,7 +36,6 @@ const formatarNumero = (numero) => {
   return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-// Função global para obter próximo número único do sistema
 const getNextSystemNumber = async () => {
   try {
     const [pesagens, fornecedores, produtos] = await Promise.all([
@@ -49,31 +48,22 @@ const getNextSystemNumber = async () => {
 
     pesagens.forEach(p => {
       const num = parseInt(p.numero_registro, 10);
-      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
-        allNumbers.push(num);
-      }
+      if (!isNaN(num) && num > 0 && num < 1000000000) allNumbers.push(num);
     });
 
     fornecedores.forEach(f => {
       const num = parseInt(f.numero_cadastro, 10);
-      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
-        allNumbers.push(num);
-      }
+      if (!isNaN(num) && num > 0 && num < 1000000000) allNumbers.push(num);
     });
 
     produtos.forEach(p => {
       const num = parseInt(p.numero_produto, 10);
-      if (!isNaN(num) && num > 0 && num < 1000000000) { // Filtrar timestamps acidentais
-        allNumbers.push(num);
-      }
+      if (!isNaN(num) && num > 0 && num < 1000000000) allNumbers.push(num);
     });
 
-    const nextNumber = allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
-    console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', allNumbers.length, 'registros)');
-    return nextNumber;
+    return allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
   } catch (error) {
-    console.error('❌ Erro ao obter próximo número sequencial:', error);
-    // Em caso de erro, retornar 1 ao invés de timestamp
+    console.error('❌ Erro:', error);
     return 1;
   }
 };
@@ -90,24 +80,20 @@ export default function Dashboard() {
 
   const queryClient = useQueryClient();
 
-  // Pegar empresa selecionada
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: pesagens, isLoading } = useQuery({
     queryKey: ['pesagens', empresaSelecionadaId],
     queryFn: async () => {
       const allPesagens = await base44.entities.Pesagem.list('-created_date');
-      // Filtrar apenas pesagens da empresa selecionada
       return allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
     },
     initialData: [],
-    enabled: !!empresaSelecionadaId, // Only run query if an company is selected
+    enabled: !!empresaSelecionadaId,
   });
 
-  // Numerar registros existentes automaticamente
   useEffect(() => {
     const numerarRegistrosExistentes = async () => {
-      // Only run if data is loaded, there are pesagens, and form is not open
       if (isLoading || !pesagens || pesagens.length === 0 || showForm || !empresaSelecionadaId) {
         return;
       }
@@ -115,8 +101,6 @@ export default function Dashboard() {
       const registrosSemNumero = pesagens.filter(p => !p.numero_registro || String(p.numero_registro).trim() === '');
       
       if (registrosSemNumero.length > 0) {
-        console.log(`Numerando ${registrosSemNumero.length} registros sem número...`);
-        
         let updateCount = 0;
         for (const pesagem of registrosSemNumero) {
           try {
@@ -126,7 +110,7 @@ export default function Dashboard() {
             });
             updateCount++;
           } catch (error) {
-            console.error(`Erro ao numerar registro ${pesagem.id}:`, error);
+            console.error(`Erro:`, error);
           }
         }
         
@@ -146,11 +130,8 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['pesagens'] });
       setShowForm(false);
       setEditingPesagem(null);
-      toast.success('Pesagem registrada com sucesso!');
+      toast.success('Pesagem registrada!');
     },
-    onError: () => {
-      toast.error('Erro ao registrar pesagem. Tente novamente.');
-    }
   });
 
   const updateMutation = useMutation({
@@ -159,26 +140,19 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['pesagens'] });
       setShowForm(false);
       setEditingPesagem(null);
-      toast.success('Pesagem atualizada com sucesso!');
+      toast.success('Atualizada!');
     },
-    onError: () => {
-      toast.error('Erro ao atualizar pesagem. Tente novamente.');
-    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Pesagem.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pesagens'] });
-      toast.success('Pesagem excluída com sucesso!');
+      toast.success('Excluída!');
     },
-    onError: () => {
-      toast.error('Erro ao excluir pesagem. Tente novamente.');
-    }
   });
 
   const handleSubmit = async (data) => {
-    // Adicionar empresa_id aos dados
     data.empresa_id = empresaSelecionadaId;
     
     if (!editingPesagem) {
@@ -236,13 +210,12 @@ export default function Dashboard() {
 
   const handleExport = () => {
     const csvRows = [];
-    // Ensure 'numero_registro' is included in export if it's new
     const headers = ['Número Registro', 'Data', 'Tipo', 'Placa', 'Motorista', 'Produto', 'Fornecedor/Destino', 'Peso Tara (kg)', 'Peso Bruto (kg)', 'Peso Líquido (kg)', 'Observações'];
     csvRows.push(headers.join(';'));
 
     pesagens.forEach(p => {
       const row = [
-        p.numero_registro || '', // Include numero_registro
+        p.numero_registro || '',
         format(new Date(p.data_pesagem), 'dd/MM/yyyy'),
         p.tipo_pesagem,
         p.placa_caminhao || '',
@@ -281,12 +254,12 @@ export default function Dashboard() {
           return;
         }
 
-        let currentNextSystemNumber = await getNextSystemNumber(); // Get the starting number for the import batch
+        let currentNextSystemNumber = await getNextSystemNumber();
         
         const validRecords = [];
         const errors = [];
 
-        for (let i = 1; i < lines.length; i++) { // Start from 1 to skip header
+        for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(';');
           
           const numeroRegistroIndex = 0;
@@ -303,7 +276,7 @@ export default function Dashboard() {
 
           const errosLinha = [];
 
-          if (values.length < 10) { // Minimum 10 columns (from "Número Registro" to "Peso Líquido (kg)")
+          if (values.length < 10) {
             errors.push({
               linha: i + 1,
               erro: 'Número insuficiente de colunas (mínimo 10 colunas: "Número Registro" a "Peso Líquido (kg)")',
@@ -313,7 +286,6 @@ export default function Dashboard() {
           }
 
           try {
-            // Validar campos obrigatórios
             const dataFormatada = parseDateBR(values[dataIndex]?.trim());
             if (!dataFormatada) {
               errosLinha.push('Data inválida ou ausente (formato DD/MM/AAAA)');
@@ -363,13 +335,13 @@ export default function Dashboard() {
               peso_bruto: pesoBruto,
               peso_liquido: pesoLiquido,
               observacoes: values[observacoesIndex]?.trim()?.toUpperCase() || undefined,
-              empresa_id: empresaSelecionadaId, // Add empresa_id to imported records
+              empresa_id: empresaSelecionadaId,
             };
 
             validRecords.push(pesagem);
             
             if (!numeroFornecido || numeroFornecido === '') {
-              currentNextSystemNumber++; // Increment only if we assigned a new number
+              currentNextSystemNumber++;
             }
           } catch (err) {
             errors.push({
@@ -380,7 +352,6 @@ export default function Dashboard() {
           }
         }
 
-        // Se houver erros, mostrar diálogo
         if (errors.length > 0) {
           setImportErrors(errors);
           setValidRecordsToImport(validRecords);
@@ -388,7 +359,6 @@ export default function Dashboard() {
           return;
         }
 
-        // Se não houver erros, importar diretamente
         if (validRecords.length === 0) {
           toast.error('Nenhum registro válido encontrado para importação!');
           return;
@@ -456,16 +426,16 @@ export default function Dashboard() {
     csvRows.push(headers.join(';'));
     
     const example = [
-      '', // Número Registro (deixe em branco para gerar automaticamente, ou preencha se quiser um número específico)
+      '',
       '04/11/2025',
       'Entrada',
       'ABC1234',
       'JOÃO SILVA',
       'SOJA',
       'FORNECEDOR EXEMPLO',
-      '5000.00',
-      '25000.00',
-      '20000.00',
+      '5000,00',
+      '25000,00',
+      '20000,00',
       'OBSERVAÇÕES EXEMPLO'
     ];
     csvRows.push(example.join(';'));
@@ -479,7 +449,6 @@ export default function Dashboard() {
   };
 
   const downloadErrosImportacao = () => {
-    console.log('📥 Iniciando download de erros...', { totalErros: importErrors.length });
     
     try {
       const csvRows = [];
@@ -490,7 +459,7 @@ export default function Dashboard() {
         const dados = erro.dados.split(';');
         const row = [
           erro.linha,
-          `"${erro.erro}"`, // Colocar erro entre aspas para evitar problemas com ponto e vírgula
+          `"${erro.erro}"`,
           ...dados
         ];
         csvRows.push(row.join(';'));
@@ -503,15 +472,12 @@ export default function Dashboard() {
       link.href = url;
       link.download = `erros_importacao_pesagens_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
       
-      // Adicionar ao DOM, clicar e remover
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Limpar URL objeto
       setTimeout(() => URL.revokeObjectURL(url), 100);
       
-      console.log('✅ Download iniciado com sucesso!');
       toast.success('Planilha de erros baixada com sucesso!');
     } catch (error) {
       console.error('❌ Erro ao baixar planilha:', error);
@@ -529,117 +495,51 @@ export default function Dashboard() {
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Pesagens', valor: totalPesagens, sublabel: 'Registros', icon: Scale, cor: 'slate', tipo: 'numero' },
+    { id: 'entrada', label: 'Entradas', valor: pesagensEntrada, sublabel: 'Recebimentos', icon: TrendingDown, cor: 'blue', tipo: 'numero' },
+    { id: 'saida', label: 'Saídas', valor: pesagensSaida, sublabel: 'Expedições', icon: TrendingUp, cor: 'orange', tipo: 'numero' },
+    { id: 'ambos', label: 'Ambos', valor: pesagensAmbos, sublabel: 'Entrada+Saída', icon: Scale, cor: 'indigo', tipo: 'numero' },
+    { id: 'peso', label: 'Peso Total', valor: parseFloat(formatarNumero(pesoTotalLiquido).replace(/\./g, '').replace(',', '.')), sublabel: 'Kg líquidos', icon: Package, cor: 'violet', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total de Pesagens</CardTitle>
-            <Scale className="h-5 h-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalPesagens}</div>
-            <p className="text-xs text-green-600 mt-1">Registros totais</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Entradas</CardTitle>
-            <TrendingDown className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{pesagensEntrada}</div>
-            <p className="text-xs text-blue-600 mt-1">Pesagens de entrada</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-orange-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Saídas</CardTitle>
-            <TrendingUp className="h-5 w-5 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-900">{pesagensSaida}</div>
-            <p className="text-xs text-orange-600 mt-1">Pesagens de saída</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-indigo-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Ambos</CardTitle>
-            <Scale className="h-5 w-5 text-indigo-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-indigo-900">{pesagensAmbos}</div>
-            <p className="text-xs text-indigo-600 mt-1">Entrada e Saída</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Peso Total</CardTitle>
-            <Package className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{formatarNumero(pesoTotalLiquido)}</div>
-            <p className="text-xs text-purple-600 mt-1">Kg líquidos totais</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botões */}
+    <div className="p-4 md:p-6 space-y-3">
       {!showForm && (
-        <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Pesagens</h1>
+              <p className="text-xs text-slate-600">Controle de balança</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
             </Button>
             <div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleImport}
-                className="hidden"
-                id="import-pesagens"
-              />
-              <Button
-                onClick={() => document.getElementById('import-pesagens').click()}
-                variant="outline"
-                className="gap-2"
-                disabled={showImportProgress}
-              >
-                <Upload className="w-4 h-4" />
-                Importar CSV
+              <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-pesagens" />
+              <Button onClick={() => document.getElementById('import-pesagens').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
+                <Upload className="w-3.5 h-3.5" />
+                Importar
               </Button>
             </div>
-            <Button
-              onClick={downloadTemplate}
-              variant="outline"
-              className="gap-2"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Baixar Modelo
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Modelo
+            </Button>
+            <Button onClick={handleNewPesagem} size="sm" className="h-8 gap-1 text-xs bg-slate-900 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Nova Pesagem
             </Button>
           </div>
-          <Button
-            onClick={handleNewPesagem}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-            size="lg"
-          >
-            <Plus className="w-5 h-5" />
-            Nova Pesagem
-          </Button>
-        </div>
+        </>
       )}
 
-      {/* Formulário */}
       <AnimatePresence>
         {showForm && (
           <FormularioPesagem
@@ -651,23 +551,22 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* Tabela */}
-      <TabelaPesagens
-        pesagens={pesagens}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onPrint={handlePrint}
-        isLoading={isLoading}
-      />
+      {!showForm && (
+        <TabelaPesagens
+          pesagens={pesagens}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPrint={handlePrint}
+          isLoading={isLoading}
+        />
+      )}
 
-      {/* Modal de Ticket */}
       <TicketPesagem
         pesagem={ticketPesagem}
         open={!!ticketPesagem}
         onClose={() => setTicketPesagem(null)}
       />
 
-      {/* Modal de Erros de Validação */}
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -752,7 +651,6 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Progresso de Importação */}
       <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

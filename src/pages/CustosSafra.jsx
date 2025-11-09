@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, DollarSign, Package, Users, Calendar, CheckCircle, Clock, Layers, Truck, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Plus, DollarSign, Package, Users, Calendar, Layers, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import TabelaCustos from "../components/custos/TabelaCustos";
 import FormularioCusto from "../components/custos/FormularioCusto";
 import LancarEntrega from "../components/custos/LancarEntrega";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const getNextSystemNumber = async () => {
   try {
@@ -32,10 +33,9 @@ const getNextSystemNumber = async () => {
       ...custos.map(c => parseInt(c.numero_lancamento) || 0)
     ].filter(n => n > 0 && n < 1000000000);
 
-    const nextNumber = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-    return nextNumber;
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch (error) {
-    console.error('Erro ao obter próximo número:', error);
+    console.error('Erro:', error);
     return 1;
   }
 };
@@ -85,23 +85,20 @@ export default function CustosSafra() {
     const numerarCustosExistentes = async () => {
       if (!empresaSelecionadaId || !safraAtiva) return;
       const custosSemNumero = custos.filter(c => !c.numero_lancamento || c.numero_lancamento === '');
-      
       if (custosSemNumero.length > 0) {
         for (const custo of custosSemNumero) {
           try {
             const proximoNumero = await getNextSystemNumber();
             await base44.entities.CustoSafra.update(custo.id, { numero_lancamento: String(proximoNumero) });
           } catch (error) {
-            console.error(`Erro ao numerar custo ${custo.id}:`, error);
+            console.error('Erro:', error);
           }
         }
         queryClient.invalidateQueries({ queryKey: ['custos_safra'] });
       }
     };
 
-    if (custos && custos.length > 0) {
-      numerarCustosExistentes();
-    }
+    if (custos && custos.length > 0) numerarCustosExistentes();
   }, [custos, queryClient, empresaSelecionadaId, safraAtiva]);
 
   const { data: fornecedores = [] } = useQuery({
@@ -128,7 +125,7 @@ export default function CustosSafra() {
       queryClient.invalidateQueries({ queryKey: ['custos_safra'] });
       setShowCustoForm(false);
       setEditingCusto(null);
-      toast.success('Custo lançado com sucesso!');
+      toast.success('Lançado!');
     },
   });
 
@@ -138,7 +135,7 @@ export default function CustosSafra() {
       queryClient.invalidateQueries({ queryKey: ['custos_safra'] });
       setShowCustoForm(false);
       setEditingCusto(null);
-      toast.success('Custo atualizado com sucesso!');
+      toast.success('Atualizado!');
     },
   });
 
@@ -146,7 +143,7 @@ export default function CustosSafra() {
     mutationFn: (id) => base44.entities.CustoSafra.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custos_safra'] });
-      toast.success('Custo excluído com sucesso!');
+      toast.success('Excluído!');
     },
   });
 
@@ -188,13 +185,13 @@ export default function CustosSafra() {
   };
 
   const handleDeleteCusto = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('Deseja excluir este lançamento?')) {
+    if (skipConfirm || window.confirm('Excluir lançamento?')) {
       deleteCustoMutation.mutate(id);
     }
   };
 
   const handlePrintCusto = (custo) => {
-    console.log('Imprimir custo:', custo);
+    console.log('Imprimir:', custo);
   };
 
   const handleLancarEntrega = (custo) => {
@@ -203,12 +200,12 @@ export default function CustosSafra() {
 
   const handleExport = () => {
     if (!safraAtiva) {
-      toast.error('Selecione uma safra primeiro!');
+      toast.error('Selecione safra!');
       return;
     }
 
     const csvRows = [];
-    const headers = ['Fornecedor', 'Produto', 'Quantidade', 'Valor Unitário', 'Valor Total', 'Prazo Entrega', 'Data Entrega', 'Status', 'Forma Pagamento', 'Observações'];
+    const headers = ['Fornecedor', 'Produto', 'Quantidade', 'Valor Unitário', 'Valor Total', 'Prazo', 'Data Entrega', 'Status', 'Forma Pagamento', 'Obs'];
     csvRows.push(headers.join(';'));
 
     custos.forEach(c => {
@@ -231,30 +228,30 @@ export default function CustosSafra() {
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `custos_safra_${safraAtiva.ano_inicio}-${safraAtiva.ano_fim}_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `custos_safra_${safraAtiva.ano_inicio}-${safraAtiva.ano_fim}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
-    toast.success('Dados exportados com sucesso!');
+    toast.success('Exportado!');
   };
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Fornecedor', 'Produto', 'Quantidade', 'Valor Unitário', 'Prazo Entrega', 'Status', 'Forma Pagamento', 'Observações'];
+    const headers = ['Fornecedor', 'Produto', 'Quantidade', 'Valor Unitário', 'Prazo', 'Status', 'Forma Pgto', 'Obs'];
     csvRows.push(headers.join(';'));
     
-    const example = ['FORNECEDOR EXEMPLO', 'PRODUTO EXEMPLO', '100', '50.00', '2025-12-31', 'Pendente', 'À VISTA', 'OBSERVAÇÕES EXEMPLO'];
+    const example = ['FORNECEDOR', 'PRODUTO', '100', '50.00', '2025-12-31', 'Pendente', 'À VISTA', 'OBS'];
     csvRows.push(example.join(';'));
 
     const csvString = csvRows.join('\n');
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'modelo_custos_safra.csv';
+    link.download = 'modelo_custos.csv';
     link.click();
   };
 
   const downloadErrosImportacao = () => {
     const csvRows = [];
-    const headers = ['Linha', 'Erro', 'Fornecedor', 'Produto', 'Quantidade', 'Valor Unitário', 'Prazo Entrega', 'Status', 'Forma Pagamento', 'Observações'];
+    const headers = ['Linha', 'Erro', 'Fornecedor', 'Produto', 'Qtd', 'Vlr Unit', 'Prazo', 'Status', 'Forma', 'Obs'];
     csvRows.push(headers.join(';'));
 
     importErrors.forEach(erro => {
@@ -266,7 +263,7 @@ export default function CustosSafra() {
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `erros_importacao_custos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `erros_custos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
   };
 
@@ -290,12 +287,11 @@ export default function CustosSafra() {
     }
 
     await queryClient.invalidateQueries({ queryKey: ['custos_safra'] });
-    
     setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
 
     setTimeout(() => {
       setShowImportProgress(false);
-      toast.success(actualErrors > 0 ? `${imported} importados! ${actualErrors} com erro.` : `${imported} importados com sucesso!`);
+      toast.success(actualErrors > 0 ? `${imported} importados! ${actualErrors} erro(s).` : `${imported} importados!`);
     }, 1000);
   };
 
@@ -304,7 +300,7 @@ export default function CustosSafra() {
     if (!file) return;
 
     if (!safraAtiva) {
-      toast.error('Selecione uma safra primeiro!');
+      toast.error('Selecione safra!');
       return;
     }
 
@@ -315,7 +311,7 @@ export default function CustosSafra() {
         const lines = text.split('\n').filter(line => line.trim());
         
         if (lines.length <= 1) {
-          toast.error('O arquivo está vazio!');
+          toast.error('Arquivo vazio!');
           return;
         }
 
@@ -327,7 +323,7 @@ export default function CustosSafra() {
           const values = lines[i].split(';');
           
           if (values.length < 4) {
-            errors.push({ linha: i + 1, erro: 'Número insuficiente de colunas', dados: lines[i] });
+            errors.push({ linha: i + 1, erro: 'Colunas insuficientes', dados: lines[i] });
             continue;
           }
 
@@ -338,14 +334,14 @@ export default function CustosSafra() {
             const valorUnitario = parseFloat(values[3]?.replace(',', '.'));
 
             if (!fornecedorNome || !produtoNome || isNaN(quantidade) || isNaN(valorUnitario)) {
-              throw new Error("Fornecedor, Produto, Quantidade e Valor são obrigatórios");
+              throw new Error("Campos obrigatórios faltando");
             }
 
             const fornecedor = fornecedores.find(f => f.nome?.toUpperCase() === fornecedorNome);
             const produto = produtos.find(p => p.nome_produto?.toUpperCase() === produtoNome);
 
-            if (!fornecedor) throw new Error(`Fornecedor "${fornecedorNome}" não encontrado`);
-            if (!produto) throw new Error(`Produto "${produtoNome}" não encontrado`);
+            if (!fornecedor) throw new Error(`Fornecedor não encontrado: ${fornecedorNome}`);
+            if (!produto) throw new Error(`Produto não encontrado: ${produtoNome}`);
 
             validRecords.push({
               empresa_id: empresaSelecionadaId,
@@ -367,7 +363,7 @@ export default function CustosSafra() {
             });
             proximoNumero++;
           } catch (err) {
-            errors.push({ linha: i + 1, erro: err.message || 'Erro desconhecido', dados: lines[i] });
+            errors.push({ linha: i + 1, erro: err.message || 'Erro', dados: lines[i] });
           }
         }
 
@@ -379,13 +375,13 @@ export default function CustosSafra() {
         }
 
         if (validRecords.length === 0) {
-          toast.error('Nenhum registro válido encontrado!');
+          toast.error('Nenhum registro válido!');
           return;
         }
 
         await executarImportacao(validRecords);
       } catch (error) {
-        toast.error('Erro ao importar. Verifique o arquivo.');
+        toast.error('Erro ao importar!');
       }
     };
     reader.readAsText(file, 'UTF-8');
@@ -411,14 +407,14 @@ export default function CustosSafra() {
 
   if (!safraAtiva && safras.length === 0) {
     return (
-      <div className="p-6">
-        <Card className="shadow-xl border-slate-200">
+      <div className="p-4 md:p-6">
+        <Card className="shadow-sm">
           <CardContent className="p-12 text-center">
             <Layers className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-700 mb-2">Nenhuma Safra Cadastrada</h2>
-            <p className="text-slate-500 mb-6">Você precisa cadastrar uma safra antes de lançar custos.</p>
-            <Button onClick={() => setShowSafraDialog(true)} className="bg-green-600 hover:bg-green-700">
-              <Plus className="w-4 h-4 mr-2" />
+            <h2 className="text-xl font-bold text-slate-700 mb-2">Nenhuma Safra</h2>
+            <p className="text-xs text-slate-500 mb-6">Cadastre uma safra primeiro</p>
+            <Button onClick={() => setShowSafraDialog(true)} size="sm" className="h-8 gap-1 text-xs">
+              <Plus className="w-3.5 h-3.5" />
               Cadastrar Safra
             </Button>
           </CardContent>
@@ -427,96 +423,67 @@ export default function CustosSafra() {
     );
   }
 
+  const cartoes = [
+    { id: 'total', label: 'Total da Safra', valor: totalGeralSafra, sublabel: 'Valor investido', icon: DollarSign, cor: 'emerald', tipo: 'moeda' },
+    { id: 'fornecedores', label: 'Fornecedores', valor: Object.keys(custosPorFornecedor).length, sublabel: 'Ativos', icon: Users, cor: 'blue', tipo: 'numero' },
+    { id: 'lancamentos', label: 'Lançamentos', valor: custos.length, sublabel: 'Custos', icon: Package, cor: 'violet', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50 md:col-span-1">
-          <CardHeader className="pb-3">
-            <h3 className="text-sm font-medium text-green-700 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Safra Ativa
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <Select value={safraAtiva?.id || ''} onValueChange={(value) => {
-              setSafraAtiva(safras.find(s => s.id === value));
-              setShowCustoForm(false);
-              setEditingCusto(null);
-            }}>
-              <SelectTrigger className="border-green-300 focus:border-green-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {safras.map((safra) => (
-                  <SelectItem key={safra.id} value={safra.id}>{safra.ano_inicio}/{safra.ano_fim}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={() => setShowSafraDialog(true)} className="w-full mt-2 text-xs">
-              <Plus className="w-3 h-3 mr-1" />
-              Nova Safra
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total da Safra</CardTitle>
-            <DollarSign className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">R$ {formatarNumero(totalGeralSafra)}</div>
-            <p className="text-xs text-green-600 mt-1">Valor total investido</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Fornecedores</CardTitle>
-            <Users className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{Object.keys(custosPorFornecedor).length}</div>
-            <p className="text-xs text-blue-600 mt-1">Fornecedores ativos</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Lançamentos</CardTitle>
-            <Package className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{custos.length}</div>
-            <p className="text-xs text-purple-600 mt-1">Custos registrados</p>
-          </CardContent>
-        </Card>
-      </div>
-
+    <div className="p-4 md:p-6 space-y-3">
       {!showCustoForm && safraAtiva && (
-        <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button onClick={handleExport} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Exportar CSV
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Custos de Safra</h1>
+              <p className="text-xs text-slate-600">Safra: {safraAtiva.ano_inicio}/{safraAtiva.ano_fim}</p>
+            </div>
+            <div className="flex gap-2">
+              <Select value={safraAtiva?.id || ''} onValueChange={(value) => {
+                setSafraAtiva(safras.find(s => s.id === value));
+                setShowCustoForm(false);
+                setEditingCusto(null);
+              }} className="h-8">
+                <SelectTrigger className="h-8 text-xs w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {safras.map((safra) => (
+                    <SelectItem key={safra.id} value={safra.id} className="text-xs">{safra.ano_inicio}/{safra.ano_fim}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => setShowSafraDialog(true)} className="h-8 gap-1 text-xs">
+                <Plus className="w-3.5 h-3.5" />
+                Safra
+              </Button>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
             </Button>
             <div>
               <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-custos" />
-              <Button onClick={() => document.getElementById('import-custos').click()} variant="outline" className="gap-2" disabled={showImportProgress}>
-                <Upload className="w-4 h-4" />
-                Importar CSV
+              <Button onClick={() => document.getElementById('import-custos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
+                <Upload className="w-3.5 h-3.5" />
+                Importar
               </Button>
             </div>
-            <Button onClick={downloadTemplate} variant="outline" className="gap-2">
-              <FileSpreadsheet className="w-4 h-4" />
-              Baixar Modelo
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Modelo
+            </Button>
+            <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-900 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Novo Lançamento
             </Button>
           </div>
-          <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
-            <Plus className="w-5 h-5" />
-            Novo Lançamento
-          </Button>
-        </div>
+        </>
       )}
 
       <AnimatePresence>
@@ -532,7 +499,7 @@ export default function CustosSafra() {
         )}
       </AnimatePresence>
 
-      {safraAtiva && (
+      {!showCustoForm && safraAtiva && (
         <TabelaCustos
           custos={custos}
           fornecedores={fornecedores}
@@ -549,21 +516,21 @@ export default function CustosSafra() {
       <Dialog open={showSafraDialog} onOpenChange={setShowSafraDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-green-600" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Layers className="w-4 h-4 text-emerald-600" />
               Gerenciar Safras
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {safras.map((safra) => (
-              <Card key={safra.id} className="border-slate-200">
-                <CardContent className="p-4">
+              <Card key={safra.id} className="shadow-sm">
+                <CardContent className="p-3">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-bold text-slate-900">{safra.ano_inicio}/{safra.ano_fim}</p>
-                      <p className="text-sm text-slate-600">{safra.descricao}</p>
+                      <p className="font-bold text-sm text-slate-900">{safra.ano_inicio}/{safra.ano_fim}</p>
+                      <p className="text-xs text-slate-600">{safra.descricao}</p>
                     </div>
-                    <Button size="sm" variant={safraAtiva?.id === safra.id ? "default" : "outline"} onClick={() => { setSafraAtiva(safra); setShowSafraDialog(false); }}>
+                    <Button size="sm" variant={safraAtiva?.id === safra.id ? "default" : "outline"} onClick={() => { setSafraAtiva(safra); setShowSafraDialog(false); }} className="h-7 text-xs">
                       {safraAtiva?.id === safra.id ? 'Ativa' : 'Selecionar'}
                     </Button>
                   </div>
@@ -577,54 +544,52 @@ export default function CustosSafra() {
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-700">
-              <AlertCircle className="w-6 h-6" />
-              Erros Encontrados na Importação
+            <DialogTitle className="flex items-center gap-2 text-sm text-orange-700">
+              <AlertCircle className="w-4 h-4" />
+              Erros na Importação
             </DialogTitle>
-            <DialogDescription>
-              {importErrors.length} erro(s) encontrado(s). {validRecordsToImport.length > 0 && `${validRecordsToImport.length} registro(s) válido(s).`}
+            <DialogDescription className="text-xs">
+              {importErrors.length} erro(s). {validRecordsToImport.length > 0 && `${validRecordsToImport.length} válido(s).`}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-auto border rounded-lg">
+          <div className="flex-1 overflow-auto border rounded">
             <Table>
-              <TableHeader className="sticky top-0 bg-white z-10">
+              <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
-                  <TableHead className="w-20">Linha</TableHead>
-                  <TableHead>Erro</TableHead>
-                  <TableHead>Dados</TableHead>
+                  <TableHead className="w-16 text-xs">Linha</TableHead>
+                  <TableHead className="text-xs">Erro</TableHead>
+                  <TableHead className="text-xs">Dados</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {importErrors.map((erro, idx) => (
-                  <TableRow key={idx}>
+                  <TableRow key={idx} className="text-xs">
                     <TableCell className="font-bold text-orange-700">{erro.linha}</TableCell>
                     <TableCell className="text-red-600">{erro.erro}</TableCell>
-                    <TableCell className="font-mono text-xs text-slate-600">{erro.dados}</TableCell>
+                    <TableCell className="font-mono text-slate-600">{erro.dados}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
 
-          <div className="flex flex-col gap-3 pt-4 border-t">
-            <div className="flex justify-between items-center gap-3">
-              <Button variant="outline" onClick={downloadErrosImportacao} className="gap-2 border-orange-300 text-orange-700">
-                <Download className="w-4 h-4" />
-                Baixar Erros
+          <div className="flex justify-between pt-3 border-t">
+            <Button variant="outline" onClick={downloadErrosImportacao} size="sm" className="h-8 gap-1 text-xs text-orange-700">
+              <Download className="w-3.5 h-3.5" />
+              Baixar Erros
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowErrorDialog(false); setImportErrors([]); setValidRecordsToImport([]); }} size="sm" className="h-8 gap-1 text-xs">
+                <X className="w-3.5 h-3.5" />
+                Cancelar
               </Button>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => { setShowErrorDialog(false); setImportErrors([]); setValidRecordsToImport([]); }} className="gap-2">
-                  <X className="w-4 h-4" />
-                  Cancelar
+              {validRecordsToImport.length > 0 && (
+                <Button onClick={() => { setShowErrorDialog(false); executarImportacao(validRecordsToImport); }} size="sm" className="h-8 gap-1 text-xs bg-orange-600">
+                  <Upload className="w-3.5 h-3.5" />
+                  Importar {validRecordsToImport.length}
                 </Button>
-                {validRecordsToImport.length > 0 && (
-                  <Button onClick={() => { setShowErrorDialog(false); executarImportacao(validRecordsToImport); }} className="bg-orange-600 hover:bg-orange-700 gap-2">
-                    <Upload className="w-4 h-4" />
-                    Importar {validRecordsToImport.length}
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </DialogContent>
@@ -633,23 +598,23 @@ export default function CustosSafra() {
       <Dialog open={showImportProgress} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
-              Importando Custos
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              Importando
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
                 <span>Progresso</span>
-                <span className="font-semibold">{importProgress.current} de {importProgress.total}</span>
+                <span className="font-semibold">{importProgress.current}/{importProgress.total}</span>
               </div>
-              <Progress value={progressPercentage} className="h-3" />
-              <p className="text-center text-sm font-medium text-green-600">{progressPercentage}%</p>
+              <Progress value={progressPercentage} className="h-1.5" />
+              <p className="text-center text-xs font-semibold text-emerald-600">{progressPercentage}%</p>
             </div>
             {importProgress.errors > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <p className="text-sm text-orange-800">⚠️ {importProgress.errors} com erro</p>
+              <div className="bg-orange-50 border border-orange-200 rounded p-2">
+                <p className="text-xs text-orange-800">⚠️ {importProgress.errors} erro(s)</p>
               </div>
             )}
           </div>
