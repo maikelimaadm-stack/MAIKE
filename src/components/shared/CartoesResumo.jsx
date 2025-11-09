@@ -33,7 +33,7 @@ export default function CartoesResumo({ cartoes }) {
           variant="ghost" 
           size="sm" 
           onClick={toggleOcultar}
-          className="h-7 px-2 gap-1 text-xs text-slate-600"
+          className="h-7 px-2 gap-1 text-xs text-slate-600 hover:bg-slate-100"
         >
           {ocultar ? (
             <>
@@ -50,7 +50,7 @@ export default function CartoesResumo({ cartoes }) {
       </div>
 
       {!ocultar && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
           {cartoes.map((cartao) => {
             const Icon = cartao.icon;
             const valorFormatado = cartao.tipo === 'moeda' 
@@ -60,20 +60,20 @@ export default function CartoesResumo({ cartoes }) {
             return (
               <Card 
                 key={cartao.id} 
-                className={`shadow-sm border-l-4 border-l-${cartao.cor}-500 hover:shadow-md transition-shadow ${cartao.onClick ? 'cursor-pointer' : ''}`}
+                className={`shadow-sm border-l-4 border-l-${cartao.cor}-500 hover:shadow transition-shadow ${cartao.onClick ? 'cursor-pointer' : ''}`}
                 onClick={cartao.onClick}
               >
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between">
+                <CardContent className="p-2.5">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-600 mb-0.5 truncate">{cartao.label}</p>
-                      <p className={`text-xl font-bold text-${cartao.cor}-700 truncate`}>{valorFormatado}</p>
+                      <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">{cartao.label}</p>
+                      <p className={`text-lg font-bold text-${cartao.cor}-700 truncate leading-tight`}>{valorFormatado}</p>
                       {cartao.sublabel && (
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{cartao.sublabel}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">{cartao.sublabel}</p>
                       )}
                     </div>
-                    <div className={`w-9 h-9 rounded-lg bg-${cartao.cor}-50 flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`w-4 h-4 text-${cartao.cor}-600`} />
+                    <div className={`w-8 h-8 rounded-lg bg-${cartao.cor}-50 flex items-center justify-center flex-shrink-0`}>
+                      <Icon className={`w-3.5 h-3.5 text-${cartao.cor}-600`} />
                     </div>
                   </div>
                 </CardContent>
