@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, X, ChevronRight, ChevronDown } from "lucide-react";
+import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, X, ChevronRight, ChevronDown, ArrowUpAZ } from "lucide-react";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -29,7 +29,7 @@ const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
   { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
     id: "financeiro",
     title: "Financeiro",
@@ -122,6 +122,7 @@ export default function ConfiguracoesGerais() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
+    // Salvar SEM ordenar alfabeticamente - respeita ordem manual
     saveMenu(items);
   };
 
@@ -138,7 +139,8 @@ export default function ConfiguracoesGerais() {
       icon: newMenuItem.icon,
     };
 
-    saveMenu([...menuItems, newItem].sort((a, b) => a.title.localeCompare(b.title))); // Sort after adding
+    // Adiciona no final, SEM ordenar alfabeticamente
+    saveMenu([...menuItems, newItem]);
     setNewMenuItem({ title: "", url: "", icon: "Home" });
     setShowAddMenuItem(false);
   };
@@ -155,7 +157,8 @@ export default function ConfiguracoesGerais() {
         : item
     );
 
-    saveMenu(updatedMenu.sort((a, b) => a.title.localeCompare(b.title))); // Sort after editing
+    // Salvar SEM ordenar - mantém ordem atual
+    saveMenu(updatedMenu);
     setShowEditMenuItem(false);
     setEditingItem(null);
     toast.success('✅ Menu editado!');
@@ -172,7 +175,7 @@ export default function ConfiguracoesGerais() {
         const newSubmenu = [
           ...(item.submenu || []),
           { id: `submenu-${Date.now()}`, title: newSubmenuItem.title, url: newSubmenuItem.url }
-        ].sort((a, b) => a.title.localeCompare(b.title)); // Sort submenus after adding
+        ];
 
         return { ...item, submenu: newSubmenu };
       }
@@ -198,7 +201,7 @@ export default function ConfiguracoesGerais() {
             const newSubSubmenu = [
               ...(sub.submenu || []),
               { id: `subsubmenu-${Date.now()}`, title: newSubSubmenuItem.title, url: newSubSubmenuItem.url }
-            ].sort((a, b) => a.title.localeCompare(b.title)); // Sort sub-submenus after adding
+            ];
 
             return { ...sub, submenu: newSubSubmenu };
           }
@@ -215,6 +218,23 @@ export default function ConfiguracoesGerais() {
     setParentMenuForSubmenu(null);
     setParentSubmenuForSubSubmenu(null);
     setShowAddSubSubmenu(false);
+  };
+
+  const handleOrdenarAlfabeticamente = () => {
+    if (window.confirm('Ordenar todos os menus e submenus alfabeticamente?')) {
+      const sortRecursive = (items) => {
+        return items.map(item => {
+          const newItem = { ...item };
+          if (newItem.submenu) {
+            newItem.submenu = sortRecursive(newItem.submenu);
+          }
+          return newItem;
+        }).sort((a, b) => a.title.localeCompare(b.title));
+      };
+
+      saveMenu(sortRecursive(menuItems));
+      toast.success('✅ Menus ordenados alfabeticamente!');
+    }
   };
 
   const handleDeleteMenuItem = (id) => {
@@ -277,9 +297,6 @@ export default function ConfiguracoesGerais() {
     setShowEditMenuItem(true);
   };
 
-  // Order menu alfabeticamente for display
-  const sortedMenuItems = [...menuItems].sort((a, b) => a.title.localeCompare(b.title));
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
@@ -312,7 +329,7 @@ export default function ConfiguracoesGerais() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Editor de Menus (com Submenus Aninhados)</CardTitle>
               <CardDescription className="text-xs">
-                Arraste, edite ou adicione. Menus ordenados alfabeticamente automaticamente.
+                Arraste para ordenar manualmente ou use o botão para ordenar alfabeticamente
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -329,6 +346,10 @@ export default function ConfiguracoesGerais() {
                   <Plus className="w-3 h-3" />
                   Novo Sub-Submenu (Nível 2)
                 </Button>
+                <Button onClick={handleOrdenarAlfabeticamente} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                  <ArrowUpAZ className="w-3 h-3" />
+                  Ordenar A-Z
+                </Button>
                 <Button onClick={handleResetMenu} variant="outline" size="sm" className="h-8 text-xs">
                   <RotateCcw className="w-3 h-3 mr-1" />
                   Resetar
@@ -342,7 +363,7 @@ export default function ConfiguracoesGerais() {
                 <Droppable droppableId="menu">
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                      {sortedMenuItems.map((item, index) => (
+                      {menuItems.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id} index={index}>
                           {(provided) => (
                             <div
@@ -400,7 +421,7 @@ export default function ConfiguracoesGerais() {
                               {/* SUBMENU NÍVEL 1 */}
                               {item.submenu && item.submenu.length > 0 && expandedMenus[item.id] && (
                                 <div className="ml-6 space-y-1 border-l-2 border-slate-200 pl-2">
-                                  {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                                  {item.submenu.map((sub) => (
                                     <div key={sub.id}>
                                       <div className="flex items-center justify-between py-1 bg-slate-50 px-2 rounded">
                                         {sub.submenu && ( // Toggle for submenu item with sub-submenu
@@ -439,7 +460,7 @@ export default function ConfiguracoesGerais() {
                                       {/* SUBMENU NÍVEL 2 (Sub-Submenu) */}
                                       {sub.submenu && sub.submenu.length > 0 && expandedMenus[sub.id] && (
                                         <div className="ml-6 space-y-1 border-l-2 border-emerald-200 pl-2 mt-1">
-                                          {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
+                                          {sub.submenu.map((subsub) => (
                                             <div key={subsub.id} className="flex items-center justify-between py-1 bg-emerald-50 px-2 rounded">
                                               <div className="flex-1 min-w-0">
                                                 <div className="text-xs font-medium">{subsub.title}</div>
@@ -630,7 +651,7 @@ export default function ConfiguracoesGerais() {
               <Select value={parentMenuForSubmenu || ''} onValueChange={setParentMenuForSubmenu}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {sortedMenuItems.map(item => (
+                  {menuItems.map(item => (
                     <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -665,7 +686,7 @@ export default function ConfiguracoesGerais() {
               <Select value={parentMenuForSubmenu || ''} onValueChange={(v) => { setParentMenuForSubmenu(v); setParentSubmenuForSubSubmenu(null); }}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {sortedMenuItems.filter(m => m.submenu && m.submenu.length > 0).map(item => (
+                  {menuItems.filter(m => m.submenu && m.submenu.length > 0).map(item => (
                     <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -677,7 +698,7 @@ export default function ConfiguracoesGerais() {
                 <Select value={parentSubmenuForSubSubmenu || ''} onValueChange={setParentSubmenuForSubSubmenu}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {sortedMenuItems.find(m => m.id === parentMenuForSubmenu)?.submenu?.map(sub => (
+                    {menuItems.find(m => m.id === parentMenuForSubmenu)?.submenu?.map(sub => (
                       <SelectItem key={sub.id} value={sub.id} className="text-xs">{sub.title}</SelectItem>
                     ))}
                   </SelectContent>

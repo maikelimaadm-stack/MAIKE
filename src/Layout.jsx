@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -228,9 +229,6 @@ export default function Layout({ children, currentPageName }) {
     return acc;
   }, {});
 
-  // Ordenar alfabeticamente
-  const sortedMenuItems = [...menuItems].sort((a, b) => a.title.localeCompare(b.title));
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* HEADER SUPERIOR */}
@@ -373,7 +371,7 @@ export default function Layout({ children, currentPageName }) {
                     <SheetTitle className="text-left text-sm">Menu</SheetTitle>
                   </SheetHeader>
                   <div className="mt-4 space-y-1">
-                    {sortedMenuItems.map((item) => {
+                    {menuItems.map((item) => { // Changed from sortedMenuItems.map
                       const Icon = iconsMap[item.icon] || Home;
                       
                       if (item.submenu) {
@@ -384,7 +382,7 @@ export default function Layout({ children, currentPageName }) {
                               {item.title}
                             </div>
                             <div className="ml-3 space-y-0.5">
-                              {item.submenu.map((sub) => (
+                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
                                 <Link 
                                   key={sub.id}
                                   to={createPageUrl(sub.url)}
@@ -432,7 +430,7 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
-              {sortedMenuItems.map((item) => {
+              {menuItems.map((item) => { // Changed from sortedMenuItems.map
                 const Icon = iconsMap[item.icon] || Home;
                 const active = isActive(item);
 
