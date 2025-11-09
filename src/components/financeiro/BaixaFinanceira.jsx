@@ -16,16 +16,15 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formatarNumero = (num) => {
-  if (!num && num !== 0) return '';
-  const numStr = String(num).replace('.', ',');
-  const [inteiro, decimal] = numStr.split(',');
-  const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return decimal !== undefined ? `${inteiroFormatado},${decimal}` : inteiroFormatado;
+  if (!num && num !== 0) return '0,00';
+  const numero = typeof num === 'number' ? num : parseFloat(String(num).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(numero)) return '0,00';
+  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 const parseNumero = (str) => {
   if (!str) return 0;
-  return parseFloat(String(str).replace(',', '.')) || 0;
+  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
 const formatarMoeda = (valor) => {
@@ -34,9 +33,11 @@ const formatarMoeda = (valor) => {
 };
 
 export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
+  const saldoInicial = (lancamento.valor_saldo || lancamento.valor_total || 0);
+  
   const [formData, setFormData] = useState({
     data_baixa: new Date().toISOString().split('T')[0],
-    valor_baixa: formatarNumero((lancamento.valor_saldo || lancamento.valor_total).toFixed(2)),
+    valor_baixa: formatarNumero(saldoInicial),
     valor_juros: "0,00",
     valor_multa: "0,00",
     valor_desconto: "0,00",

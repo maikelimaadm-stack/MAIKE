@@ -378,7 +378,7 @@ export default function Financeiro() {
               tipo_documento: 'NF-e',
               fornecedor_id: dados.fornecedor_id,
               fornecedor_nome: forn?.nome?.toUpperCase(),
-              numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
+              numero_documento: dados.dadosNFe.numero, // Changed from `NOTA FISCAL: ${dados.dadosNFe.numero}`
               chave_nfe: dados.dadosNFe.chave,
               data_emissao: dados.dadosNFe.data_emissao,
               data_vencimento: parcela.data,
@@ -409,7 +409,7 @@ export default function Financeiro() {
             tipo_documento: 'NF-e',
             fornecedor_id: dados.fornecedor_id,
             fornecedor_nome: forn?.nome?.toUpperCase(),
-            numero_documento: `NOTA FISCAL: ${dados.dadosNFe.numero}`,
+            numero_documento: dados.dadosNFe.numero, // Changed from `NOTA FISCAL: ${dados.dadosNFe.numero}`
             chave_nfe: dados.dadosNFe.chave,
             data_emissao: dados.dadosNFe.data_emissao,
             data_vencimento: dados.dataVencimento,
