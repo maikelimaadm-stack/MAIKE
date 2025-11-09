@@ -666,95 +666,86 @@ Retorne um JSON com esta estrutura EXATA:
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); resetar(); setErroExtracao(null); } }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-green-600" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <FileText className="w-4 h-4 text-emerald-600" />
               Importar NF-e (XML) - Etapa {etapa} de 4
             </DialogTitle>
           </DialogHeader>
 
+          {/* ETAPA 1 */}
           {etapa === 1 && (
-            <div className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55) para importação automática.
-                </AlertDescription>
+            <div className="space-y-3">
+              <Alert className="py-2">
+                <AlertCircle className="h-3 w-3" />
+                <AlertDescription className="text-xs">Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55) para importação automática.</AlertDescription>
               </Alert>
 
               {erroExtracao && (
-                <Alert className="bg-red-50 border-red-300">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                  <AlertDescription>
-                    <div className="space-y-2">
-                      <p className="font-semibold text-red-800">❌ {erroExtracao.mensagem}</p>
-                      <p className="text-sm text-red-700">{erroExtracao.detalhes}</p>
-                      {erroExtracao.xmlUrl && (
-                        <div className="flex gap-2 mt-3">
-                          <Button size="sm" variant="outline" onClick={() => window.open(erroExtracao.xmlUrl, '_blank')} className="text-xs">
-                            Ver XML Original
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setErroExtracao(null)} className="text-xs">
-                            Tentar Outro Arquivo
-                          </Button>
-                        </div>
-                      )}
-                      <p className="text-xs text-red-600 mt-2">💡 Dica: Faça o lançamento manual se o XML não for compatível</p>
-                    </div>
+                <Alert className="bg-red-50 border-red-300 py-2">
+                  <AlertCircle className="h-3 w-3 text-red-600" />
+                  <AlertDescription className="space-y-2">
+                    <p className="font-semibold text-red-800 text-xs">❌ {erroExtracao.mensagem}</p>
+                    <p className="text-xs text-red-700">{erroExtracao.detalhes}</p>
+                    {erroExtracao.xmlUrl && (
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={() => window.open(erroExtracao.xmlUrl, '_blank')} className="h-7 text-xs">Ver XML</Button>
+                        <Button size="sm" variant="outline" onClick={() => setErroExtracao(null)} className="h-7 text-xs">Tentar Outro</Button>
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
 
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-sm text-slate-600 mb-4">Selecione o arquivo XML da NF-e</p>
+              <div className="border-2 border-dashed rounded p-6 text-center hover:border-emerald-400 transition-colors">
+                <Upload className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                <p className="text-xs text-slate-600 mb-3">Selecione o arquivo XML da NF-e</p>
                 <Input
                   type="file"
                   accept=".xml"
                   onChange={handleUploadXML}
                   disabled={processando}
-                  className="max-w-md mx-auto"
+                  className="max-w-md mx-auto h-8 text-xs"
                 />
                 {processando && (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Processando XML...
+                  <div className="mt-3 flex items-center justify-center gap-2 text-blue-600">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="text-xs">Processando XML...</span>
                   </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* ETAPA 2 */}
           {etapa === 2 && dadosNFe && (
-            <div className="space-y-4">
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader>
-                  <CardTitle className="text-sm">Dados da NF-e</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-3 text-sm">
+            <div className="space-y-3">
+              <Card className="bg-blue-50 border-blue-200 shadow-sm">
+                <CardHeader className="pb-2"><CardTitle className="text-xs">Dados da NF-e</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div><strong>Número:</strong> {dadosNFe.numero}</div>
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
-                  <div className="col-span-2"><strong>Chave:</strong> {dadosNFe.chave}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
-                  <div><strong>Valor NF-e:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
+                  <div><strong>Valor:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
+                  <div className="col-span-2 md:col-span-4"><strong>Chave:</strong> <span className="font-mono text-[10px]">{dadosNFe.chave}</span></div>
                 </CardContent>
               </Card>
 
-              <div className="space-y-3">
-                <h3 className="font-semibold">Fornecedor</h3>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-xs">Fornecedor</h3>
                 {fornecedorSelecionado ? (
-                  <Alert className="bg-green-50 border-green-300">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription>
+                  <Alert className="bg-emerald-50 border-emerald-300 py-2">
+                    <CheckCircle className="h-3 w-3 text-emerald-600" />
+                    <AlertDescription className="text-xs">
                       <strong>{fornecedorSelecionado.nome}</strong> - {fornecedorSelecionado.cnpj || fornecedorSelecionado.cpf}
                     </AlertDescription>
                   </Alert>
                 ) : (
-                  <Alert className="bg-orange-50 border-orange-300">
-                    <AlertCircle className="h-4 w-4 text-orange-600" />
-                    <AlertDescription>
-                      Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
-                      <Button size="sm" className="ml-4" onClick={() => setShowNovoFornecedor(true)}>
-                        <Plus className="w-3 h-3 mr-1" />
+                  <Alert className="bg-orange-50 border-orange-300 py-2">
+                    <AlertCircle className="h-3 w-3 text-orange-600" />
+                    <AlertDescription className="text-xs">
+                      Não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
+                      <Button size="sm" className="ml-3 h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowNovoFornecedor(true)}>
+                        <Plus className="w-3 h-3" />
                         Cadastrar
                       </Button>
                     </AlertDescription>
@@ -762,28 +753,29 @@ Retorne um JSON com esta estrutura EXATA:
                 )}
 
                 {fornecedorSelecionado && (
-                  <div className="flex justify-end gap-3">
-                    <Button variant="outline" onClick={() => setEtapa(1)}>Voltar</Button>
-                    <Button onClick={() => setEtapa(3)} className="bg-green-600">Avançar</Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-8 text-xs">Voltar</Button>
+                    <Button onClick={() => setEtapa(3)} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs">Avançar</Button>
                   </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* ETAPA 3 */}
           {etapa === 3 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Produtos da NF-e ({itensNFe.length})</h3>
+                <h3 className="font-semibold text-xs">Produtos da NF-e ({itensNFe.length})</h3>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
-                    <CheckSquare className="w-3 h-3 mr-1" />
+                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-7 gap-1 text-xs">
+                    <CheckSquare className="w-3 h-3" />
                     {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
                   </Button>
                   {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
-                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
-                      <Plus className="w-3 h-3 mr-1" />
-                      Cadastrar Selecionados ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs">
+                      <Plus className="w-3 h-3" />
+                      Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
                     </Button>
                   )}
                 </div>
@@ -799,13 +791,13 @@ Retorne um JSON com esta estrutura EXATA:
                           onCheckedChange={handleSelecionarTodos}
                         />
                       </TableHead>
-                      <TableHead className="w-12">Status</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Qtd</TableHead>
-                      <TableHead className="text-right">Vlr Unit.</TableHead>
-                      <TableHead className="text-right">Desc.</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-center">Ações</TableHead>
+                      <TableHead className="w-12 text-xs">Status</TableHead>
+                      <TableHead className="text-xs">Produto</TableHead>
+                      <TableHead className="text-right text-xs">Qtd</TableHead>
+                      <TableHead className="text-right text-xs">Vlr Unit.</TableHead>
+                      <TableHead className="text-right text-xs">Desc.</TableHead>
+                      <TableHead className="text-right text-xs">Total</TableHead>
+                      <TableHead className="text-center text-xs">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -823,16 +815,16 @@ Retorne um JSON com esta estrutura EXATA:
                           </TableCell>
                           <TableCell>
                             {item.status === 'associado' ? (
-                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <CheckCircle className="w-3 h-3 text-emerald-600" />
                             ) : (
-                              <AlertCircle className="w-4 h-4 text-orange-600" />
+                              <AlertCircle className="w-3 h-3 text-orange-600" />
                             )}
                           </TableCell>
                           <TableCell className="text-xs">
                             <div>
                               <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
-                              <div className="text-slate-500 text-xs">{item.descricao}</div>
-                              <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo}</div>
+                              <div className="text-slate-500 text-[10px]">{item.descricao}</div>
+                              <div className="text-slate-400 text-[10px] font-mono">Cód: {item.codigo}</div>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
@@ -840,11 +832,11 @@ Retorne um JSON com esta estrutura EXATA:
                               <Input
                                 value={item.quantidade_ajustada}
                                 onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)}
-                                className="w-24 text-right"
+                                className="w-24 text-right h-7 text-xs"
                                 placeholder="0,00"
                               />
                             ) : (
-                              <span className="font-mono">{item.quantidade_ajustada}</span>
+                              <span className="font-mono text-xs">{item.quantidade_ajustada}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -852,11 +844,11 @@ Retorne um JSON com esta estrutura EXATA:
                               <Input
                                 value={item.valor_unitario_ajustado}
                                 onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
-                                className="w-28 text-right"
+                                className="w-28 text-right h-7 text-xs"
                                 placeholder="0,00"
                               />
                             ) : (
-                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
+                              <span className="font-mono text-xs">R$ {item.valor_unitario_ajustado}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -864,40 +856,40 @@ Retorne um JSON com esta estrutura EXATA:
                               <Input
                                 value={item.desconto_item || "0,00"}
                                 onChange={(e) => handleAtualizarItem(item.index, 'desconto_item', e.target.value)}
-                                className="w-24 text-right"
+                                className="w-24 text-right h-7 text-xs"
                                 placeholder="0,00"
                               />
                             ) : (
-                              <span className="font-mono text-red-600">
+                              <span className="font-mono text-red-600 text-xs">
                                 {parseNumero(item.desconto_item) > 0 ? `R$ ${item.desconto_item}` : '-'}
                               </span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</span>
+                            <span className="font-mono font-bold text-emerald-700 text-xs">R$ {formatarNumero(valorTotal)}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
                               {isEditando ? (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600">
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-emerald-600 w-7 h-7 p-0">
                                   <CheckCircle className="w-3 h-3" />
                                 </Button>
                               ) : (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores">
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores" className="w-7 h-7 p-0">
                                   <Edit2 className="w-3 h-3" />
                                 </Button>
                               )}
                               {item.status === 'pendente' && (
                                 <>
-                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }} className="w-7 h-7 p-0">
                                     <Plus className="w-3 h-3" />
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }} className="w-7 h-7 p-0">
                                     <RefreshCw className="w-3 h-3" />
                                   </Button>
                                 </>
                               )}
-                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:text-red-700 hover:bg-red-50 w-7 h-7 p-0">
                                 <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
@@ -909,14 +901,14 @@ Retorne um JSON com esta estrutura EXATA:
                 </Table>
               </div>
 
-              <Card className="bg-blue-50 border-blue-300">
-                <CardContent className="p-4">
-                  <div className="space-y-2 text-sm">
+              <Card className="bg-blue-50 border-blue-300 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span>Itens Selecionados:</span>
                       <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
                     </div>
-                    <div className="flex justify-between text-base font-bold text-blue-700">
+                    <div className="flex justify-between text-sm font-bold text-blue-700">
                       <span>Subtotal Produtos:</span>
                       <span>R$ {formatarNumero(subtotalItens)}</span>
                     </div>
@@ -924,11 +916,12 @@ Retorne um JSON com esta estrutura EXATA:
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-3">
-                <Button variant="outline" onClick={() => setEtapa(2)}>Voltar</Button>
+              <div className="flex justify-between gap-2">
+                <Button variant="outline" onClick={() => setEtapa(2)} size="sm" className="h-8 text-xs">Voltar</Button>
                 <Button 
                   onClick={() => setEtapa(4)} 
-                  className="bg-green-600" 
+                  size="sm" 
+                  className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
                   disabled={
                     itensSelecionados.length === 0 || 
                     itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0
@@ -940,80 +933,82 @@ Retorne um JSON com esta estrutura EXATA:
             </div>
           )}
 
+          {/* ETAPA 4 */}
           {etapa === 4 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Local de Estoque *</Label>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1">Local de Estoque <span className="text-red-600">*</span></Label>
                   <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
+                      {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Centro de Custo</Label>
                   <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Frete</Label>
-                  <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Frete</Label>
+                  <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Desconto Geral</Label>
-                  <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Desconto Geral</Label>
+                  <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Outras Despesas</Label>
-                  <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Outras Despesas</Label>
+                  <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Observações</Label>
                 <Textarea 
                   value={dadosComplementares.observacoes} 
                   onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
                   placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
-                  className="uppercase"
+                  className="uppercase text-xs"
                   style={{ textTransform: 'uppercase' }}
+                  rows={2}
                 />
               </div>
 
-              <Card className="bg-green-50 border-green-300">
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+              <Card className="bg-emerald-50 border-emerald-300 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
                       <span>Subtotal Produtos:</span>
                       <span className="font-mono">R$ {formatarNumero(subtotalItens)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                       <span>+ Frete:</span>
                       <span className="font-mono">R$ {dadosComplementares.frete}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                       <span>+ Outras Despesas:</span>
                       <span className="font-mono">R$ {dadosComplementares.outras_despesas}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-red-600">
+                    <div className="flex justify-between text-red-600">
                       <span>- Desconto:</span>
                       <span className="font-mono">R$ {dadosComplementares.desconto_total}</span>
                     </div>
-                    <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
+                    <div className="border-t-2 border-emerald-400 pt-1.5 flex justify-between text-lg font-bold text-emerald-700">
                       <span>TOTAL FINAL:</span>
                       <span>R$ {formatarNumero(totalAjustado)}</span>
                     </div>
@@ -1021,10 +1016,10 @@ Retorne um JSON com esta estrutura EXATA:
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-3">
-                <Button variant="outline" onClick={() => setEtapa(3)}>Voltar</Button>
-                <Button onClick={handleConfirmarImportacao} className="bg-green-600 gap-2" disabled={processando}>
-                  <CheckCircle className="w-4 h-4" />
+              <div className="flex justify-between gap-2">
+                <Button variant="outline" onClick={() => setEtapa(3)} size="sm" className="h-8 text-xs">Voltar</Button>
+                <Button onClick={handleConfirmarImportacao} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={processando}>
+                  <CheckCircle className="w-3 h-3" />
                   Confirmar e Lançar ({itensSelecionados.length} item{itensSelecionados.length !== 1 ? 's' : ''})
                 </Button>
               </div>
@@ -1033,100 +1028,101 @@ Retorne um JSON com esta estrutura EXATA:
         </DialogContent>
       </Dialog>
 
+      {/* DIALOGS AUXILIARES */}
       <Dialog open={showNovoFornecedor} onOpenChange={setShowNovoFornecedor}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar Novo Fornecedor</DialogTitle>
-            <DialogDescription>Preencha os dados do fornecedor para continuar a importação</DialogDescription>
+            <DialogTitle className="text-sm">Cadastrar Novo Fornecedor</DialogTitle>
+            <DialogDescription className="text-xs">Preencha os dados do fornecedor para continuar a importação</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tipo de Pessoa *</Label>
+              <Label className="text-xs">Tipo de Pessoa *</Label>
               <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
-                  <SelectItem value="Física">Pessoa Física</SelectItem>
+                  <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
-              <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
+              <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
                 <>
                   <div className="space-y-2">
-                    <Label>CNPJ *</Label>
-                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                    <Label className="text-xs">CNPJ *</Label>
+                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Inscrição Estadual</Label>
-                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    <Label className="text-xs">Inscrição Estadual</Label>
+                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
                 </>
               ) : (
                 <div className="space-y-2">
-                  <Label>CPF *</Label>
-                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
+                  <Label className="text-xs">CPF *</Label>
+                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-8 text-xs" />
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+                <Label className="text-xs">Telefone</Label>
+                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-8 text-xs" />
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" />
+                <Label className="text-xs">E-mail</Label>
+                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-8 text-xs" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Endereço</Label>
-              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Endereço</Label>
+              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Cidade</Label>
-                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <Label className="text-xs">Cidade</Label>
+                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label className="text-xs">Estado</Label>
                 <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="UF" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>CEP</Label>
-                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" />
+                <Label className="text-xs">CEP</Label>
+                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-8 text-xs" />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowNovoFornecedor(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowNovoFornecedor(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={createFornecedorMutation.isPending}>
                 {createFornecedorMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-3 h-3 animate-spin" />
                     Salvando...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save className="w-3 h-3" />
                     Salvar e Continuar
                   </>
                 )}
@@ -1139,71 +1135,71 @@ Retorne um JSON com esta estrutura EXATA:
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar Novo Produto</DialogTitle>
-            <DialogDescription>Preencha os dados do produto para associá-lo à NF-e</DialogDescription>
+            <DialogTitle className="text-sm">Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription className="text-xs">Preencha os dados do produto para associá-lo à NF-e</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome do Produto *</Label>
-              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Nome do Produto *</Label>
+              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Código Interno</Label>
-                <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <Label className="text-xs">Código Interno</Label>
+                <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Código de Barras</Label>
-                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} />
+                <Label className="text-xs">Código de Barras</Label>
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} className="h-8 text-xs" />
               </div>
               <div className="space-y-2">
-                <Label>NCM</Label>
-                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} />
+                <Label className="text-xs">NCM</Label>
+                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} className="h-8 text-xs" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Unidade de Medida *</Label>
+                <Label className="text-xs">Unidade de Medida *</Label>
                 <Select value={novoProduto.unidade} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un}>{un}</SelectItem>)}
+                    {UNIDADES_MEDIDA.map(un => <SelectItem key={un} value={un} className="text-xs">{un}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Categoria</Label>
+                <Label className="text-xs">Categoria</Label>
                 <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                    {categorias.map(c => <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={createProdutoMutation.isPending}>
                 {createProdutoMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-3 h-3 animate-spin" />
                     Salvando...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4 mr-2" />
+                    <Save className="w-3 h-3" />
                     Salvar e Associar
                   </>
                 )}
@@ -1216,17 +1212,17 @@ Retorne um JSON com esta estrutura EXATA:
       <Dialog open={showTrocarProduto} onOpenChange={setShowTrocarProduto}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Trocar por Produto Existente</DialogTitle>
-            <DialogDescription>Selecione um produto cadastrado para associar</DialogDescription>
+            <DialogTitle className="text-sm">Trocar por Produto Existente</DialogTitle>
+            <DialogDescription className="text-xs">Selecione um produto cadastrado para associar</DialogDescription>
           </DialogHeader>
           
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3" />
             <Input
               placeholder="Buscar por nome ou código..."
               value={buscaProduto}
               onChange={(e) => setBuscaProduto(e.target.value)}
-              className="pl-10"
+              className="pl-8 h-8 text-xs"
             />
           </div>
 
@@ -1234,30 +1230,30 @@ Retorne um JSON com esta estrutura EXATA:
             <Table>
               <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Ação</TableHead>
+                  <TableHead className="text-xs">Código</TableHead>
+                  <TableHead className="text-xs">Nome</TableHead>
+                  <TableHead className="text-xs">Categoria</TableHead>
+                  <TableHead className="text-xs">Unidade</TableHead>
+                  <TableHead className="text-xs">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {produtosFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 text-xs">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
                   produtosFiltrados.map(p => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
-                      <TableCell className="text-sm">{p.nome_produto}</TableCell>
+                      <TableCell className="font-mono text-[10px]">{p.codigo_interno || '-'}</TableCell>
+                      <TableCell className="text-xs">{p.nome_produto}</TableCell>
                       <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
-                      <TableCell>{p.unidade_medida}</TableCell>
+                      <TableCell className="text-xs">{p.unidade_medida}</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
-                          <CheckCircle className="w-3 h-3 mr-1" />
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs">
+                          <CheckCircle className="w-3 h-3" />
                           Selecionar
                         </Button>
                       </TableCell>
@@ -1273,11 +1269,11 @@ Retorne um JSON com esta estrutura EXATA:
       <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
               Cadastrando Produtos
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               Aguarde enquanto os produtos selecionados são cadastrados...
             </DialogDescription>
           </DialogHeader>
@@ -1287,22 +1283,22 @@ Retorne um JSON com esta estrutura EXATA:
       <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
               Importando NF-e
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               Lançando produtos no estoque...
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span>Progresso</span>
                 <span className="font-semibold">{progressoImportacao.current} de {progressoImportacao.total}</span>
               </div>
               <Progress value={progressPercentage} className="h-3" />
-              <p className="text-center text-sm font-medium text-green-600">{progressPercentage}%</p>
+              <p className="text-center text-xs font-medium text-emerald-600">{progressPercentage}%</p>
             </div>
           </div>
         </DialogContent>
