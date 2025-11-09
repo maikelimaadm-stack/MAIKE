@@ -5,7 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
@@ -40,6 +42,8 @@ export default function Financeiro() {
   const [showBaixa, setShowBaixa] = useState(false);
   const [itemBaixa, setItemBaixa] = useState(null);
   const [showImportarXML, setShowImportarXML] = useState(false);
+  const [showProgressoImportacao, setShowProgressoImportacao] = useState(false);
+  const [progressoImportacao, setProgressoImportacao] = useState({ etapa: '', current: 0, total: 0 });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -76,6 +80,24 @@ export default function Financeiro() {
     queryFn: async () => {
       const all = await base44.entities.Safra.list();
       return all.filter(s => s.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: planos = [] } = useQuery({
+    queryKey: ['planos_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PlanoContas.list('codigo');
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: grupos = [] } = useQuery({
+    queryKey: ['grupos_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoFinanceiro.list();
+      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -246,20 +268,23 @@ export default function Financeiro() {
 
   const handleImportarXMLSuccess = async (dados) => {
     try {
-      console.log('🚀 Dados recebidos da importação XML:', dados);
+      console.log('🚀 Iniciando importação XML:', dados);
+      
+      setShowProgressoImportacao(true);
+      setProgressoImportacao({ etapa: 'Preparando...', current: 0, total: 100 });
       
       const movIds = [];
       
       if (dados.gerarEstoque && dados.itens?.length > 0) {
-        toast.info('📦 Lançando no estoque...');
+        setProgressoImportacao({ etapa: '📦 Lançando produtos no estoque...', current: 0, total: dados.itens.length });
         
-        for (const item of dados.itens) {
+        for (let i = 0; i < dados.itens.length; i++) {
+          const item = dados.itens[i];
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
           const prod = produtos.find(p => p.id === item.produto_id);
           
           if (!prod) {
             console.warn(`Produto com ID ${item.produto_id} não encontrado.`);
-            toast.warning(`⚠️ Produto ${item.produto_nome} não encontrado, pulando estoque.`);
             continue;
           }
 
@@ -302,6 +327,9 @@ export default function Financeiro() {
             estoque_atual: (prod?.estoque_atual || 0) + item.quantidade,
             preco_custo: mov.custo_medio_depois
           });
+          
+          setProgressoImportacao({ etapa: '📦 Lançando produtos no estoque...', current: i + 1, total: dados.itens.length });
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
         
         toast.success(`✅ ${dados.itens.length} produto(s) lançados no estoque!`);
@@ -309,7 +337,7 @@ export default function Financeiro() {
 
       let livroId = null;
       if (dados.gerarLivroFiscal && dados.itens?.length > 0) {
-        toast.info('📚 Criando registro no livro fiscal...');
+        setProgressoImportacao({ etapa: '📚 Criando registro no livro fiscal...', current: 0, total: 1 });
         
         const num = await getNextNumeroLivro(empresaSelecionadaId);
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
@@ -347,13 +375,17 @@ export default function Financeiro() {
         });
         
         livroId = livro.id;
+        setProgressoImportacao({ etapa: '📚 Registro fiscal criado!', current: 1, total: 1 });
         toast.success('✅ Registro fiscal criado!');
       }
 
       if (dados.gerarFinanceiro) {
-        toast.info('💰 Criando lançamentos financeiros...');
+        const totalFinanceiro = dados.parcelar ? dados.parcelas.length : 1;
+        setProgressoImportacao({ etapa: '💰 Criando lançamentos financeiros...', current: 0, total: totalFinanceiro });
         
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
+        const plano = planos.find(p => p.id === dados.dadosComplementares?.plano_contas_id);
+        const grupo = grupos.find(g => g.id === dados.dadosComplementares?.grupo_id);
         
         const produtosLancamento = dados.itens.map(i => ({
           produto_id: i.produto_id,
@@ -390,12 +422,20 @@ export default function Financeiro() {
               valor_desconto: 0,
               valor_pago: 0,
               status: 'Pendente',
+              plano_contas_id: dados.dadosComplementares?.plano_contas_id || undefined,
+              plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
+              grupo_id: dados.dadosComplementares?.grupo_id || undefined,
+              grupo_nome: grupo?.descricao,
+              centro_custo_id: dados.dadosComplementares?.centro_custo_id || undefined,
               observacoes: `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero} - PARCELA ${i + 1}/${dados.parcelas.length}${dados.dadosComplementares?.observacoes ? ' - ' + dados.dadosComplementares.observacoes.toUpperCase() : ''}`,
               numero_parcela: i + 1,
               total_parcelas: dados.parcelas.length,
               produtos_lancamento: produtosLancamento,
               gerado_xml: true
             });
+            
+            setProgressoImportacao({ etapa: '💰 Criando lançamentos financeiros...', current: i + 1, total: dados.parcelas.length });
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
           
           toast.success(`✅ ${dados.parcelas.length} lançamentos criados (TODAS com produtos)!`);
@@ -421,22 +461,33 @@ export default function Financeiro() {
             valor_desconto: 0,
             valor_pago: 0,
             status: 'Pendente',
+            plano_contas_id: dados.dadosComplementares?.plano_contas_id || undefined,
+            plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
+            grupo_id: dados.dadosComplementares?.grupo_id || undefined,
+            grupo_nome: grupo?.descricao,
+            centro_custo_id: dados.dadosComplementares?.centro_custo_id || undefined,
             observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
             produtos_lancamento: produtosLancamento,
             gerado_xml: true
           });
           
+          setProgressoImportacao({ etapa: '💰 Lançamento financeiro criado!', current: 1, total: 1 });
           toast.success('✅ Lançamento financeiro criado!');
         }
       }
       
+      setProgressoImportacao({ etapa: '✅ Finalizando...', current: 100, total: 100 });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setShowImportarXML(false);
+      setShowProgressoImportacao(false);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
       toast.success('🎉 Importação concluída com sucesso!');
       
     } catch (error) {
       console.error('❌ Erro na importação:', error);
+      setShowProgressoImportacao(false);
       toast.error('Erro: ' + (error.message || 'Erro desconhecido'));
     }
   };
@@ -458,6 +509,7 @@ export default function Financeiro() {
   }, [lancamentos, lancamentosPagar, lancamentosReceber]);
 
   const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -546,6 +598,30 @@ export default function Financeiro() {
         fornecedores={fornecedores}
         produtos={produtos}
       />
+
+      <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+              Importando NF-e
+            </DialogTitle>
+            <DialogDescription>
+              {progressoImportacao.etapa}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progresso</span>
+                <span className="font-semibold">{progressoImportacao.current} de {progressoImportacao.total}</span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-green-600">{progressPercentage}%</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
