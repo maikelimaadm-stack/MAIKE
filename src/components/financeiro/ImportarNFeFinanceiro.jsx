@@ -700,12 +700,6 @@ ${xmlText}`,
     setNovoProduto({ nome: "", codigo: "", codigo_barras: "", ncm: "", unidade: "UN", categoria: "", descricao: "" });
   };
 
-  const produtosFiltrados = produtos.filter(p => 
-    !buscaProduto || 
-    p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
-    p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
-  );
-
   const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
   const subtotalItens = itensSelecionadosData.reduce((sum, item) => {
     const qtd = parseNumero(item.quantidade_ajustada);
@@ -715,45 +709,50 @@ ${xmlText}`,
   }, 0);
 
   const totalAjustado = subtotalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
-
   const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
   const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - (dadosNFe?.valor_total || 0)) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
+
+  const produtosFiltrados = produtos.filter(p => 
+    !buscaProduto || 
+    p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
+    p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
+  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); resetar(); } }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-green-600" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <FileText className="w-4 h-4 text-emerald-600" />
               Importar NF-e (XML) - Etapa {etapa} de 4
             </DialogTitle>
           </DialogHeader>
 
           {/* ETAPA 1: UPLOAD */}
           {etapa === 1 && (
-            <div className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Selecione o arquivo XML da Nota Fiscal Eletrônica (modelo 55) para importação automática.
+            <div className="space-y-3">
+              <Alert className="py-2">
+                <AlertCircle className="h-3 w-3" />
+                <AlertDescription className="text-xs">
+                  Selecione o arquivo XML da NF-e (modelo 55)
                 </AlertDescription>
               </Alert>
 
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
-                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-sm text-slate-600 mb-4">Selecione o arquivo XML da NF-e</p>
+              <div className="border-2 border-dashed rounded p-6 text-center hover:border-emerald-400 transition-colors">
+                <Upload className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                <p className="text-xs text-slate-600 mb-3">Selecione o arquivo XML</p>
                 <Input
                   type="file"
                   accept=".xml"
                   onChange={handleUploadXML}
                   disabled={processando}
-                  className="max-w-md mx-auto"
+                  className="max-w-md mx-auto h-8 text-xs"
                 />
                 {processando && (
-                  <div className="mt-6">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600" />
-                    <p className="text-sm text-slate-600 mt-2">Processando XML...</p>
+                  <div className="mt-4">
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto text-blue-600" />
+                    <p className="text-xs text-slate-600 mt-2">Processando...</p>
                   </div>
                 )}
               </div>
@@ -762,30 +761,30 @@ ${xmlText}`,
 
           {/* ETAPA 2: FORNECEDOR */}
           {etapa === 2 && dadosNFe && (
-            <div className="space-y-4">
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader>
-                  <CardTitle className="text-sm">Dados da NF-e</CardTitle>
+            <div className="space-y-3">
+              <Card className="bg-blue-50 border-blue-200 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs">Dados da NF-e</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div><strong>Número:</strong> {dadosNFe.numero}</div>
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
                   <div><strong>Valor:</strong> R$ {formatarNumero(dadosNFe.valor_total)}</div>
                   <div className="col-span-2 md:col-span-4">
-                    <strong>Chave:</strong> <span className="font-mono text-xs">{dadosNFe.chave}</span>
+                    <strong>Chave:</strong> <span className="font-mono text-[10px]">{dadosNFe.chave}</span>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="space-y-3">
-                <h3 className="font-semibold">Fornecedor</h3>
-                <Alert className="bg-orange-50 border-orange-300">
-                  <AlertCircle className="h-4 w-4 text-orange-600" />
-                  <AlertDescription>
-                    Fornecedor não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
-                    <Button size="sm" className="ml-4" onClick={() => setShowNovoFornecedor(true)}>
-                      <Plus className="w-3 h-3 mr-1" />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-xs">Fornecedor</h3>
+                <Alert className="bg-orange-50 border-orange-300 py-2">
+                  <AlertCircle className="h-3 w-3 text-orange-600" />
+                  <AlertDescription className="text-xs">
+                    Não encontrado: <strong>{dadosNFe.razao_social_emitente}</strong>
+                    <Button size="sm" className="ml-3 h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowNovoFornecedor(true)}>
+                      <Plus className="w-3 h-3" />
                       Cadastrar
                     </Button>
                   </AlertDescription>
@@ -796,18 +795,18 @@ ${xmlText}`,
 
           {/* ETAPA 3: PRODUTOS */}
           {etapa === 3 && dadosNFe && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Produtos da NF-e ({itensNFe.length})</h3>
+                <h3 className="font-semibold text-xs">Produtos ({itensNFe.length})</h3>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos}>
-                    <CheckSquare className="w-3 h-3 mr-1" />
-                    {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-7 gap-1 text-xs">
+                    <CheckSquare className="w-3 h-3" />
+                    {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'}
                   </Button>
                   {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
-                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-blue-600">
-                      <Plus className="w-3 h-3 mr-1" />
-                      Cadastrar Selecionados ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs">
+                      <Plus className="w-3 h-3" />
+                      Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
                     </Button>
                   )}
                 </div>
@@ -862,10 +861,10 @@ ${xmlText}`,
                               <Input
                                 value={item.quantidade_ajustada}
                                 onChange={(e) => handleAtualizarItem(item.index, 'quantidade_ajustada', e.target.value)}
-                                className="w-24 text-right"
+                                className="w-24 text-right h-7 text-xs"
                               />
                             ) : (
-                              <span className="font-mono">{item.quantidade_ajustada}</span>
+                              <span className="font-mono text-xs">{item.quantidade_ajustada}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -873,10 +872,10 @@ ${xmlText}`,
                               <Input
                                 value={item.valor_unitario_ajustado}
                                 onChange={(e) => handleAtualizarItem(item.index, 'valor_unitario_ajustado', e.target.value)}
-                                className="w-28 text-right"
+                                className="w-28 text-right h-7 text-xs"
                               />
                             ) : (
-                              <span className="font-mono">R$ {item.valor_unitario_ajustado}</span>
+                              <span className="font-mono text-xs">R$ {item.valor_unitario_ajustado}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -884,37 +883,37 @@ ${xmlText}`,
                               <Input
                                 value={item.desconto_item || "0,00"}
                                 onChange={(e) => handleAtualizarItem(item.index, 'desconto_item', e.target.value)}
-                                className="w-24 text-right"
+                                className="w-24 text-right h-7 text-xs"
                               />
                             ) : (
-                              <span className="font-mono text-slate-500">R$ {formatarNumero(parseNumero(item.desconto_item))}</span>
+                              <span className="font-mono text-slate-50 text-xs">R$ {formatarNumero(parseNumero(item.desconto_item))}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="font-mono font-bold text-green-700">R$ {formatarNumero(valorTotal)}</span>
+                            <span className="font-mono font-bold text-green-700 text-xs">R$ {formatarNumero(valorTotal)}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
                               {isEditando ? (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600">
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(null)} className="text-green-600 h-7 w-7 p-0">
                                   <CheckCircle className="w-3 h-3" />
                                 </Button>
                               ) : (
-                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores">
+                                <Button size="sm" variant="ghost" onClick={() => setEditandoItemIndex(item.index)} title="Editar valores" className="h-7 w-7 p-0">
                                   <Edit2 className="w-3 h-3" />
                                 </Button>
                               )}
                               {item.status === 'pendente' && (
                                 <>
-                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }}>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setNovoProduto({ nome: item.descricao, codigo: item.codigo, codigo_barras: "", ncm: item.ncm, unidade: item.unidade || "UN", categoria: "", descricao: "" }); setShowNovoProduto(true); }} className="h-7 w-7 p-0">
                                     <Plus className="w-3 h-3" />
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }}>
+                                  <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowTrocarProduto(true); }} className="h-7 w-7 p-0">
                                     <RefreshCw className="w-3 h-3" />
                                   </Button>
                                 </>
                               )}
-                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:bg-red-50">
+                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="text-red-600 hover:bg-red-50 h-7 w-7 p-0">
                                 <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
@@ -926,14 +925,14 @@ ${xmlText}`,
                 </Table>
               </div>
 
-              <Card className="bg-blue-50 border-blue-300">
-                <CardContent className="p-4">
-                  <div className="space-y-2 text-sm">
+              <Card className="bg-blue-50 border-blue-300 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span>Itens Selecionados:</span>
                       <span className="font-semibold">{itensSelecionados.length} de {itensNFe.length}</span>
                     </div>
-                    <div className="flex justify-between text-base font-bold text-blue-700">
+                    <div className="flex justify-between text-sm font-bold text-blue-700">
                       <span>Subtotal Produtos:</span>
                       <span>R$ {formatarNumero(subtotalItens)}</span>
                     </div>
@@ -941,11 +940,11 @@ ${xmlText}`,
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-3">
-                <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)}>Voltar</Button>
+              <div className="flex justify-between gap-2">
+                <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-8 text-xs">Voltar</Button>
                 <Button 
                   onClick={() => setEtapa(4)} 
-                  className="bg-green-600"
+                  className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs"
                   disabled={itensSelecionados.length === 0}
                 >
                   Avançar ({itensSelecionados.length} {itensSelecionados.length === 1 ? 'item' : 'itens'})
@@ -956,67 +955,67 @@ ${xmlText}`,
 
           {/* ETAPA 4: CONFIGURAÇÕES FINAIS */}
           {etapa === 4 && dadosNFe && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* CHECKBOXES DE LANÇAMENTO */}
-              <div className="space-y-4 p-4 bg-slate-50 rounded-lg border">
-                <div className="flex items-center space-x-3">
+              <div className="space-y-3 p-3 bg-slate-50 rounded border">
+                <div className="flex items-center space-x-2">
                   <Checkbox checked={gerarFinanceiro} onCheckedChange={setGerarFinanceiro} id="fin" />
-                  <label htmlFor="fin" className="font-semibold cursor-pointer">💰 Gerar Lançamento Financeiro</label>
+                  <label htmlFor="fin" className="font-semibold cursor-pointer text-xs">💰 Gerar Lançamento Financeiro</label>
                 </div>
 
                 {gerarFinanceiro && (
-                  <div className="ml-8 p-4 bg-white rounded border space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Plano de Contas</Label>
-                        <div className="flex gap-2">
+                  <div className="ml-6 p-3 bg-white rounded border space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Plano de Contas</Label>
+                        <div className="flex gap-1.5">
                           <Select value={dadosComplementares.plano_contas_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, plano_contas_id: v })} className="flex-1">
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
-                              {planos.map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
+                              {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
-                            <Plus className="w-4 h-4" />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-8 w-8">
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Grupo Financeiro</Label>
-                        <div className="flex gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Grupo Financeiro</Label>
+                        <div className="flex gap-1.5">
                           <Select value={dadosComplementares.grupo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, grupo_id: v })} className="flex-1">
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
-                              {grupos.map(g => <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>)}
+                              {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
-                            <Plus className="w-4 h-4" />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-8 w-8">
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1 text-xs">
                         Data de Vencimento
                         <span className="text-red-600 font-bold">*</span>
                       </Label>
-                      <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required />
+                      <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} required className="h-8 text-xs" />
                     </div>
 
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       <Checkbox checked={parcelar} onCheckedChange={(v) => { setParcelar(v); if (!v) setParcelas([]); }} id="parcelar" />
-                      <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento (cria lançamentos separados)</label>
+                      <label htmlFor="parcelar" className="font-semibold cursor-pointer text-xs">Parcelar lançamento</label>
                     </div>
 
                     {parcelar && (
-                      <div className="space-y-3 p-3 bg-slate-50 rounded">
+                      <div className="space-y-2 p-2 bg-slate-50 rounded">
                         <div className="flex justify-between items-center">
-                          <Label>Parcelas ({parcelas.length})</Label>
-                          <Button type="button" size="sm" onClick={adicionarParcela}>
-                            <Plus className="w-3 h-3 mr-1" />
+                          <Label className="text-xs">Parcelas ({parcelas.length})</Label>
+                          <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
+                            <Plus className="w-3 h-3" />
                             Adicionar
                           </Button>
                         </div>
@@ -1024,24 +1023,24 @@ ${xmlText}`,
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-16">Nº</TableHead>
-                              <TableHead>Vencimento *</TableHead>
-                              <TableHead className="text-right">Valor *</TableHead>
+                              <TableHead className="w-16 text-xs">Nº</TableHead>
+                              <TableHead className="text-xs">Vencimento *</TableHead>
+                              <TableHead className="text-right text-xs">Valor *</TableHead>
                               <TableHead className="w-12"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {parcelas.map((parcela, index) => (
                               <TableRow key={index}>
-                                <TableCell className="font-bold">{index + 1}</TableCell>
+                                <TableCell className="font-bold text-xs">{index + 1}</TableCell>
                                 <TableCell>
-                                  <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} />
+                                  <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-7 text-xs" />
                                 </TableCell>
                                 <TableCell>
-                                  <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" />
+                                  <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" />
                                 </TableCell>
                                 <TableCell>
-                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={parcelas.length <= 1}>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={parcelas.length <= 1} className="h-7 w-7 p-0">
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
                                 </TableCell>
@@ -1052,7 +1051,7 @@ ${xmlText}`,
 
                         <Card className={`${parcelasInvalidas ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
                           <CardContent className="p-3">
-                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
                               <div className="flex justify-between">
                                 <span>Total Parcelas:</span>
                                 <span className="font-bold">R$ {formatarNumero(totalParcelas)}</span>
@@ -1072,103 +1071,91 @@ ${xmlText}`,
                   </div>
                 )}
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
                   <Checkbox checked={gerarEstoque} onCheckedChange={setGerarEstoque} id="est" />
-                  <label htmlFor="est" className="font-semibold cursor-pointer">📦 Entrada em Estoque</label>
+                  <label htmlFor="est" className="font-semibold cursor-pointer text-xs">📦 Entrada em Estoque</label>
                 </div>
 
                 {gerarEstoque && (
-                  <div className="ml-8 p-4 bg-white rounded border space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
+                  <div className="ml-6 p-3 bg-white rounded border space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1 text-xs">
                           Local de Estoque
                           <span className="text-red-600 font-bold">*</span>
                         </Label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                           <Select value={dadosComplementares.local_estoque} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, local_estoque: v })} className="flex-1">
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
-                              {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
+                              {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
-                            <Plus className="w-4 h-4" />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Centro de Custo</Label>
-                        <div className="flex gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Centro de Custo</Label>
+                        <div className="flex gap-1.5">
                           <Select value={dadosComplementares.centro_custo_id} onValueChange={(v) => setDadosComplementares({ ...dadosComplementares, centro_custo_id: v })} className="flex-1">
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
-                              {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                              {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
-                            <Plus className="w-4 h-4" />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Frete</Label>
-                        <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" />
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Frete</Label>
+                        <Input value={dadosComplementares.frete} onChange={(e) => setDadosComplementares({ ...dadosComplementares, frete: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Desconto Geral</Label>
-                        <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Desconto Geral</Label>
+                        <Input value={dadosComplementares.desconto_total} onChange={(e) => setDadosComplementares({ ...dadosComplementares, desconto_total: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Outras Despesas</Label>
-                        <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Outras Despesas</Label>
+                        <Input value={dadosComplementares.outras_despesas} onChange={(e) => setDadosComplementares({ ...dadosComplementares, outras_despesas: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
                   <Checkbox checked={gerarLivroFiscal} onCheckedChange={setGerarLivroFiscal} id="liv" />
-                  <label htmlFor="liv" className="font-semibold cursor-pointer">📚 Livro Fiscal</label>
+                  <label htmlFor="liv" className="font-semibold cursor-pointer text-xs">📚 Livro Fiscal</label>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Observações</Label>
                 <Textarea 
                   value={dadosComplementares.observacoes} 
                   onChange={(e) => setDadosComplementares({ ...dadosComplementares, observacoes: e.target.value })} 
                   rows={2}
-                  className="uppercase" 
+                  className="text-xs uppercase" 
                   style={{ textTransform: 'uppercase' }}
-                  placeholder="OBSERVAÇÕES SOBRE A IMPORTAÇÃO..."
+                  placeholder="OBSERVAÇÕES..."
                 />
               </div>
 
-              <Card className="bg-green-50 border-green-300">
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal Produtos:</span>
-                      <span className="font-mono">R$ {formatarNumero(subtotalItens)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>+ Frete:</span>
-                      <span className="font-mono">R$ {dadosComplementares.frete}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>+ Outras Despesas:</span>
-                      <span className="font-mono">R$ {dadosComplementares.outras_despesas}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-red-600">
-                      <span>- Desconto:</span>
-                      <span className="font-mono">R$ {dadosComplementares.desconto_total}</span>
-                    </div>
-                    <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
+              <Card className="bg-emerald-50 border-emerald-300 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono">R$ {formatarNumero(subtotalItens)}</span></div>
+                    <div className="flex justify-between"><span>+ Frete:</span><span className="font-mono">R$ {dadosComplementares.frete}</span></div>
+                    <div className="flex justify-between"><span>+ Outras Despesas:</span><span className="font-mono">R$ {dadosComplementares.outras_despesas}</span></div>
+                    <div className="flex justify-between text-red-600"><span>- Desconto:</span><span className="font-mono">R$ {dadosComplementares.desconto_total}</span></div>
+                    <div className="border-t-2 border-emerald-400 pt-1.5 flex justify-between font-bold text-emerald-700">
                       <span>TOTAL FINAL:</span>
                       <span>R$ {formatarNumero(totalAjustado)}</span>
                     </div>
@@ -1176,10 +1163,10 @@ ${xmlText}`,
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-3">
-                <Button variant="outline" onClick={() => setEtapa(3)}>Voltar</Button>
-                <Button onClick={handleConfirmarImportacao} className="bg-green-600 gap-2" disabled={gerarFinanceiro && parcelar && parcelasInvalidas}>
-                  <CheckCircle className="w-4 h-4" />
+              <div className="flex justify-between gap-2">
+                <Button variant="outline" onClick={() => setEtapa(3)} size="sm" className="h-8 text-xs">Voltar</Button>
+                <Button onClick={handleConfirmarImportacao} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={gerarFinanceiro && parcelar && parcelasInvalidas}>
+                  <CheckCircle className="w-3 h-3" />
                   Confirmar e Importar ({itensSelecionados.length} {itensSelecionados.length === 1 ? 'item' : 'itens'})
                 </Button>
               </div>
@@ -1197,80 +1184,80 @@ ${xmlText}`,
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tipo de Pessoa *</Label>
+              <Label className="text-xs">Tipo de Pessoa *</Label>
               <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
-                  <SelectItem value="Física">Pessoa Física</SelectItem>
+                  <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
-              <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
+              <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
                 <>
                   <div className="space-y-2">
-                    <Label>CNPJ *</Label>
-                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                    <Label className="text-xs">CNPJ *</Label>
+                    <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Inscrição Estadual</Label>
-                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    <Label className="text-xs">Inscrição Estadual</Label>
+                    <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
                 </>
               ) : (
                 <div className="space-y-2">
-                  <Label>CPF *</Label>
-                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" />
+                  <Label className="text-xs">CPF *</Label>
+                  <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-8 text-xs" />
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+                <Label className="text-xs">Telefone</Label>
+                <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-8 text-xs" />
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" />
+                <Label className="text-xs">E-mail</Label>
+                <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-8 text-xs" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Endereço</Label>
-              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Endereço</Label>
+              <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Cidade</Label>
-                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <Label className="text-xs">Cidade</Label>
+                <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label className="text-xs">Estado</Label>
                 <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
-                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
-                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                    {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>CEP</Label>
-                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" />
+                <Label className="text-xs">CEP</Label>
+                <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-8 text-xs" />
               </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowNovoFornecedor(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarFornecedor} className="bg-green-600" disabled={createFornecedorMutation.isPending}>
+              <Button variant="outline" onClick={() => setShowNovoFornecedor(false)} className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarFornecedor} className="bg-green-600 h-8 text-xs" disabled={createFornecedorMutation.isPending}>
                 {createFornecedorMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar e Continuar</>}
               </Button>
             </div>
@@ -1286,54 +1273,54 @@ ${xmlText}`,
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome do Produto *</Label>
-              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Nome do Produto *</Label>
+              <Input value={novoProduto.nome} onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Código Interno</Label>
-                <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <Label className="text-xs">Código Interno</Label>
+                <Input value={novoProduto.codigo} onChange={(e) => setNovoProduto({ ...novoProduto, codigo: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-2">
-                <Label>Código de Barras</Label>
-                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} />
+                <Label className="text-xs">Código de Barras</Label>
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} className="h-8 text-xs" />
               </div>
               <div className="space-y-2">
-                <Label>NCM</Label>
-                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} />
+                <Label className="text-xs">NCM</Label>
+                <Input value={novoProduto.ncm} onChange={(e) => setNovoProduto({ ...novoProduto, ncm: e.target.value })} className="h-8 text-xs" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Unidade de Medida *</Label>
+                <Label className="text-xs">Unidade de Medida *</Label>
                 <Select value={novoProduto.unidade} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {unidadesMedida.map(un => <SelectItem key={un.id} value={un.sigla}>{un.sigla} - {un.descricao}</SelectItem>)}
+                    {unidadesMedida.map(un => <SelectItem key={un.id} value={un.sigla} className="text-xs">{un.sigla} - {un.descricao}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Categoria</Label>
+                <Label className="text-xs">Categoria</Label>
                 <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {categorias.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
+                    {categorias.map(c => <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowNovoProduto(false)}>Cancelar</Button>
-              <Button onClick={handleCadastrarProduto} className="bg-green-600" disabled={createProdutoMutation.isPending}>
+              <Button variant="outline" onClick={() => setShowNovoProduto(false)} className="h-8 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarProduto} className="bg-green-600 h-8 text-xs" disabled={createProdutoMutation.isPending}>
                 {createProdutoMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : <><Save className="w-4 h-4 mr-2" />Salvar e Associar</>}
               </Button>
             </div>
@@ -1350,34 +1337,34 @@ ${xmlText}`,
           
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input placeholder="Buscar por nome ou código..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10" />
+            <Input placeholder="Buscar por nome ou código..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10 h-8 text-xs" />
           </div>
 
           <div className="flex-1 overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-white">
                 <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Ação</TableHead>
+                  <TableHead className="text-xs">Código</TableHead>
+                  <TableHead className="text-xs">Nome</TableHead>
+                  <TableHead className="text-xs">Categoria</TableHead>
+                  <TableHead className="text-xs">Unidade</TableHead>
+                  <TableHead className="text-xs">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {produtosFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">Nenhum produto encontrado</TableCell>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 text-xs">Nenhum produto encontrado</TableCell>
                   </TableRow>
                 ) : (
                   produtosFiltrados.map(p => (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
-                      <TableCell className="text-sm">{p.nome_produto}</TableCell>
+                      <TableCell className="text-xs">{p.nome_produto}</TableCell>
                       <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
-                      <TableCell>{p.unidade_medida}</TableCell>
+                      <TableCell className="text-xs">{p.unidade_medida}</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600">
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600 h-7 text-xs">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Selecionar
                         </Button>
@@ -1394,11 +1381,11 @@ ${xmlText}`,
       <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-sm">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
               Cadastrando Produtos
             </DialogTitle>
-            <DialogDescription>Aguarde enquanto os produtos selecionados são cadastrados...</DialogDescription>
+            <DialogDescription className="text-sm">Aguarde enquanto os produtos selecionados são cadastrados...</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
