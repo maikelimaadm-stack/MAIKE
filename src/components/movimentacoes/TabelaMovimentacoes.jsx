@@ -21,6 +21,14 @@ const formatarNumero = (numero) => {
   return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return "R$ 0,00";
+  // Ensure valor is a number before calling toLocaleString
+  const numericValue = typeof valor === 'string' ? parseFloat(valor.replace(',', '.')) : valor;
+  if (isNaN(numericValue)) return "R$ 0,00";
+  return numericValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 const formatarData = (dataString) => {
   if (!dataString) return '-';
   try {
@@ -41,9 +49,10 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
   { id: 'origem', label: 'Origem', default: true, sortable: false },
   { id: 'destino', label: 'Destino', default: true, sortable: false },
-  { id: 'valor_unitario', label: 'Valor Unit.', default: false, sortable: true },
-  { id: 'valor_total', label: 'Valor Total', default: false, sortable: true },
-  { id: 'documento', label: 'Documento', default: true, sortable: false },
+  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
+  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: true, sortable: false },
+  { id: 'documento', label: 'Nº Doc', default: true, sortable: false },
   { id: 'fornecedor', label: 'Fornecedor', default: true, sortable: true },
   { id: 'cliente', label: 'Cliente', default: false, sortable: false },
   { id: 'usuario', label: 'Usuário', default: false, sortable: false },
@@ -110,7 +119,8 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       mov.cliente_nome?.toLowerCase().includes(searchLower) ||
       mov.numero_documento?.toLowerCase().includes(searchLower) ||
       mov.numero_movimentacao?.includes(searchLower) ||
-      mov.usuario_responsavel?.toLowerCase().includes(searchLower)
+      mov.usuario_responsavel?.toLowerCase().includes(searchLower) ||
+      mov.tipo_documento?.toLowerCase().includes(searchLower) // Added tipo_documento to search
     );
   });
 
@@ -311,7 +321,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     onClick={() => handleSort('valor_unitario')}
                   >
                     <div className="flex items-center justify-end">
-                      Vlr Unit.
+                      Vlr. Unit.
                       {getSortIcon('valor_unitario')}
                     </div>
                   </TableHead>
@@ -322,12 +332,13 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     onClick={() => handleSort('valor_total')}
                   >
                     <div className="flex items-center justify-end">
-                      Vlr Total
+                      Vlr. Total
                       {getSortIcon('valor_total')}
                     </div>
                   </TableHead>
                 )}
-                {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">Documento</TableHead>}
+                {colunasVisiveis.includes('tipo_documento') && <TableHead className="font-semibold text-slate-700">Tipo Doc</TableHead>}
+                {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">Nº Doc</TableHead>}
                 {colunasVisiveis.includes('fornecedor') && (
                   <TableHead 
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
@@ -410,18 +421,19 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                       )}
                       {colunasVisiveis.includes('valor_unitario') && (
                         <TableCell className="text-right font-mono text-slate-700">
-                          {mov.valor_unitario ? `R$ ${formatarNumero(mov.valor_unitario)}` : '-'}
+                          {mov.valor_unitario ? formatarMoeda(mov.valor_unitario) : '-'}
                         </TableCell>
                       )}
                       {colunasVisiveis.includes('valor_total') && (
                         <TableCell className="text-right font-mono font-bold text-green-700">
-                          {mov.valor_total ? `R$ ${formatarNumero(mov.valor_total)}` : '-'}
+                          {mov.valor_total ? formatarMoeda(mov.valor_total) : '-'}
                         </TableCell>
                       )}
+                      {colunasVisiveis.includes('tipo_documento') && (
+                        <TableCell className="text-slate-700 text-xs">{mov.tipo_documento || '-'}</TableCell>
+                      )}
                       {colunasVisiveis.includes('documento') && (
-                        <TableCell className="text-slate-700 text-xs font-mono">
-                          {mov.numero_documento ? `${mov.tipo_documento}: ${mov.numero_documento}` : '-'}
-                        </TableCell>
+                        <TableCell className="font-mono text-xs">{mov.numero_documento || '-'}</TableCell>
                       )}
                       {colunasVisiveis.includes('fornecedor') && (
                         <TableCell className="text-slate-700 text-xs">{mov.fornecedor_nome || '-'}</TableCell>
