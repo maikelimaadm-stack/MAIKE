@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { FileText, Upload, Loader2, Save, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, Edit2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -56,6 +57,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogPlano, setShowDialogPlano] = useState(false);
   const [showDialogGrupo, setShowDialogGrupo] = useState(false);
+  const [showProgressoImportacao, setShowProgressoImportacao] = useState(false);
+  const [progressoImportacao, setProgressoImportacao] = useState({ etapa: '', current: 0, total: 0 });
   
   const [dadosComplementares, setDadosComplementares] = useState({
     local_estoque: "",
@@ -647,6 +650,10 @@ ${xmlText}`,
       dadosComplementares
     });
 
+    // Fechar dialog de configuração e abrir dialog de progresso
+    setShowProgressoImportacao(true);
+    setProgressoImportacao({ etapa: '🚀 Iniciando importação...', current: 0, total: 100 });
+
     onSuccess({
       dadosNFe,
       fornecedor_id: fornecedorSelecionado.id,
@@ -677,7 +684,8 @@ ${xmlText}`,
       gerarEstoque,
       gerarLivroFiscal,
       parcelar,
-      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : []
+      parcelas: parcelar ? parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : [],
+      setProgressoImportacao  // Passar função para atualizar progresso
     });
   };
 
@@ -698,6 +706,8 @@ ${xmlText}`,
     setParcelas([]);
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
     setNovoProduto({ nome: "", codigo: "", codigo_barras: "", ncm: "", unidade: "UN", categoria: "", descricao: "" });
+    setShowProgressoImportacao(false); // Reset progress dialog
+    setProgressoImportacao({ etapa: '', current: 0, total: 0 }); // Reset progress
   };
 
   const itensSelecionadosData = itensNFe.filter(i => itensSelecionados.includes(i.index));
@@ -711,12 +721,12 @@ ${xmlText}`,
   const totalAjustado = subtotalItens + parseNumero(dadosComplementares.frete) + parseNumero(dadosComplementares.outras_despesas) - parseNumero(dadosComplementares.desconto_total);
   const totalParcelas = parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
   const parcelasInvalidas = parcelar && (parcelas.length === 0 || Math.abs(totalParcelas - (dadosNFe?.valor_total || 0)) > 0.01 || parcelas.some(p => !p.data || !p.valor || parseNumero(p.valor) <= 0));
-
   const produtosFiltrados = produtos.filter(p => 
     !buscaProduto || 
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
+  const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
 
   return (
     <>
@@ -1172,6 +1182,29 @@ ${xmlText}`,
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG PROGRESSO */}
+      <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              Importando NF-e
+            </DialogTitle>
+            <DialogDescription className="text-xs">{progressoImportacao.etapa}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">{progressoImportacao.current}/{progressoImportacao.total}</span>
+              </div>
+              <Progress value={progressPercentage} className="h-1.5" />
+              <p className="text-center text-xs font-semibold text-emerald-600">{progressPercentage}%</p>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

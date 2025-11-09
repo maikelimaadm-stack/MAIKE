@@ -280,7 +280,7 @@ export default function Financeiro() {
         for (let i = 0; i < dados.itens.length; i++) {
           const item = dados.itens[i];
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
-          const prod = produtos.find(p => p.id === item.produto_id);
+          const prod = products.find(p => p.id === item.produto_id);
           
           if (!prod) continue;
 
@@ -550,7 +550,7 @@ export default function Financeiro() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <FileText className="w-3.5 h-3.5" />
-              Importar NF-e
+              Importação NF-e (xml)
             </Button>
             <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               <Plus className="w-3.5 h-3.5" />

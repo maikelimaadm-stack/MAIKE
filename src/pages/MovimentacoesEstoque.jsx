@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle, FileUp } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, AlertTriangle, FileUp, FileText } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -364,21 +364,21 @@ export default function MovimentacoesEstoque() {
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Movimentações de Estoque</h1>
-              <p className="text-xs text-slate-600">Entradas e saídas</p>
+              <h1 className="text-xl font-bold text-slate-900">Movimentação de Estoque</h1>
+              <p className="text-xs text-slate-600">Entradas, saídas e ajustes</p>
             </div>
           </div>
 
           <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              Importação NF-e (xml)
+            </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <Download className="w-3.5 h-3.5" />
               Exportar
-            </Button>
-            <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileUp className="w-3.5 h-3.5" />
-              Importar NF-e
             </Button>
             <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               <Plus className="w-3.5 h-3.5" />
