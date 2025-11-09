@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, X 
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -181,35 +180,206 @@ export default function Layout({ children, currentPageName }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* TOP NAVIGATION BAR */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            {/* LOGO */}
-            <div className="flex items-center gap-4">
-              <Link to={createPageUrl("Home")} className="flex items-center gap-2">
-                {empresaAtual?.logotipo_url ? (
-                  <img 
-                    src={empresaAtual.logotipo_url} 
-                    alt={empresaAtual.apelido}
-                    className="h-8 w-auto object-contain"
-                  />
-                ) : (
-                  <img 
-                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                    alt="Logo"
-                    className="h-8 w-auto object-contain"
-                  />
-                )}
-                <span className="font-bold text-slate-800 text-sm hidden lg:block">
-                  {empresaAtual?.apelido || 'Sistema'}
-                </span>
-              </Link>
+    <div className="min-h-screen bg-slate-50">
+      {/* HEADER SUPERIOR - LOGO E INFORMAÇÕES */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-[1600px] mx-auto px-4 py-2">
+          <div className="flex items-center justify-between">
+            {/* LOGO + NOME EMPRESA */}
+            <div className="flex items-center gap-3">
+              {empresaAtual?.logotipo_url ? (
+                <img 
+                  src={empresaAtual.logotipo_url} 
+                  alt={empresaAtual.apelido}
+                  className="h-10 w-auto object-contain"
+                />
+              ) : (
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+                  alt="Logo"
+                  className="h-10 w-auto object-contain"
+                />
+              )}
+              <div>
+                <h1 className="font-bold text-slate-900 text-base leading-tight">
+                  {empresaAtual?.apelido || empresaAtual?.nome || 'FAZENDA PALMITAL'}
+                </h1>
+                <p className="text-xs text-slate-600">Sistema de Gestão</p>
+              </div>
             </div>
 
+            {/* CLIMA E STATUS */}
+            <div className="hidden lg:flex items-center gap-6">
+              {weather && (
+                <>
+                  <div className="flex items-center gap-2">
+                    {weather.precipitation ? (
+                      <CloudRain className="w-4 h-4 text-blue-500" />
+                    ) : (
+                      <CloudOff className="w-4 h-4 text-slate-400" />
+                    )}
+                    <span className="text-xs text-slate-700 font-medium">
+                      {weather.precipitation ? 'Chuva' : 'Sem chuva'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Thermometer className="w-4 h-4 text-orange-500" />
+                    <span className="text-xs text-slate-700 font-medium">
+                      {weather.temperature}°C
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-slate-500" />
+                    <span className="text-xs text-slate-700 font-medium">
+                      Cuiabá - MT
+                    </span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-700 font-medium">Sistema Online</span>
+              </div>
+            </div>
+
+            {/* USER + SETTINGS */}
+            <div className="flex items-center gap-2">
+              {empresas.length > 0 && (
+                <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
+                  <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((empresa) => (
+                      <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
+                        {empresa.apelido || empresa.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+                <Bell className="w-4 h-4 text-slate-600" />
+              </Button>
+
+              <Link to={createPageUrl("ConfiguracoesGerais")}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+                  <Settings className="w-4 h-4 text-slate-600" />
+                </Button>
+              </Link>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 gap-2 px-2">
+                    <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center">
+                      <span className="text-slate-700 font-semibold text-xs">
+                        {user?.full_name?.charAt(0).toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium text-slate-700 hidden lg:block">
+                      {user?.full_name?.split(' ')[0] || 'Usuário'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-xs">
+                    <div className="font-semibold">{user?.full_name}</div>
+                    <div className="text-slate-500 font-normal">{user?.email}</div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs">
+                    <User className="w-3 h-3 mr-2" />
+                    Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-xs">
+                    <Link to={createPageUrl("ConfiguracoesGerais")}>
+                      <Settings className="w-3 h-3 mr-2" />
+                      Configurações
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
+                    <LogOut className="w-3 h-3 mr-2" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-72">
+                  <SheetHeader>
+                    <SheetTitle className="text-left text-sm">Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4 space-y-1">
+                    {menuItems.map((item) => {
+                      const Icon = iconsMap[item.icon] || Home;
+                      
+                      if (item.submenu) {
+                        return (
+                          <div key={item.id} className="space-y-1">
+                            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-slate-700">
+                              <Icon className="w-3.5 h-3.5" />
+                              {item.title}
+                            </div>
+                            <div className="ml-3 space-y-0.5">
+                              {item.submenu.map((sub) => (
+                                <Link 
+                                  key={sub.id}
+                                  to={createPageUrl(sub.url)}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={`block px-2 py-1.5 text-xs rounded ${
+                                    location.pathname === createPageUrl(sub.url)
+                                      ? 'bg-slate-100 font-medium'
+                                      : 'text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {sub.title}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link 
+                          key={item.id}
+                          to={createPageUrl(item.url)}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
+                            location.pathname === createPageUrl(item.url)
+                              ? 'bg-slate-100 font-medium'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {item.title}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* BARRA DE NAVEGAÇÃO - MENUS */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4">
+          <div className="flex items-center gap-1 h-10">
             {/* DESKTOP MENU */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-0.5">
               {menuItems.map((item) => {
                 const Icon = iconsMap[item.icon] || Home;
                 const active = isActive(item);
@@ -221,10 +391,10 @@ export default function Layout({ children, currentPageName }) {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          className={`h-9 px-3 gap-1.5 text-xs font-medium ${
+                          className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                             active 
-                              ? 'bg-slate-100 text-slate-900' 
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                              ? 'bg-slate-900 text-white' 
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                           }`}
                         >
                           <Icon className="w-3.5 h-3.5" />
@@ -232,8 +402,8 @@ export default function Layout({ children, currentPageName }) {
                           <ChevronDown className="w-3 h-3 opacity-50" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel className="text-xs">{item.title}</DropdownMenuLabel>
+                      <DropdownMenuContent align="start" className="w-52 mt-1">
+                        <DropdownMenuLabel className="text-xs text-slate-500">{item.title}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {item.submenu.map((sub) => (
                           <DropdownMenuItem key={sub.id} asChild>
@@ -259,10 +429,10 @@ export default function Layout({ children, currentPageName }) {
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      className={`h-9 px-3 gap-1.5 text-xs font-medium ${
+                      className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                         active 
-                          ? 'bg-slate-100 text-slate-900' 
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                          ? 'bg-slate-900 text-white' 
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -271,147 +441,6 @@ export default function Layout({ children, currentPageName }) {
                   </Link>
                 );
               })}
-            </div>
-
-            {/* RIGHT SIDE */}
-            <div className="flex items-center gap-2">
-              {/* Weather */}
-              {weather && (
-                <div className="hidden lg:flex items-center gap-2 px-2 py-1 bg-slate-50 rounded-md text-xs text-slate-600">
-                  <Thermometer className="w-3.5 h-3.5" />
-                  <span className="font-medium">{weather.temperature}°C</span>
-                  {weather.precipitation && <Cloud className="w-3.5 h-3.5 text-blue-500" />}
-                </div>
-              )}
-
-              {/* Company Selector */}
-              {empresas.length > 0 && (
-                <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
-                  <SelectTrigger className="h-9 w-[180px] text-xs hidden lg:flex">
-                    <Building2 className="w-3.5 h-3.5 mr-1" />
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {empresas.map((empresa) => (
-                      <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
-                        {empresa.apelido || empresa.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {/* Notifications */}
-              <Button variant="ghost" size="icon" className="h-9 w-9 hidden md:inline-flex">
-                <Bell className="w-4 h-4 text-slate-600" />
-              </Button>
-
-              {/* Settings */}
-              <Link to={createPageUrl("ConfiguracoesGerais")}>
-                <Button variant="ghost" size="icon" className="h-9 w-9 hidden md:inline-flex">
-                  <Settings className="w-4 h-4 text-slate-600" />
-                </Button>
-              </Link>
-
-              {/* User Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 gap-2 px-2">
-                    <div className="w-7 h-7 bg-slate-200 rounded-full flex items-center justify-center">
-                      <span className="text-slate-700 font-semibold text-xs">
-                        {user?.full_name?.charAt(0).toUpperCase() || 'U'}
-                      </span>
-                    </div>
-                    <span className="text-xs font-medium text-slate-700 hidden lg:block">
-                      {user?.full_name?.split(' ')[0] || 'Usuário'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-xs">
-                    <div className="font-semibold">{user?.full_name}</div>
-                    <div className="text-slate-500 font-normal">{user?.email}</div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-xs">
-                    <User className="w-3.5 h-3.5 mr-2" />
-                    Meu Perfil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("ConfiguracoesGerais")}>
-                      <Settings className="w-3.5 h-3.5 mr-2" />
-                      Configurações
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
-                    <LogOut className="w-3.5 h-3.5 mr-2" />
-                    Sair do Sistema
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Mobile Menu Button */}
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden">
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80">
-                  <SheetHeader>
-                    <SheetTitle className="text-left">Menu</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-1">
-                    {menuItems.map((item) => {
-                      const Icon = iconsMap[item.icon] || Home;
-                      
-                      if (item.submenu) {
-                        return (
-                          <div key={item.id} className="space-y-1">
-                            <div className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700">
-                              <Icon className="w-4 h-4" />
-                              {item.title}
-                            </div>
-                            <div className="ml-4 space-y-1">
-                              {item.submenu.map((sub) => (
-                                <Link 
-                                  key={sub.id}
-                                  to={createPageUrl(sub.url)}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className={`block px-3 py-2 text-sm rounded-md ${
-                                    location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-slate-100 font-medium'
-                                      : 'text-slate-600 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {sub.title}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <Link 
-                          key={item.id}
-                          to={createPageUrl(item.url)}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md ${
-                            location.pathname === createPageUrl(item.url)
-                              ? 'bg-slate-100 font-medium'
-                              : 'text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {item.title}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </SheetContent>
-              </Sheet>
             </div>
           </div>
         </div>

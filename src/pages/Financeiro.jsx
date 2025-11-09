@@ -1,9 +1,7 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -13,6 +11,7 @@ import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
 import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceiro.jsx";
+import CartoesResumo from "../components/shared/CartoesResumo.jsx";
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
@@ -105,7 +104,6 @@ export default function Financeiro() {
   const createMutation = useMutation({
     mutationFn: async (data) => {
       if (data.parcelas && data.parcelas.length > 0) {
-        
         const lancamentosCriados = [];
         
         for (let i = 0; i < data.parcelas.length; i++) {
@@ -213,7 +211,7 @@ export default function Financeiro() {
       const baixasDoLancamento = allBaixas.filter(b => b.lancamento_id === lancamento.id);
       
       if (baixasDoLancamento.length === 0) {
-        throw new Error('Nenhuma baixa encontrada para este lançamento!');
+        throw new Error('Nenhuma baixa encontrada!');
       }
 
       for (const baixa of baixasDoLancamento) {
@@ -269,24 +267,21 @@ export default function Financeiro() {
     try {
       setShowImportarXML(false);
       setShowProgressoImportacao(true);
-      setProgressoImportacao({ etapa: '🚀 Iniciando importação...', current: 0, total: 100 });
+      setProgressoImportacao({ etapa: '🚀 Iniciando...', current: 0, total: 100 });
       
-      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for UX
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const movIds = [];
       
       if (dados.gerarEstoque && dados.itens?.length > 0) {
-        setProgressoImportacao({ etapa: '📦 Lançando produtos no estoque...', current: 0, total: dados.itens.length });
+        setProgressoImportacao({ etapa: '📦 Lançando estoque...', current: 0, total: dados.itens.length });
         
         for (let i = 0; i < dados.itens.length; i++) {
           const item = dados.itens[i];
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
           const prod = produtos.find(p => p.id === item.produto_id);
           
-          if (!prod) {
-            console.warn(`Produto com ID ${item.produto_id} não encontrado.`);
-            continue;
-          }
+          if (!prod) continue;
 
           const mov = await base44.entities.MovimentacaoEstoque.create({
             empresa_id: empresaSelecionadaId,
@@ -328,15 +323,15 @@ export default function Financeiro() {
             preco_custo: mov.custo_medio_depois
           });
           
-          setProgressoImportacao({ etapa: '📦 Lançando produtos no estoque...', current: i + 1, total: dados.itens.length });
-          await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for progress bar update
+          setProgressoImportacao({ etapa: '📦 Lançando estoque...', current: i + 1, total: dados.itens.length });
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
         
-        toast.success(`✅ ${dados.itens.length} produto(s) no estoque!`);
+        toast.success(`✅ ${dados.itens.length} produto(s)!`);
       }
 
       if (dados.gerarLivroFiscal && dados.itens?.length > 0) {
-        setProgressoImportacao({ etapa: '📚 Criando registro fiscal...', current: 0, total: 1 });
+        setProgressoImportacao({ etapa: '📚 Criando registro...', current: 0, total: 1 });
         
         const num = await getNextNumeroLivro(empresaSelecionadaId);
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
@@ -373,13 +368,13 @@ export default function Financeiro() {
           status: 'Ativo'
         });
         
-        setProgressoImportacao({ etapa: '📚 Registro fiscal criado!', current: 1, total: 1 });
-        toast.success('✅ Registro fiscal criado!');
+        setProgressoImportacao({ etapa: '📚 Registro criado!', current: 1, total: 1 });
+        toast.success('✅ Registro fiscal!');
       }
 
       if (dados.gerarFinanceiro) {
-        const totalFinanceiro = dados.parcelar && dados.parcelas?.length > 0 ? dados.parcelas.length : 1;
-        setProgressoImportacao({ etapa: '💰 Criando lançamentos financeiros...', current: 0, total: totalFinanceiro });
+        const totalFinanceiro = dados.parcelar ? dados.parcelas.length : 1;
+        setProgressoImportacao({ etapa: '💰 Criando lançamentos...', current: 0, total: totalFinanceiro });
         
         const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
         const plano = planos.find(p => p.id === dados.dadosComplementares?.plano_contas_id);
@@ -430,11 +425,11 @@ export default function Financeiro() {
               gerado_xml: true
             });
             
-            setProgressoImportacao({ etapa: '💰 Criando lançamentos...', current: i + 1, total: dados.parcelas.length });
-            await new Promise(resolve => setTimeout(resolve, 80)); // Small delay for progress bar update
+            setProgressoImportacao({ etapa: '💰 Criando...', current: i + 1, total: dados.parcelas.length });
+            await new Promise(resolve => setTimeout(resolve, 80));
           }
           
-          toast.success(`✅ ${dados.parcelas.length} lançamentos financeiros criados!`);
+          toast.success(`✅ ${dados.parcelas.length} lançamentos!`);
         } else {
           const numero = await getNextNumber(empresaSelecionadaId);
           
@@ -468,12 +463,12 @@ export default function Financeiro() {
           });
           
           setProgressoImportacao({ etapa: '💰 Lançamento criado!', current: 1, total: 1 });
-          toast.success('✅ Lançamento financeiro criado!');
+          toast.success('✅ Lançamento!');
         }
       }
       
       setProgressoImportacao({ etapa: '✅ Concluído!', current: 100, total: 100 });
-      await new Promise(resolve => setTimeout(resolve, 800)); // Small delay before closing dialog
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       setShowProgressoImportacao(false);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
@@ -499,82 +494,68 @@ export default function Financeiro() {
       totalPagar: contasPagar.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
       totalReceber: contasReceber.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
       totalVencidos: vencidos.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
-      qtdVencidos: vencidos.length
+      qtdVencidos: vencidos.length,
+      qtdPagar: contasPagar.length,
+      qtdReceber: contasReceber.length
     };
   }, [lancamentos, lancamentosPagar, lancamentosReceber]);
 
   const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
 
+  const cartoes = [
+    {
+      id: 'pagar',
+      label: 'Contas a Pagar',
+      valor: estatisticas.totalPagar,
+      sublabel: `${estatisticas.qtdPagar} título(s)`,
+      icon: TrendingDown,
+      cor: 'red',
+      tipo: 'moeda'
+    },
+    {
+      id: 'receber',
+      label: 'Contas a Receber',
+      valor: estatisticas.totalReceber,
+      sublabel: `${estatisticas.qtdReceber} título(s)`,
+      icon: TrendingUp,
+      cor: 'emerald',
+      tipo: 'moeda'
+    },
+    {
+      id: 'vencidos',
+      label: 'Títulos Vencidos',
+      valor: estatisticas.totalVencidos,
+      sublabel: `⚠️ ${estatisticas.qtdVencidos} título(s)`,
+      icon: AlertCircle,
+      cor: 'amber',
+      tipo: 'moeda'
+    }
+  ];
+
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      {/* HEADER COMPACTO */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Controle Financeiro</h1>
-          <p className="text-xs md:text-sm text-slate-600">Gerenciar contas a pagar e receber</p>
-        </div>
-      </div>
-
-      {/* CARTÕES RESUMO - COMPACTOS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card className="shadow-sm border-l-4 border-l-red-500">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-slate-600 mb-1">Contas a Pagar</p>
-                <p className="text-2xl font-bold text-red-700">{formatarMoeda(estatisticas.totalPagar)}</p>
-                <p className="text-xs text-slate-500 mt-1">{lancamentosPagar.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado').length} título(s)</p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-l-4 border-l-emerald-500">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-slate-600 mb-1">Contas a Receber</p>
-                <p className="text-2xl font-bold text-emerald-700">{formatarMoeda(estatisticas.totalReceber)}</p>
-                <p className="text-xs text-slate-500 mt-1">{lancamentosReceber.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado').length} título(s)</p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-l-4 border-l-amber-500">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-slate-600 mb-1">Títulos Vencidos</p>
-                <p className="text-2xl font-bold text-amber-700">{formatarMoeda(estatisticas.totalVencidos)}</p>
-                <p className="text-xs text-slate-500 mt-1">⚠️ {estatisticas.qtdVencidos} título(s)</p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <AlertCircle className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+    <div className="p-4 md:p-6 space-y-3">
       {!showForm && !showBaixa && (
-        <div className="flex gap-2">
-          <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
-            <FileText className="w-3.5 h-3.5" />
-            Importar NF-e
-          </Button>
-          <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-9 gap-1.5 text-xs bg-slate-900 hover:bg-slate-800">
-            <Plus className="w-3.5 h-3.5" />
-            Novo Lançamento
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Controle Financeiro</h1>
+              <p className="text-xs text-slate-600">Contas a pagar e receber</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <FileText className="w-3.5 h-3.5" />
+                Importar NF-e
+              </Button>
+              <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-900">
+                <Plus className="w-3.5 h-3.5" />
+                Novo
+              </Button>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+        </>
       )}
 
       {showForm && (
@@ -611,7 +592,7 @@ export default function Financeiro() {
       <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
+            <DialogTitle className="flex items-center gap-2 text-sm">
               <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
               Importando NF-e
             </DialogTitle>
@@ -619,14 +600,14 @@ export default function Financeiro() {
               {progressoImportacao.etapa}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-3">
-            <div className="space-y-2">
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-600">Progresso</span>
-                <span className="font-semibold text-slate-900">{progressoImportacao.current} de {progressoImportacao.total}</span>
+                <span className="font-semibold text-slate-900">{progressoImportacao.current}/{progressoImportacao.total}</span>
               </div>
-              <Progress value={progressPercentage} className="h-2" />
-              <p className="text-center text-sm font-semibold text-blue-600">{progressPercentage}%</p>
+              <Progress value={progressPercentage} className="h-1.5" />
+              <p className="text-center text-xs font-semibold text-blue-600">{progressPercentage}%</p>
             </div>
           </div>
         </DialogContent>
@@ -634,18 +615,18 @@ export default function Financeiro() {
 
       {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-9">
-            <TabsTrigger value="pagar" className="gap-1.5 text-xs h-8">
+          <TabsList className="grid w-full max-w-md grid-cols-2 h-8">
+            <TabsTrigger value="pagar" className="gap-1 text-xs h-7">
               <TrendingDown className="w-3.5 h-3.5" />
               A Pagar ({lancamentosPagar.length})
             </TabsTrigger>
-            <TabsTrigger value="receber" className="gap-1.5 text-xs h-8">
+            <TabsTrigger value="receber" className="gap-1 text-xs h-7">
               <TrendingUp className="w-3.5 h-3.5" />
               A Receber ({lancamentosReceber.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pagar" className="mt-3">
+          <TabsContent value="pagar" className="mt-2">
             <TabelaFinanceiro
               lancamentos={lancamentosPagar}
               tipo="Pagar"
@@ -659,7 +640,7 @@ export default function Financeiro() {
             />
           </TabsContent>
 
-          <TabsContent value="receber" className="mt-3">
+          <TabsContent value="receber" className="mt-2">
             <TabelaFinanceiro
               lancamentos={lancamentosReceber}
               tipo="Receber"
