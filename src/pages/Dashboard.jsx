@@ -496,15 +496,15 @@ export default function Dashboard() {
     : 0;
 
   const cartoes = [
-    { id: 'total', label: 'Total de Pesagens', valor: totalPesagens, sublabel: 'Registros', icon: Scale, cor: 'slate', tipo: 'numero' },
-    { id: 'entrada', label: 'Entradas', valor: pesagensEntrada, sublabel: 'Recebimentos', icon: TrendingDown, cor: 'blue', tipo: 'numero' },
+    { id: 'total', label: 'Total de Pesagens', valor: totalPesagens, sublabel: 'Registros', icon: Scale, cor: 'blue', tipo: 'numero' },
+    { id: 'entrada', label: 'Entradas', valor: pesagensEntrada, sublabel: 'Recebimentos', icon: TrendingDown, cor: 'emerald', tipo: 'numero' },
     { id: 'saida', label: 'Saídas', valor: pesagensSaida, sublabel: 'Expedições', icon: TrendingUp, cor: 'orange', tipo: 'numero' },
     { id: 'ambos', label: 'Ambos', valor: pesagensAmbos, sublabel: 'Entrada+Saída', icon: Scale, cor: 'indigo', tipo: 'numero' },
     { id: 'peso', label: 'Peso Total', valor: parseFloat(formatarNumero(pesoTotalLiquido).replace(/\./g, '').replace(',', '.')), sublabel: 'Kg líquidos', icon: Package, cor: 'violet', tipo: 'numero' },
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-3">
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -532,7 +532,7 @@ export default function Dashboard() {
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Modelo
             </Button>
-            <Button onClick={handleNewPesagem} size="sm" className="h-8 gap-1 text-xs bg-slate-900 ml-auto">
+            <Button onClick={() => { setEditingPesagem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               <Plus className="w-3.5 h-3.5" />
               Nova Pesagem
             </Button>
@@ -544,7 +544,7 @@ export default function Dashboard() {
         {showForm && (
           <FormularioPesagem
             onSubmit={handleSubmit}
-            onCancel={handleCancelForm}
+            onCancel={() => { setShowForm(false); setEditingPesagem(null); }}
             initialData={editingPesagem}
             isEditing={!!editingPesagem}
           />

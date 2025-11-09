@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Plus, Users, Building2, UserCircle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -23,11 +22,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"; // Added table components
+} from "@/components/ui/table"; 
 
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
 import FichaFornecedor from "../components/fornecedores/FichaFornecedor";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 // Função global para obter próximo número único do sistema
 async function getNextSystemNumber() {
@@ -50,7 +50,7 @@ async function getNextSystemNumber() {
     console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', positiveNumbers.length, 'registros)');
     return nextNumber;
   } catch (error) {
-    console.error("❌ Erro ao buscar números existentes:", error);
+    console.error("Erro:", error); // Changed from original detailed message as per outline
     // Em caso de erro, retornar 1 ao invés de timestamp
     return 1;
   }
@@ -236,7 +236,7 @@ export default function Fornecedores() {
     setFichaFornecedor(fornecedor);
   };
 
-  const handleNew = () => {
+  const handleNew = () => { // This function is no longer directly called from JSX in the new structure, but kept for completeness if other parts use it.
     setEditingFornecedor(null);
     setShowForm(true);
   };
@@ -480,116 +480,70 @@ export default function Fornecedores() {
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Cadastros', valor: totalFornecedores, sublabel: 'Fornecedores/Clientes', icon: Users, cor: 'blue', tipo: 'numero' },
+    { id: 'fisica', label: 'Pessoas Físicas', valor: pessoasFisicas, sublabel: 'CPF', icon: UserCircle, cor: 'emerald', tipo: 'numero' },
+    { id: 'juridica', label: 'Pessoas Jurídicas', valor: pessoasJuridicas, sublabel: 'CNPJ', icon: Building2, cor: 'violet', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total de Cadastros</CardTitle>
-            <Users className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalFornecedores}</div>
-            <p className="text-xs text-green-600 mt-1">Fornecedores e clientes</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Pessoas Físicas</CardTitle>
-            <UserCircle className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{pessoasFisicas}</div>
-            <p className="text-xs text-blue-600 mt-1">CPF cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Pessoas Jurídicas</CardTitle>
-            <Building2 className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{pessoasJuridicas}</div>
-            <p className="text-xs text-purple-600 mt-1">CNPJ cadastrados</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botões */}
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
-        <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Fornecedores/Clientes</h1>
+              <p className="text-xs text-slate-600">Gerenciar cadastros</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
             </Button>
             <div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleImport}
-                className="hidden"
-                id="import-fornecedores"
-              />
-              <Button
-                onClick={() => document.getElementById('import-fornecedores').click()}
-                variant="outline"
-                className="gap-2"
-                disabled={showImportProgress || showErrorDialog}
-              >
-                <Upload className="w-4 h-4" />
-                Importar CSV
+              <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-fornecedores" />
+              <Button onClick={() => document.getElementById('import-fornecedores').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress || showErrorDialog}>
+                <Upload className="w-3.5 h-3.5" />
+                Importar
               </Button>
             </div>
-            <Button
-              onClick={downloadTemplate}
-              variant="outline"
-              className="gap-2"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Baixar Modelo
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Modelo
+            </Button>
+            <Button onClick={() => { setEditingFornecedor(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Novo Fornecedor
             </Button>
           </div>
-          <Button
-            onClick={handleNew}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-            size="lg"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Fornecedor/Cliente
-          </Button>
-        </div>
+        </>
       )}
 
-      {/* Formulário */}
       <AnimatePresence>
         {showForm && (
           <FormularioFornecedor
             onSubmit={handleSubmit}
-            onCancel={handleCancelForm}
+            onCancel={() => { setShowForm(false); setEditingFornecedor(null); }}
             initialData={editingFornecedor}
             isEditing={!!editingFornecedor}
           />
         )}
       </AnimatePresence>
 
-      {/* Tabela */}
-      <TabelaFornecedores
-        fornecedores={fornecedores}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onPrint={handlePrint}
-        isLoading={isLoading}
-      />
+      {!showForm && (
+        <TabelaFornecedores
+          fornecedores={fornecedores}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPrint={handlePrint}
+          isLoading={isLoading}
+        />
+      )}
 
-      {/* Modal de Ficha */}
       <FichaFornecedor
         fornecedor={fichaFornecedor}
         open={!!fichaFornecedor}

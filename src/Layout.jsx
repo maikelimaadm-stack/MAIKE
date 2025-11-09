@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -41,7 +42,7 @@ const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
   { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
     id: "financeiro",
     title: "Financeiro",
@@ -143,7 +144,7 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
       } catch (error) {
-        console.error("Erro ao carregar usuário:", error);
+        console.error("Erro:", error);
       }
     };
     loadUser();
@@ -161,7 +162,7 @@ export default function Layout({ children, currentPageName }) {
           precipitation: data.current.precipitation > 0,
         });
       } catch (error) {
-        console.error("Erro ao buscar clima:", error);
+        console.error("Erro clima:", error);
       }
     };
     fetchWeather();
@@ -338,7 +339,7 @@ export default function Layout({ children, currentPageName }) {
                                   onClick={() => setMobileMenuOpen(false)}
                                   className={`block px-2 py-1.5 text-xs rounded ${
                                     location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-slate-100 font-medium'
+                                      ? 'bg-emerald-100 text-emerald-800 font-medium'
                                       : 'text-slate-600 hover:bg-slate-50'
                                   }`}
                                 >
@@ -357,7 +358,7 @@ export default function Layout({ children, currentPageName }) {
                           onClick={() => setMobileMenuOpen(false)}
                           className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
                             location.pathname === createPageUrl(item.url)
-                              ? 'bg-slate-100 font-medium'
+                              ? 'bg-emerald-100 text-emerald-800 font-medium'
                               : 'text-slate-600 hover:bg-slate-50'
                           }`}
                         >
@@ -374,10 +375,10 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </div>
 
-      {/* BARRA DE NAVEGAÇÃO - MENUS */}
+      {/* BARRA DE NAVEGAÇÃO - VERDE QUANDO ATIVO */}
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center gap-1 h-10">
+          <div className="flex items-center gap-0.5 h-10">
             {/* DESKTOP MENU */}
             <div className="hidden md:flex items-center gap-0.5">
               {menuItems.map((item) => {
@@ -393,7 +394,7 @@ export default function Layout({ children, currentPageName }) {
                           size="sm"
                           className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                             active 
-                              ? 'bg-slate-900 text-white' 
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                               : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                           }`}
                         >
@@ -411,7 +412,7 @@ export default function Layout({ children, currentPageName }) {
                               to={createPageUrl(sub.url)}
                               className={`text-xs cursor-pointer ${
                                 location.pathname === createPageUrl(sub.url)
-                                  ? 'bg-slate-100 font-medium'
+                                  ? 'bg-emerald-50 text-emerald-800 font-medium'
                                   : ''
                               }`}
                             >
@@ -431,7 +432,7 @@ export default function Layout({ children, currentPageName }) {
                       size="sm"
                       className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                         active 
-                          ? 'bg-slate-900 text-white' 
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                           : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >

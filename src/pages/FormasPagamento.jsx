@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ export default function FormasPagamento() {
       setShowForm(false);
       setEditingItem(null);
       resetForm();
-      toast.success('Forma de pagamento cadastrada!');
+      toast.success('Forma cadastrada!');
     }
   });
 
@@ -66,7 +67,7 @@ export default function FormasPagamento() {
       setShowForm(false);
       setEditingItem(null);
       resetForm();
-      toast.success('Forma de pagamento atualizada!');
+      toast.success('Forma atualizada!');
     }
   });
 
@@ -74,21 +75,17 @@ export default function FormasPagamento() {
     mutationFn: async (id) => {
       const lancamentos = await base44.entities.LancamentoFinanceiro.list();
       const temVinculo = lancamentos.some(l => l.forma_pagamento_id === id);
-      if (temVinculo) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Esta forma de pagamento possui lançamentos financeiros vinculados.');
-      }
+      if (temVinculo) throw new Error('❌ Possui lançamentos vinculados!');
       
       const baixas = await base44.entities.BaixaFinanceira.list();
       const temBaixas = baixas.some(b => b.forma_pagamento_id === id);
-      if (temBaixas) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Esta forma de pagamento possui baixas financeiras vinculadas.');
-      }
+      if (temBaixas) throw new Error('❌ Possui baixas vinculadas!');
       
       return base44.entities.FormaPagamento.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['formas_pagamento'] });
-      toast.success('Forma de pagamento excluída!');
+      toast.success('Forma excluída!');
     },
     onError: (error) => {
       toast.error(error.message);
@@ -98,7 +95,7 @@ export default function FormasPagamento() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.descricao) {
-      toast.error('Preencha a descrição!');
+      toast.error('Preencha descrição!');
       return;
     }
 
@@ -132,14 +129,7 @@ export default function FormasPagamento() {
   };
 
   const resetForm = () => {
-    setFormData({
-      descricao: "",
-      tipo: "Dinheiro",
-      prazo_padrao_dias: 0,
-      conta_bancaria: "",
-      padrao: false,
-      ativo: true
-    });
+    setFormData({ descricao: "", tipo: "Dinheiro", prazo_padrao_dias: 0, conta_bancaria: "", padrao: false, ativo: true });
   };
 
   const filteredFormas = formas.filter(f =>
@@ -148,15 +138,15 @@ export default function FormasPagamento() {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-green-900">Formas de Pagamento</h1>
-          <p className="text-green-700">Gerenciar formas de pagamento do sistema</p>
+          <h1 className="text-xl font-bold text-slate-900">Formas de Pagamento</h1>
+          <p className="text-xs text-slate-600">Gerenciar formas</p>
         </div>
         {!showForm && (
-          <Button onClick={() => { setEditingItem(null); resetForm(); setShowForm(true); }} className="bg-green-600 gap-2">
-            <Plus className="w-5 h-5" />
+          <Button onClick={() => { setEditingItem(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="w-3.5 h-3.5" />
             Nova Forma
           </Button>
         )}
@@ -165,65 +155,63 @@ export default function FormasPagamento() {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-                <CardTitle>{editingItem ? 'Editar Forma' : 'Nova Forma de Pagamento'}</CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{editingItem ? 'Editar Forma' : 'Nova Forma'}</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Descrição *</Label>
-                      <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Descrição *</Label>
+                      <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Tipo *</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                          <SelectItem value="Pix">Pix</SelectItem>
-                          <SelectItem value="Boleto">Boleto</SelectItem>
-                          <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
-                          <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
-                          <SelectItem value="Transferência">Transferência</SelectItem>
-                          <SelectItem value="Cheque">Cheque</SelectItem>
-                          <SelectItem value="Depósito">Depósito</SelectItem>
-                          <SelectItem value="Outro">Outro</SelectItem>
+                          <SelectItem value="Dinheiro" className="text-xs">Dinheiro</SelectItem>
+                          <SelectItem value="Pix" className="text-xs">Pix</SelectItem>
+                          <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                          <SelectItem value="Cartão Crédito" className="text-xs">Cartão Crédito</SelectItem>
+                          <SelectItem value="Cartão Débito" className="text-xs">Cartão Débito</SelectItem>
+                          <SelectItem value="Transferência" className="text-xs">Transferência</SelectItem>
+                          <SelectItem value="Cheque" className="text-xs">Cheque</SelectItem>
+                          <SelectItem value="Depósito" className="text-xs">Depósito</SelectItem>
+                          <SelectItem value="Outro" className="text-xs">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Prazo Padrão (Dias)</Label>
-                      <Input type="number" min="0" value={formData.prazo_padrao_dias} onChange={(e) => setFormData({ ...formData, prazo_padrao_dias: e.target.value })} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Prazo Padrão (Dias)</Label>
+                      <Input type="number" min="0" value={formData.prazo_padrao_dias} onChange={(e) => setFormData({ ...formData, prazo_padrao_dias: e.target.value })} className="h-8 text-xs" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Conta Bancária</Label>
-                      <Input value={formData.conta_bancaria} onChange={(e) => setFormData({ ...formData, conta_bancaria: e.target.value })} placeholder="CONTA" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Conta Bancária</Label>
+                      <Input value={formData.conta_bancaria} onChange={(e) => setFormData({ ...formData, conta_bancaria: e.target.value })} placeholder="CONTA" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-6">
+                  <div className="flex items-center gap-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox checked={formData.padrao} onCheckedChange={(v) => setFormData({ ...formData, padrao: v })} />
-                      <label>Forma Padrão</label>
+                      <label className="text-xs">Forma Padrão</label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox checked={formData.ativo} onCheckedChange={(v) => setFormData({ ...formData, ativo: v })} />
-                      <label>Ativo</label>
+                      <label className="text-xs">Ativo</label>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); resetForm(); }}>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-green-600">
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                       {editingItem ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
@@ -234,72 +222,67 @@ export default function FormasPagamento() {
         )}
       </AnimatePresence>
 
-      <Card className="shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50">
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-3">
-              <CreditCard className="w-5 h-5" />
-              Formas Cadastradas ({filteredFormas.length})
-            </CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+      {!showForm && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CreditCard className="w-4 h-4" />
+                Formas ({filteredFormas.length})
+              </CardTitle>
+              <div className="relative w-52">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 h-8 text-xs" />
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nº</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Prazo</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Padrão</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredFormas.map((forma) => (
-                <TableRow key={forma.id}>
-                  <TableCell className="font-bold">{forma.numero_forma}</TableCell>
-                  <TableCell className="font-semibold">{forma.descricao}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{forma.tipo}</Badge>
-                  </TableCell>
-                  <TableCell>{forma.prazo_padrao_dias || 0} dias</TableCell>
-                  <TableCell>{forma.conta_bancaria || '-'}</TableCell>
-                  <TableCell>
-                    {forma.padrao && <Badge className="bg-blue-100 text-blue-800">Padrão</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={forma.ativo !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                      {forma.ativo !== false ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2 justify-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(forma)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(forma.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prazo</TableHead>
+                    <TableHead>Conta</TableHead>
+                    <TableHead>Padrão</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredFormas.map((forma) => (
+                    <TableRow key={forma.id} className="text-xs">
+                      <TableCell className="font-bold">{forma.numero_forma}</TableCell>
+                      <TableCell className="font-semibold">{forma.descricao}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs py-0">{forma.tipo}</Badge></TableCell>
+                      <TableCell>{forma.prazo_padrao_dias || 0}d</TableCell>
+                      <TableCell>{forma.conta_bancaria || '-'}</TableCell>
+                      <TableCell>{forma.padrao && <Badge className="bg-blue-100 text-blue-800 text-xs py-0">Padrão</Badge>}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-xs py-0 ${forma.ativo !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {forma.ativo !== false ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 justify-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(forma)} className="h-7 w-7">
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(forma.id)} className="h-7 w-7 text-red-600 hover:bg-red-50">
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

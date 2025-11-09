@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -81,9 +82,7 @@ export default function GruposFinanceiros() {
     mutationFn: async (id) => {
       const lancamentos = await base44.entities.LancamentoFinanceiro.list();
       const temVinculo = lancamentos.some(l => l.grupo_id === id);
-      if (temVinculo) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este grupo possui lançamentos financeiros vinculados.');
-      }
+      if (temVinculo) throw new Error('❌ Possui lançamentos vinculados!');
       return base44.entities.GrupoFinanceiro.delete(id);
     },
     onSuccess: () => {
@@ -98,7 +97,7 @@ export default function GruposFinanceiros() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.descricao) {
-      toast.error('Preencha a descrição!');
+      toast.error('Preencha descrição!');
       return;
     }
 
@@ -130,12 +129,7 @@ export default function GruposFinanceiros() {
   };
 
   const resetForm = () => {
-    setFormData({
-      descricao: "",
-      tipo: "Despesa",
-      plano_contas_id: "",
-      ativo: true
-    });
+    setFormData({ descricao: "", tipo: "Despesa", plano_contas_id: "", ativo: true });
   };
 
   const filteredGrupos = grupos.filter(g =>
@@ -144,15 +138,15 @@ export default function GruposFinanceiros() {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-green-900">Grupos Financeiros</h1>
-          <p className="text-green-700">Gerenciar grupos de despesas e receitas</p>
+          <h1 className="text-xl font-bold text-slate-900">Grupos Financeiros</h1>
+          <p className="text-xs text-slate-600">Gerenciar grupos</p>
         </div>
         {!showForm && (
-          <Button onClick={() => { setEditingItem(null); resetForm(); setShowForm(true); }} className="bg-green-600 gap-2">
-            <Plus className="w-5 h-5" />
+          <Button onClick={() => { setEditingItem(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="w-3.5 h-3.5" />
             Novo Grupo
           </Button>
         )}
@@ -161,40 +155,36 @@ export default function GruposFinanceiros() {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-                <CardTitle>{editingItem ? 'Editar Grupo' : 'Novo Grupo Financeiro'}</CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{editingItem ? 'Editar Grupo' : 'Novo Grupo'}</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Descrição *</Label>
-                      <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Descrição *</Label>
+                      <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Tipo *</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Receita">Receita</SelectItem>
-                          <SelectItem value="Despesa">Despesa</SelectItem>
+                          <SelectItem value="Receita" className="text-xs">Receita</SelectItem>
+                          <SelectItem value="Despesa" className="text-xs">Despesa</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Plano de Contas Vinculado</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Plano de Contas</Label>
                     <Select value={formData.plano_contas_id} onValueChange={(v) => setFormData({ ...formData, plano_contas_id: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione (opcional)" />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                       <SelectContent>
                         {planosContas.filter(p => p.tipo === formData.tipo).map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
+                          <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -202,14 +192,14 @@ export default function GruposFinanceiros() {
 
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={formData.ativo} onCheckedChange={(v) => setFormData({ ...formData, ativo: v })} />
-                    <label>Ativo</label>
+                    <label className="text-xs">Ativo</label>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); resetForm(); }}>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-green-600">
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                       {editingItem ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
@@ -220,68 +210,67 @@ export default function GruposFinanceiros() {
         )}
       </AnimatePresence>
 
-      <Card className="shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50">
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-3">
-              <FolderOpen className="w-5 h-5" />
-              Grupos Cadastrados ({filteredGrupos.length})
-            </CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+      {!showForm && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FolderOpen className="w-4 h-4" />
+                Grupos ({filteredGrupos.length})
+              </CardTitle>
+              <div className="relative w-52">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 h-8 text-xs" />
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nº</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Plano de Contas</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredGrupos.map((grupo) => (
-                <TableRow key={grupo.id}>
-                  <TableCell className="font-bold">{grupo.numero_grupo}</TableCell>
-                  <TableCell className="font-semibold">{grupo.descricao}</TableCell>
-                  <TableCell>
-                    <Badge className={grupo.tipo === 'Receita' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {grupo.tipo}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">{grupo.plano_contas_nome || '-'}</TableCell>
-                  <TableCell>
-                    <Badge className={grupo.ativo !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                      {grupo.ativo !== false ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2 justify-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(grupo)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(grupo.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Plano de Contas</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredGrupos.map((grupo) => (
+                    <TableRow key={grupo.id} className="text-xs">
+                      <TableCell className="font-bold">{grupo.numero_grupo}</TableCell>
+                      <TableCell className="font-semibold">{grupo.descricao}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-xs py-0 ${grupo.tipo === 'Receita' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                          {grupo.tipo}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{grupo.plano_contas_nome || '-'}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-xs py-0 ${grupo.ativo !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {grupo.ativo !== false ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 justify-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(grupo)} className="h-7 w-7">
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(grupo.id)} className="h-7 w-7 text-red-600 hover:bg-red-50">
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

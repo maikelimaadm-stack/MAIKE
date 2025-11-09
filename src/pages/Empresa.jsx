@@ -1,13 +1,14 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, UserCircle } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
 import TabelaEmpresas from "../components/empresa/TabelaEmpresas";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 export default function Empresa() {
   const [showForm, setShowForm] = useState(false);
@@ -39,10 +40,10 @@ export default function Empresa() {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
       setEditingEmpresa(null);
-      toast.success('Empresa cadastrada com sucesso!');
+      toast.success('Empresa cadastrada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar empresa. Tente novamente.');
+      toast.error(error.message || 'Erro.');
     }
   });
 
@@ -64,10 +65,10 @@ export default function Empresa() {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setShowForm(false);
       setEditingEmpresa(null);
-      toast.success('Empresa atualizada com sucesso!');
+      toast.success('Empresa atualizada!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao atualizar empresa. Tente novamente.');
+      toast.error(error.message || 'Erro.');
     }
   });
 
@@ -75,10 +76,10 @@ export default function Empresa() {
     mutationFn: (id) => base44.entities.Empresa.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
-      toast.success('Empresa excluída com sucesso!');
+      toast.success('Empresa excluída!');
     },
     onError: () => {
-      toast.error('Erro ao excluir empresa. Tente novamente.');
+      toast.error('Erro.');
     }
   });
 
@@ -96,97 +97,63 @@ export default function Empresa() {
   };
 
   const handleDelete = (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta empresa? Esta ação não pode ser desfeita.')) {
+    if (skipConfirm || window.confirm('⚠️ Excluir empresa?')) {
       return deleteMutation.mutateAsync(id);
     }
     return Promise.reject('Cancelado');
-  };
-
-  const handleNew = () => {
-    setEditingEmpresa(null);
-    setShowForm(true);
-  };
-
-  const handleCancelForm = () => {
-    setShowForm(false);
-    setEditingEmpresa(null);
   };
 
   const totalEmpresas = empresas.length;
   const pessoasFisicas = empresas.filter(e => e.tipo_pessoa === 'Física').length;
   const pessoasJuridicas = empresas.filter(e => e.tipo_pessoa === 'Jurídica').length;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Empresas', valor: totalEmpresas, sublabel: 'Cadastradas', icon: Building2, cor: 'blue', tipo: 'numero' },
+    { id: 'fisica', label: 'Pessoas Físicas', valor: pessoasFisicas, sublabel: 'CPF', icon: UserCircle, cor: 'emerald', tipo: 'numero' },
+    { id: 'juridica', label: 'Pessoas Jurídicas', valor: pessoasJuridicas, sublabel: 'CNPJ', icon: Building2, cor: 'violet', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total de Empresas</CardTitle>
-            <Building2 className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalEmpresas}</div>
-            <p className="text-xs text-green-600 mt-1">Empresas cadastradas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Pessoas Físicas</CardTitle>
-            <Building2 className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{pessoasFisicas}</div>
-            <p className="text-xs text-blue-600 mt-1">CPF cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Pessoas Jurídicas</CardTitle>
-            <Building2 className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{pessoasJuridicas}</div>
-            <p className="text-xs text-purple-600 mt-1">CNPJ cadastrados</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botão Nova Empresa */}
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
-        <div className="flex justify-end">
-          <Button
-            onClick={handleNew}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-            size="lg"
-          >
-            <Plus className="w-5 h-5" />
-            Nova Empresa
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Empresas</h1>
+              <p className="text-xs text-slate-600">Gerenciar empresas</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex justify-end">
+            <Button onClick={() => { setEditingEmpresa(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
+              Nova Empresa
+            </Button>
+          </div>
+        </>
       )}
 
-      {/* Formulário */}
       <AnimatePresence>
         {showForm && (
           <FormularioEmpresa
             onSubmit={handleSubmit}
-            onCancel={handleCancelForm}
+            onCancel={() => { setShowForm(false); setEditingEmpresa(null); }}
             initialData={editingEmpresa}
             isEditing={!!editingEmpresa}
           />
         )}
       </AnimatePresence>
 
-      {/* Tabela */}
-      <TabelaEmpresas
-        empresas={empresas}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        isLoading={isLoading}
-      />
+      {!showForm && (
+        <TabelaEmpresas
+          empresas={empresas}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
 }

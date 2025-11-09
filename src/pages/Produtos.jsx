@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Plus, Package, TrendingDown, AlertTriangle, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -29,6 +28,7 @@ import {
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 // Função global para obter próximo número único do sistema
 const getNextSystemNumber = async () => {
@@ -45,11 +45,9 @@ const getNextSystemNumber = async () => {
       ...produtos.map(p => parseInt(p.numero_produto) || 0)
     ].filter(n => n > 0 && n < 1000000000); // Filtrar timestamps acidentais
 
-    const nextNumber = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-    console.log('📊 Próximo número gerado:', nextNumber, '(baseado em', numeros.length, 'registros)');
-    return nextNumber;
+    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch (error) {
-    console.error('❌ Erro ao obter próximo número:', error);
+    console.error('Erro:', error);
     // Em caso de erro, retornar 1 ao invés de timestamp
     return 1;
   }
@@ -90,8 +88,6 @@ export default function Produtos() {
       const produtosSemNumero = produtos.filter(p => !p.numero_produto || p.numero_produto === '');
       
       if (produtosSemNumero.length > 0) {
-        console.log(`Numerando ${produtosSemNumero.length} produtos sem número...`);
-        
         for (const produto of produtosSemNumero) {
           try {
             const proximoNumero = await getNextSystemNumber();
@@ -99,12 +95,11 @@ export default function Produtos() {
               numero_produto: String(proximoNumero)
             });
           } catch (error) {
-            console.error(`Erro ao numerar produto ${produto.id}:`, error);
+            console.error(`Erro:`, error);
           }
         }
         
         queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-        toast.success('Produtos numerados automaticamente.');
       }
     };
 
@@ -123,7 +118,7 @@ export default function Produtos() {
       );
       
       if (existente) {
-        throw new Error('Já existe um produto cadastrado com este nome para esta empresa.');
+        throw new Error('Já existe produto com este nome!');
       }
       
       return base44.entities.Produto.create(data);
@@ -132,10 +127,10 @@ export default function Produtos() {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
       setEditingProduto(null);
-      toast.success('Produto cadastrado com sucesso!');
+      toast.success('Produto cadastrado!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar produto. Tente novamente.');
+      toast.error(error.message || 'Erro ao salvar.');
     }
   });
 
@@ -149,7 +144,7 @@ export default function Produtos() {
       );
       
       if (existente) {
-        throw new Error('Já existe um produto cadastrado com este nome para esta empresa.');
+        throw new Error('Já existe produto com este nome!');
       }
       
       return base44.entities.Produto.update(id, data);
@@ -158,10 +153,10 @@ export default function Produtos() {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
       setEditingProduto(null);
-      toast.success('Produto atualizado com sucesso!');
+      toast.success('Produto atualizado!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao atualizar produto. Tente novamente.');
+      toast.error(error.message || 'Erro.');
     }
   });
 
@@ -172,7 +167,7 @@ export default function Produtos() {
       const movimentacoesRelacionadas = todasMovimentacoes.filter(m => m.produto_id === id);
       
       if (movimentacoesRelacionadas.length > 0) {
-        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este produto possui ${movimentacoesRelacionadas.length} movimentação(ões) de estoque registrada(s). Não é possível excluir.`);
+        throw new Error(`❌ Possui ${movimentacoesRelacionadas.length} movimentação(ões). Não é possível excluir.`);
       }
 
       // Verificar se existem custos de safra relacionados
@@ -180,17 +175,17 @@ export default function Produtos() {
       const custosRelacionados = todosCustos.filter(c => c.produto_id === id);
       
       if (custosRelacionados.length > 0) {
-        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Este produto possui ${custosRelacionados.length} lançamento(s) em custos de safra. Não é possível excluir.`);
+        throw new Error(`❌ Possui ${custosRelacionados.length} custo(s) de safra. Não é possível excluir.`);
       }
 
       return base44.entities.Produto.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-      toast.success('Produto excluído com sucesso!');
+      toast.success('Produto excluído!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao excluir produto. Tente novamente.');
+      toast.error(error.message || 'Erro.');
     }
   });
 
@@ -210,7 +205,7 @@ export default function Produtos() {
         await createMutation.mutateAsync(data);
       }
     } catch (error) {
-      console.error('Erro ao salvar produto:', error);
+      console.error('Erro:', error);
       toast.error(error.message || 'Erro ao salvar produto.');
     }
   };
@@ -221,22 +216,17 @@ export default function Produtos() {
   };
 
   const handleDelete = async (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este produto? Esta ação não pode ser desfeita.')) {
+    if (skipConfirm || window.confirm('⚠️ Excluir produto?')) {
       try {
         await deleteMutation.mutateAsync(id);
       } catch (error) {
-        console.error('Erro ao excluir produto:', error);
+        console.error('Erro:', error);
       }
     }
   };
 
   const handlePrint = (produto) => {
     setFichaProduto(produto);
-  };
-
-  const handleNew = () => {
-    setEditingProduto(null);
-    setShowForm(true);
   };
 
   const handleCancelForm = () => {
@@ -246,7 +236,7 @@ export default function Produtos() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
+    const headers = ['Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'Unidade', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
     csvRows.push(headers.join(';'));
 
     produtos.forEach(p => {
@@ -270,14 +260,14 @@ export default function Produtos() {
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
-    toast.success('Dados exportados com sucesso!');
+    toast.success('Exportado!');
   };
 
   const downloadErrosImportacao = () => {
     const csvRows = [];
-    const headers = ['Linha', 'Erro', 'Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
+    const headers = ['Linha', 'Erro', 'Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'UN', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
     csvRows.push(headers.join(';'));
 
     importErrors.forEach(erro => {
@@ -293,9 +283,9 @@ export default function Produtos() {
     const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `erros_importacao_produtos_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `erros_produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
-    toast.success('Planilha de erros baixada com sucesso!');
+    toast.success('Planilha de erros baixada!');
   };
 
   const executarImportacao = async (validRecords) => {
@@ -312,7 +302,6 @@ export default function Produtos() {
         setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
         await new Promise(resolve => setTimeout(resolve, 50));
       } catch (error) {
-        console.error('Erro ao importar produto:', error);
         actualErrors++;
         setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
       }
@@ -324,11 +313,7 @@ export default function Produtos() {
 
     setTimeout(() => {
       setShowImportProgress(false);
-      if (actualErrors > 0) {
-        toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
-      } else {
-        toast.success(`${imported} registros importados com sucesso!`);
-      }
+      toast.success(actualErrors > 0 ? `${imported} importados! ${actualErrors} erro(s).` : `${imported} importados!`);
     }, 1000);
   };
 
@@ -343,7 +328,7 @@ export default function Produtos() {
         const lines = text.split('\n').filter(line => line.trim());
         
         if (lines.length <= 1) {
-          toast.error('O arquivo está vazio!');
+          toast.error('Arquivo vazio!');
           return;
         }
 
@@ -358,7 +343,7 @@ export default function Produtos() {
           if (values.length < 1) {
             errors.push({
               linha: i + 1,
-              erro: 'Número insuficiente de colunas',
+              erro: 'Colunas insuficientes',
               dados: lines[i]
             });
             continue;
@@ -390,7 +375,7 @@ export default function Produtos() {
           } catch (err) {
             errors.push({
               linha: i + 1,
-              erro: err.message || 'Erro desconhecido',
+              erro: err.message || 'Erro',
               dados: lines[i]
             });
           }
@@ -406,7 +391,7 @@ export default function Produtos() {
 
         // Se não houver erros, importar diretamente
         if (validRecords.length === 0) {
-          toast.error('Nenhum registro válido encontrado!');
+          toast.error('Nenhum registro válido!');
           return;
         }
 
@@ -414,7 +399,7 @@ export default function Produtos() {
 
       } catch (error) {
         console.error('Erro ao importar:', error);
-        toast.error('Erro ao importar. Verifique o arquivo.');
+        toast.error('Erro ao importar!');
       }
     };
     reader.readAsText(file, 'UTF-8');
@@ -430,15 +415,15 @@ export default function Produtos() {
     setShowErrorDialog(false);
     setImportErrors([]);
     setValidRecordsToImport([]);
-    toast.info('Importação cancelada. Corrija os erros e tente novamente.');
+    toast.info('Importação cancelada.');
   };
 
   const downloadTemplate = () => {
     const csvRows = [];
-    const headers = ['Nome', 'Código Interno', 'Código Barras', 'Categoria', 'Descrição', 'Unidade', 'Preço Custo', 'Preço Venda', 'Estoque Atual', 'Estoque Mínimo', 'Observações'];
+    const headers = ['Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'UN', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
     csvRows.push(headers.join(';'));
     
-    const example = ['EXEMPLO PRODUTO', '001', '7891234567890', 'CATEGORIA EXEMPLO', 'DESCRIÇÃO DO PRODUTO', 'UN', '10,50', '15,00', '100', '10', 'OBSERVAÇÕES DO PRODUTO'];
+    const example = ['PRODUTO EXEMPLO', '001', '7891234567890', 'CATEGORIA', 'DESCRIÇÃO', 'UN', '10,50', '15,00', '100', '10', 'OBS'];
     csvRows.push(example.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
 
     const csvString = csvRows.join('\n');
@@ -462,92 +447,47 @@ export default function Produtos() {
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Produtos', valor: totalProdutos, sublabel: 'Cadastrados', icon: Package, cor: 'blue', tipo: 'numero' },
+    { id: 'valor', label: 'Valor em Estoque', valor: valorTotalEstoque, sublabel: 'Custo total', icon: TrendingDown, cor: 'emerald', tipo: 'moeda' },
+    { id: 'baixo', label: 'Estoque Baixo', valor: produtosEstoqueBaixo, sublabel: 'Abaixo do mínimo', icon: AlertTriangle, cor: 'amber', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total de Produtos</CardTitle>
-            <Package className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalProdutos}</div>
-            <p className="text-xs text-green-600 mt-1">Produtos cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Valor em Estoque</CardTitle>
-            <TrendingDown className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">R$ {formatarNumero(valorTotalEstoque)}</div>
-            <p className="text-xs text-blue-600 mt-1">Valor total (custo)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-orange-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Estoque Baixo</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-900">{produtosEstoqueBaixo}</div>
-            <p className="text-xs text-orange-600 mt-1">Produtos abaixo do mínimo</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botões */}
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
-        <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Produtos</h1>
+              <p className="text-xs text-slate-600">Gerenciar produtos e estoque</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
             </Button>
             <div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleImport}
-                className="hidden"
-                id="import-produtos"
-              />
-              <Button
-                onClick={() => document.getElementById('import-produtos').click()}
-                variant="outline"
-                className="gap-2"
-                disabled={showImportProgress}
-              >
-                <Upload className="w-4 h-4" />
-                Importar CSV
+              <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-produtos" />
+              <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
+                <Upload className="w-3.5 h-3.5" />
+                Importar
               </Button>
             </div>
-            <Button
-              onClick={downloadTemplate}
-              variant="outline"
-              className="gap-2"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Baixar Modelo
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Modelo
+            </Button>
+            <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Novo Produto
             </Button>
           </div>
-          <Button
-            onClick={handleNew}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-            size="lg"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Produto
-          </Button>
-        </div>
+        </>
       )}
 
       {/* Formulário */}
@@ -555,7 +495,7 @@ export default function Produtos() {
         {showForm && (
           <FormularioProduto
             onSubmit={handleSubmit}
-            onCancel={handleCancelForm}
+            onCancel={() => { setShowForm(false); setEditingProduto(null); }}
             initialData={editingProduto}
             isEditing={!!editingProduto}
           />
@@ -563,13 +503,15 @@ export default function Produtos() {
       </AnimatePresence>
 
       {/* Tabela */}
-      <TabelaProdutos
-        produtos={produtos}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onPrint={handlePrint}
-        isLoading={isLoading}
-      />
+      {!showForm && (
+        <TabelaProdutos
+          produtos={produtos}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onPrint={handlePrint}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Modal de Ficha */}
       <FichaProduto
