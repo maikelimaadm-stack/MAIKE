@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Layers, Save, X, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 export default function GerenciarSafras() {
   const [showForm, setShowForm] = useState(false);
@@ -38,16 +38,13 @@ export default function GerenciarSafras() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Safra.create({
-      ...data,
-      empresa_id: empresaSelecionadaId
-    }),
+    mutationFn: (data) => base44.entities.Safra.create({ ...data, empresa_id: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['safras'] });
       setShowForm(false);
       setEditingSafra(null);
       resetForm();
-      toast.success('Safra cadastrada com sucesso!');
+      toast.success('Safra cadastrada!');
     },
   });
 
@@ -58,52 +55,39 @@ export default function GerenciarSafras() {
       setShowForm(false);
       setEditingSafra(null);
       resetForm();
-      toast.success('Safra atualizada com sucesso!');
+      toast.success('Safra atualizada!');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se existem custos vinculados
       const todosCustos = await base44.entities.CustoSafra.list();
       const custosVinculados = todosCustos.filter(c => c.safra_id === id);
-      
       if (custosVinculados.length > 0) {
-        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta safra possui ${custosVinculados.length} custo(s) vinculado(s). Não é possível excluir.`);
+        throw new Error(`❌ Possui ${custosVinculados.length} custo(s). Não é possível excluir.`);
       }
-
-      // Verificar se existem lançamentos financeiros vinculados
       const lancamentos = await base44.entities.LancamentoFinanceiro.list();
       const lancamentosVinculados = lancamentos.filter(l => l.safra_id === id);
-      
       if (lancamentosVinculados.length > 0) {
-        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta safra possui ${lancamentosVinculados.length} lançamento(s) financeiro(s) vinculado(s). Não é possível excluir.`);
+        throw new Error(`❌ Possui ${lancamentosVinculados.length} lançamento(s). Não é possível excluir.`);
       }
-      
       return base44.entities.Safra.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['safras'] });
-      toast.success('Safra excluída com sucesso!');
+      toast.success('Safra excluída!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao excluir safra.');
+      toast.error(error.message || 'Erro.');
     }
   });
 
   const resetForm = () => {
-    setFormData({
-      ano_inicio: "",
-      ano_fim: "",
-      descricao: "",
-      status: "Planejamento",
-      observacoes: ""
-    });
+    setFormData({ ano_inicio: "", ano_fim: "", descricao: "", status: "Planejamento", observacoes: "" });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     const data = {
       ano_inicio: formData.ano_inicio,
       ano_fim: formData.ano_fim,
@@ -131,29 +115,11 @@ export default function GerenciarSafras() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Deseja realmente excluir esta safra? Esta ação não pode ser desfeita.')) {
-      deleteMutation.mutate(id);
-    }
-  };
-
-  const handleNew = () => {
-    setEditingSafra(null);
-    resetForm();
-    setShowForm(true);
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingSafra(null);
-    resetForm();
-  };
-
   const getStatusBadge = (status) => {
     const config = {
-      'Planejamento': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      'Em Andamento': 'bg-blue-100 text-blue-800 border-blue-300',
-      'Finalizada': 'bg-green-100 text-green-800 border-green-300',
+      'Planejamento': 'bg-yellow-100 text-yellow-800',
+      'Em Andamento': 'bg-blue-100 text-blue-800',
+      'Finalizada': 'bg-emerald-100 text-emerald-800',
     };
     return config[status] || config['Planejamento'];
   };
@@ -162,139 +128,81 @@ export default function GerenciarSafras() {
   const safrasEmAndamento = safras.filter(s => s.status === 'Em Andamento').length;
   const safrasFinalizadas = safras.filter(s => s.status === 'Finalizada').length;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Safras', valor: totalSafras, sublabel: 'Cadastradas', icon: Layers, cor: 'blue', tipo: 'numero' },
+    { id: 'andamento', label: 'Em Andamento', valor: safrasEmAndamento, sublabel: 'Ativas', icon: Calendar, cor: 'emerald', tipo: 'numero' },
+    { id: 'finalizadas', label: 'Finalizadas', valor: safrasFinalizadas, sublabel: 'Concluídas', icon: Calendar, cor: 'violet', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total de Safras</CardTitle>
-            <Layers className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalSafras}</div>
-            <p className="text-xs text-green-600 mt-1">Safras cadastradas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Em Andamento</CardTitle>
-            <Calendar className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{safrasEmAndamento}</div>
-            <p className="text-xs text-blue-600 mt-1">Safras ativas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Finalizadas</CardTitle>
-            <Calendar className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{safrasFinalizadas}</div>
-            <p className="text-xs text-purple-600 mt-1">Safras concluídas</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botão Nova Safra */}
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
-        <div className="flex justify-end">
-          <Button onClick={handleNew} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" size="lg">
-            <Plus className="w-5 h-5" />
-            Nova Safra
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Safras</h1>
+              <p className="text-xs text-slate-600">Gerenciar safras</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex justify-end">
+            <Button onClick={() => { setEditingSafra(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
+              Nova Safra
+            </Button>
+          </div>
+        </>
       )}
 
-      {/* Formulário */}
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-xl border-slate-200 bg-white">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-                <CardTitle className="flex items-center gap-3 text-slate-900">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                    <Layers className="w-5 h-5 text-white" />
-                  </div>
-                  {editingSafra ? 'Editar Safra' : 'Nova Safra'}
-                </CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{editingSafra ? 'Editar Safra' : 'Nova Safra'}</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-slate-700 font-medium">Ano Início *</Label>
-                      <Input
-                        type="number"
-                        value={formData.ano_inicio}
-                        onChange={(e) => setFormData({ ...formData, ano_inicio: e.target.value })}
-                        placeholder="2024"
-                        required
-                        className="border-slate-300 focus:border-green-500"
-                      />
+              <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Ano Início *</Label>
+                      <Input type="number" value={formData.ano_inicio} onChange={(e) => setFormData({ ...formData, ano_inicio: e.target.value })} placeholder="2024" required className="h-8 text-xs" />
                     </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-slate-700 font-medium">Ano Fim *</Label>
-                      <Input
-                        type="number"
-                        value={formData.ano_fim}
-                        onChange={(e) => setFormData({ ...formData, ano_fim: e.target.value })}
-                        placeholder="2025"
-                        required
-                        className="border-slate-300 focus:border-green-500"
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Ano Fim *</Label>
+                      <Input type="number" value={formData.ano_fim} onChange={(e) => setFormData({ ...formData, ano_fim: e.target.value })} placeholder="2025" required className="h-8 text-xs" />
                     </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-slate-700 font-medium">Status</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Status</Label>
                       <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                        <SelectTrigger className="border-slate-300 focus:border-green-500">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Planejamento">Planejamento</SelectItem>
-                          <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                          <SelectItem value="Finalizada">Finalizada</SelectItem>
+                          <SelectItem value="Planejamento" className="text-xs">Planejamento</SelectItem>
+                          <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>
+                          <SelectItem value="Finalizada" className="text-xs">Finalizada</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-slate-700 font-medium">Descrição</Label>
-                    <Input
-                      value={formData.descricao}
-                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                      placeholder="DESCRIÇÃO DA SAFRA"
-                      className="border-slate-300 focus:border-green-500 uppercase"
-                      style={{ textTransform: 'uppercase' }}
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Descrição</Label>
+                    <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-slate-700 font-medium">Observações</Label>
-                    <Textarea
-                      value={formData.observacoes}
-                      onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                      placeholder="OBSERVAÇÕES SOBRE A SAFRA..."
-                      className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                      style={{ textTransform: 'uppercase' }}
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Observações</Label>
+                    <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} placeholder="OBSERVAÇÕES" className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
                   </div>
 
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={handleCancel} className="gap-2">
-                      <X className="w-4 h-4" />
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingSafra(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
-                      <Save className="w-4 h-4" />
-                      {editingSafra ? 'Atualizar' : 'Salvar'} Safra
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                      {editingSafra ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
                 </form>
@@ -304,87 +212,61 @@ export default function GerenciarSafras() {
         )}
       </AnimatePresence>
 
-      {/* Tabela */}
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-              <Layers className="w-5 h-5 text-white" />
-            </div>
-            Safras Cadastradas
-            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-              {safras.length} {safras.length === 1 ? 'safra' : 'safras'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="font-semibold text-slate-700">Período</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Descrição</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Observações</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {safras.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3 text-slate-400">
-                        <Layers className="w-12 h-12" />
-                        <p className="text-lg font-medium">Nenhuma safra cadastrada</p>
-                        <p className="text-sm">Comece cadastrando uma nova safra</p>
-                      </div>
-                    </TableCell>
+      {!showForm && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Layers className="w-4 h-4" />
+              Safras ({safras.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead>Período</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Observações</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  safras.map((safra) => (
-                    <TableRow key={safra.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <TableCell className="font-bold text-slate-900">
-                        {safra.ano_inicio}/{safra.ano_fim}
-                      </TableCell>
-                      <TableCell className="text-slate-700">{safra.descricao || '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={`${getStatusBadge(safra.status)} border`}>
-                          {safra.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-600 max-w-xs truncate">
-                        {safra.observacoes || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(safra)}
-                            className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(safra.id)}
-                            className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                </TableHeader>
+                <TableBody>
+                  {safras.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">Nenhuma safra cadastrada</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    safras.map((safra) => (
+                      <TableRow key={safra.id} className="text-xs">
+                        <TableCell className="font-bold">{safra.ano_inicio}/{safra.ano_fim}</TableCell>
+                        <TableCell>{safra.descricao || '-'}</TableCell>
+                        <TableCell>
+                          <Badge className={`${getStatusBadge(safra.status)} text-xs py-0`}>
+                            {safra.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{safra.observacoes || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(safra)} className="h-7 w-7">
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir safra?')) deleteMutation.mutate(safra.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -534,7 +535,7 @@ export default function Financeiro() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-3">
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && !showBaixa && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -542,19 +543,20 @@ export default function Financeiro() {
               <h1 className="text-xl font-bold text-slate-900">Controle Financeiro</h1>
               <p className="text-xs text-slate-600">Contas a pagar e receber</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <FileText className="w-3.5 h-3.5" />
-                Importar NF-e
-              </Button>
-              <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-900">
-                <Plus className="w-3.5 h-3.5" />
-                Novo
-              </Button>
-            </div>
           </div>
 
           <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              Importar NF-e
+            </Button>
+            <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Novo
+            </Button>
+          </div>
         </>
       )}
 

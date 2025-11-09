@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, DollarSign, Package, Users, Calendar, Layers, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
+import { Plus, TrendingUp, DollarSign, Package, Users, Calendar, Layers, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -430,7 +430,7 @@ export default function CustosSafra() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-3">
+    <div className="p-4 md:p-6 space-y-2">
       {!showCustoForm && safraAtiva && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -443,7 +443,7 @@ export default function CustosSafra() {
                 setSafraAtiva(safras.find(s => s.id === value));
                 setShowCustoForm(false);
                 setEditingCusto(null);
-              }} className="h-8">
+              }}>
                 <SelectTrigger className="h-8 text-xs w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -478,7 +478,7 @@ export default function CustosSafra() {
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Modelo
             </Button>
-            <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-900 ml-auto">
+            <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               <Plus className="w-3.5 h-3.5" />
               Novo Lançamento
             </Button>

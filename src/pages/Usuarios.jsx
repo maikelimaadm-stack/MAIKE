@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Users, Trash2, Shield, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 export default function Usuarios() {
   const queryClient = useQueryClient();
@@ -32,10 +33,10 @@ export default function Usuarios() {
     mutationFn: (id) => base44.entities.User.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      toast.success('Usuário excluído com sucesso!');
+      toast.success('Usuário excluído!');
     },
     onError: () => {
-      toast.error('Erro ao excluir usuário.');
+      toast.error('Erro.');
     }
   });
 
@@ -44,132 +45,76 @@ export default function Usuarios() {
       toast.error('Você não pode excluir seu próprio usuário!');
       return;
     }
-    
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+    if (window.confirm('⚠️ Excluir usuário?')) {
       deleteMutation.mutate(id);
     }
   };
 
+  const totalUsuarios = usuarios.length;
+  const admins = usuarios.filter(u => u.role === 'admin').length;
+  const users = usuarios.filter(u => u.role === 'user').length;
+
+  const cartoes = [
+    { id: 'total', label: 'Total de Usuários', valor: totalUsuarios, sublabel: 'Cadastrados', icon: Users, cor: 'blue', tipo: 'numero' },
+    { id: 'admins', label: 'Administradores', valor: admins, sublabel: 'Com permissões', icon: Shield, cor: 'violet', tipo: 'numero' },
+    { id: 'users', label: 'Operadores', valor: users, sublabel: 'Padrão', icon: UserIcon, cor: 'emerald', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-            <Users className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Usuários do Sistema</h1>
-            <p className="text-slate-600">Visualize os usuários cadastrados</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Usuários</h1>
+          <p className="text-xs text-slate-600">Gerenciar usuários</p>
         </div>
       </div>
 
-      {/* Card de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Total de Usuários</CardTitle>
-            <Users className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{usuarios.length}</div>
-            <p className="text-xs text-slate-600 mt-1">Usuários cadastrados</p>
-          </CardContent>
-        </Card>
+      <CartoesResumo cartoes={cartoes} />
 
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-purple-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Administradores</CardTitle>
-            <Shield className="h-5 w-5 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {usuarios.filter(u => u.role === 'admin').length}
-            </div>
-            <p className="text-xs text-slate-600 mt-1">Com permissões administrativas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-slate-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">Operadores</CardTitle>
-            <UserIcon className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {usuarios.filter(u => u.role === 'user').length}
-            </div>
-            <p className="text-xs text-slate-600 mt-1">Usuários padrão</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabela de Usuários */}
-      <Card className="shadow-xl border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <Users className="w-5 h-5" />
-            Lista de Usuários
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Users className="w-4 h-4" />
+            Usuários ({usuarios.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="font-semibold text-slate-700">Nome</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Email</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Perfil</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
+                <TableRow className="text-xs">
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Perfil</TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
-                      Carregando usuários...
-                    </TableCell>
+                    <TableCell colSpan={4} className="text-center py-8 text-xs">Carregando...</TableCell>
                   </TableRow>
                 ) : usuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
-                      <div className="flex flex-col items-center gap-3 text-slate-400">
-                        <Users className="w-12 h-12" />
-                        <p>Nenhum usuário encontrado</p>
-                      </div>
-                    </TableCell>
+                    <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs">Nenhum usuário</TableCell>
                   </TableRow>
                 ) : (
                   usuarios.map((user) => (
-                    <TableRow key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <TableCell className="font-medium text-slate-900">
+                    <TableRow key={user.id} className="text-xs">
+                      <TableCell className="font-semibold">
                         {user.full_name}
-                        {currentUser?.id === user.id && (
-                          <Badge variant="outline" className="ml-2 text-xs">Você</Badge>
-                        )}
+                        {currentUser?.id === user.id && <Badge variant="outline" className="ml-2 text-xs py-0">Você</Badge>}
                       </TableCell>
-                      <TableCell className="text-slate-700">{user.email}</TableCell>
+                      <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge className={user.role === 'admin' ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-green-100 text-green-800 border-green-300'}>
-                          {user.role === 'admin' ? (
-                            <><Shield className="w-3 h-3 mr-1" /> Administrador</>
-                          ) : (
-                            <><UserIcon className="w-3 h-3 mr-1" /> Operador</>
-                          )}
+                        <Badge className={`text-xs py-0 ${user.role === 'admin' ? 'bg-violet-100 text-violet-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {user.role === 'admin' ? 'Admin' : 'Operador'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.id)}
-                            className="hover:bg-red-50 hover:text-red-700"
-                            title="Excluir"
-                            disabled={currentUser?.id === user.id}
-                          >
-                            <Trash2 className="w-4 h-4" />
+                        <div className="flex justify-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)} className="h-7 w-7 text-red-600 hover:bg-red-50" disabled={currentUser?.id === user.id}>
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </TableCell>

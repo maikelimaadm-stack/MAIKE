@@ -1,42 +1,36 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Ruler, Trash2, Edit, X, Save } from "lucide-react";
+import { Plus, Ruler, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 // Função para obter próximo número de unidade
 const getNextUnidadeNumber = async () => {
   try {
-    const unidades = await base44.entities.UnidadeMedida.list();
-    const numeros = unidades
-      .map(u => parseInt(u.numero_unidade) || 0) // Convert to int, default to 0 if not a number or null/undefined
-      .filter(n => n > 0); // Filter out 0 and negative numbers
-
+    const all = await base44.entities.UnidadeMedida.list();
+    const numeros = all.map(u => parseInt(u.numero_unidade) || 0).filter(n => n > 0);
     return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-  } catch (error) {
-    console.error('Erro ao obter próximo número:', error);
-    // As per instruction, fallback to Date.now() on error.
-    // This might generate non-sequential numbers but ensures a unique fallback in case of API issues.
-    return Date.now();
+  } catch {
+    return 1;
   }
 };
 
 export default function UnidadesMedida() {
   const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({ sigla: "", descricao: "" });
 
   const queryClient = useQueryClient();
 
-  const { data: unidades, isLoading } = useQuery({
+  const { data: unidades = [], isLoading } = useQuery({
     queryKey: ['unidades_medida'],
     queryFn: async () => {
       const data = await base44.entities.UnidadeMedida.list();
@@ -45,41 +39,21 @@ export default function UnidadesMedida() {
     initialData: [],
   });
 
-  // Numerar unidades existentes automaticamente
-  React.useEffect(() => {
+  useEffect(() => {
     const numerarUnidadesExistentes = async () => {
-      if (!unidades || unidades.length === 0) return;
-      
       // Filter units that do not have a numero_unidade defined or it's an empty string
-      const unidadesSemNumero = unidades.filter(u => !u.numero_unidade || u.numero_unidade === "");
-      
-      if (unidadesSemNumero.length > 0) {
-        console.log(`Numerando ${unidadesSemNumero.length} unidades sem número...`);
-        
-        // Use a Set to keep track of used numbers to avoid immediate conflicts
-        // when assigning numbers in a quick succession if getNextUnidadeNumber is called rapidly.
-        // However, getNextUnidadeNumber itself already queries all existing units,
-        // so it should already return the next available global number.
-        // The sequential assignment below will ensure each gets a unique incremented number.
-        
-        let shouldInvalidate = false;
-        for (const unidade of unidadesSemNumero) {
+      const semNumero = unidades.filter(u => !u.numero_unidade || u.numero_unidade === "");
+
+      if (semNumero.length > 0) {
+        for (const unidade of semNumero) {
           try {
-            const proximoNumero = await getNextUnidadeNumber(); // Get the next global number
-            await base44.entities.UnidadeMedida.update(unidade.id, {
-              numero_unidade: String(proximoNumero)
-            });
-            shouldInvalidate = true; // Mark for invalidation if at least one update happened
+            const num = await getNextUnidadeNumber();
+            await base44.entities.UnidadeMedida.update(unidade.id, { numero_unidade: String(num) });
           } catch (error) {
             console.error(`Erro ao numerar unidade ${unidade.id}:`, error);
-            toast.error(`Erro ao numerar unidade ${unidade.sigla}.`);
           }
         }
-        
-        if (shouldInvalidate) {
-          queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
-          toast.success('Unidades existentes numeradas automaticamente!');
-        }
+        queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       }
     };
 
@@ -87,21 +61,18 @@ export default function UnidadesMedida() {
     if (!isLoading && unidades.length > 0) {
       numerarUnidadesExistentes();
     }
-  }, [unidades, isLoading, queryClient]); // Add isLoading to dependencies to ensure it runs after data is fetched
+  }, [unidades, isLoading, queryClient]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const proximoNumero = await getNextUnidadeNumber();
-      return base44.entities.UnidadeMedida.create({
-        ...data,
-        numero_unidade: String(proximoNumero)
-      });
+      const num = await getNextUnidadeNumber();
+      return base44.entities.UnidadeMedida.create({ ...data, numero_unidade: String(num) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       setShowForm(false);
-      setFormData({ sigla: "", descricao: "" });
-      toast.success('Unidade cadastrada com sucesso!');
+      resetForm();
+      toast.success('Unidade cadastrada!');
     },
   });
 
@@ -110,128 +81,101 @@ export default function UnidadesMedida() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       setShowForm(false);
-      setEditingItem(null);
-      setFormData({ sigla: "", descricao: "" });
-      toast.success('Unidade atualizada com sucesso!');
+      setEditing(null);
+      resetForm();
+      toast.success('Unidade atualizada!');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se existem produtos vinculados
-      const todosProdutos = await base44.entities.Produto.list();
-      const unidade = unidades.find(u => u.id === id);
-      
-      if (!unidade) {
-        throw new Error('Unidade de medida não encontrada.');
-      }
-
-      const produtosVinculados = todosProdutos.filter(p => p.unidade_medida === unidade.sigla);
-      
-      if (produtosVinculados.length > 0) {
-        throw new Error(`❌ EXCLUSÃO BLOQUEADA! Esta unidade possui ${produtosVinculados.length} produto(s) vinculado(s). Não é possível excluir.`);
-      }
-      
+      const produtos = await base44.entities.Produto.list();
+      const temProdutos = produtos.some(p => p.unidade_medida === unidades.find(u => u.id === id)?.sigla);
+      if (temProdutos) throw new Error('❌ Possui produtos vinculados!');
       return base44.entities.UnidadeMedida.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
-      toast.success('Unidade excluída com sucesso!');
+      toast.success('Unidade excluída!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao excluir unidade.');
-    },
+      toast.error(error.message);
+    }
   });
+
+  const resetForm = () => {
+    setFormData({ sigla: "", descricao: "" });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const dataToSend = {
-      sigla: formData.sigla.toUpperCase(),
-      descricao: formData.descricao.toUpperCase()
-    };
+    const data = { sigla: formData.sigla?.toUpperCase(), descricao: formData.descricao?.toUpperCase() };
 
-    if (editingItem) {
-      // When editing, we do not re-assign numero_unidade, as it's already set.
-      // We only update sigla and descricao.
-      updateMutation.mutate({ id: editingItem.id, data: dataToSend });
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, data });
     } else {
-      createMutation.mutate(dataToSend);
+      createMutation.mutate(data);
     }
   };
 
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setFormData({ sigla: item.sigla, descricao: item.descricao });
+  const handleEdit = (unidade) => {
+    setEditing(unidade);
+    setFormData({ sigla: unidade.sigla || "", descricao: unidade.descricao || "" });
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir esta unidade de medida? Esta ação não pode ser desfeita.')) {
-      deleteMutation.mutate(id);
-    }
-  };
-
-  const handleNew = () => {
-    setEditingItem(null);
-    setFormData({ sigla: "", descricao: "" });
-    setShowForm(true);
-  };
+  const cartoes = [
+    { id: 'total', label: 'Unidades Cadastradas', valor: unidades.length, sublabel: 'Total', icon: Ruler, cor: 'blue', tipo: 'numero' },
+  ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Unidades de Medida</h1>
-        {!showForm && (
-          <Button onClick={handleNew} className="bg-green-600 hover:bg-green-700 gap-2">
-            <Plus className="w-4 h-4" />
-            Nova Unidade
-          </Button>
-        )}
-      </div>
+    <div className="p-4 md:p-6 space-y-2">
+      {!showForm && (
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Unidades de Medida</h1>
+              <p className="text-xs text-slate-600">Gerenciar unidades</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex justify-end">
+            <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
+              Nova Unidade
+            </Button>
+          </div>
+        </>
+      )}
 
       <AnimatePresence>
         {showForm && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Ruler className="w-5 h-5" />
-                  {editingItem ? 'Editar Unidade' : 'Nova Unidade'}
-                </CardTitle>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{editing ? 'Editar Unidade' : 'Nova Unidade'}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Sigla *</Label>
-                      <Input
-                        value={formData.sigla}
-                        onChange={(e) => setFormData({ ...formData, sigla: e.target.value.toUpperCase() })}
-                        placeholder="EX: UN, KG, LT"
-                        required
-                        maxLength={5}
-                        className="uppercase"
-                      />
+              <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Sigla *</Label>
+                      <Input value={formData.sigla} onChange={(e) => setFormData({ ...formData, sigla: e.target.value })} placeholder="UN, KG, L" required className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Descrição *</Label>
-                      <Input
-                        value={formData.descricao}
-                        onChange={(e) => setFormData({ ...formData, descricao: e.target.value.toUpperCase() })}
-                        placeholder="UNIDADE, QUILOGRAMA, LITRO"
-                        required
-                        className="uppercase"
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Descrição *</Label>
+                      <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="UNIDADE, QUILOGRAMA" required className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); }}>
-                      <X className="w-4 h-4 mr-2" />
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                      {editing ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
                 </form>
@@ -241,51 +185,61 @@ export default function UnidadesMedida() {
         )}
       </AnimatePresence>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead> {/* New column for numero_unidade */}
-                <TableHead>Sigla</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">Carregando...</TableCell> {/* Updated colSpan */}
-                </TableRow>
-              ) : unidades.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-slate-400"> {/* Updated colSpan */}
-                    Nenhuma unidade cadastrada
-                  </TableCell>
-                </TableRow>
-              ) : (
-                unidades.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.numero_unidade || 'N/A'}</TableCell> {/* Display numero_unidade */}
-                    <TableCell className="font-bold">{item.sigla}</TableCell>
-                    <TableCell>{item.descricao}</TableCell>
-                    <TableCell>
-                      <div className="flex justify-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      {!showForm && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Ruler className="w-4 h-4" />
+              Unidades ({unidades.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Sigla</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center">Carregando...</TableCell>
+                    </TableRow>
+                  ) : unidades.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-slate-400">
+                        Nenhuma unidade cadastrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    unidades.map((unidade) => (
+                      <TableRow key={unidade.id} className="text-xs">
+                        <TableCell className="font-bold">{unidade.numero_unidade || 'N/A'}</TableCell>
+                        <TableCell className="font-mono font-semibold">{unidade.sigla}</TableCell>
+                        <TableCell>{unidade.descricao}</TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(unidade)} className="h-7 w-7">
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir unidade?')) deleteMutation.mutate(unidade.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

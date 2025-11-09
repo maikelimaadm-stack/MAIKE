@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Layers, Save, X, Building } from "lucide-react";
+import { Plus, Edit, Trash2, Building, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
+import CartoesResumo from "../components/shared/CartoesResumo";
 
 const getNextNumero = async () => {
   try {
@@ -72,11 +72,8 @@ export default function CentrosCusto() {
       queryClient.invalidateQueries({ queryKey: ['centros'] });
       setShowForm(false);
       resetForm();
-      toast.success('Centro de custo cadastrado!');
+      toast.success('Centro cadastrado!');
     },
-    onError: (error) => {
-      toast.error('Erro ao cadastrar centro de custo', { description: error.message });
-    }
   });
 
   const updateMutation = useMutation({
@@ -88,34 +85,19 @@ export default function CentrosCusto() {
       resetForm();
       toast.success('Centro atualizado!');
     },
-    onError: (error) => {
-      toast.error('Erro ao atualizar centro de custo', { description: error.message });
-    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se tem lançamentos financeiros vinculados
       const lancamentos = await base44.entities.LancamentoFinanceiro.list();
       const temLancamentos = lancamentos.some(l => l.centro_custo_id === id);
-      if (temLancamentos) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui lançamentos financeiros vinculados. Não é possível excluir.');
-      }
-
-      // Verificar se tem movimentações vinculadas
+      if (temLancamentos) throw new Error('❌ Possui lançamentos vinculados!');
       const movimentacoes = await base44.entities.MovimentacaoEstoque.list();
       const temMovimentacoes = movimentacoes.some(m => m.centro_custo_id === id);
-      if (temMovimentacoes) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui movimentações de estoque vinculadas. Não é possível excluir.');
-      }
-
-      // Verificar se tem custos de safra vinculados
+      if (temMovimentacoes) throw new Error('❌ Possui movimentações vinculadas!');
       const custos = await base44.entities.CustoSafra.list();
       const temCustos = custos.some(c => c.centro_custo_id === id);
-      if (temCustos) {
-        throw new Error('❌ EXCLUSÃO BLOQUEADA! Este centro de custo possui custos de safra vinculados. Não é possível excluir.');
-      }
-      
+      if (temCustos) throw new Error('❌ Possui custos de safra vinculados!');
       return base44.entities.CentroCusto.delete(id);
     },
     onSuccess: () => {
@@ -123,7 +105,7 @@ export default function CentrosCusto() {
       toast.success('Centro excluído!');
     },
     onError: (error) => {
-      toast.error('Erro ao excluir centro de custo', { description: error.message });
+      toast.error(error.message);
     }
   });
 
@@ -133,7 +115,6 @@ export default function CentrosCusto() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     const data = {
       nome: formData.nome?.toUpperCase(),
       tipo: formData.tipo,
@@ -163,118 +144,91 @@ export default function CentrosCusto() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Deseja excluir este centro de custo?')) {
-      deleteMutation.mutate(id);
-    }
-  };
-
-  const handleNew = () => {
-    setEditing(null);
-    resetForm();
-    setShowForm(true);
-  };
-
   const totalCentros = centros.length;
   const centrosAtivos = centros.filter(c => c.ativo !== false).length;
 
+  const cartoes = [
+    { id: 'total', label: 'Total de Centros', valor: totalCentros, sublabel: 'Cadastrados', icon: Building, cor: 'blue', tipo: 'numero' },
+    { id: 'ativos', label: 'Ativos', valor: centrosAtivos, sublabel: 'Em uso', icon: Building, cor: 'emerald', tipo: 'numero' },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-green-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Total</CardTitle>
-            <Building className="h-5 w-5 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-900">{totalCentros}</div>
-            <p className="text-xs text-green-600 mt-1">Centros cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-green-200 bg-gradient-to-br from-white to-blue-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Ativos</CardTitle>
-            <Layers className="h-5 w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{centrosAtivos}</div>
-            <p className="text-xs text-blue-600 mt-1">Em uso</p>
-          </CardContent>
-        </Card>
-      </div>
-
+    <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
-        <div className="flex justify-end">
-          <Button onClick={handleNew} className="bg-gradient-to-r from-green-600 to-green-700 gap-2 shadow-lg" size="lg">
-            <Plus className="w-5 h-5" />
-            Novo Centro de Custo
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Centros de Custo</h1>
+              <p className="text-xs text-slate-600">Gerenciar centros</p>
+            </div>
+          </div>
+
+          <CartoesResumo cartoes={cartoes} />
+
+          <div className="flex justify-end">
+            <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
+              Novo Centro
+            </Button>
+          </div>
+        </>
       )}
 
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-xl border-slate-200">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-                <CardTitle className="flex items-center gap-3">
-                  <Building className="w-5 h-5 text-green-600" />
-                  {editing ? 'Editar Centro de Custo' : 'Novo Centro de Custo'}
-                </CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{editing ? 'Editar Centro' : 'Novo Centro'}</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Nome *</Label>
-                      <Input value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} required className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nome *</Label>
+                      <Input value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} required className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Tipo *</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tipo *</Label>
                       <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Setor">Setor</SelectItem>
-                          <SelectItem value="Departamento">Departamento</SelectItem>
-                          <SelectItem value="Filial">Filial</SelectItem>
-                          <SelectItem value="Projeto">Projeto</SelectItem>
-                          <SelectItem value="Outro">Outro</SelectItem>
+                          <SelectItem value="Setor" className="text-xs">Setor</SelectItem>
+                          <SelectItem value="Departamento" className="text-xs">Departamento</SelectItem>
+                          <SelectItem value="Filial" className="text-xs">Filial</SelectItem>
+                          <SelectItem value="Projeto" className="text-xs">Projeto</SelectItem>
+                          <SelectItem value="Outro" className="text-xs">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Código</Label>
-                      <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="CÓDIGO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Código</Label>
+                      <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="CÓDIGO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Responsável</Label>
-                      <Input value={formData.responsavel} onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })} placeholder="NOME DO RESPONSÁVEL" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Responsável</Label>
+                      <Input value={formData.responsavel} onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })} placeholder="NOME" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Descrição</Label>
-                    <Textarea value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Descrição</Label>
+                    <Textarea value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Switch checked={formData.ativo} onCheckedChange={(v) => setFormData({ ...formData, ativo: v })} />
-                    <Label>Centro de Custo Ativo</Label>
+                    <Label className="text-xs">Centro Ativo</Label>
                   </div>
 
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); resetForm(); }}>
-                      <X className="w-4 h-4 mr-2" />
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" className="bg-green-600">
-                      <Save className="w-4 h-4 mr-2" />
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                       {editing ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
@@ -285,65 +239,65 @@ export default function CentrosCusto() {
         )}
       </AnimatePresence>
 
-      <Card className="shadow-xl border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
-          <CardTitle className="flex items-center gap-3">
-            <Building className="w-5 h-5 text-slate-700" />
-            Centros de Custo
-            <Badge variant="secondary" className="bg-green-100 text-green-700">{centros.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead>Nº</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {centros.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <Building className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-slate-500">Nenhum centro de custo cadastrado</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                centros.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-bold">{c.numero_centro}</TableCell>
-                    <TableCell className="font-mono">{c.codigo || '-'}</TableCell>
-                    <TableCell className="font-semibold">{c.nome}</TableCell>
-                    <TableCell>{c.tipo}</TableCell>
-                    <TableCell>{c.responsavel || '-'}</TableCell>
-                    <TableCell>
-                      <Badge className={c.ativo !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                        {c.ativo !== false ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      {!showForm && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Building className="w-4 h-4" />
+              Centros ({centros.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {centros.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-slate-400 text-xs">Nenhum centro cadastrado</TableCell>
+                    </TableRow>
+                  ) : (
+                    centros.map(c => (
+                      <TableRow key={c.id} className="text-xs">
+                        <TableCell className="font-bold">{c.numero_centro}</TableCell>
+                        <TableCell className="font-mono">{c.codigo || '-'}</TableCell>
+                        <TableCell className="font-semibold">{c.nome}</TableCell>
+                        <TableCell>{c.tipo}</TableCell>
+                        <TableCell>{c.responsavel || '-'}</TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs py-0 ${c.ativo !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {c.ativo !== false ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} className="h-7 w-7">
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir centro?')) deleteMutation.mutate(c.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
