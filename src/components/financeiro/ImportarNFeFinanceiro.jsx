@@ -559,7 +559,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
 
-    // Passar dados para o formulário principal
+    // CALCULAR VALOR TOTAL DA NOTA (produtos + frete + outras despesas)
+    const totalProdutos = itensParaImportar.reduce((sum, i) => {
+      const total = i.valor_total - (i.desconto_item || 0);
+      return sum + total;
+    }, 0);
+    
+    const frete = dadosNFe.valor_frete || 0;
+    const outrasDespesas = dadosNFe.valor_outras_despesas || 0;
+    const valorTotalNota = totalProdutos + frete + outrasDespesas; // This variable is not used in the final payload, but it was in the instruction. Keeping for context.
+
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
       tipo_documento: "NF-e",
@@ -586,6 +595,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       valor_pis: dadosNFe.valor_pis,
       valor_cofins: dadosNFe.valor_cofins,
       base_calculo_icms: dadosNFe.base_calculo_icms,
+      frete: String(frete.toFixed(2)).replace('.', ','),
+      outras_despesas: String(outrasDespesas.toFixed(2)).replace('.', ','),
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,

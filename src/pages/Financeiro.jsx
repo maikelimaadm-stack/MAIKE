@@ -92,25 +92,25 @@ export default function Financeiro() {
     mutationFn: async (data) => {
       setShowProgressoSalvamento(true);
       setProgressoSalvamento({ etapa: '🚀 Iniciando...', current: 10, total: 100 });
-      
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       if (data.parcelas && data.parcelas.length > 0) {
         setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
         const lancamentosCriados = [];
-        
+
         for (let i = 0; i < data.parcelas.length; i++) {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
-          
-          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => 
+
+          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) =>
             sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
           ) || 0;
-          
-          const valorOriginal = data.lancar_produtos 
-            ? subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0) - (data.desconto_total || 0)
+
+          const valorOriginal = data.lancar_produtos
+            ? subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0)
             : data.valor_original;
-          
+
           const lanc = await base44.entities.LancamentoFinanceiro.create({
             empresa_id: empresaSelecionadaId,
             numero_lancamento: String(numero),
@@ -141,7 +141,7 @@ export default function Financeiro() {
             valor_frete: data.frete || 0,
             valor_seguro: data.valor_seguro || 0,
             valor_outras_despesas: data.outras_despesas || 0,
-            valor_desconto_total: data.desconto_total || 0,
+            valor_desconto_total: 0,
             valor_ipi: data.valor_ipi || 0,
             valor_icms: data.valor_icms || 0,
             valor_pis: data.valor_pis || 0,
@@ -164,11 +164,13 @@ export default function Financeiro() {
             produtos_lancamento: data.produtos_selecionados,
             anexos: data.anexos
           });
-          
-          // LANÇAR NO ESTOQUE SE MARCADO
+
+          // LANÇAR NO ESTOQUE SE MARCADO - SÓ NA PRIMEIRA PARCELA
           if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0 && i === 0) {
             setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 60, total: 100 });
-            
+
+            const user = await base44.auth.me();
+
             for (const prodLanc of data.produtos_selecionados) {
               const produto = produtos.find(p => p.id === prodLanc.produto_id);
               if (produto) {
@@ -177,15 +179,22 @@ export default function Financeiro() {
                 await base44.entities.Produto.update(produto.id, {
                   estoque_atual: novoEstoque
                 });
-                
-                // Criar movimentação de estoque
+
+                // Criar movimentação de estoque COM TODOS OS CAMPOS
                 const allMov = await base44.entities.MovimentacaoEstoque.list();
                 const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
-                
+
                 await base44.entities.MovimentacaoEstoque.create({
                   empresa_id: empresaSelecionadaId,
                   numero_movimentacao: String(maxNumMov + 1),
                   tipo_movimentacao: 'Entrada',
+                  tipo_documento: data.tipo_documento || 'NF-e',
+                  fornecedor_id: data.fornecedor_id,
+                  fornecedor_nome: data.fornecedor_nome,
+                  safra_id: data.safra_id,
+                  safra_nome: data.safra_nome,
+                  centro_custo_id: data.centro_custo_id,
+                  centro_custo_nome: data.centro_custo_nome,
                   produto_id: produto.id,
                   produto_nome: produto.nome_produto,
                   quantidade: prodLanc.quantidade,
@@ -196,17 +205,17 @@ export default function Financeiro() {
                   local_destino: data.local_estoque,
                   data_movimentacao: data.data_emissao,
                   numero_documento: data.numero_documento,
-                  observacoes: `ENTRADA POR NF-e ${data.numero_documento} - LANÇAMENTO FINANCEIRO #${String(numero)}`,
-                  responsavel: (await base44.auth.me()).email
+                  observacoes: `ENTRADA POR ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} - LANÇAMENTO FINANCEIRO #${String(numero)}`.trim(),
+                  responsavel: user.email
                 });
               }
             }
           }
-          
+
           lancamentosCriados.push(lanc);
           setProgressoSalvamento({ etapa: `💰 Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
         }
-        
+
         setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
         await new Promise(resolve => setTimeout(resolve, 500));
         toast.success(`✅ ${data.parcelas.length} lançamentos criados${data.dar_entrada_estoque ? ' e estoque atualizado' : ''}!`);
@@ -214,17 +223,17 @@ export default function Financeiro() {
       } else {
         setProgressoSalvamento({ etapa: '💾 Salvando...', current: 50, total: 100 });
         const numero = await getNextNumber(empresaSelecionadaId);
-        
+
         let valorTotal;
         if (data.lancar_produtos) {
-          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => 
+          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) =>
             sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
           ) || 0;
-          valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0) - (data.desconto_total || 0);
+          valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
         } else {
           valorTotal = data.valor_original + data.valor_juros + data.valor_multa - data.valor_desconto;
         }
-        
+
         const lanc = await base44.entities.LancamentoFinanceiro.create({
           ...data,
           empresa_id: empresaSelecionadaId,
@@ -234,7 +243,7 @@ export default function Financeiro() {
           valor_frete: data.frete || 0,
           valor_seguro: data.valor_seguro || 0,
           valor_outras_despesas: data.outras_despesas || 0,
-          valor_desconto_total: data.desconto_total || 0,
+          valor_desconto_total: 0,
           valor_ipi: data.valor_ipi || 0,
           valor_icms: data.valor_icms || 0,
           valor_pis: data.valor_pis || 0,
@@ -249,11 +258,13 @@ export default function Financeiro() {
           status: data.conta_paga ? 'Pago' : 'Pendente',
           observacoes_nfe: data.observacoes_nfe
         });
-        
+
         // LANÇAR NO ESTOQUE SE MARCADO
         if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0) {
           setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 70, total: 100 });
-          
+
+          const user = await base44.auth.me();
+
           for (const prodLanc of data.produtos_selecionados) {
             const produto = produtos.find(p => p.id === prodLanc.produto_id);
             if (produto) {
@@ -262,15 +273,22 @@ export default function Financeiro() {
               await base44.entities.Produto.update(produto.id, {
                 estoque_atual: novoEstoque
               });
-              
-              // Criar movimentação de estoque
+
+              // Criar movimentação de estoque COM TODOS OS CAMPOS
               const allMov = await base44.entities.MovimentacaoEstoque.list();
               const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
-              
+
               await base44.entities.MovimentacaoEstoque.create({
                 empresa_id: empresaSelecionadaId,
                 numero_movimentacao: String(maxNumMov + 1),
                 tipo_movimentacao: 'Entrada',
+                tipo_documento: data.tipo_documento || 'NF-e',
+                fornecedor_id: data.fornecedor_id,
+                fornecedor_nome: data.fornecedor_nome,
+                safra_id: data.safra_id,
+                safra_nome: data.safra_nome,
+                centro_custo_id: data.centro_custo_id,
+                centro_custo_nome: data.centro_custo_nome,
                 produto_id: produto.id,
                 produto_nome: produto.nome_produto,
                 quantidade: prodLanc.quantidade,
@@ -281,18 +299,20 @@ export default function Financeiro() {
                 local_destino: data.local_estoque,
                 data_movimentacao: data.data_emissao,
                 numero_documento: data.numero_documento,
-                observacoes: `ENTRADA POR NF-e ${data.numero_documento} - LANÇAMENTO FINANCEIRO #${numero}`,
-                responsavel: (await base44.auth.me()).email
+                observacoes: `ENTRADA POR ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} - LANÇAMENTO FINANCEIRO #${numero}`.trim(),
+                responsavel: user.email
               });
             }
           }
         }
-        
+
         if (data.conta_paga) {
           setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 85, total: 100 });
           const allBaixas = await base44.entities.BaixaFinanceira.list();
           const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
-          
+
+          const user = await base44.auth.me();
+
           await base44.entities.BaixaFinanceira.create({
             empresa_id: empresaSelecionadaId,
             numero_baixa: String(maxNumBaixa + 1),
@@ -305,10 +325,10 @@ export default function Financeiro() {
             forma_pagamento_id: data.forma_pagamento_paga_id,
             forma_pagamento_nome: data.forma_pagamento_paga_nome,
             observacoes: 'BAIXA AUTOMÁTICA NO CADASTRO',
-            usuario_responsavel: (await base44.auth.me()).email
+            usuario_responsavel: user.email
           });
         }
-        
+
         setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
         await new Promise(resolve => setTimeout(resolve, 500));
         return lanc;
@@ -350,7 +370,7 @@ export default function Financeiro() {
     mutationFn: async (lancamento) => {
       const allBaixas = await base44.entities.BaixaFinanceira.list();
       const baixasDoLancamento = allBaixas.filter(b => b.lancamento_id === lancamento.id);
-      
+
       if (baixasDoLancamento.length === 0) {
         throw new Error('Nenhuma baixa encontrada!');
       }
@@ -410,7 +430,7 @@ export default function Financeiro() {
     const contasPagar = lancamentosPagar.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado');
     const contasReceber = lancamentosReceber.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado');
     const vencidos = lancamentos.filter(l => new Date(l.data_vencimento) < new Date() && l.status === 'Pendente');
-    
+
     return {
       totalPagar: contasPagar.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
       totalReceber: contasReceber.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
@@ -512,7 +532,7 @@ export default function Financeiro() {
         produtos={produtos}
       />
 
-      <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
+      <Dialog open={showProgressoSalvamento} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
@@ -549,7 +569,7 @@ export default function Financeiro() {
             <TabelaFinanceiro
               lancamentos={lancamentosPagar}
               tipo="Pagar"
-              onEdit={() => {}}
+              onEdit={() => { }}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               onCancelarBaixa={handleCancelarBaixa}
@@ -563,7 +583,7 @@ export default function Financeiro() {
             <TabelaFinanceiro
               lancamentos={lancamentosReceber}
               tipo="Receber"
-              onEdit={() => {}}
+              onEdit={() => { }}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               onCancelarBaixa={handleCancelarBaixa}

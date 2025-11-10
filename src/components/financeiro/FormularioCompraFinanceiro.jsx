@@ -378,8 +378,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     } catch (error) {
       toast.error('Erro ao fazer upload');
     } finally {
-      setUploadingFile(false);
       e.target.value = '';
+      setUploadingFile(false);
     }
   };
 
@@ -515,8 +515,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
       grupo_id: formData.grupo_id,
       grupo_nome: grupo?.descricao,
-      forma_pagamento_id: formData.forma_pagamento_id || undefined,
-      forma_pagamento_nome: formData.forma_pagamento_id || undefined,
+      forma_pagamento_id: formData.forma_pagamento_id || undefined, // This field is no longer set in the UI directly, but exists in state/initialData
+      forma_pagamento_nome: formData.forma_pagamento_id || undefined, // Same as above
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_nfe: formData.tipo_documento === 'NF-e' ? formData.chave_nfe : undefined,
       serie_documento: ['NF-e', 'NFC-e'].includes(formData.tipo_documento) ? formData.serie_documento : undefined,
@@ -647,7 +647,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       </div>
 
-                      {/* CAMPOS DINÂMICOS POR TIPO */}
                       {formData.tipo_documento === 'NF-e' && (
                         <div className="space-y-3 pt-2 border-t">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1132,32 +1131,18 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Centro de Custo</Label>
-                          <div className="flex gap-1.5">
-                            <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                              <SelectContent>
-                                {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Forma de Pagamento</Label>
-                          <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Centro de Custo (Opcional)</Label>
+                        <div className="flex gap-1.5">
+                          <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
                             <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                             <SelectContent>
-                              {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                              ))}
+                              {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
+                            <Plus className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -1186,7 +1171,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       {formData.conta_paga && (
                         <Card className="bg-white border-green-300">
                           <CardContent className="p-3 space-y-3">
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
                                 <Label className="text-xs">Data Pgto *</Label>
                                 <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
@@ -1195,17 +1180,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 <Label className="text-xs">Valor Pago *</Label>
                                 <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
                               </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Forma *</Label>
-                                <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                  <SelectContent>
-                                    {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Forma de Pagamento *</Label>
+                              <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
+                                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>
+                                  {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                    <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </CardContent>
                         </Card>
