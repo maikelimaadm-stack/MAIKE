@@ -208,9 +208,8 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
                     <Settings className="w-4 h-4" />
-                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
@@ -250,7 +249,6 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                   {colunasVisiveis.includes('cidade') && <TableHead className="font-semibold text-slate-700">Cidade</TableHead>}
                   {colunasVisiveis.includes('estado') && <TableHead className="font-semibold text-slate-700">Estado</TableHead>}
                   {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
-                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -262,12 +260,11 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                         {colunasVisiveis.map((col, idx) => (
                           <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
                         ))}
-                        <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                       </TableRow>
                     ))
                   ) : filteredFornecedores.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
+                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <Users className="w-12 h-12" />
                           <p className="text-lg font-medium">Nenhum cadastro encontrado</p>
@@ -285,7 +282,7 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
                           >
                             <TableCell>
                               <Checkbox
@@ -332,37 +329,6 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                                 {fornecedor.observacoes || '-'}
                               </TableCell>
                             )}
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onEdit(fornecedor)}
-                                  className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                  title="Editar"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onPrint(fornecedor)}
-                                  className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                                  title="Imprimir Ficha"
-                                >
-                                  <Printer className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onDelete(fornecedor.id)}
-                                  className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                                  title="Excluir"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
                           </motion.tr>
                         </ContextMenuTrigger>
                         <ContextMenuContent>

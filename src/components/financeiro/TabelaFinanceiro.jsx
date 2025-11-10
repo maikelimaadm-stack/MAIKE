@@ -433,7 +433,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               initial={{ opacity: 0 }} 
                               animate={{ opacity: 1 }} 
                               exit={{ opacity: 0 }} 
-                              className="hover:bg-slate-50 transition-colors"
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
                             >
                               {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
                               {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
@@ -503,6 +503,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                             <ContextMenuItem onClick={() => abrirDetalhes(lancamento)}>
                               <Eye className="w-4 h-4 mr-2 text-blue-600" />
                               Ver Detalhes
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onEdit(lancamento)}>
+                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                              Editar
                             </ContextMenuItem>
                             {temProdutos && (
                               <ContextMenuItem onClick={() => abrirProdutos(lancamento)}>
