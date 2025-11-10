@@ -128,6 +128,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogPlano, setShowDialogPlano] = useState(false);
   const [showDialogGrupo, setShowDialogGrupo] = useState(false);
+  const [showDialogLocal, setShowDialogLocal] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -174,6 +175,29 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     queryFn: () => base44.entities.LocalEstoque.list(),
     initialData: [],
   });
+
+  // Preencher automaticamente quando marcar "Conta paga"
+  useEffect(() => {
+    if (formData.conta_paga && !formData.data_pagamento) {
+      const valorTotal = calcularValorTotal();
+      setFormData(prev => ({
+        ...prev,
+        data_pagamento: prev.data_emissao,
+        valor_pago_total: formatarNumero(valorTotal)
+      }));
+    }
+  }, [formData.conta_paga]);
+
+  // Preencher data de vencimento automaticamente
+  useEffect(() => {
+    if (formData.data_emissao && !formData.data_vencimento) {
+      setFormData(prev => ({
+        ...prev,
+        data_vencimento: prev.data_emissao
+      }));
+    }
+  }, [formData.data_emissao]);
+
 
   useEffect(() => {
     if (formData.parcelar && formData.parcelas.length === 0 && formData.data_vencimento) {
@@ -346,9 +370,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return;
     }
 
-    if (formData.tipo_documento === 'Boleto' ? !formData.numero_boleto : !formData.numero_documento) {
-      toast.error('❌ Preencha o número do documento!');
-      return;
+    if (formData.tipo_documento === 'Boleto') {
+      if (!formData.numero_boleto) {
+        toast.error('❌ Preencha o número do boleto!');
+        return;
+      }
+    } else {
+      if (!formData.numero_documento) {
+        toast.error('❌ Preencha o número do documento!');
+        return;
+      }
     }
 
     if (formData.lancar_produtos) {
@@ -358,11 +389,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
 
       const produtosIncompletos = formData.produtos_selecionados.filter(p => 
-        !p.produto_id || !p.quantidade || !p.valor_unitario
+        !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_unitario) <= 0
       );
 
       if (produtosIncompletos.length > 0) {
-        toast.error('❌ Preencha todos os campos dos produtos!');
+        toast.error('❌ Preencha todos os campos de quantidade e valor unitário dos produtos com valores válidos!');
         return;
       }
 
@@ -371,8 +402,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     } else {
-      if (!formData.valor_original) {
-        toast.error('❌ Preencha o valor original!');
+      if (parseNumero(formData.valor_original) <= 0) {
+        toast.error('❌ Preencha o valor original com um valor válido!');
         return;
       }
     }
@@ -403,8 +434,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         toast.error('❌ Preencha a data de pagamento!');
         return;
       }
-      if (!formData.valor_pago_total) {
-        toast.error('❌ Preencha o valor pago!');
+      if (parseNumero(formData.valor_pago_total) <= 0) {
+        toast.error('❌ Preencha o valor pago com um valor válido!');
         return;
       }
       if (!formData.forma_pagamento_paga_id) {
@@ -424,6 +455,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       
       if (Math.abs(totalParcelas - valorTotal) > 0.01) {
         toast.error('❌ Total das parcelas diferente do valor total!');
+        return;
+      }
+      
+      if (formData.parcelas.some(p => parseNumero(p.valor) <= 0)) {
+        toast.error('❌ Todas as parcelas devem ter um valor maior que zero!');
         return;
       }
     }
@@ -560,24 +596,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       </div>
 
-                      {/* Update numero_documento field to be required */}
-                      {formData.tipo_documento !== 'Boleto' && (
-                        <div className="space-y-1.5 pt-2 border-t">
-                          <Label className="text-xs">Número do Documento *</Label>
-                          <Input 
-                            value={formData.numero_documento} 
-                            onChange={(e) => handleChange('numero_documento', e.target.value)} 
-                            placeholder="000000" 
-                            required
-                            className="h-9 text-xs" 
-                          />
-                        </div>
-                      )}
-
                       {/* CAMPOS DINÂMICOS POR TIPO */}
                       {formData.tipo_documento === 'NF-e' && (
                         <div className="space-y-3 pt-2 border-t">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Número NF-e *</Label>
+                              <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-9 text-xs" />
+                            </div>
                             <div className="space-y-1.5">
                               <Label className="text-xs">Série</Label>
                               <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
@@ -601,9 +627,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       )}
 
                       {formData.tipo_documento === 'NFC-e' && (
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Número NFC-e *</Label>
+                            <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Série</Label>
+                            <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
+                          </div>
+                        </div>
+                      )}
+
+                      {formData.tipo_documento === 'Recibo' && (
                         <div className="space-y-1.5 pt-2 border-t">
-                          <Label className="text-xs">Série</Label>
-                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
+                          <Label className="text-xs">Número do Recibo *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-9 text-xs" />
                         </div>
                       )}
 
@@ -617,6 +656,20 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Label className="text-xs">Banco</Label>
                             <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Ex: Banco do Brasil" className="h-9 text-xs" />
                           </div>
+                        </div>
+                      )}
+
+                      {formData.tipo_documento === 'Nota Manual' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número da Nota *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-9 text-xs" />
+                        </div>
+                      )}
+
+                      {formData.tipo_documento === 'Outros' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número/Identificação *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="Identificação" required className="h-9 text-xs" />
                         </div>
                       )}
                       
@@ -760,12 +813,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           {formData.dar_entrada_estoque && (
                             <div className="space-y-1.5 pt-1">
                               <Label className="text-xs">Local de Estoque *</Label>
-                              <Select value={formData.local_estoque} onValueChange={(v) => handleChange('local_estoque', v)}>
-                                <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                <SelectContent>
-                                  {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
+                              <div className="flex gap-1.5">
+                                <Select value={formData.local_estoque} onValueChange={(v) => handleChange('local_estoque', v)} className="flex-1">
+                                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                  <SelectContent>
+                                    {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-9 w-9">
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -913,8 +971,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" onClick={() => setShowDialogPlano(true)} className="h-9 px-2 text-xs">
-                              Novo
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
+                              <Plus className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -928,8 +986,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" onClick={() => setShowDialogGrupo(true)} className="h-9 px-2 text-xs">
-                              Novo
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
+                              <Plus className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -945,8 +1003,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" onClick={() => setShowDialogCentro(true)} className="h-9 px-2 text-xs">
-                              Novo
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
+                              <Plus className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -1126,6 +1184,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_compra'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
       <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_compra'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} tipoFinanceiro="Despesa" />
       <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_compra'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} tipoFinanceiro="Despesa" />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_compra'] }); const local = locais.find(l => l.id === id); if (local) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -52,6 +53,77 @@ const extrairDadosXML = (xmlText) => {
 
   const enderecoCompleto = numero_end ? `${logradouro}, ${numero_end}` : logradouro;
 
+  // EXTRAIR OBSERVAÇÕES (FILTRAR AS DE IMPOSTOS)
+  const infAdic = xmlDoc.getElementsByTagName('infAdic')[0];
+  let observacoes = '';
+  
+  if (infAdic) {
+    const infCpl = infAdic.getElementsByTagName('infCpl')[0];
+    if (infCpl) {
+      const obsCompleta = infCpl.textContent || '';
+      
+      // FILTRAR: remover linhas de impostos/tributos
+      const linhas = obsCompleta.split(/[\n\r]+/);
+      const linhasFiltradas = linhas.filter(linha => {
+        const linhaLower = linha.toLowerCase();
+        return !linhaLower.includes('tribut') &&
+               !linhaLower.includes('imposto') &&
+               !linhaLower.includes('icms') &&
+               !linhaLower.includes('pis') &&
+               !linhaLower.includes('cofins') &&
+               !linhaLower.includes('ipi') &&
+               !linhaLower.includes('iss') &&
+               !linhaLower.includes('simples nacional') &&
+               !linhaLower.includes('regime') &&
+               !linhaLower.includes('alíquota') &&
+               !linhaLower.includes('base de cálculo') &&
+               linha.trim().length > 0;
+      });
+      
+      observacoes = linhasFiltradas.join('\n').trim();
+    }
+  }
+
+  // EXTRAIR FORMA DE PAGAMENTO
+  // NFe v4.0 introduced tPag inside `detPag` or `pag`
+  // Trying to get tPag from the more specific path first, then general
+  let tPag = getValor('tPag') || xmlDoc.getElementsByTagName('tPag')[0]?.textContent;
+  
+  // If tPag is still not found, try searching within the `detPag` structure for NFe 4.00+
+  if (!tPag) {
+      const pagElement = xmlDoc.getElementsByTagName('pag')[0];
+      if (pagElement) {
+          const detPagElement = pagElement.getElementsByTagName('detPag')[0];
+          if (detPagElement) {
+              tPag = detPagElement.getElementsByTagName('tPag')[0]?.textContent;
+          }
+      }
+  }
+
+  let formaPagamento = null;
+  
+  if (tPag) {
+    const formasPag = {
+      '01': 'Dinheiro',
+      '02': 'Cheque',
+      '03': 'Cartão de Crédito',
+      '04': 'Cartão de Débito',
+      '05': 'Crédito Loja',
+      '10': 'Vale Alimentação',
+      '11': 'Vale Refeição',
+      '12': 'Vale Presente',
+      '13': 'Vale Combustível',
+      '15': 'Boleto Bancário',
+      '17': 'PIX',
+      '18': 'Transferência Bancária',
+      '19': 'Depósito Bancário',
+      '90': 'Sem Pagamento',
+      '99': 'Outros'
+    };
+    
+    formaPagamento = formasPag[tPag] || 'Outros';
+  }
+
   const itensNFe = [];
   const dets = xmlDoc.getElementsByTagName('det');
   
@@ -97,6 +169,8 @@ const extrairDadosXML = (xmlText) => {
     cep_emitente: cep,
     cfop,
     valor_total: valorTotal,
+    forma_pagamento: formaPagamento,
+    observacoes: observacoes,
     itens: itensNFe
   };
 };
@@ -377,6 +451,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       chave_nfe: dadosNFe.chave,
       cfop: dadosNFe.cfop,
       data_emissao: dadosNFe.data_emissao,
+      forma_pagamento_id: dadosNFe.forma_pagamento || '',
+      observacoes: dadosNFe.observacoes || '',
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
