@@ -307,7 +307,7 @@ export default function RelatorioFinanceiro() {
                     Colunas
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {colunasDisponiveis.map((coluna) => (
