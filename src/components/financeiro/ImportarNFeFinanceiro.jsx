@@ -157,7 +157,7 @@ const extrairDadosXML = (xmlText) => {
       unidade: getTagDet('uCom') || 'UN',
       quantidade: parseFloat(getTagDet('qCom')) || 0,
       valor_unitario: parseFloat(getTagDet('vUnCom')) || 0,
-      valor_total: parseFloat(getTagDet('vProd')) || 0,
+      valor_total: parseFloat(getTagDet('vProd')) || 0, // This is vProd for the item
       desconto_item: vDescItem
     });
   }
@@ -366,6 +366,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === unidadeXML);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (unidadeXML || 'UN');
 
+        // CALCULAR VALOR TOTAL (quantidade * valor_unitario)
+        const valorTotalCalculated = (item.quantidade || 0) * (item.valor_unitario || 0);
+
         return {
           index,
           codigo: item.codigo || '',
@@ -374,11 +377,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           cfop: item.cfop || '',
           unidade: unidadeFinal,
           quantidade: item.quantidade || 0,
-          valor_unitario: item.valor_unitario || 0,
+          valor_total: valorTotalCalculated, // Now stores the total value
+          desconto_item: item.desconto_item || 0,
           produto_id: prod?.id,
           produto_nome: prod?.nome_produto,
-          status: prod ? 'associado' : 'pendente',
-          desconto_item: item.desconto_item || 0
+          status: prod ? 'associado' : 'pendente'
         };
       });
       
@@ -456,13 +459,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === item.unidade);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (item.unidade || 'UN');
 
+        // Derive preco_custo from the item's valor_total and quantidade
+        const precoCusto = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
+
         const newProduto = await base44.entities.Produto.create({
           empresa_id: empresaSelecionadaId,
           numero_produto: String(maxNum + 1),
           nome_produto: item.descricao.toUpperCase(),
           codigo_interno: item.codigo?.toUpperCase(),
           unidade_medida: unidadeFinal.toUpperCase(),
-          preco_custo: item.valor_unitario,
+          preco_custo: precoCusto, // Use derived unit price
           estoque_atual: 0
         });
 
@@ -506,8 +512,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       toast.error('❌ Quantidade deve ser maior que zero!');
       return;
     }
-    if (itemEditando.valor_unitario <= 0) {
-      toast.error('❌ Valor unitário deve ser maior que zero!');
+    // Changed validation to valor_total
+    if (itemEditando.valor_total <= 0) {
+      toast.error('❌ Valor total deve ser maior que zero!');
       return;
     }
     
@@ -583,7 +590,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
         quantidade: String(i.quantidade).replace('.', ','),
-        valor_unitario: String(i.valor_unitario).replace('.', ','),
+        // Changed to valor_total
+        valor_total: String(i.valor_total).replace('.', ','),
         desconto_item: String(i.desconto_item || 0).replace('.', ','),
         unidade: i.unidade
       })),
@@ -769,8 +777,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'}
                   </Button>
                   {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
-                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs">
-                      <Plus className="w-3 h-3" />
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs" disabled={showCadastroEmMassa}>
+                      {showCadastroEmMassa ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3" />}
                       Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
                     </Button>
                   )}
@@ -799,7 +807,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => {
-                      const valorTotal = (item.quantidade * item.valor_unitario) - (item.desconto_item || 0);
+                      // item.valor_total now holds the value_prod for the item
+                      const currentUnitPrice = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
+                      const valorFinalComDesconto = item.valor_total - (item.desconto_item || 0);
                       const isEditing = itemEditando?.index === item.index;
                       
                       return (
@@ -827,7 +837,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                               <Input 
                                 type="number" 
                                 value={itemEditando.quantidade} 
-                                onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value || '0')})} 
+                                onChange={(e) => {
+                                  const newQty = parseFloat(e.target.value || '0');
+                                  const oldUnitPrice = itemEditando.quantidade > 0 ? (itemEditando.valor_total / itemEditando.quantidade) : 0;
+                                  setItemEditando({
+                                    ...itemEditando, 
+                                    quantidade: newQty,
+                                    valor_total: newQty * oldUnitPrice // Recalculate total to keep unit price constant
+                                  });
+                                }} 
                                 className="h-7 w-20 text-xs text-right"
                                 step="0.01"
                               />
@@ -851,13 +869,21 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                             {isEditing ? (
                               <Input 
                                 type="text" 
-                                value={String(itemEditando.valor_unitario).replace('.', ',')} 
-                                onChange={(e) => setItemEditando({...itemEditando, valor_unitario: parseFloat(e.target.value.replace(',', '.')) || 0})} 
+                                // Display derived unit price from stored total and quantity
+                                value={String(itemEditando.quantidade > 0 ? (itemEditando.valor_total / itemEditando.quantidade) : 0).replace('.', ',')} 
+                                onChange={(e) => {
+                                  const newUnitPrice = parseFloat(e.target.value.replace(',', '.')) || 0;
+                                  setItemEditando({
+                                    ...itemEditando, 
+                                    // Update stored total based on new unit price and existing quantity
+                                    valor_total: newUnitPrice * itemEditando.quantidade
+                                  });
+                                }} 
                                 className="h-7 w-24 text-xs text-right"
                                 step="0.01"
                               />
                             ) : (
-                              <span className="font-mono text-xs">R$ {item.valor_unitario.toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs">R$ {currentUnitPrice.toFixed(2).replace('.', ',')}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -874,7 +900,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-green-700 text-xs">
-                            R$ {valorTotal.toFixed(2).replace('.', ',')}
+                            R$ {valorFinalComDesconto.toFixed(2).replace('.', ',')}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
