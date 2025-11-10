@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Search, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export default function TabelaEmpresas({ empresas, onEdit, onDelete, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +64,6 @@ export default function TabelaEmpresas({ empresas, onEdit, onDelete, isLoading }
                 <TableHead className="font-semibold text-slate-700">CPF/CNPJ</TableHead>
                 <TableHead className="font-semibold text-slate-700">Telefone</TableHead>
                 <TableHead className="font-semibold text-slate-700">Cidade</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,12 +78,11 @@ export default function TabelaEmpresas({ empresas, onEdit, onDelete, isLoading }
                       <TableCell><div className="h-4 bg-slate-200 rounded w-28"></div></TableCell>
                       <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
                       <TableCell><div className="h-4 bg-slate-200 rounded w-24"></div></TableCell>
-                      <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                     </TableRow>
                   ))
                 ) : filteredEmpresas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <Building2 className="w-12 h-12" />
                         <p className="text-lg font-medium">Nenhuma empresa encontrada</p>
@@ -90,69 +94,60 @@ export default function TabelaEmpresas({ empresas, onEdit, onDelete, isLoading }
                   </TableRow>
                 ) : (
                   filteredEmpresas.map((empresa) => (
-                    <motion.tr
-                      key={empresa.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                    >
-                      <TableCell>
-                        {empresa.logotipo_url ? (
-                          <img 
-                            src={empresa.logotipo_url} 
-                            alt={empresa.apelido}
-                            className="h-10 w-10 object-contain border rounded"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-slate-400" />
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-900">
-                        {empresa.apelido}
-                      </TableCell>
-                      <TableCell className="text-slate-700">
-                        {empresa.nome}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={empresa.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
-                          {empresa.tipo_pessoa}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-slate-700">
-                        {empresa.tipo_pessoa === 'Física' ? empresa.cpf || '-' : empresa.cnpj || '-'}
-                      </TableCell>
-                      <TableCell className="text-slate-700">
-                        {empresa.telefone || '-'}
-                      </TableCell>
-                      <TableCell className="text-slate-700">
-                        {empresa.cidade ? `${empresa.cidade} - ${empresa.estado || ''}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit(empresa)}
-                            className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDelete(empresa.id)}
-                            className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
+                    <ContextMenu key={empresa.id}>
+                      <ContextMenuTrigger asChild>
+                        <motion.tr
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          <TableCell>
+                            {empresa.logotipo_url ? (
+                              <img 
+                                src={empresa.logotipo_url} 
+                                alt={empresa.apelido}
+                                className="h-10 w-10 object-contain border rounded"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center">
+                                <Building2 className="w-5 h-5 text-slate-400" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-semibold text-slate-900">
+                            {empresa.apelido}
+                          </TableCell>
+                          <TableCell className="text-slate-700">
+                            {empresa.nome}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={empresa.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
+                              {empresa.tipo_pessoa}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-slate-700">
+                            {empresa.tipo_pessoa === 'Física' ? empresa.cpf || '-' : empresa.cnpj || '-'}
+                          </TableCell>
+                          <TableCell className="text-slate-700">
+                            {empresa.telefone || '-'}
+                          </TableCell>
+                          <TableCell className="text-slate-700">
+                            {empresa.cidade ? `${empresa.cidade} - ${empresa.estado || ''}` : '-'}
+                          </TableCell>
+                        </motion.tr>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onClick={() => onEdit(empresa)}>
+                          <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                          Editar
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => onDelete(empresa.id)}>
+                          <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                          Excluir
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   ))
                 )}
               </AnimatePresence>
