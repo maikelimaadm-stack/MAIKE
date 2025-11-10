@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck, Eye } from "lucide-react";
+import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck, Eye } from "lucide-icon";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -31,6 +31,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -502,7 +508,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   {colunasVisiveis.includes('observacoes') && (
                     <TableHead className="font-semibold text-slate-700">Observações</TableHead>
                   )}
-                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
+                  {/* Remove the "Ações" column header as actions will be in the context menu */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -519,7 +525,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                     ))
                   ) : sortedCustos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
+                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12"> {/* Adjusted colspan */}
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <DollarSign className="w-12 h-12" />
                           <p className="text-lg font-medium">Nenhum lançamento encontrado</p>
@@ -533,161 +539,151 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                     sortedCustos.map((custo) => {
                       const qtdEntregue = custo.quantidade_entregue || 0;
                       const qtdRestante = custo.quantidade - qtdEntregue;
-                      const percentualEntregue = (qtdEntregue / custo.quantidade) * 100;
+                      const percentualEntregue = (custo.quantidade > 0) ? (qtdEntregue / custo.quantidade) * 100 : 0;
 
                       return (
-                        <motion.tr
-                          key={custo.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                        >
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedItems.includes(custo.id)}
-                              onCheckedChange={() => toggleSelectItem(custo.id)}
-                            />
-                          </TableCell>
-                          {colunasVisiveis.includes('numero') && (
-                            <TableCell className="font-bold text-slate-900">
-                              {custo.numero_lancamento || '-'}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('fornecedor') && (
-                            <TableCell className="font-semibold text-slate-900">
-                              <div className="flex items-center gap-2">
-                                {custo.fornecedor_nome}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleVerFornecedor(custo.id)}
-                                  title="Ver detalhes do fornecedor"
-                                >
-                                  <Eye className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('produto') && (
-                            <TableCell className="text-slate-700">
-                              <div className="flex items-center gap-2">
-                                {custo.produto_nome}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleVerHistoricoEntregas(custo.id)}
-                                  title="Ver histórico de entregas"
-                                >
-                                  <Eye className="w-3 h-3 text-green-600" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('quantidade') && (
-                            <TableCell className="text-right font-mono text-slate-700">
-                              {formatarNumero(custo.quantidade)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('quantidade_entregue') && (
-                            <TableCell className="text-right">
-                              <div className="space-y-1">
-                                <div className="font-mono text-blue-700 font-semibold">
-                                  {formatarNumero(qtdEntregue)}
-                                </div>
-                                {qtdEntregue > 0 && (
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div 
-                                      className="bg-blue-600 h-1.5 rounded-full" 
-                                      style={{ width: `${percentualEntregue}%` }}
-                                    />
+                        <ContextMenu key={custo.id}>
+                          <ContextMenuTrigger asChild>
+                            <motion.tr
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedItems.includes(custo.id)}
+                                  onCheckedChange={() => toggleSelectItem(custo.id)}
+                                />
+                              </TableCell>
+                              {colunasVisiveis.includes('numero') && (
+                                <TableCell className="font-bold text-slate-900">
+                                  {custo.numero_lancamento || '-'}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('fornecedor') && (
+                                <TableCell className="font-semibold text-slate-900">
+                                  <div className="flex items-center gap-2">
+                                    {custo.fornecedor_nome}
+                                    {/* <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={(e) => { e.stopPropagation(); handleVerFornecedor(custo.id); }}
+                                      title="Ver detalhes do fornecedor"
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                    </Button> */}
                                   </div>
-                                )}
-                              </div>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('quantidade_restante') && (
-                            <TableCell className="text-right font-mono font-bold text-orange-700">
-                              {formatarNumero(qtdRestante)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('unidade') && (
-                            <TableCell className="text-slate-700">{custo.unidade_medida}</TableCell>
-                          )}
-                          {colunasVisiveis.includes('valor_unitario') && (
-                            <TableCell className="text-right font-mono text-slate-700">
-                              R$ {formatarNumero(custo.valor_unitario)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('valor_total') && (
-                            <TableCell className="text-right font-mono font-bold text-green-700">
-                              R$ {formatarNumero(custo.valor_total)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('prazo_entrega') && (
-                            <TableCell className="text-slate-700">{formatarData(custo.prazo_entrega)}</TableCell>
-                          )}
-                          {colunasVisiveis.includes('data_entrega') && (
-                            <TableCell className="text-slate-700">{formatarData(custo.data_entrega)}</TableCell>
-                          )}
-                          {colunasVisiveis.includes('status') && (
-                            <TableCell>
-                              <Badge className={`${getStatusBadge(custo.status_entrega)} border`}>
-                                {custo.status_entrega}
-                              </Badge>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('forma_pagamento') && (
-                            <TableCell className="text-slate-600">{custo.forma_pagamento || '-'}</TableCell>
-                          )}
-                          {colunasVisiveis.includes('observacoes') && (
-                            <TableCell className="text-slate-600 max-w-xs truncate">
-                              {custo.observacoes || '-'}
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onLancarEntrega(custo)}
-                                className="hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                                title="Lançar Entrega"
-                              >
-                                <Truck className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onEdit(custo)}
-                                className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                title="Editar"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onPrint(custo)}
-                                className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                                title="Imprimir"
-                              >
-                                <Printer className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onDelete(custo.id)}
-                                className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('produto') && (
+                                <TableCell className="text-slate-700">
+                                  <div className="flex items-center gap-2">
+                                    {custo.produto_nome}
+                                    {/* <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={(e) => { e.stopPropagation(); handleVerHistoricoEntregas(custo.id); }}
+                                      title="Ver histórico de entregas"
+                                    >
+                                      <Eye className="w-3 h-3 text-green-600" />
+                                    </Button> */}
+                                  </div>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('quantidade') && (
+                                <TableCell className="text-right font-mono text-slate-700">
+                                  {formatarNumero(custo.quantidade)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('quantidade_entregue') && (
+                                <TableCell className="text-right">
+                                  <div className="space-y-1">
+                                    <div className="font-mono text-blue-700 font-semibold">
+                                      {formatarNumero(qtdEntregue)}
+                                    </div>
+                                    {custo.quantidade > 0 && (
+                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                        <div 
+                                          className="bg-blue-600 h-1.5 rounded-full" 
+                                          style={{ width: `${percentualEntregue}%` }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('quantidade_restante') && (
+                                <TableCell className="text-right font-mono font-bold text-orange-700">
+                                  {formatarNumero(qtdRestante)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('unidade') && (
+                                <TableCell className="text-slate-700">{custo.unidade_medida}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('valor_unitario') && (
+                                <TableCell className="text-right font-mono text-slate-700">
+                                  R$ {formatarNumero(custo.valor_unitario)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('valor_total') && (
+                                <TableCell className="text-right font-mono font-bold text-green-700">
+                                  R$ {formatarNumero(custo.valor_total)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('prazo_entrega') && (
+                                <TableCell className="text-slate-700">{formatarData(custo.prazo_entrega)}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('data_entrega') && (
+                                <TableCell className="text-slate-700">{formatarData(custo.data_entrega)}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('status') && (
+                                <TableCell>
+                                  <Badge className={`${getStatusBadge(custo.status_entrega)} border`}>
+                                    {custo.status_entrega}
+                                  </Badge>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('forma_pagamento') && (
+                                <TableCell className="text-slate-600">{custo.forma_pagamento || '-'}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('observacoes') && (
+                                <TableCell className="text-slate-600 max-w-xs truncate">
+                                  {custo.observacoes || '-'}
+                                </TableCell>
+                              )}
+                              {/* Remove the individual action buttons */}
+                            </motion.tr>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem onClick={() => onLancarEntrega(custo)}>
+                              <Truck className="w-4 h-4 mr-2 text-orange-600" />
+                              Lançar Entrega
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => handleVerHistoricoEntregas(custo.id)}>
+                              <Eye className="w-4 h-4 mr-2 text-green-600" />
+                              Ver Histórico de Entregas
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => handleVerFornecedor(custo.id)}>
+                              <Eye className="w-4 h-4 mr-2 text-blue-600" />
+                              Ver Fornecedor
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onEdit(custo)}>
+                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                              Editar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onPrint(custo)}>
+                              <Printer className="w-4 h-4 mr-2 text-green-600" />
+                              Imprimir
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onDelete(custo.id)}>
+                              <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                              Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })
                   )}
