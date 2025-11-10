@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +56,33 @@ export default function Financeiro() {
     queryFn: async () => {
       const all = await base44.entities.Produto.list('nome_produto');
       return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: planos = [] } = useQuery({
+    queryKey: ['planos_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PlanoContas.list('codigo');
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.tipo === 'Despesa');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: grupos = [] } = useQuery({
+    queryKey: ['grupos_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoFinanceiro.list();
+      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false && g.tipo === 'Despesa');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: formasPagamento = [] } = useQuery({
+    queryKey: ['formas_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.FormaPagamento.list();
+      return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -265,53 +291,144 @@ export default function Financeiro() {
   };
 
   const handleImportarXMLSuccess = async (dados) => {
-    setShowImportarXML(false);
-    
-    const dadosFormulario = {
-      tipo: "Pagar",
-      tipo_documento: "NF-e", // Always NF-e when importing XML
-      fornecedor_id: dados.fornecedor_id,
-      data_emissao: dados.dadosNFe.data_emissao,
-      data_vencimento: dados.dataVencimento,
-      numero_documento: dados.dadosNFe.numero,
-      serie_documento: dados.dadosNFe.serie,
-      chave_nfe: dados.dadosNFe.chave,
-      cfop: dados.dadosNFe.cfop || '',
-      safra_id: dados.dadosComplementares?.safra_id || '',
-      centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
-      plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
-      grupo_id: dados.dadosComplementares?.grupo_id || '',
-      forma_pagamento_id: dados.dadosComplementares?.forma_pagamento_id || '',
-      lancar_produtos: dados.gerarEstoque !== false,
-      dar_entrada_estoque: dados.gerarEstoque !== false,
-      local_estoque: dados.dadosComplementares?.local_estoque || '',
-      conta_paga: dados.conta_paga || false,
-      data_pagamento: dados.data_pagamento || '',
-      valor_pago_total: dados.valor_pago_total ? String(dados.valor_pago_total).replace('.', ',') : '',
-      forma_pagamento_paga_id: dados.forma_pagamento_paga_id || '',
-      produtos_selecionados: dados.itens.map(item => ({
-        produto_id: item.produto_id,
-        produto_nome: item.produto_nome,
-        quantidade: String(item.quantidade).replace('.', ','),
-        valor_unitario: String(item.valor_unitario).replace('.', ','),
-        desconto_item: String(item.desconto_item || 0).replace('.', ','),
-        unidade: item.unidade
-      })),
-      frete: String(dados.dadosComplementares?.frete || 0).replace('.', ','),
-      desconto_total: String(dados.dadosComplementares?.desconto_total || 0).replace('.', ','),
-      outras_despesas: String(dados.dadosComplementares?.outras_despesas || 0).replace('.', ','),
-      observacoes: dados.dadosComplementares?.observacoes || '',
-      parcelar: dados.parcelar || false,
-      parcelas: dados.parcelas?.map(p => ({
-        data: p.data,
-        valor: String(p.valor).replace('.', ',')
-      })) || [],
-      anexos: []
-    };
-    
-    setDadosXML(dadosFormulario);
-    setShowForm(true);
-    toast.success('✅ Dados importados! Complete e salve.');
+    if (dados.auto_importacao) {
+      // IMPORTAÇÃO AUTOMÁTICA RÁPIDA
+      setShowProgressoSalvamento(true);
+      setProgressoSalvamento({ etapa: '💾 Salvando lançamento...', current: 50, total: 100 });
+
+      try {
+        const numero = await getNextNumber(empresaSelecionadaId);
+        
+        const fornecedor = fornecedores.find(f => f.id === dados.fornecedor_id);
+        const plano = planos[0];
+        const grupo = grupos[0];
+
+        if (!plano || !grupo) {
+          toast.error('❌ Configure Plano de Contas e Grupo Financeiro!');
+          setShowProgressoSalvamento(false);
+          return;
+        }
+
+        const subtotalProdutos = dados.itens.reduce((sum, p) => 
+          sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
+        );
+        
+        const valorTotal = subtotalProdutos + dados.dadosComplementares.frete + dados.dadosComplementares.outras_despesas - dados.dadosComplementares.desconto_total;
+
+        const lanc = await base44.entities.LancamentoFinanceiro.create({
+          empresa_id: empresaSelecionadaId,
+          numero_lancamento: String(numero),
+          tipo: "Pagar",
+          tipo_documento: "NF-e",
+          fornecedor_id: dados.fornecedor_id,
+          fornecedor_nome: fornecedor?.nome,
+          plano_contas_id: plano.id,
+          plano_contas_nome: `${plano.codigo} - ${plano.descricao}`,
+          grupo_id: grupo.id,
+          grupo_nome: grupo.descricao,
+          numero_documento: dados.dadosNFe.numero,
+          chave_nfe: dados.dadosNFe.chave,
+          serie_documento: dados.dadosNFe.serie,
+          cfop: dados.dadosNFe.cfop,
+          data_emissao: dados.dadosNFe.data_emissao,
+          data_vencimento: dados.dataVencimento,
+          valor_original: valorTotal,
+          valor_total: valorTotal,
+          valor_pago: dados.conta_paga ? dados.valor_pago_total : 0,
+          valor_saldo: dados.conta_paga ? (valorTotal - dados.valor_pago_total) : valorTotal,
+          valor_juros: 0,
+          valor_multa: 0,
+          valor_desconto: 0,
+          status: dados.conta_paga ? 'Pago' : 'Pendente',
+          observacoes: dados.dadosComplementares.observacoes,
+          produtos_lancamento: dados.itens,
+          anexos: []
+        });
+
+        if (dados.conta_paga) {
+          setProgressoSalvamento({ etapa: '✅ Registrando baixa automática...', current: 75, total: 100 });
+          const allBaixas = await base44.entities.BaixaFinanceira.list();
+          const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
+          
+          const formaEncontrada = formasPagamento.find(f => 
+            f.descricao.toLowerCase().includes(dados.forma_pagamento_paga_nome?.toLowerCase() || '')
+          );
+
+          await base44.entities.BaixaFinanceira.create({
+            empresa_id: empresaSelecionadaId,
+            numero_baixa: String(maxNumBaixa + 1),
+            lancamento_id: lanc.id,
+            data_baixa: dados.data_pagamento,
+            valor_baixa: dados.valor_pago_total,
+            valor_juros: 0,
+            valor_multa: 0,
+            valor_desconto: 0,
+            forma_pagamento_id: formaEncontrada?.id,
+            forma_pagamento_nome: formaEncontrada?.descricao || dados.forma_pagamento_paga_nome,
+            observacoes: 'BAIXA AUTOMÁTICA - IMPORTAÇÃO XML',
+            usuario_responsavel: (await base44.auth.me()).email
+          });
+        }
+
+        setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+        setShowProgressoSalvamento(false);
+        toast.success('🎉 NF-e importada com sucesso!');
+
+      } catch (error) {
+        setShowProgressoSalvamento(false);
+        toast.error('❌ Erro ao salvar: ' + error.message);
+      }
+    } else {
+      // IMPORTAÇÃO MANUAL (ANTIGA)
+      const dadosFormulario = {
+        tipo: "Pagar",
+        tipo_documento: "NF-e",
+        fornecedor_id: dados.fornecedor_id,
+        data_emissao: dados.dadosNFe.data_emissao,
+        data_vencimento: dados.dataVencimento,
+        numero_documento: dados.dadosNFe.numero,
+        serie_documento: dados.dadosNFe.serie,
+        chave_nfe: dados.dadosNFe.chave,
+        cfop: dados.dadosNFe.cfop || '',
+        safra_id: dados.dadosComplementares?.safra_id || '',
+        centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
+        plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
+        grupo_id: dados.dadosComplementares?.grupo_id || '',
+        forma_pagamento_id: dados.dadosComplementares?.forma_pagamento_id || '',
+        lancar_produtos: dados.gerarEstoque !== false,
+        dar_entrada_estoque: dados.gerarEstoque !== false,
+        local_estoque: dados.dadosComplementares?.local_estoque || '',
+        conta_paga: dados.conta_paga || false,
+        data_pagamento: dados.data_pagamento || '',
+        valor_pago_total: dados.valor_pago_total ? String(dados.valor_pago_total).replace('.', ',') : '',
+        forma_pagamento_paga_id: dados.forma_pagamento_paga_id || '',
+        produtos_selecionados: dados.itens.map(item => ({
+          produto_id: item.produto_id,
+          produto_nome: item.produto_nome,
+          quantidade: String(item.quantidade).replace('.', ','),
+          valor_unitario: String(item.valor_unitario).replace('.', ','),
+          desconto_item: String(item.desconto_item || 0).replace('.', ','),
+          unidade: item.unidade
+        })),
+        frete: String(dados.dadosComplementares?.frete || 0).replace('.', ','),
+        desconto_total: String(dados.dadosComplementares?.desconto_total || 0).replace('.', ','),
+        outras_despesas: String(dados.dadosComplementares?.outras_despesas || 0).replace('.', ','),
+        observacoes: dados.dadosComplementares?.observacoes || '',
+        parcelar: dados.parcelar || false,
+        parcelas: dados.parcelas?.map(p => ({
+          data: p.data,
+          valor: String(p.valor).replace('.', ',')
+        })) || [],
+        anexos: []
+      };
+      
+      setDadosXML(dadosFormulario);
+      setShowForm(true);
+      toast.success('✅ Dados importados! Complete e salve.');
+    }
   };
 
   const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar');
