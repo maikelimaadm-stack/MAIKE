@@ -33,6 +33,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -493,102 +499,119 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     </TableRow>
                   ) : (
                     paginatedPesagens.map((pesagem) => (
-                      <motion.tr
-                        key={pesagem.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedItems.includes(pesagem.id)}
-                            onCheckedChange={() => toggleSelectItem(pesagem.id)}
-                          />
-                        </TableCell>
-                        {colunasVisiveis.includes('numero') && (
-                          <TableCell className="font-bold text-slate-900">
-                            {pesagem.numero_registro || '-'}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('data') && (
-                          <TableCell className="font-medium text-slate-700">
-                            {formatarData(pesagem.data_pesagem)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('tipo') && (
-                          <TableCell>
-                            <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
-                              {pesagem.tipo_pesagem}
-                            </Badge>
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('placa') && (
-                          <TableCell className="font-semibold text-slate-900 uppercase">
-                            {pesagem.placa_caminhao}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('motorista') && (
-                          <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('produto') && (
-                          <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('fornecedor') && (
-                          <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('tara') && (
-                          <TableCell className="text-right font-mono text-slate-700">
-                            {formatarNumero(pesagem.peso_tara)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('bruto') && (
-                          <TableCell className="text-right font-mono text-slate-700">
-                            {formatarNumero(pesagem.peso_bruto)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('liquido') && (
-                          <TableCell className="text-right font-mono font-bold text-green-700">
-                            {formatarNumero(pesagem.peso_liquido)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('observacoes') && (
-                          <TableCell className="text-slate-600 max-w-xs truncate">
-                            {pesagem.observacoes || '-'}
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onEdit(pesagem)}
-                              className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onPrint(pesagem)}
-                              className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                              title="Imprimir Ticket"
-                            >
-                              <Printer className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onDelete(pesagem.id)}
-                              className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
+                      <ContextMenu key={pesagem.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedItems.includes(pesagem.id)}
+                                onCheckedChange={() => toggleSelectItem(pesagem.id)}
+                              />
+                            </TableCell>
+                            {colunasVisiveis.includes('numero') && (
+                              <TableCell className="font-bold text-slate-900">
+                                {pesagem.numero_registro || '-'}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('data') && (
+                              <TableCell className="font-medium text-slate-700">
+                                {formatarData(pesagem.data_pesagem)}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('tipo') && (
+                              <TableCell>
+                                <Badge className={`${getTipoBadgeColor(pesagem.tipo_pesagem)} border`}>
+                                  {pesagem.tipo_pesagem}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('placa') && (
+                              <TableCell className="font-semibold text-slate-900 uppercase">
+                                {pesagem.placa_caminhao}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('motorista') && (
+                              <TableCell className="text-slate-700">{pesagem.nome_motorista}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('produto') && (
+                              <TableCell className="text-slate-700">{pesagem.produto}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('fornecedor') && (
+                              <TableCell className="text-slate-600">{pesagem.fornecedor_destino || '-'}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('tara') && (
+                              <TableCell className="text-right font-mono text-slate-700">
+                                {formatarNumero(pesagem.peso_tara)}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('bruto') && (
+                              <TableCell className="text-right font-mono text-slate-700">
+                                {formatarNumero(pesagem.peso_bruto)}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('liquido') && (
+                              <TableCell className="text-right font-mono font-bold text-green-700">
+                                {formatarNumero(pesagem.peso_liquido)}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('observacoes') && (
+                              <TableCell className="text-slate-600 max-w-xs truncate">
+                                {pesagem.observacoes || '-'}
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onEdit(pesagem)}
+                                  className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onPrint(pesagem)}
+                                  className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                                  title="Imprimir Ticket"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onDelete(pesagem.id)}
+                                  className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => onEdit(pesagem)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => onPrint(pesagem)}>
+                            <Printer className="w-4 h-4 mr-2 text-green-600" />
+                            Imprimir Ticket
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => onDelete(pesagem.id)}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </AnimatePresence>

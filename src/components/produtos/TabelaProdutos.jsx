@@ -24,6 +24,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 
 const formatarNumero = (numero) => {
@@ -277,106 +283,123 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                       const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
                       
                       return (
-                        <motion.tr
-                          key={produto.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
-                        >
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedItems.includes(produto.id)}
-                              onCheckedChange={() => toggleSelectItem(produto.id)}
-                            />
-                          </TableCell>
-                          {colunasVisiveis.includes('numero') && (
-                            <TableCell className="font-bold text-slate-900">
-                              {produto.numero_produto || '-'}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('nome') && (
-                            <TableCell className="font-semibold text-slate-900">
-                              {produto.nome_produto}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('codigo') && (
-                            <TableCell className="font-mono text-slate-700">
-                              {produto.codigo_interno || '-'}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('barras') && (
-                            <TableCell className="font-mono text-slate-700">
-                              {produto.codigo_barras || '-'}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('categoria') && (
-                            <TableCell>
-                              <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
-                                {produto.categoria || 'Sem categoria'}
-                              </Badge>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('unidade') && (
-                            <TableCell className="text-slate-700">{produto.unidade_medida}</TableCell>
-                          )}
-                          {colunasVisiveis.includes('preco_custo') && (
-                            <TableCell className="text-right font-mono text-slate-700">
-                              R$ {formatarNumero(produto.preco_custo || 0)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('preco_venda') && (
-                            <TableCell className="text-right font-mono font-semibold text-green-700">
-                              R$ {formatarNumero(produto.preco_venda || 0)}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('estoque') && (
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                {estoqueAbaixoMinimo && <AlertTriangle className="w-4 h-4 text-orange-600" />}
-                                <span className={`font-bold ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
-                                  {formatarNumero(produto.estoque_atual || 0)}
-                                </span>
-                              </div>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('estoque_min') && (
-                            <TableCell className="text-right text-slate-700">
-                              {formatarNumero(produto.estoque_minimo || 0)}
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onEdit && onEdit(produto)}
-                                className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                title="Editar"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onPrint && onPrint(produto)}
-                                className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                                title="Imprimir Ficha"
-                              >
-                                <Printer className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onDelete && onDelete(produto.id)}
-                                className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
+                        <ContextMenu key={produto.id}>
+                          <ContextMenuTrigger asChild>
+                            <motion.tr
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
+                            >
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedItems.includes(produto.id)}
+                                  onCheckedChange={() => toggleSelectItem(produto.id)}
+                                />
+                              </TableCell>
+                              {colunasVisiveis.includes('numero') && (
+                                <TableCell className="font-bold text-slate-900">
+                                  {produto.numero_produto || '-'}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('nome') && (
+                                <TableCell className="font-semibold text-slate-900">
+                                  {produto.nome_produto}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('codigo') && (
+                                <TableCell className="font-mono text-slate-700">
+                                  {produto.codigo_interno || '-'}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('barras') && (
+                                <TableCell className="font-mono text-slate-700">
+                                  {produto.codigo_barras || '-'}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('categoria') && (
+                                <TableCell>
+                                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
+                                    {produto.categoria || 'Sem categoria'}
+                                  </Badge>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('unidade') && (
+                                <TableCell className="text-slate-700">{produto.unidade_medida}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('preco_custo') && (
+                                <TableCell className="text-right font-mono text-slate-700">
+                                  R$ {formatarNumero(produto.preco_custo || 0)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('preco_venda') && (
+                                <TableCell className="text-right font-mono font-semibold text-green-700">
+                                  R$ {formatarNumero(produto.preco_venda || 0)}
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('estoque') && (
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {estoqueAbaixoMinimo && <AlertTriangle className="w-4 h-4 text-orange-600" />}
+                                    <span className={`font-bold ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
+                                      {formatarNumero(produto.estoque_atual || 0)}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                              )}
+                              {colunasVisiveis.includes('estoque_min') && (
+                                <TableCell className="text-right text-slate-700">
+                                  {formatarNumero(produto.estoque_minimo || 0)}
+                                </TableCell>
+                              )}
+                              <TableCell>
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onEdit && onEdit(produto)}
+                                    className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                    title="Editar"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onPrint && onPrint(produto)}
+                                    className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                                    title="Imprimir Ficha"
+                                  >
+                                    <Printer className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onDelete && onDelete(produto.id)}
+                                    className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </motion.tr>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem onClick={() => onEdit && onEdit(produto)}>
+                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                              Editar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onPrint && onPrint(produto)}>
+                              <Printer className="w-4 h-4 mr-2 text-green-600" />
+                              Imprimir Ficha
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => onDelete && onDelete(produto.id)}>
+                              <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                              Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })
                   )}

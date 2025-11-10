@@ -15,6 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -145,12 +151,12 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       mov.fornecedor_nome?.toLowerCase().includes(searchLower) ||
       mov.cliente_nome?.toLowerCase().includes(searchLower) ||
       mov.numero_documento?.toLowerCase().includes(searchLower) ||
-      mov.numero_movimentacao?.includes(searchLower) ||
+      String(mov.numero_movimentacao)?.includes(searchLower) || // Ensure mov.numero_movimentacao is treated as string for search
       mov.usuario_responsavel?.toLowerCase().includes(searchLower) ||
       mov.tipo_documento?.toLowerCase().includes(searchLower) ||
       mov.centro_custo_nome?.toLowerCase().includes(searchLower) ||
       mov.safra_nome?.toLowerCase().includes(searchLower) ||
-      mov.observacoes?.toLowerCase().includes(searchLower) // Added observations to search
+      mov.observacoes?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -194,22 +200,19 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
         aValue = a.fornecedor_nome || '';
         bValue = b.fornecedor_nome || '';
         break;
-      case 'cliente': // Added client to sortable fields as a string
+      case 'cliente':
         aValue = a.cliente_nome || '';
         bValue = b.cliente_nome || '';
         break;
-      case 'safra': // Added safra to sortable fields as a string
+      case 'safra':
         aValue = a.safra_nome || '';
         bValue = b.safra_nome || '';
         break;
-      case 'centro_custo': // Added centro_custo to sortable fields as a string
+      case 'centro_custo':
         aValue = a.centro_custo_nome || '';
         bValue = b.centro_custo_nome || '';
         break;
-      // Note: New sortable fields like 'produto_codigo', 'produto_categoria', etc., can be added here if needed.
-      // Current COLUNAS_DISPONIVEIS outline does not mark them as sortable.
       default:
-        // Default sort by data if sortField is not recognized or not explicitly handled
         aValue = new Date(a.data_movimentacao).getTime();
         bValue = new Date(b.data_movimentacao).getTime();
         break;
@@ -413,146 +416,159 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                   </TableRow>
                 ) : (
                   sortedMovimentacoes.map((mov) => (
-                    <motion.tr
-                      key={mov.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                    >
-                      {colunasVisiveis.includes('numero') && (
-                        <TableCell className="font-bold text-slate-900">{mov.numero_movimentacao || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('data') && (
-                        <TableCell className="text-slate-700 text-xs">{formatarData(mov.data_movimentacao)}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('tipo') && (
-                        <TableCell>
-                          <Badge className={`${getTipoBadge(mov.tipo_movimentacao)} border`}>
-                            {mov.tipo_movimentacao}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('tipo_detalhado') && (
-                        <TableCell className="text-xs text-slate-700">{mov.tipo_detalhado || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('tipo_documento') && (
-                        <TableCell className="text-xs text-slate-700">{mov.tipo_documento || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('documento') && (
-                        <TableCell className="font-mono text-xs">{mov.numero_documento || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('chave_documento') && (
-                        <TableCell className="font-mono text-xs max-w-[150px] truncate" title={mov.chave_documento}>
-                            {mov.chave_documento || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('serie_documento') && (
-                        <TableCell className="text-xs">{mov.serie_documento || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('produto') && (
-                        <TableCell className="font-semibold text-slate-900">{mov.produto_nome}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('produto_codigo') && (
-                        <TableCell className="font-mono text-xs">{mov.produto_codigo || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('produto_categoria') && (
-                        <TableCell className="text-xs">{mov.produto_categoria || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('quantidade') && (
-                        <TableCell className="text-right font-mono font-bold text-green-700">
-                          {formatarNumero(mov.quantidade)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('unidade') && (
-                        <TableCell className="text-xs">{mov.unidade_medida || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('local_origem') && (
-                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_origem || mov.local_estoque_origem}>
-                            {mov.local_origem || mov.local_estoque_origem || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('local_destino') && (
-                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_destino || mov.local_estoque_destino}>
-                            {mov.local_destino || mov.local_estoque_destino || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('valor_unitario') && (
-                        <TableCell className="text-right font-mono text-slate-700">
-                          {formatarMoeda(mov.valor_unitario)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('valor_total') && (
-                        <TableCell className="text-right font-mono font-bold text-green-700">
-                          {formatarMoeda(mov.valor_total)}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('fornecedor') && (
-                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.fornecedor_nome}>
-                            {mov.fornecedor_nome || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('cliente') && (
-                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.cliente_nome}>
-                            {mov.cliente_nome || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('safra') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.safra_nome || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('centro_custo') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.centro_custo_nome || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('usuario') && (
-                        <TableCell className="text-slate-600 text-xs">{mov.responsavel || mov.usuario_responsavel || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('lancamento_origem') && (
-                        <TableCell className="text-xs">
-                          {mov.lancamento_origem_id ? (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700">Financeiro</Badge>
-                          ) : '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('observacoes') && (
-                        <TableCell className="text-slate-600 text-xs max-w-[150px] truncate" title={mov.observacoes}>
-                          {mov.observacoes || '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('saldo_antes') && (
-                        <TableCell className="text-right font-mono text-xs">{formatarNumero(mov.saldo_antes)}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('saldo_depois') && (
-                        <TableCell className="text-right font-mono text-xs font-bold">{formatarNumero(mov.saldo_depois)}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('custo_medio_antes') && (
-                        <TableCell className="text-right font-mono text-xs">{formatarMoeda(mov.custo_medio_antes)}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('custo_medio_depois') && (
-                        <TableCell className="text-right font-mono text-xs font-bold">{formatarMoeda(mov.custo_medio_depois)}</TableCell>
-                      )}
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit && onEdit(mov)}
-                            className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onCancel && onCancel(mov.id)}
-                            className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                            title="Cancelar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
+                    <ContextMenu key={mov.id}>
+                      <ContextMenuTrigger asChild>
+                        <motion.tr
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                        >
+                          {colunasVisiveis.includes('numero') && (
+                            <TableCell className="font-bold text-slate-900">{mov.numero_movimentacao || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('data') && (
+                            <TableCell className="text-slate-700 text-xs">{formatarData(mov.data_movimentacao)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('tipo') && (
+                            <TableCell>
+                              <Badge className={`${getTipoBadge(mov.tipo_movimentacao)} border`}>
+                                {mov.tipo_movimentacao}
+                              </Badge>
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('tipo_detalhado') && (
+                            <TableCell className="text-xs text-slate-700">{mov.tipo_detalhado || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('tipo_documento') && (
+                            <TableCell className="text-xs text-slate-700">{mov.tipo_documento || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('documento') && (
+                            <TableCell className="font-mono text-xs">{mov.numero_documento || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('chave_documento') && (
+                            <TableCell className="font-mono text-xs max-w-[150px] truncate" title={mov.chave_documento}>
+                                {mov.chave_documento || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('serie_documento') && (
+                            <TableCell className="text-xs">{mov.serie_documento || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('produto') && (
+                            <TableCell className="font-semibold text-slate-900">{mov.produto_nome}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('produto_codigo') && (
+                            <TableCell className="font-mono text-xs">{mov.produto_codigo || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('produto_categoria') && (
+                            <TableCell className="text-xs">{mov.produto_categoria || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('quantidade') && (
+                            <TableCell className="text-right font-mono font-bold text-green-700">
+                              {formatarNumero(mov.quantidade)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('unidade') && (
+                            <TableCell className="text-xs">{mov.unidade_medida || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('local_origem') && (
+                            <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_origem || mov.local_estoque_origem}>
+                                {mov.local_origem || mov.local_estoque_origem || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('local_destino') && (
+                            <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_destino || mov.local_estoque_destino}>
+                                {mov.local_destino || mov.local_estoque_destino || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('valor_unitario') && (
+                            <TableCell className="text-right font-mono text-slate-700">
+                              {formatarMoeda(mov.valor_unitario)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('valor_total') && (
+                            <TableCell className="text-right font-mono font-bold text-green-700">
+                              {formatarMoeda(mov.valor_total)}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('fornecedor') && (
+                            <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.fornecedor_nome}>
+                                {mov.fornecedor_nome || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('cliente') && (
+                            <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.cliente_nome}>
+                                {mov.cliente_nome || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('safra') && (
+                            <TableCell className="text-slate-700 text-xs">{mov.safra_nome || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('centro_custo') && (
+                            <TableCell className="text-slate-700 text-xs">{mov.centro_custo_nome || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('usuario') && (
+                            <TableCell className="text-slate-600 text-xs">{mov.responsavel || mov.usuario_responsavel || '-'}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('lancamento_origem') && (
+                            <TableCell className="text-xs">
+                              {mov.lancamento_origem_id ? (
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700">Financeiro</Badge>
+                              ) : '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('observacoes') && (
+                            <TableCell className="text-slate-600 text-xs max-w-[150px] truncate" title={mov.observacoes}>
+                              {mov.observacoes || '-'}
+                            </TableCell>
+                          )}
+                          {colunasVisiveis.includes('saldo_antes') && (
+                            <TableCell className="text-right font-mono text-xs">{formatarNumero(mov.saldo_antes)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('saldo_depois') && (
+                            <TableCell className="text-right font-mono text-xs font-bold">{formatarNumero(mov.saldo_depois)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('custo_medio_antes') && (
+                            <TableCell className="text-right font-mono text-xs">{formatarMoeda(mov.custo_medio_antes)}</TableCell>
+                          )}
+                          {colunasVisiveis.includes('custo_medio_depois') && (
+                            <TableCell className="text-right font-mono text-xs font-bold">{formatarMoeda(mov.custo_medio_depois)}</TableCell>
+                          )}
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit && onEdit(mov)}
+                                className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onCancel && onCancel(mov.id)}
+                                className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                                title="Cancelar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onClick={() => onEdit && onEdit(mov)}>
+                          <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                          Editar
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => onCancel && onCancel(mov.id)}>
+                          <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                          Cancelar
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   ))
                 )}
               </AnimatePresence>

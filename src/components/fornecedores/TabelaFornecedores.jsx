@@ -24,6 +24,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true },
@@ -273,90 +279,107 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
                     </TableRow>
                   ) : (
                     filteredFornecedores.map((fornecedor) => (
-                      <motion.tr
-                        key={fornecedor.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedItems.includes(fornecedor.id)}
-                            onCheckedChange={() => toggleSelectItem(fornecedor.id)}
-                          />
-                        </TableCell>
-                        {colunasVisiveis.includes('numero') && (
-                          <TableCell className="font-bold text-slate-900">
-                            {fornecedor.numero_cadastro || '-'}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('nome') && (
-                          <TableCell className="font-semibold text-slate-900">
-                            {fornecedor.nome}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('tipo') && (
-                          <TableCell>
-                            <Badge className={fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
-                              {fornecedor.tipo_pessoa}
-                            </Badge>
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('documento') && (
-                          <TableCell className="font-mono text-slate-700">
-                            {fornecedor.tipo_pessoa === 'Física' ? fornecedor.cpf || '-' : fornecedor.cnpj || '-'}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('telefone') && (
-                          <TableCell className="text-slate-700">{fornecedor.telefone || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('email') && (
-                          <TableCell className="text-slate-700">{fornecedor.email || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('cidade') && (
-                          <TableCell className="text-slate-700">{fornecedor.cidade || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('estado') && (
-                          <TableCell className="text-slate-700 uppercase">{fornecedor.estado || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('observacoes') && (
-                          <TableCell className="text-slate-600 max-w-xs truncate">
-                            {fornecedor.observacoes || '-'}
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onEdit(fornecedor)}
-                              className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onPrint(fornecedor)}
-                              className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                              title="Imprimir Ficha"
-                            >
-                              <Printer className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onDelete(fornecedor.id)}
-                              className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
+                      <ContextMenu key={fornecedor.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedItems.includes(fornecedor.id)}
+                                onCheckedChange={() => toggleSelectItem(fornecedor.id)}
+                              />
+                            </TableCell>
+                            {colunasVisiveis.includes('numero') && (
+                              <TableCell className="font-bold text-slate-900">
+                                {fornecedor.numero_cadastro || '-'}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('nome') && (
+                              <TableCell className="font-semibold text-slate-900">
+                                {fornecedor.nome}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('tipo') && (
+                              <TableCell>
+                                <Badge className={fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}>
+                                  {fornecedor.tipo_pessoa}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('documento') && (
+                              <TableCell className="font-mono text-slate-700">
+                                {fornecedor.tipo_pessoa === 'Física' ? fornecedor.cpf || '-' : fornecedor.cnpj || '-'}
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('telefone') && (
+                              <TableCell className="text-slate-700">{fornecedor.telefone || '-'}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('email') && (
+                              <TableCell className="text-slate-700">{fornecedor.email || '-'}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('cidade') && (
+                              <TableCell className="text-slate-700">{fornecedor.cidade || '-'}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('estado') && (
+                              <TableCell className="text-slate-700 uppercase">{fornecedor.estado || '-'}</TableCell>
+                            )}
+                            {colunasVisiveis.includes('observacoes') && (
+                              <TableCell className="text-slate-600 max-w-xs truncate">
+                                {fornecedor.observacoes || '-'}
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onEdit(fornecedor)}
+                                  className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onPrint(fornecedor)}
+                                  className="hover:bg-green-50 hover:text-green-700 transition-colors"
+                                  title="Imprimir Ficha"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onDelete(fornecedor.id)}
+                                  className="hover:bg-red-50 hover:text-red-700 transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => onEdit(fornecedor)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => onPrint(fornecedor)}>
+                            <Printer className="w-4 h-4 mr-2 text-green-600" />
+                            Imprimir Ficha
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => onDelete(fornecedor.id)}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </AnimatePresence>
