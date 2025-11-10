@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +17,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const ESTADOS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return "R$ 0,00";
+  const valorNum = typeof valor === 'number' ? valor : parseFloat(String(valor).replace(',', '.')) || 0;
+  return valorNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
 
 const extrairDadosXML = (xmlText) => {
   const parser = new DOMParser();
@@ -651,6 +658,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
 
+  const estadosOptions = ESTADOS_BRASIL.map(uf => ({ value: uf, label: uf }));
+  const unidadesOptions = unidadesMedida.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.nome}` }));
+
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !processando) { onClose(); resetar(); } }}>
@@ -703,7 +713,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   <div><strong>Número:</strong> {dadosNFe.numero}</div>
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
-                  <div><strong>Valor:</strong> R$ {dadosNFe.valor_total.toFixed(2)}</div>
+                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
                 </CardContent>
               </Card>
 
@@ -769,12 +779,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Estado</Label>
-                    <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
-                      <SelectContent>
-                        {ESTADOS_BRASIL.map(uf => <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={estadosOptions}
+                      value={novoFornecedor.estado}
+                      onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}
+                      placeholder="UF"
+                      searchPlaceholder="Buscar estado..."
+                      className="h-8 text-xs"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">CEP</Label>
@@ -825,10 +837,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
                       <TableHead className="text-right">Un.</TableHead>
-                      <TableHead className="text-right">Vlr Total</TableHead> {/* Changed from Vlr Unit. */}
+                      <TableHead className="text-right">Vlr Total</TableHead>
                       <TableHead className="text-right">Desc.</TableHead>
-                      <TableHead className="text-right">Líquido</TableHead> {/* Changed from Total */}
-                      <TableHead className="text-center w-24">Ações</TableHead>
+                      <TableHead className="text-right">Líquido</TableHead>
+                      <TableHead className="text-center w-28">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -892,7 +904,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                                 step="0.01"
                               />
                             ) : (
-                              <span className="font-mono text-xs">R$ {item.valor_total.toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs">{formatarMoeda(item.valor_total)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -905,15 +917,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                                 step="0.01"
                               />
                             ) : (
-                              <span className="font-mono text-xs text-red-600">{(item.desconto_item || 0).toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs text-red-600">{formatarMoeda(item.desconto_item || 0)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="font-mono font-bold text-green-700 text-xs">
-                              R$ {valorLiquido.toFixed(2).replace('.', ',')}
+                              {formatarMoeda(valorLiquido)}
                             </div>
                             <div className="text-[10px] text-slate-500">
-                              Un: R$ {valorUnitario.toFixed(2).replace('.', ',')}
+                              Un: {formatarMoeda(valorUnitario)}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -929,13 +941,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                                 </>
                               ) : (
                                 <>
-                                  <Button size="sm" variant="ghost" onClick={() => handleEditarItem(item)} className="h-6 w-6 p-0 text-blue-600">
+                                  <Button size="sm" variant="ghost" onClick={() => handleEditarItem(item)} className="h-6 w-6 p-0 text-blue-600" title="Editar valores">
                                     <Edit2 className="w-3 h-3" />
                                   </Button>
                                   {item.status === 'pendente' && (
-                                    <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-purple-600">
-                                      <RefreshCw className="w-3 h-3" />
-                                    </Button>
+                                    <>
+                                      <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-purple-600" title="Associar produto">
+                                        <RefreshCw className="w-3 h-3" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowNovoProduto(true); }} className="h-6 w-6 p-0 text-emerald-600" title="Cadastrar novo produto">
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                    </>
                                   )}
                                 </>
                               )}
@@ -958,31 +975,31 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     <div className="border-t pt-1.5 space-y-1">
                       <div className="flex justify-between">
                         <span className="text-slate-600">Subtotal Produtos (bruto):</span>
-                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0).toFixed(2).replace('.', ',')}</span>
+                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0))}</span>
                       </div>
                       <div className="flex justify-between text-red-600">
                         <span>(-) Descontos nos Produtos:</span>
-                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0).toFixed(2).replace('.', ',')}</span>
+                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0))}</span>
                       </div>
                       <div className="flex justify-between font-semibold text-blue-700 border-t pt-1">
                         <span>= Subtotal Produtos (líquido):</span>
-                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0).toFixed(2).replace('.', ',')}</span>
+                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span>
                       </div>
                       <div className="flex justify-between text-amber-700">
                         <span>(+) Frete:</span>
-                        <span className="font-mono">R$ {(dadosNFe.valor_frete || 0).toFixed(2).replace('.', ',')}</span>
+                        <span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span>
                       </div>
                       <div className="flex justify-between text-amber-700">
                         <span>(+) Outras Despesas:</span>
-                        <span className="font-mono">R$ {(dadosNFe.valor_outras_despesas || 0).toFixed(2).replace('.', ',')}</span>
+                        <span className="font-mono">{formatarMoeda(dadosNFe.valor_outras_despesas || 0)}</span>
                       </div>
                       <div className="flex justify-between font-bold text-emerald-700 text-base border-t-2 border-emerald-300 pt-1.5 mt-1">
                         <span>= VALOR TOTAL A PAGAR:</span>
-                        <span className="font-mono">R$ {(
+                        <span className="font-mono">{formatarMoeda(
                           itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) +
                           (dadosNFe.valor_frete || 0) +
                           (dadosNFe.valor_outras_despesas || 0)
-                        ).toFixed(2).replace('.', ',')}</span>
+                        )}</span>
                       </div>
                     </div>
                   </div>
@@ -1117,23 +1134,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Unidade *</Label>
-                <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unidadesMedida.length > 0 ? unidadesMedida.map(u => (
-                      <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla} - {u.nome}</SelectItem>
-                    )) : (
-                      <>
-                        <SelectItem value="UN" className="text-xs">UN - Unidade</SelectItem>
-                        <SelectItem value="KG" className="text-xs">KG - Quilograma</SelectItem>
-                        <SelectItem value="L" className="text-xs">L - Litro</SelectItem>
-                        <SelectItem value="SC" className="text-xs">SC - Saco</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={unidadesOptions}
+                  value={novoProduto.unidade_medida}
+                  onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar unidade..."
+                  className="h-8 text-xs"
+                />
               </div>
             </div>
 

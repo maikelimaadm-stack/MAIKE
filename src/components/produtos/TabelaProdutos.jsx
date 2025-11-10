@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -208,9 +207,8 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
                     <Settings className="w-4 h-4" />
-                    Colunas
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
@@ -251,7 +249,6 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                   {colunasVisiveis.includes('preco_venda') && <TableHead className="font-semibold text-slate-700 text-right">Venda</TableHead>}
                   {colunasVisiveis.includes('estoque') && <TableHead className="font-semibold text-slate-700 text-right">Estoque</TableHead>}
                   {colunasVisiveis.includes('estoque_min') && <TableHead className="font-semibold text-slate-700 text-right">Est. Mín.</TableHead>}
-                  <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -263,12 +260,11 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                         {colunasVisiveis.map((col, idx) => (
                           <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
                         ))}
-                        <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                       </TableRow>
                     ))
                   ) : filteredProdutos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
+                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <Package className="w-12 h-12" />
                           <p className="text-lg font-medium">Nenhum produto encontrado</p>
@@ -289,7 +285,7 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
-                              className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
+                              className={`border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
                             >
                               <TableCell>
                                 <Checkbox
@@ -352,37 +348,6 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
                                   {formatarNumero(produto.estoque_minimo || 0)}
                                 </TableCell>
                               )}
-                              <TableCell>
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onEdit && onEdit(produto)}
-                                    className="hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                    title="Editar"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onPrint && onPrint(produto)}
-                                    className="hover:bg-green-50 hover:text-green-700 transition-colors"
-                                    title="Imprimir Ficha"
-                                  >
-                                    <Printer className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => onDelete && onDelete(produto.id)}
-                                    className="hover:bg-red-50 hover:text-red-700 transition-colors"
-                                    title="Excluir"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
                             </motion.tr>
                           </ContextMenuTrigger>
                           <ContextMenuContent>
