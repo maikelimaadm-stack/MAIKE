@@ -65,6 +65,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       grupo_id: "",
       forma_pagamento_id: "",
       lancar_produtos: true,
+      dar_entrada_estoque: true,
       valor_original: "",
       valor_juros: "0,00",
       valor_multa: "0,00",
@@ -80,6 +81,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       frete: "0,00",
       desconto_total: "0,00",
       outras_despesas: "0,00",
+      local_estoque: "",
       anexos: []
     };
 
@@ -89,6 +91,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       ...defaults,
       ...initialData,
       lancar_produtos: initialData.lancar_produtos !== false,
+      dar_entrada_estoque: initialData.dar_entrada_estoque !== false,
       conta_paga: initialData.conta_paga || false,
       valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : "",
       valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
@@ -158,6 +161,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais_compra'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+    initialData: [],
   });
 
   useEffect(() => {
@@ -345,6 +354,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         toast.error('❌ Preencha todos os campos dos produtos!');
         return;
       }
+
+      if (formData.dar_entrada_estoque && !formData.local_estoque) {
+        toast.error('❌ Selecione o local de estoque!');
+        return;
+      }
     } else {
       if (!formData.valor_original) {
         toast.error('❌ Preencha o valor original!');
@@ -436,6 +450,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       data_vencimento: formData.data_vencimento,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
       lancar_produtos: formData.lancar_produtos,
+      dar_entrada_estoque: formData.lancar_produtos ? formData.dar_entrada_estoque : false,
+      local_estoque: formData.lancar_produtos && formData.dar_entrada_estoque ? formData.local_estoque : undefined,
       conta_paga: formData.conta_paga,
       data_pagamento: formData.conta_paga ? formData.data_pagamento : undefined,
       valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
@@ -500,7 +516,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {/* CARD: DADOS BÁSICOS */}
                   <Card className="bg-blue-50 border-blue-200">
                     <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">📋 Dados Básicos</CardTitle>
+                      <CardTitle className="text-sm">Dados Básicos</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -519,8 +535,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
                             <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="NF-e" className="text-xs">NF-e (Nota Fiscal Eletrônica)</SelectItem>
-                              <SelectItem value="NFC-e" className="text-xs">NFC-e (Cupom Fiscal)</SelectItem>
+                              <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                              <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
                               <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
                               <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
                               <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
@@ -634,7 +650,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           id="lancar_produtos" 
                         />
                         <label htmlFor="lancar_produtos" className="font-semibold cursor-pointer text-sm">
-                          📦 Lançar Produtos no Estoque
+                          Lançar Produtos no Estoque
                         </label>
                       </div>
                     </CardContent>
@@ -645,7 +661,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <Card className="bg-green-50 border-green-200">
                       <CardHeader className="py-2 px-3">
                         <div className="flex justify-between items-center">
-                          <CardTitle className="text-sm">📦 Produtos</CardTitle>
+                          <CardTitle className="text-sm">Produtos</CardTitle>
                           <Button type="button" size="sm" onClick={handleAdicionarProduto} className="h-7 gap-1 text-xs">
                             <Plus className="w-3 h-3" />
                             Adicionar
@@ -737,6 +753,31 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         )}
 
+                        <div className="space-y-2 p-2 bg-amber-50 rounded border border-amber-200">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              checked={formData.dar_entrada_estoque} 
+                              onCheckedChange={(v) => handleChange('dar_entrada_estoque', v)} 
+                              id="dar_entrada_estoque" 
+                            />
+                            <label htmlFor="dar_entrada_estoque" className="font-semibold cursor-pointer text-xs">
+                              Dar entrada no estoque?
+                            </label>
+                          </div>
+
+                          {formData.dar_entrada_estoque && (
+                            <div className="space-y-1.5 pt-1">
+                              <Label className="text-xs">Local de Estoque *</Label>
+                              <Select value={formData.local_estoque} onValueChange={(v) => handleChange('local_estoque', v)}>
+                                <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>
+                                  {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1.5">
                             <Label className="text-xs">Frete</Label>
@@ -774,7 +815,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {!formData.lancar_produtos && (
                     <Card className="bg-amber-50 border-amber-200">
                       <CardHeader className="py-2 px-3">
-                        <CardTitle className="text-sm">💰 Valores</CardTitle>
+                        <CardTitle className="text-sm">Valores</CardTitle>
                       </CardHeader>
                       <CardContent className="p-3 space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -867,36 +908,36 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {/* CARD: CLASSIFICAÇÃO */}
                   <Card className="bg-blue-50 border-blue-200">
                     <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">📊 Classificação Financeira</CardTitle>
+                      <CardTitle className="text-sm">Classificação Financeira</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
                               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                               <SelectContent>
                                 {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
-                              <Plus className="w-3 h-3" />
+                            <Button type="button" variant="outline" onClick={() => setShowDialogPlano(true)} className="h-9 px-2 text-xs">
+                              Novo
                             </Button>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
                               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                               <SelectContent>
                                 {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
-                              <Plus className="w-3 h-3" />
+                            <Button type="button" variant="outline" onClick={() => setShowDialogGrupo(true)} className="h-9 px-2 text-xs">
+                              Novo
                             </Button>
                           </div>
                         </div>
@@ -905,30 +946,30 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs">Centro de Custo</Label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
                               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                               <SelectContent>
                                 {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
-                              <Plus className="w-3 h-3" />
+                            <Button type="button" variant="outline" onClick={() => setShowDialogCentro(true)} className="h-9 px-2 text-xs">
+                              Novo
                             </Button>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="text-xs">Forma de Pagamento</Label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
                               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                               <SelectContent>
                                 {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)} className="h-9 w-9">
-                              <Plus className="w-3 h-3" />
+                            <Button type="button" variant="outline" onClick={() => setShowDialogForma(true)} className="h-9 px-2 text-xs">
+                              Novo
                             </Button>
                           </div>
                         </div>
@@ -939,7 +980,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {/* CARD: PAGAMENTO */}
                   <Card className="bg-green-50 border-green-200">
                     <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">💳 Condições de Pagamento</CardTitle>
+                      <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="space-y-1.5">
@@ -950,7 +991,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="flex items-center space-x-2">
                         <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
                         <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
-                          ✅ Conta já está paga?
+                          Conta já está paga?
                         </label>
                       </div>
 
@@ -1057,7 +1098,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {/* CARD: OBSERVAÇÕES */}
                   <Card className="bg-slate-50 border-slate-200">
                     <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">📝 Observações</CardTitle>
+                      <CardTitle className="text-sm">Observações</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
                       <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={3} />
