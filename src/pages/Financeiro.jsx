@@ -107,13 +107,18 @@ export default function Financeiro() {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
 
-          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) =>
-            sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
-          ) || 0;
-
-          const valorOriginal = data.lancar_produtos
-            ? subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0)
-            : data.valor_original;
+          // CALCULAR VALOR ORIGINAL CORRETO
+          let valorOriginal;
+          if (data.lancar_produtos) {
+            const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
+              const totalItem = parseFloat(p.valor_total) || 0;
+              const descontoItem = parseFloat(p.desconto_item) || 0;
+              return sum + (totalItem - descontoItem);
+            }, 0) || 0;
+            valorOriginal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
+          } else {
+            valorOriginal = data.valor_original;
+          }
 
           const lanc = await base44.entities.LancamentoFinanceiro.create({
             empresa_id: empresaSelecionadaId,
@@ -145,7 +150,7 @@ export default function Financeiro() {
             valor_frete: data.frete || 0,
             valor_seguro: data.valor_seguro || 0,
             valor_outras_despesas: data.outras_despesas || 0,
-            valor_desconto_total: 0,
+            valor_desconto_total: data.valor_desconto_total || 0,
             valor_ipi: data.valor_ipi || 0,
             valor_icms: data.valor_icms || 0,
             valor_pis: data.valor_pis || 0,
@@ -230,9 +235,11 @@ export default function Financeiro() {
 
         let valorTotal;
         if (data.lancar_produtos) {
-          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) =>
-            sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
-          ) || 0;
+          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
+            const totalItem = parseFloat(p.valor_total) || 0;
+            const descontoItem = parseFloat(p.desconto_item) || 0;
+            return sum + (totalItem - descontoItem);
+          }, 0) || 0;
           valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
         } else {
           valorTotal = data.valor_original + data.valor_juros + data.valor_multa - data.valor_desconto;
@@ -247,7 +254,7 @@ export default function Financeiro() {
           valor_frete: data.frete || 0,
           valor_seguro: data.valor_seguro || 0,
           valor_outras_despesas: data.outras_despesas || 0,
-          valor_desconto_total: 0,
+          valor_desconto_total: data.valor_desconto_total || 0,
           valor_ipi: data.valor_ipi || 0,
           valor_icms: data.valor_icms || 0,
           valor_pis: data.valor_pis || 0,

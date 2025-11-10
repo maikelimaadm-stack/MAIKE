@@ -145,7 +145,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       produtos_selecionados: initialData.produtos_selecionados?.map(p => ({
         ...p,
         quantidade: formatarNumero(p.quantidade),
-        valor_total: formatarNumero(p.valor_unitario * p.quantidade), // Assuming valor_total should be unitario * qtd initially
+        valor_total: formatarNumero(p.valor_total || 0), // Changed this line
         desconto_item: formatarNumero(p.desconto_item || 0)
       })) || [],
       parcelas: initialData.parcelas?.map(p => ({
@@ -229,17 +229,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   useEffect(() => {
     if (formData.parcelar && formData.parcelas.length === 0 && formData.data_vencimento) {
       const valorTotal = calcularValorTotal();
-      const valorParcela = valorTotal / 2;
+      // Ensure at least one parcel for initial setup
+      const valorParcela = valorTotal > 0 ? valorTotal : 0; 
       
       setFormData(prev => ({
         ...prev,
         parcelas: [
-          { data: prev.data_vencimento, valor: formatarNumero(valorParcela) },
-          { data: calcularDataProximaMes(prev.data_vencimento), valor: formatarNumero(valorParcela) }
+          { data: prev.data_vencimento, valor: formatarNumero(valorParcela) }
         ]
       }));
     }
-  }, [formData.parcelar]);
+  }, [formData.parcelar, formData.data_vencimento]); // Added data_vencimento as dependency
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
@@ -448,7 +448,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.data_vencimento && !formData.parcelar) {
+    if (!formData.parcelar && !formData.data_vencimento) { // Updated condition
       toast.error('❌ Preencha a data de vencimento!');
       return;
     }
@@ -478,8 +478,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
     }
 
-    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 2) {
-      toast.error('❌ Mínimo 2 parcelas!');
+    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) { // Changed < 2 to < 1
+      toast.error('❌ Adicione pelo menos 1 parcela!');
       return;
     }
 
@@ -550,7 +550,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
           quantidade: qtd,
           unidade: p.unidade,
           valor_unitario: valorUnitario, // Sending the calculated net unit value
-          desconto_item: desconto
+          desconto_item: desconto,
+          valor_total: totalGross // Added this line
         };
       }) : [],
       valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
@@ -597,7 +598,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
 
+  // The 'temDadosNFe' is still calculated for initial state and other potential uses,
+  // but the card for NFe details will always render (controlled by mostrarCamposNFe state)
   const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe;
+
 
   return (
     <>
@@ -779,12 +783,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="text-xs">Produto *</TableHead>
-                                  <TableHead className="text-xs text-right">Qtd *</TableHead>
-                                  <TableHead className="text-xs text-right">Vlr Total *</TableHead>
-                                  <TableHead className="text-xs text-right">Desc.</TableHead>
-                                  <TableHead className="text-xs text-right">Líquido</TableHead>
-                                  <TableHead className="text-xs text-center">Un.</TableHead>
+                                  <TableHead className="text-xs w-[200px]">Produto *</TableHead>
+                                  <TableHead className="text-xs text-right w-[80px]">Qtd *</TableHead>
+                                  <TableHead className="text-xs text-right w-[100px]">Vlr Total *</TableHead>
+                                  <TableHead className="text-xs text-right w-[80px]">Desc.</TableHead>
+                                  <TableHead className="text-xs text-right w-[100px]">Líquido</TableHead>
+                                  <TableHead className="text-xs text-center w-[60px]">Un.</TableHead>
                                   <TableHead className="w-12"></TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -798,7 +802,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                   
                                   return (
                                     <TableRow key={index}>
-                                      <TableCell>
+                                      <TableCell className="w-[200px]">
                                         <Select 
                                           value={produto.produto_id} 
                                           onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
@@ -815,31 +819,31 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell>
+                                      <TableCell className="w-[80px]">
                                         <Input
                                           value={produto.quantidade}
                                           onChange={(e) => handleAtualizarProduto(index, 'quantidade', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs w-20"
+                                          className="text-right h-8 text-xs"
                                         />
                                       </TableCell>
-                                      <TableCell>
+                                      <TableCell className="w-[100px]">
                                         <Input
                                           value={produto.valor_total}
                                           onChange={(e) => handleAtualizarProduto(index, 'valor_total', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs w-24"
+                                          className="text-right h-8 text-xs"
                                         />
                                       </TableCell>
-                                      <TableCell>
+                                      <TableCell className="w-[80px]">
                                         <Input
                                           value={produto.desconto_item || "0,00"}
                                           onChange={(e) => handleAtualizarProduto(index, 'desconto_item', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs w-20"
+                                          className="text-right h-8 text-xs"
                                         />
                                       </TableCell>
-                                      <TableCell className="text-right">
+                                      <TableCell className="text-right w-[100px]">
                                         <div className="font-mono font-bold text-green-700 text-xs">
                                           {formatarMoeda(liquido)}
                                         </div>
@@ -847,10 +851,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           Un: {formatarMoeda(unitario)}
                                         </div>
                                       </TableCell>
-                                      <TableCell className="text-center">
+                                      <TableCell className="text-center w-[60px]">
                                         <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                                       </TableCell>
-                                      <TableCell>
+                                      <TableCell className="w-12">
                                         <Button
                                           type="button"
                                           variant="ghost"
@@ -981,88 +985,85 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </Card>
                   )}
 
-                  {/* CARD: VALORES DETALHADOS DA NF-E */}
-                  {temDadosNFe && (
-                    <Card className="bg-purple-50 border-purple-200">
-                      <CardHeader className="py-2 px-3">
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-purple-600" />
-                            Valores Detalhados da NF-e (Informativo)
-                          </CardTitle>
-                          <Button 
-                            type="button"
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setMostrarCamposNFe(!mostrarCamposNFe)} 
-                            className="h-7 gap-1 text-xs"
-                          >
-                            {mostrarCamposNFe ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                            {mostrarCamposNFe ? 'Ocultar' : 'Mostrar'}
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      {mostrarCamposNFe && (
-                        <CardContent className="p-3 space-y-3">
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">📦 Vlr. Produtos</Label>
-                              <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">🚚 Vlr. Frete</Label>
-                              <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">🛡️ Vlr. Seguro</Label>
-                              <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">💼 Outras Despesas</Label>
-                              <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">💸 Desconto Total</Label>
-                              <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">📋 Vlr. IPI</Label>
-                              <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">💵 Vlr. ICMS</Label>
-                              <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">📊 Vlr. PIS</Label>
-                              <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">📈 Vlr. COFINS</Label>
-                              <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">🧮 Base Cálc. ICMS</Label>
-                              <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                            </div>
+                  {/* CARD: VALORES DETALHADOS DA NF-E - SEMPRE VISÍVEL */}
+                  <Card className="bg-purple-50 border-purple-200">
+                    <CardHeader className="py-2 px-3">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-purple-600" />
+                          Valores Detalhados da NF-e (Informativo)
+                        </CardTitle>
+                        <Button 
+                          type="button"
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setMostrarCamposNFe(!mostrarCamposNFe)} 
+                          className="h-7 gap-1 text-xs"
+                        >
+                          {mostrarCamposNFe ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          {mostrarCamposNFe ? 'Ocultar' : 'Mostrar'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {mostrarCamposNFe && (
+                      <CardContent className="p-3 space-y-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">📦 Vlr. Produtos</Label>
+                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
-                          
-                          {formData.observacoes_nfe && (
-                            <div className="space-y-1.5 pt-2 border-t border-purple-300">
-                              <Label className="text-xs font-semibold">📄 Observações Completas da NF-e</Label>
-                              <Textarea 
-                                value={formData.observacoes_nfe} 
-                                onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
-                                className="text-xs min-h-32 bg-white" 
-                                rows={6} 
-                              />
-                              <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      )}
-                    </Card>
-                  )}
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">🚚 Vlr. Frete</Label>
+                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">🛡️ Vlr. Seguro</Label>
+                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">💼 Outras Despesas</Label>
+                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">💸 Desconto Total</Label>
+                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">📋 Vlr. IPI</Label>
+                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">💵 Vlr. ICMS</Label>
+                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">📊 Vlr. PIS</Label>
+                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">📈 Vlr. COFINS</Label>
+                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">🧮 Base Cálc. ICMS</Label>
+                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1.5 pt-2 border-t border-purple-300">
+                          <Label className="text-xs font-semibold">📄 Observações Completas da NF-e</Label>
+                          <Textarea 
+                            value={formData.observacoes_nfe || ''} 
+                            onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
+                            className="text-xs min-h-32 bg-white" 
+                            placeholder="Observações extraídas da NF-e..." // Added placeholder
+                            rows={6} 
+                          />
+                          <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
 
                   {/* CARD: ANEXOS */}
                   <Card className="bg-slate-50 border-slate-200">
@@ -1167,62 +1168,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </CardContent>
                   </Card>
 
-                  {/* CARD: PAGAMENTO */}
+                  {/* CARD: PAGAMENTO - ORDEM PADRONIZADA */}
                   <Card className="bg-green-50 border-green-200">
                     <CardHeader className="py-2 px-3">
                       <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
-                      {!formData.parcelar && (
-                        <div className="space-y-1.5">
-                          <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
-                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
-                        </div>
-                      )}
-
+                      {/* 1. PARCELAR PRIMEIRO */}
                       <div className="flex items-center space-x-2">
-                        <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
-                        <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
-                          Conta já está paga?
-                        </label>
+                        <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
+                        <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
                       </div>
 
-                      {formData.conta_paga && (
-                        <Card className="bg-white border-green-300">
+                      {formData.parcelar && (
+                        <Card className="bg-white border-amber-200">
                           <CardContent className="p-3 space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Data Pgto *</Label>
-                                <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Valor Pago *</Label>
-                                <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
-                              </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Forma de Pagamento *</Label>
-                              <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                <SelectContent>
-                                  {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                    <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {!formData.conta_paga && (
-                        <>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                            <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
-                          </div>
-
-                          {!formData.parcelar && (
                             <div className="space-y-1.5">
                               <Label className="text-xs">Forma de Pagamento</Label>
                               <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
@@ -1234,84 +1194,125 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 </SelectContent>
                               </Select>
                             </div>
-                          )}
 
-                          {formData.parcelar && (
-                            <Card className="bg-white border-amber-200">
-                              <CardContent className="p-3 space-y-3">
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs">Forma de Pagamento</Label>
-                                  <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                                    <SelectContent>
-                                      {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                        <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                            <div className="flex justify-between items-center pt-2 border-t">
+                              <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
+                              <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
+                                <Plus className="w-3 h-3" />
+                                Adicionar
+                              </Button>
+                            </div>
+
+                            <div className="border rounded max-h-60 overflow-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-12 text-xs">Nº</TableHead>
+                                    <TableHead className="text-xs">Vencimento *</TableHead>
+                                    <TableHead className="text-right text-xs">Valor *</TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {formData.parcelas.map((parcela, index) => (
+                                    <TableRow key={index}>
+                                      <TableCell className="font-bold text-xs">{index + 1}</TableCell>
+                                      <TableCell>
+                                        <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+
+                            <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                              <CardContent className="p-2">
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="flex justify-between">
+                                    <span>Total Parcelas:</span>
+                                    <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Valor Total:</span>
+                                    <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                                  </div>
                                 </div>
-
-                                <div className="flex justify-between items-center pt-2 border-t">
-                                  <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
-                                  <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
-                                    <Plus className="w-3 h-3" />
-                                    Adicionar
-                                  </Button>
-                                </div>
-
-                                <div className="border rounded max-h-60 overflow-auto">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="w-12 text-xs">Nº</TableHead>
-                                        <TableHead className="text-xs">Vencimento *</TableHead>
-                                        <TableHead className="text-right text-xs">Valor *</TableHead>
-                                        <TableHead className="w-12"></TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {formData.parcelas.map((parcela, index) => (
-                                        <TableRow key={index}>
-                                          <TableCell className="font-bold text-xs">{index + 1}</TableCell>
-                                          <TableCell>
-                                            <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
-                                              <Trash2 className="w-3 h-3" />
-                                            </Button>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-
-                                <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                                  <CardContent className="p-2">
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                      <div className="flex justify-between">
-                                        <span>Total Parcelas:</span>
-                                        <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>Valor Total:</span>
-                                        <span className="font-bold">{formatarMoeda(valorTotal)}</span>
-                                      </div>
-                                    </div>
-                                    {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                                      <p className="text-xs text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
-                                    )}
-                                  </CardContent>
-                                </Card>
+                                {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                                  <p className="text-xs text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
+                                )}
                               </CardContent>
                             </Card>
-                          )}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {!formData.parcelar && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
+                            <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Forma de Pagamento</Label>
+                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                  <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </>
                       )}
+
+                      {/* 2. CONTA PAGA POR ÚLTIMO */}
+                      <div className="pt-3 border-t">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
+                          <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
+                            Conta já está paga?
+                          </label>
+                        </div>
+
+                        {formData.conta_paga && (
+                          <Card className="bg-white border-green-300 mt-3">
+                            <CardContent className="p-3 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Data Pgto *</Label>
+                                  <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Valor Pago *</Label>
+                                  <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
+                                </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Forma de Pagamento *</Label>
+                                <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
+                                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                  <SelectContent>
+                                    {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
 
