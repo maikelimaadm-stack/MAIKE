@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload, Loader2, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, CheckSquare } from "lucide-react";
+import { FileText, Upload, Loader2, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, CheckSquare, Edit2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -210,6 +210,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
   const [itensNFe, setItensNFe] = useState([]);
   const [itensSelecionados, setItensSelecionados] = useState([]);
+  const [itemEditando, setItemEditando] = useState(null);
   
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica",
@@ -227,9 +228,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   
   const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [showBuscaProduto, setShowBuscaProduto] = useState(false);
-  const [itemEditando, setItemEditando] = useState(null);
+  const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
+  
+  const [novoProduto, setNovoProduto] = useState({
+    nome_produto: "",
+    codigo_interno: "",
+    unidade_medida: "UN",
+    preco_custo: ""
+  });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -256,6 +264,33 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       setShowNovoFornecedor(false);
       toast.success('✅ Fornecedor cadastrado!');
       setEtapa(3);
+    },
+  });
+
+  const createProdutoMutation = useMutation({
+    mutationFn: async (data) => {
+      const all = await base44.entities.Produto.list();
+      const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
+      return base44.entities.Produto.create({
+        ...data,
+        empresa_id: empresaSelecionadaId,
+        numero_produto: String(maxNum + 1),
+        estoque_atual: 0
+      });
+    },
+    onSuccess: (newProduto) => {
+      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
+      if (itemEditando) {
+        setItensNFe(prev => prev.map(item => 
+          item.index === itemEditando.index 
+            ? { ...item, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' }
+            : item
+        ));
+        setItemEditando(null);
+      }
+      setShowNovoProduto(false);
+      setNovoProduto({ nome_produto: "", codigo_interno: "", unidade_medida: "UN", preco_custo: "" });
+      toast.success('✅ Produto cadastrado!');
     },
   });
 
@@ -383,6 +418,25 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     });
   };
 
+  const handleCadastrarProduto = () => {
+    if (!novoProduto.nome_produto) {
+      toast.error('❌ Nome do produto obrigatório!');
+      return;
+    }
+    const precoCustoParsed = novoProduto.preco_custo ? parseFloat(String(novoProduto.preco_custo).replace(',', '.')) : 0;
+    if (isNaN(precoCustoParsed)) {
+      toast.error('❌ Preço de custo inválido!');
+      return;
+    }
+
+    createProdutoMutation.mutate({
+      nome_produto: novoProduto.nome_produto.toUpperCase(),
+      codigo_interno: novoProduto.codigo_interno?.toUpperCase(),
+      unidade_medida: novoProduto.unidade_medida.toUpperCase(),
+      preco_custo: precoCustoParsed
+    });
+  };
+
   const handleCadastrarProdutosEmMassa = async () => {
     const pendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
     
@@ -441,6 +495,31 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setItemEditando(null);
     setBuscaProduto("");
     toast.success('✅ Produto associado!');
+  };
+
+  const handleEditarItem = (item) => {
+    setItemEditando({ ...item });
+  };
+
+  const handleSalvarEdicao = () => {
+    if (itemEditando.quantidade <= 0) {
+      toast.error('❌ Quantidade deve ser maior que zero!');
+      return;
+    }
+    if (itemEditando.valor_unitario <= 0) {
+      toast.error('❌ Valor unitário deve ser maior que zero!');
+      return;
+    }
+    
+    setItensNFe(prev => prev.map(item => 
+      item.index === itemEditando.index ? itemEditando : item
+    ));
+    setItemEditando(null);
+    toast.success('✅ Item atualizado!');
+  };
+
+  const handleCancelarEdicao = () => {
+    setItemEditando(null);
   };
 
   const handleToggleSelecao = (index) => {
@@ -522,7 +601,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setFornecedorSelecionado(null);
     setItensNFe([]);
     setItensSelecionados([]);
+    setItemEditando(null);
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
+    setNovoProduto({ nome_produto: "", codigo_interno: "", unidade_medida: "UN", preco_custo: "" });
+    setShowNovoFornecedor(false);
+    setShowBuscaProduto(false);
+    setShowNovoProduto(false);
+    setBuscaProduto("");
+    setShowCadastroEmMassa(false);
   };
 
   const produtosFiltrados = produtos.filter(p => 
@@ -704,14 +790,17 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead className="w-16">Status</TableHead>
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Un.</TableHead>
                       <TableHead className="text-right">Vlr Unit.</TableHead>
+                      <TableHead className="text-right">Desc.</TableHead>
                       <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-center">Ações</TableHead>
+                      <TableHead className="text-center w-24">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => {
-                      const valorTotal = item.quantidade * item.valor_unitario;
+                      const valorTotal = (item.quantidade * item.valor_unitario) - (item.desconto_item || 0);
+                      const isEditing = itemEditando?.index === item.index;
                       
                       return (
                         <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
@@ -733,21 +822,82 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                             <div className="text-slate-500 text-xs">{item.descricao}</div>
                             <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo}</div>
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            {item.quantidade.toFixed(2).replace('.', ',')}
+                          <TableCell className="text-right">
+                            {isEditing ? (
+                              <Input 
+                                type="number" 
+                                value={itemEditando.quantidade} 
+                                onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value || '0')})} 
+                                className="h-7 w-20 text-xs text-right"
+                                step="0.01"
+                              />
+                            ) : (
+                              <span className="font-mono text-xs">{item.quantidade.toFixed(2).replace('.', ',')}</span>
+                            )}
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            R$ {item.valor_unitario.toFixed(2).replace('.', ',')}
+                          <TableCell className="text-right">
+                            {isEditing ? (
+                              <Input 
+                                value={itemEditando.unidade} 
+                                onChange={(e) => setItemEditando({...itemEditando, unidade: e.target.value.toUpperCase()})} 
+                                className="h-7 w-16 text-xs text-center uppercase"
+                                maxLength={4}
+                              />
+                            ) : (
+                              <span className="font-mono text-xs">{item.unidade}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEditing ? (
+                              <Input 
+                                type="text" 
+                                value={String(itemEditando.valor_unitario).replace('.', ',')} 
+                                onChange={(e) => setItemEditando({...itemEditando, valor_unitario: parseFloat(e.target.value.replace(',', '.')) || 0})} 
+                                className="h-7 w-24 text-xs text-right"
+                                step="0.01"
+                              />
+                            ) : (
+                              <span className="font-mono text-xs">R$ {item.valor_unitario.toFixed(2).replace('.', ',')}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isEditing ? (
+                              <Input 
+                                type="text" 
+                                value={String(itemEditando.desconto_item || 0).replace('.', ',')} 
+                                onChange={(e) => setItemEditando({...itemEditando, desconto_item: parseFloat(e.target.value.replace(',', '.')) || 0})} 
+                                className="h-7 w-20 text-xs text-right"
+                                step="0.01"
+                              />
+                            ) : (
+                              <span className="font-mono text-xs">{(item.desconto_item || 0).toFixed(2).replace('.', ',')}</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-green-700 text-xs">
                             R$ {valorTotal.toFixed(2).replace('.', ',')}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
-                              {item.status === 'pendente' && (
-                                <Button size="sm" variant="outline" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-7 w-7 p-0">
-                                  <RefreshCw className="w-3 h-3" />
-                                </Button>
+                              {isEditing ? (
+                                <>
+                                  <Button size="sm" variant="ghost" onClick={handleSalvarEdicao} className="h-6 w-6 p-0 text-green-600">
+                                    <Save className="w-3 h-3" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={handleCancelarEdicao} className="h-6 w-6 p-0 text-red-600">
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button size="sm" variant="ghost" onClick={() => handleEditarItem(item)} className="h-6 w-6 p-0 text-blue-600">
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                  {item.status === 'pendente' && (
+                                    <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-purple-600">
+                                      <RefreshCw className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </TableCell>
@@ -778,7 +928,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       <Dialog open={showBuscaProduto} onOpenChange={setShowBuscaProduto}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm">Associar Produto Existente</DialogTitle>
+            <DialogTitle className="text-sm flex justify-between items-center">
+              <span>Associar Produto Existente</span>
+              <Button onClick={() => { setShowBuscaProduto(false); setShowNovoProduto(true); }} size="sm" className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-3 h-3" />
+                Novo Produto
+              </Button>
+            </DialogTitle>
           </DialogHeader>
           
           <div className="relative mb-4">
@@ -820,6 +976,86 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 )}
               </TableBody>
             </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: NOVO PRODUTO */}
+      <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Novo Produto</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nome do Produto *</Label>
+              <Input 
+                value={novoProduto.nome_produto} 
+                onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} 
+                placeholder="NOME DO PRODUTO" 
+                className="h-8 text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Código Interno</Label>
+                <Input 
+                  value={novoProduto.codigo_interno} 
+                  onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} 
+                  placeholder="CÓDIGO" 
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Unidade *</Label>
+                <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unidadesMedida.length > 0 ? unidadesMedida.map(u => (
+                      <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla} - {u.nome}</SelectItem>
+                    )) : (
+                      <>
+                        <SelectItem value="UN" className="text-xs">UN - Unidade</SelectItem>
+                        <SelectItem value="KG" className="text-xs">KG - Quilograma</SelectItem>
+                        <SelectItem value="L" className="text-xs">L - Litro</SelectItem>
+                        <SelectItem value="SC" className="text-xs">SC - Saco</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Preço de Custo</Label>
+              <Input 
+                type="text" 
+                value={String(novoProduto.preco_custo).replace('.', ',')} 
+                onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} 
+                placeholder="0,00" 
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-8 text-xs">
+                Cancelar
+              </Button>
+              <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={createProdutoMutation.isPending}>
+                {createProdutoMutation.isPending ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-3 h-3" />Salvar</>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
