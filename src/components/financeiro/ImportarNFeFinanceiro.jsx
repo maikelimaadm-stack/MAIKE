@@ -36,6 +36,18 @@ const extrairDadosXML = (xmlText) => {
   const chave = getValor('chNFe') || xmlDoc.getElementsByTagName('infNFe')[0]?.getAttribute('Id')?.replace('NFe', '');
   const dataEmissao = getValor('dhEmi')?.split('T')[0] || getValor('dEmi');
   const cfop = getValor('CFOP');
+
+  // VALORES TOTAIS DA NOTA
+  const vProd = parseFloat(getValor('vProd')) || 0;
+  const vFrete = parseFloat(getValor('vFrete')) || 0;
+  const vSeg = parseFloat(getValor('vSeg')) || 0;
+  const vOutro = parseFloat(getValor('vOutro')) || 0;
+  const vDesc = parseFloat(getValor('vDesc')) || 0;
+  const vIPI = parseFloat(getValor('vIPI')) || 0;
+  const vICMS = parseFloat(getValor('vICMS')) || 0;
+  const vPIS = parseFloat(getValor('vPIS')) || 0;
+  const vCOFINS = parseFloat(getValor('vCOFINS')) || 0;
+  const vBC = parseFloat(getValor('vBC')) || 0;
   const valorTotal = parseFloat(getValor('vNF')) || 0;
 
   const cnpjEmit = getValor('CNPJ');
@@ -53,73 +65,20 @@ const extrairDadosXML = (xmlText) => {
 
   const enderecoCompleto = numero_end ? `${logradouro}, ${numero_end}` : logradouro;
 
-  // EXTRAIR OBSERVAÇÕES (FILTRAR TRIBUTOS E FORMA DE PAGAMENTO)
+  // OBSERVAÇÕES COMPLETAS (SEM FILTRAR)
   const infAdic = xmlDoc.getElementsByTagName('infAdic')[0];
   let observacoes = '';
   
   if (infAdic) {
     const infCpl = infAdic.getElementsByTagName('infCpl')[0];
     if (infCpl) {
-      const obsCompleta = infCpl.textContent || '';
-      
-      // FILTRAR: remover linhas de impostos/tributos/forma de pagamento
-      const linhas = obsCompleta.split(/[\n\r]+/);
-      const linhasFiltradas = linhas.filter(linha => {
-        const linhaLower = linha.toLowerCase();
-        const linhaClean = linha.trim();
-        
-        // Remover linhas vazias
-        if (linhaClean.length === 0) return false;
-        
-        // Remover linhas de tributos/impostos
-        if (linhaLower.includes('tribut') ||
-            linhaLower.includes('imposto') ||
-            linhaLower.includes('icms') ||
-            linhaLower.includes('pis') ||
-            linhaLower.includes('cofins') ||
-            linhaLower.includes('ipi') ||
-            linhaLower.includes('iss') ||
-            linhaLower.includes('simples nacional') ||
-            linhaLower.includes('regime') ||
-            linhaLower.includes('alíquota') ||
-            linhaLower.includes('base de cálculo') ||
-            linhaLower.includes('base calc') ||
-            linhaLower.includes('valor aprox') ||
-            linhaLower.includes('trib aprox') ||
-            linhaLower.includes('federal') ||
-            linhaLower.includes('estadual') ||
-            linhaLower.includes('fonte') ||
-            linhaLower.includes('ibpt') ||
-            linhaLower.includes('lei')) {
-          return false;
-        }
-        
-        // Remover linhas de forma de pagamento
-        if (linhaLower.includes('forma de pagamento') ||
-            linhaLower.includes('credito') ||
-            linhaLower.includes('boleto') ||
-            linhaLower.includes('dias') && linhaLower.includes('r$')) {
-          return false;
-        }
-        
-        // Remover linhas que parecem protocolos/códigos
-        if (linhaLower.includes('protocolo') ||
-            linhaLower.includes('conforme') ||
-            /r\$\s*\d+[,.]?\d*/.test(linhaLower)) {
-          return false;
-        }
-        
-        return true;
-      });
-      
-      observacoes = linhasFiltradas.join('\n').trim();
+      observacoes = infCpl.textContent || '';
     }
   }
 
   // EXTRAIR FORMA DE PAGAMENTO
   let tPag = getValor('tPag');
   
-  // Tentar em detPag se não encontrou
   if (!tPag) {
     const pagElement = xmlDoc.getElementsByTagName('pag')[0];
     if (pagElement) {
@@ -154,73 +113,27 @@ const extrairDadosXML = (xmlText) => {
 
   // EXTRAIR PARCELAMENTO
   const parcelas = [];
-  const pagElement = xmlDoc.getElementsByTagName('pag')[0];
+  const dups = xmlDoc.getElementsByTagName('dup');
   
-  if (pagElement) {
-    const detPags = pagElement.getElementsByTagName('detPag');
+  for (let i = 0; i < dups.length; i++) {
+    const dup = dups[i];
+    const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
+    const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
     
-    // Check for explicit installments within detPag (usually via card, but can be others)
-    for (let i = 0; i < detPags.length; i++) {
-      const detPag = detPags[i];
-      const vPag = parseFloat(detPag.getElementsByTagName('vPag')[0]?.textContent || 0);
-      
-      // If there's a payment value, try to infer installments or use duplicates
-      if (vPag > 0) {
-        // Prefer specific duplicatas (if present)
-        const dups = xmlDoc.getElementsByTagName('dup');
-        
-        if (dups.length > 0) {
-          for (let j = 0; j < dups.length; j++) {
-            const dup = dups[j];
-            const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
-            const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
-            
-            if (dVenc && vDup > 0) {
-              parcelas.push({
-                data: dVenc,
-                valor: vDup
-              });
-            }
-          }
-        } else if (detPags.length > 1) { // If multiple detPag and no dups, assume each detPag is an installment
-            // This is a less common scenario, but could represent multiple forms of payment acting as installments
-            // For simplicity, we'll just take the first vPag if no clear installments or dups are found
-            // Or handle based on how many detPags are present for a 'split' payment
-            // For now, if no dups, and multiple detPags for different payment types, treat each as a separate lump sum, not installments.
-            // If it's a single payment type, and multiple detPags without dups is unlikely for installments.
-        } else {
-            // If single detPag, and no dups, it's a single payment, not installments
-        }
-      }
-    }
-  }
-
-  // If no parcelas from detPag processing, but there are explicit duplicatas
-  if (parcelas.length === 0) {
-    const dups = xmlDoc.getElementsByTagName('dup');
-    for (let i = 0; i < dups.length; i++) {
-      const dup = dups[i];
-      const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
-      const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
-      
-      if (dVenc && vDup > 0) {
-        parcelas.push({
-          data: dVenc,
-          valor: vDup
-        });
-      }
+    if (dVenc && vDup > 0) {
+      parcelas.push({
+        data: dVenc,
+        valor: vDup
+      });
     }
   }
   
-  // Sort parcelas by date
+  // Sort parcelas by date (keeping this as it's a good practice, even if not explicitly in the outline diff)
   parcelas.sort((a, b) => new Date(a.data) - new Date(b.data));
 
   // VERIFICAR SE ESTÁ PAGO
   let contaPaga = false;
   if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') {
-    // Se não tem parcelamento explícito (duplicatas ou múltiplos detPag com parcelas)
-    // E a forma de pagamento não é "Boleto Bancário", "Sem Pagamento" ou "Outros" (que poderiam ser a prazo)
-    // Assume-se que a conta foi paga à vista ou no momento da emissão (ex: dinheiro, cartão)
     contaPaga = true;
   }
 
@@ -234,6 +147,8 @@ const extrairDadosXML = (xmlText) => {
       return el ? el.textContent : null;
     };
 
+    const vDescItem = parseFloat(getTagDet('vDesc')) || 0;
+
     itensNFe.push({
       codigo: getTagDet('cProd') || '',
       descricao: getTagDet('xProd') || '',
@@ -242,7 +157,8 @@ const extrairDadosXML = (xmlText) => {
       unidade: getTagDet('uCom') || 'UN',
       quantidade: parseFloat(getTagDet('qCom')) || 0,
       valor_unitario: parseFloat(getTagDet('vUnCom')) || 0,
-      valor_total: parseFloat(getTagDet('vProd')) || 0
+      valor_total: parseFloat(getTagDet('vProd')) || 0,
+      desconto_item: vDescItem
     });
   }
 
@@ -268,9 +184,19 @@ const extrairDadosXML = (xmlText) => {
     estado_emitente: estado,
     cep_emitente: cep,
     cfop,
+    valor_produtos: vProd,
+    valor_frete: vFrete,
+    valor_seguro: vSeg,
+    valor_outras_despesas: vOutro,
+    valor_desconto_total: vDesc,
+    valor_ipi: vIPI,
+    valor_icms: vICMS,
+    valor_pis: vPIS,
+    valor_cofins: vCOFINS,
+    base_calculo_icms: vBC,
     valor_total: valorTotal,
     forma_pagamento: formaPagamento,
-    observacoes: observacoes,
+    observacoes_nfe: observacoes,
     parcelas: parcelas,
     conta_paga: contaPaga,
     itens: itensNFe
@@ -416,7 +342,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           valor_unitario: item.valor_unitario || 0,
           produto_id: prod?.id,
           produto_nome: prod?.nome_produto,
-          status: prod ? 'associado' : 'pendente'
+          status: prod ? 'associado' : 'pendente',
+          desconto_item: item.desconto_item || 0
         };
       });
       
@@ -556,19 +483,29 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       cfop: dadosNFe.cfop,
       data_emissao: dadosNFe.data_emissao,
       forma_pagamento_id: dadosNFe.forma_pagamento || '',
-      observacoes: dadosNFe.observacoes || '',
+      observacoes_nfe: dadosNFe.observacoes_nfe || '',
       conta_paga: dadosNFe.conta_paga || false,
       parcelar: temParcelas,
       parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({
         data: p.data,
         valor: String(p.valor.toFixed(2)).replace('.', ',')
       })) : [],
+      valor_produtos: dadosNFe.valor_produtos,
+      valor_frete: dadosNFe.valor_frete,
+      valor_seguro: dadosNFe.valor_seguro,
+      valor_outras_despesas: dadosNFe.valor_outras_despesas,
+      valor_desconto_total: dadosNFe.valor_desconto_total,
+      valor_ipi: dadosNFe.valor_ipi,
+      valor_icms: dadosNFe.valor_icms,
+      valor_pis: dadosNFe.valor_pis,
+      valor_cofins: dadosNFe.valor_cofins,
+      base_calculo_icms: dadosNFe.base_calculo_icms,
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
         quantidade: String(i.quantidade).replace('.', ','),
         valor_unitario: String(i.valor_unitario).replace('.', ','),
-        desconto_item: "0,00",
+        desconto_item: String(i.desconto_item || 0).replace('.', ','),
         unidade: i.unidade
       })),
       lancar_produtos: true,

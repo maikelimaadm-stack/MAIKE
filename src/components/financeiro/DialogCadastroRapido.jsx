@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,9 +19,11 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
     mutationFn: async (data) => {
       if (tipo === 'centro_custo') {
         const all = await base44.entities.CentroCusto.list();
-        const maxNum = all.reduce((max, c) => Math.max(max, parseInt(c.numero_centro) || 0), 0);
+        const filtered = all.filter(c => c.empresa_id === empresaSelecionadaId);
+        const maxNum = filtered.reduce((max, c) => Math.max(max, parseInt(c.numero_centro) || 0), 0);
         return base44.entities.CentroCusto.create({
-          ...data,
+          nome: data.nome.toUpperCase(),
+          descricao: data.descricao?.toUpperCase(),
           empresa_id: empresaSelecionadaId,
           numero_centro: String(maxNum + 1),
           ativo: true
@@ -98,12 +101,7 @@ export default function DialogCadastroRapido({ tipo, open, onClose, onSuccess, t
       return;
     }
 
-    createMutation.mutate({
-      ...dados,
-      nome: dados.nome?.toUpperCase(),
-      descricao: dados.descricao?.toUpperCase(),
-      codigo: dados.codigo?.toUpperCase()
-    });
+    createMutation.mutate(dados);
   };
 
   const getTitulo = () => {
