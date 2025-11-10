@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { ArrowRightLeft, Save, X, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -130,6 +131,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     onSubmit(data);
   };
 
+  const produtosOptions = produtos.map(p => ({ value: p.id, label: p.nome_produto }));
+  const fornecedoresOptions = fornecedores.map(f => ({ value: f.id, label: f.nome }));
+  const locaisOptions = locais.map(l => ({ value: l.nome, label: l.nome }));
+  const centrosOptions = centros.map(c => ({ value: c.id, label: c.nome }));
+
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -168,16 +174,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 <div className="space-y-2">
                   <Label>Produto *</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.produto_id} onValueChange={(v) => handleChange('produto_id', v)} required className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o produto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {produtos.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={produtosOptions}
+                      value={formData.produto_id}
+                      onValueChange={(v) => handleChange('produto_id', v)}
+                      placeholder="Selecione o produto"
+                      searchPlaceholder="Buscar produto..."
+                      className="flex-1"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -194,14 +198,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 <div className="space-y-2">
                   <Label>Local Origem</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.local_estoque_origem} onValueChange={(v) => handleChange('local_estoque_origem', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={locaisOptions}
+                      value={formData.local_estoque_origem}
+                      onValueChange={(v) => handleChange('local_estoque_origem', v)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar local..."
+                      className="flex-1"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -211,14 +215,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 <div className="space-y-2">
                   <Label>Local Destino</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.local_estoque_destino} onValueChange={(v) => handleChange('local_estoque_destino', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locais.map(l => <SelectItem key={l.id} value={l.nome}>{l.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={locaisOptions}
+                      value={formData.local_estoque_destino}
+                      onValueChange={(v) => handleChange('local_estoque_destino', v)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar local..."
+                      className="flex-1"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -235,14 +239,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 <div className="space-y-2">
                   <Label>Centro de Custo</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={centrosOptions}
+                      value={formData.centro_custo_id}
+                      onValueChange={(v) => handleChange('centro_custo_id', v)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar centro..."
+                      className="flex-1"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -281,14 +285,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               {formData.tipo_movimentacao === 'Entrada' && (
                 <div className="space-y-2">
                   <Label>Fornecedor</Label>
-                  <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fornecedores.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={fornecedoresOptions}
+                    value={formData.fornecedor_id}
+                    onValueChange={(v) => handleChange('fornecedor_id', v)}
+                    placeholder="Selecione o fornecedor"
+                    searchPlaceholder="Buscar fornecedor..."
+                  />
                 </div>
               )}
 

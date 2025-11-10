@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { DollarSign, Save, X, Package, Users, Calendar, Truck, CreditCard, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -36,6 +37,9 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
 
   const valorTotal = (parseFloat(formData.quantidade) || 0) * (parseFloat(formData.valor_unitario) || 0);
 
+  const fornecedoresOptions = fornecedores.map(f => ({ value: f.id, label: f.nome }));
+  const produtosOptions = produtos.map(p => ({ value: p.id, label: p.nome_produto }));
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -59,22 +63,14 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
                   <Users className="w-4 h-4 text-blue-600" />
                   Fornecedor *
                 </Label>
-                <Select 
-                  value={formData.fornecedor_id} 
+                <Combobox
+                  options={fornecedoresOptions}
+                  value={formData.fornecedor_id}
                   onValueChange={(value) => handleChange('fornecedor_id', value)}
-                  required
-                >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione o fornecedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fornecedores.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione o fornecedor"
+                  searchPlaceholder="Buscar fornecedor..."
+                  className="border-slate-300 focus:border-green-500"
+                />
               </div>
 
               <div className="space-y-2">
@@ -82,22 +78,14 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
                   <Package className="w-4 h-4 text-purple-600" />
                   Produto *
                 </Label>
-                <Select 
-                  value={formData.produto_id} 
+                <Combobox
+                  options={produtosOptions}
+                  value={formData.produto_id}
                   onValueChange={(value) => handleChange('produto_id', value)}
-                  required
-                >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione o produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {produtos.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nome_produto}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione o produto"
+                  searchPlaceholder="Buscar produto..."
+                  className="border-slate-300 focus:border-green-500"
+                />
               </div>
             </div>
 
