@@ -1,18 +1,22 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Ruler, Trash2, Edit } from "lucide-react";
+import { Plus, Ruler, Trash2, Edit, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
 import CartoesResumo from "../components/shared/CartoesResumo";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
-// Função para obter próximo número de unidade
 const getNextUnidadeNumber = async () => {
   try {
     const all = await base44.entities.UnidadeMedida.list();
@@ -26,6 +30,7 @@ const getNextUnidadeNumber = async () => {
 export default function UnidadesMedida() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({ sigla: "", descricao: "" });
 
   const queryClient = useQueryClient();
@@ -41,7 +46,6 @@ export default function UnidadesMedida() {
 
   useEffect(() => {
     const numerarUnidadesExistentes = async () => {
-      // Filter units that do not have a numero_unidade defined or it's an empty string
       const semNumero = unidades.filter(u => !u.numero_unidade || u.numero_unidade === "");
 
       if (semNumero.length > 0) {
@@ -57,7 +61,6 @@ export default function UnidadesMedida() {
       }
     };
 
-    // Only run this effect if units have been loaded and there are units to process
     if (!isLoading && unidades.length > 0) {
       numerarUnidadesExistentes();
     }
@@ -124,6 +127,15 @@ export default function UnidadesMedida() {
     setShowForm(true);
   };
 
+  const filteredUnidades = unidades.filter(u => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      u.sigla?.toLowerCase().includes(searchLower) ||
+      u.descricao?.toLowerCase().includes(searchLower) ||
+      u.numero_unidade?.includes(searchLower)
+    );
+  });
+
   const cartoes = [
     { id: 'total', label: 'Unidades Cadastradas', valor: unidades.length, sublabel: 'Total', icon: Ruler, cor: 'blue', tipo: 'numero' },
   ];
@@ -141,7 +153,16 @@ export default function UnidadesMedida() {
 
           <CartoesResumo cartoes={cartoes} />
 
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nº, sigla, descrição..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-8 text-xs border-slate-300"
+              />
+            </div>
             <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Nova Unidade
@@ -190,48 +211,56 @@ export default function UnidadesMedida() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Ruler className="w-4 h-4" />
-              Unidades ({unidades.length})
+              Unidades ({filteredUnidades.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Nº</TableHead>
-                    <TableHead>Sigla</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50 text-xs">
+                    <TableHead className="font-semibold text-slate-700">Nº</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Sigla</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Descrição</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center">Carregando...</TableCell>
+                      <TableCell colSpan={3} className="text-center">Carregando...</TableCell>
                     </TableRow>
-                  ) : unidades.length === 0 ? (
+                  ) : filteredUnidades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-slate-400">
-                        Nenhuma unidade cadastrada
+                      <TableCell colSpan={3} className="text-center py-8 text-slate-400">
+                        {searchTerm ? 'Nenhuma unidade encontrada' : 'Nenhuma unidade cadastrada'}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    unidades.map((unidade) => (
-                      <TableRow key={unidade.id} className="text-xs">
-                        <TableCell className="font-bold">{unidade.numero_unidade || 'N/A'}</TableCell>
-                        <TableCell className="font-mono font-semibold">{unidade.sigla}</TableCell>
-                        <TableCell>{unidade.descricao}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(unidade)} className="h-7 w-7">
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir unidade?')) deleteMutation.mutate(unidade.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                    filteredUnidades.map((unidade) => (
+                      <ContextMenu key={unidade.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                          >
+                            <TableCell className="font-bold">{unidade.numero_unidade || 'N/A'}</TableCell>
+                            <TableCell className="font-mono font-semibold">{unidade.sigla}</TableCell>
+                            <TableCell>{unidade.descricao}</TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleEdit(unidade)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => { if (window.confirm('⚠️ Excluir unidade?')) deleteMutation.mutate(unidade.id); }}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </TableBody>

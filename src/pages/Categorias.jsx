@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,12 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, FolderOpen } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Edit, Trash2, FolderOpen, Settings, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
-import CartoesResumo from "../components/shared/CartoesResumo"; // Adjusted path as per common structure, assuming it's in a shared components folder.
+import CartoesResumo from "../components/shared/CartoesResumo";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
-// Função para obter próximo número de categoria
 const getNextCategoryNumber = async () => {
   try {
     const all = await base44.entities.Categoria.list();
@@ -21,46 +26,41 @@ const getNextCategoryNumber = async () => {
       .filter(n => n > 0);
     return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
   } catch {
-    // Return 1 on error to ensure a starting number is always available
     return 1;
   }
 };
 
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null); // Renamed from editingItem to editing
-  const [formData, setFormData] = useState({ nome: "", descricao: "" }); // Removed subcategoria
+  const [editing, setEditing] = useState(null);
+  const [formData, setFormData] = useState({ nome: "", descricao: "" });
+  const [searchTerm, setSearchTerm] = useState("");
 
   const queryClient = useQueryClient();
 
   const { data: categorias = [], isLoading } = useQuery({
     queryKey: ['categorias'],
-    queryFn: () => base44.entities.Categoria.list(), // Simplified queryFn
+    queryFn: () => base44.entities.Categoria.list(),
     initialData: [],
   });
 
-  // Sorting logic moved outside the queryFn
   const categoriasSorted = [...categorias].sort((a, b) => {
     const numA = parseInt(a.numero_categoria) || 0;
     const numB = parseInt(b.numero_categoria) || 0;
     if (numA !== numB) {
       return numA - numB;
     }
-    return (a.nome || '').localeCompare(b.nome || ''); // Handle potential null/undefined nome
+    return (a.nome || '').localeCompare(b.nome || '');
   });
 
-  // Numerar categorias existentes automaticamente
   useEffect(() => {
     const numerarCategoriasExistentes = async () => {
-      // Only proceed if categories are loaded and there are some
-      // and filter out categories that already have a number
       const semNumero = categorias.filter(c => !c.numero_categoria);
 
       if (semNumero.length > 0) {
-        let updateCount = 0; // Track if any updates were made
+        let updateCount = 0;
         for (const categoria of semNumero) {
           try {
-            // Get the next available number dynamically for each unnumbered category
             const proximoNumero = await getNextCategoryNumber();
             await base44.entities.Categoria.update(categoria.id, {
               numero_categoria: String(proximoNumero)
@@ -71,7 +71,6 @@ export default function Categorias() {
             toast.error(`Erro ao numerar categoria ${categoria.nome}.`);
           }
         }
-        // Invalidate queries only if updates were actually performed
         if (updateCount > 0) {
           queryClient.invalidateQueries({ queryKey: ['categorias'] });
           toast.success('Categorias sem número foram numeradas automaticamente.');
@@ -79,11 +78,10 @@ export default function Categorias() {
       }
     };
 
-    // Only run if categories data is available
     if (categorias.length > 0) {
       numerarCategoriasExistentes();
     }
-  }, [categorias, queryClient]); // Removed isLoading from dependencies as per outline
+  }, [categorias, queryClient]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -96,7 +94,7 @@ export default function Categorias() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
       setShowForm(false);
-      resetForm(); // Use resetForm function
+      resetForm();
       toast.success('Categoria cadastrada!');
     },
     onError: (error) => {
@@ -109,8 +107,8 @@ export default function Categorias() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
       setShowForm(false);
-      setEditing(null); // Renamed from setEditingItem
-      resetForm(); // Use resetForm function
+      setEditing(null);
+      resetForm();
       toast.success('Categoria atualizada!');
     },
     onError: (error) => {
@@ -120,11 +118,8 @@ export default function Categorias() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se existem produtos vinculados
       const todosProdutos = await base44.entities.Produto.list();
-      const categoriaToDelete = categorias.find(c => c.id === id); // Find the category being deleted
-
-      // Check if any product's category name matches the category being deleted
+      const categoriaToDelete = categorias.find(c => c.id === id);
       const temProdutos = todosProdutos.some(p => p.categoria === categoriaToDelete?.nome);
       
       if (temProdutos) {
@@ -142,7 +137,6 @@ export default function Categorias() {
     }
   });
 
-  // New reset form function
   const resetForm = () => {
     setFormData({ nome: "", descricao: "" });
   };
@@ -150,8 +144,8 @@ export default function Categorias() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const data = { 
-      nome: formData.nome?.toUpperCase(), // Ensure uppercase and handle potential null
-      descricao: formData.descricao?.toUpperCase() || undefined // Ensure uppercase, or undefined if empty
+      nome: formData.nome?.toUpperCase(),
+      descricao: formData.descricao?.toUpperCase() || undefined
     };
 
     if (editing) {
@@ -161,16 +155,24 @@ export default function Categorias() {
     }
   };
 
-  const handleEdit = (categoria) => { // Renamed item to categoria
-    setEditing(categoria); // Renamed from setEditingItem
+  const handleEdit = (categoria) => {
+    setEditing(categoria);
     setFormData({ 
       nome: categoria.nome || "", 
       descricao: categoria.descricao || "" 
-    }); // Removed subcategoria
+    });
     setShowForm(true);
   };
 
-  // Card summary data
+  const filteredCategorias = categoriasSorted.filter(c => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      c.nome?.toLowerCase().includes(searchLower) ||
+      c.descricao?.toLowerCase().includes(searchLower) ||
+      c.numero_categoria?.includes(searchLower)
+    );
+  });
+
   const cartoes = [
     { id: 'total', label: 'Categorias Cadastradas', valor: categorias.length, sublabel: 'Total', icon: FolderOpen, cor: 'blue', tipo: 'numero' },
   ];
@@ -188,7 +190,16 @@ export default function Categorias() {
 
           <CartoesResumo cartoes={cartoes} />
 
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nº, nome, descrição..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-8 text-xs border-slate-300"
+              />
+            </div>
             <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Nova Categoria
@@ -220,7 +231,7 @@ export default function Categorias() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Descrição</Label>
-                      <Input // Changed from Textarea to Input
+                      <Input
                         value={formData.descricao}
                         onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                         placeholder="DESCRIÇÃO"
@@ -250,53 +261,56 @@ export default function Categorias() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <FolderOpen className="w-4 h-4" />
-              Categorias ({categorias.length})
+              Categorias ({filteredCategorias.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Nº</TableHead> {/* Updated column name */}
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead> {/* Subcategoria column removed */}
-                    <TableHead className="text-center">Ações</TableHead>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50 text-xs">
+                    <TableHead className="font-semibold text-slate-700">Nº</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Nome</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Descrição</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">Carregando...</TableCell> {/* Updated colspan */}
+                      <TableCell colSpan={3} className="text-center py-4">Carregando...</TableCell>
                     </TableRow>
-                  ) : categoriasSorted.length === 0 ? (
+                  ) : filteredCategorias.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-slate-400"> {/* Updated colspan */}
-                        Nenhuma categoria cadastrada
+                      <TableCell colSpan={3} className="text-center py-8 text-slate-400">
+                        {searchTerm ? 'Nenhuma categoria encontrada' : 'Nenhuma categoria cadastrada'}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    categoriasSorted.map((categoria) => (
-                      <TableRow key={categoria.id} className="text-xs">
-                        <TableCell className="font-bold">{categoria.numero_categoria || '-'}</TableCell> {/* Display numero_categoria */}
-                        <TableCell className="font-semibold">{categoria.nome}</TableCell>
-                        <TableCell>{categoria.descricao || '-'}</TableCell> {/* Changed from subcategoria to descricao */}
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)} className="h-7 w-7">
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => { if (window.confirm('⚠️ Excluir categoria? Esta ação não pode ser desfeita.')) deleteMutation.mutate(categoria.id); }}
-                              className="h-7 w-7 text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                    filteredCategorias.map((categoria) => (
+                      <ContextMenu key={categoria.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                          >
+                            <TableCell className="font-bold">{categoria.numero_categoria || '-'}</TableCell>
+                            <TableCell className="font-semibold">{categoria.nome}</TableCell>
+                            <TableCell>{categoria.descricao || '-'}</TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleEdit(categoria)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => { if (window.confirm('⚠️ Excluir categoria? Esta ação não pode ser desfeita.')) deleteMutation.mutate(categoria.id); }}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </TableBody>

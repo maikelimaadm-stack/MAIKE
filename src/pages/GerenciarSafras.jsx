@@ -9,14 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Layers, Save, X, Calendar } from "lucide-react";
+import { Plus, Edit, Trash2, Layers, Save, X, Calendar, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import CartoesResumo from "../components/shared/CartoesResumo";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export default function GerenciarSafras() {
   const [showForm, setShowForm] = useState(false);
   const [editingSafra, setEditingSafra] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     ano_inicio: "",
     ano_fim: "",
@@ -124,6 +131,15 @@ export default function GerenciarSafras() {
     return config[status] || config['Planejamento'];
   };
 
+  const filteredSafras = safras.filter(s => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      `${s.ano_inicio}/${s.ano_fim}`.includes(searchLower) ||
+      s.descricao?.toLowerCase().includes(searchLower) ||
+      s.status?.toLowerCase().includes(searchLower)
+    );
+  });
+
   const totalSafras = safras.length;
   const safrasEmAndamento = safras.filter(s => s.status === 'Em Andamento').length;
   const safrasFinalizadas = safras.filter(s => s.status === 'Finalizada').length;
@@ -147,7 +163,16 @@ export default function GerenciarSafras() {
 
           <CartoesResumo cartoes={cartoes} />
 
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por período, descrição, status..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-8 text-xs border-slate-300"
+              />
+            </div>
             <Button onClick={() => { setEditingSafra(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Nova Safra
@@ -217,48 +242,58 @@ export default function GerenciarSafras() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Layers className="w-4 h-4" />
-              Safras ({safras.length})
+              Safras ({filteredSafras.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Período</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Observações</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50 text-xs">
+                    <TableHead className="font-semibold text-slate-700">Período</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Descrição</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Status</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Observações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {safras.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">Nenhuma safra cadastrada</TableCell>
+                      <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs">
+                        {searchTerm ? 'Nenhuma safra encontrada' : 'Nenhuma safra cadastrada'}
+                      </TableCell>
                     </TableRow>
                   ) : (
-                    safras.map((safra) => (
-                      <TableRow key={safra.id} className="text-xs">
-                        <TableCell className="font-bold">{safra.ano_inicio}/{safra.ano_fim}</TableCell>
-                        <TableCell>{safra.descricao || '-'}</TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusBadge(safra.status)} text-xs py-0`}>
-                            {safra.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">{safra.observacoes || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(safra)} className="h-7 w-7">
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir safra?')) deleteMutation.mutate(safra.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                    filteredSafras.map((safra) => (
+                      <ContextMenu key={safra.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                          >
+                            <TableCell className="font-bold">{safra.ano_inicio}/{safra.ano_fim}</TableCell>
+                            <TableCell>{safra.descricao || '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={`${getStatusBadge(safra.status)} text-xs py-0`}>
+                                {safra.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{safra.observacoes || '-'}</TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleEdit(safra)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => { if (window.confirm('⚠️ Excluir safra?')) deleteMutation.mutate(safra.id); }}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </TableBody>

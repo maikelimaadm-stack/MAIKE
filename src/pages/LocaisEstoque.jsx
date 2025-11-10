@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tantml:react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Warehouse, Trash2, Edit, X, Save } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, X, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
 import CartoesResumo from "../components/shared/CartoesResumo";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const getNextLocalNumber = async () => {
   try {
@@ -26,6 +32,7 @@ const getNextLocalNumber = async () => {
 export default function LocaisEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({ nome: "", descricao: "", capacidade: "" });
 
   const queryClient = useQueryClient();
@@ -129,6 +136,15 @@ export default function LocaisEstoque() {
     setShowForm(true);
   };
 
+  const filteredLocais = locais.filter(l => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      l.nome?.toLowerCase().includes(searchLower) ||
+      l.descricao?.toLowerCase().includes(searchLower) ||
+      l.numero_local?.includes(searchLower)
+    );
+  });
+
   const cartoes = [
     { id: 'total', label: 'Total de Locais', valor: locais.length, sublabel: 'Cadastrados', icon: Warehouse, cor: 'blue', tipo: 'numero' },
   ];
@@ -146,7 +162,16 @@ export default function LocaisEstoque() {
 
           <CartoesResumo cartoes={cartoes} />
 
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nº, nome, descrição..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-8 text-xs border-slate-300"
+              />
+            </div>
             <Button onClick={() => { setEditingItem(null); setFormData({ nome: "", descricao: "", capacidade: "" }); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Novo Local
@@ -196,44 +221,54 @@ export default function LocaisEstoque() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Warehouse className="w-4 h-4" />
-              Locais ({locais.length})
+              Locais ({filteredLocais.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Nº</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Capacidade</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50 text-xs">
+                    <TableHead className="font-semibold text-slate-700">Nº</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Nome</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Capacidade</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Descrição</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {locais.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">Nenhum local cadastrado</TableCell>
+                      <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs">
+                        {searchTerm ? 'Nenhum local encontrado' : 'Nenhum local cadastrado'}
+                      </TableCell>
                     </TableRow>
                   ) : (
-                    locais.map((item) => (
-                      <TableRow key={item.id} className="text-xs">
-                        <TableCell className="font-bold">{item.numero_local || '-'}</TableCell>
-                        <TableCell className="font-semibold">{item.nome}</TableCell>
-                        <TableCell>{item.capacidade || '-'}</TableCell>
-                        <TableCell>{item.descricao || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} className="h-7 w-7">
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir local?')) deleteMutation.mutate(item.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                    filteredLocais.map((item) => (
+                      <ContextMenu key={item.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                          >
+                            <TableCell className="font-bold">{item.numero_local || '-'}</TableCell>
+                            <TableCell className="font-semibold">{item.nome}</TableCell>
+                            <TableCell>{item.capacidade || '-'}</TableCell>
+                            <TableCell>{item.descricao || '-'}</TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleEdit(item)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => { if (window.confirm('⚠️ Excluir local?')) deleteMutation.mutate(item.id); }}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </TableBody>

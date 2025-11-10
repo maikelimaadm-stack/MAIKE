@@ -9,11 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Building, Save, X } from "lucide-react";
+import { Plus, Edit, Trash2, Building, Save, X, Search, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import CartoesResumo from "../components/shared/CartoesResumo";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const getNextNumero = async () => {
   try {
@@ -28,6 +34,7 @@ const getNextNumero = async () => {
 export default function CentrosCusto() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "Setor",
@@ -144,6 +151,16 @@ export default function CentrosCusto() {
     setShowForm(true);
   };
 
+  const filteredCentros = centros.filter(c => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      c.nome?.toLowerCase().includes(searchLower) ||
+      c.codigo?.toLowerCase().includes(searchLower) ||
+      c.responsavel?.toLowerCase().includes(searchLower) ||
+      c.numero_centro?.includes(searchLower)
+    );
+  });
+
   const totalCentros = centros.length;
   const centrosAtivos = centros.filter(c => c.ativo !== false).length;
 
@@ -165,7 +182,16 @@ export default function CentrosCusto() {
 
           <CartoesResumo cartoes={cartoes} />
 
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nº, nome, código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-8 text-xs border-slate-300"
+              />
+            </div>
             <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Novo Centro
@@ -244,52 +270,62 @@ export default function CentrosCusto() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Building className="w-4 h-4" />
-              Centros ({centros.length})
+              Centros ({filteredCentros.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Nº</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50 text-xs">
+                    <TableHead className="font-semibold text-slate-700">Nº</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Código</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Nome</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Tipo</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Responsável</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {centros.length === 0 ? (
+                  {filteredCentros.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-slate-400 text-xs">Nenhum centro cadastrado</TableCell>
+                      <TableCell colSpan={6} className="text-center py-8 text-slate-400 text-xs">
+                        {searchTerm ? 'Nenhum centro encontrado' : 'Nenhum centro cadastrado'}
+                      </TableCell>
                     </TableRow>
                   ) : (
-                    centros.map(c => (
-                      <TableRow key={c.id} className="text-xs">
-                        <TableCell className="font-bold">{c.numero_centro}</TableCell>
-                        <TableCell className="font-mono">{c.codigo || '-'}</TableCell>
-                        <TableCell className="font-semibold">{c.nome}</TableCell>
-                        <TableCell>{c.tipo}</TableCell>
-                        <TableCell>{c.responsavel || '-'}</TableCell>
-                        <TableCell>
-                          <Badge className={`text-xs py-0 ${c.ativo !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {c.ativo !== false ? 'Ativo' : 'Inativo'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} className="h-7 w-7">
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { if (window.confirm('⚠️ Excluir centro?')) deleteMutation.mutate(c.id); }} className="h-7 w-7 text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                    filteredCentros.map(c => (
+                      <ContextMenu key={c.id}>
+                        <ContextMenuTrigger asChild>
+                          <motion.tr
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                          >
+                            <TableCell className="font-bold">{c.numero_centro}</TableCell>
+                            <TableCell className="font-mono">{c.codigo || '-'}</TableCell>
+                            <TableCell className="font-semibold">{c.nome}</TableCell>
+                            <TableCell>{c.tipo}</TableCell>
+                            <TableCell>{c.responsavel || '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={`text-xs py-0 ${c.ativo !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'}`}>
+                                {c.ativo !== false ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </TableCell>
+                          </motion.tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleEdit(c)}>
+                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                            Editar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => { if (window.confirm('⚠️ Excluir centro?')) deleteMutation.mutate(c.id); }}>
+                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                            Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </TableBody>
