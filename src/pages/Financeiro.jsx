@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -101,6 +102,9 @@ export default function Financeiro() {
             numero_documento: data.numero_documento,
             chave_nfe: data.chave_nfe,
             serie_documento: data.serie_documento,
+            numero_boleto: data.numero_boleto,
+            banco_boleto: data.banco_boleto,
+            cfop: data.cfop,
             data_emissao: data.data_emissao,
             data_vencimento: parcela.data,
             valor_original: valorOriginal,
@@ -129,22 +133,28 @@ export default function Financeiro() {
       } else {
         setProgressoSalvamento({ etapa: '💾 Salvando...', current: 50, total: 100 });
         const numero = await getNextNumber(empresaSelecionadaId);
-        const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
-          sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
-        );
-        const valorTotal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
+        
+        let valorTotal;
+        if (data.lancar_produtos) {
+          const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
+            sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
+          );
+          valorTotal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
+        } else {
+          valorTotal = data.valor_original + data.valor_juros + data.valor_multa - data.valor_desconto;
+        }
         
         const lanc = await base44.entities.LancamentoFinanceiro.create({
           ...data,
           empresa_id: empresaSelecionadaId,
           numero_lancamento: String(numero),
-          valor_original: valorTotal,
+          valor_original: data.lancar_produtos ? valorTotal : data.valor_original,
           valor_total: valorTotal,
           valor_pago: data.conta_paga ? data.valor_pago_total : 0,
           valor_saldo: data.conta_paga ? (valorTotal - data.valor_pago_total) : valorTotal,
-          valor_juros: 0,
-          valor_multa: 0,
-          valor_desconto: 0,
+          valor_juros: data.lancar_produtos ? 0 : data.valor_juros,
+          valor_multa: data.lancar_produtos ? 0 : data.valor_multa,
+          valor_desconto: data.lancar_produtos ? 0 : data.valor_desconto,
           status: data.conta_paga ? 'Pago' : 'Pendente'
         });
         
@@ -259,19 +269,26 @@ export default function Financeiro() {
     
     const dadosFormulario = {
       tipo: "Pagar",
-      tipo_documento: dados.dadosNFe.tipo_documento || "NF-e",
+      tipo_documento: "NF-e", // Always NF-e when importing XML
       fornecedor_id: dados.fornecedor_id,
       data_emissao: dados.dadosNFe.data_emissao,
       data_vencimento: dados.dataVencimento,
       numero_documento: dados.dadosNFe.numero,
       serie_documento: dados.dadosNFe.serie,
       chave_nfe: dados.dadosNFe.chave,
+      cfop: dados.dadosNFe.cfop || '',
       safra_id: dados.dadosComplementares?.safra_id || '',
       centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
       plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
       grupo_id: dados.dadosComplementares?.grupo_id || '',
       forma_pagamento_id: dados.dadosComplementares?.forma_pagamento_id || '',
       lancar_produtos: dados.gerarEstoque !== false,
+      dar_entrada_estoque: dados.gerarEstoque !== false,
+      local_estoque: dados.dadosComplementares?.local_estoque || '',
+      conta_paga: dados.conta_paga || false,
+      data_pagamento: dados.data_pagamento || '',
+      valor_pago_total: dados.valor_pago_total ? String(dados.valor_pago_total).replace('.', ',') : '',
+      forma_pagamento_paga_id: dados.forma_pagamento_paga_id || '',
       produtos_selecionados: dados.itens.map(item => ({
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
