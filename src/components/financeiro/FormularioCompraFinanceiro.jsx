@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip } from "lucide-react";
+import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
@@ -61,6 +62,7 @@ const calcularDataProximaMes = (dataBase) => {
 
 export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos }) {
   const [etapa, setEtapa] = useState(1);
+  const [mostrarCamposNFe, setMostrarCamposNFe] = useState(false);
   const [formData, setFormData] = useState(() => {
     const defaults = {
       tipo: "Pagar",
@@ -95,7 +97,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       observacoes: "",
       observacoes_nfe: "",
       frete: "0,00",
-      desconto_total: "0,00",
       outras_despesas: "0,00",
       local_estoque: "",
       anexos: [],
@@ -113,6 +114,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
     if (!initialData) return defaults;
 
+    // Se tem dados da NF-e, mostrar os campos
+    const temDadosNFeInicial = initialData.valor_produtos || initialData.valor_frete || initialData.valor_seguro || initialData.valor_outras_despesas || initialData.valor_desconto_total || initialData.valor_ipi || initialData.valor_icms || initialData.valor_pis || initialData.valor_cofins || initialData.base_calculo_icms || initialData.observacoes_nfe;
+    if (temDadosNFeInicial) {
+      setTimeout(() => setMostrarCamposNFe(true), 100);
+    }
+
     return {
       ...defaults,
       ...initialData,
@@ -124,7 +131,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
       frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : (initialData.frete ? formatarNumero(initialData.frete) : defaults.frete),
-      desconto_total: initialData.valor_desconto_total ? formatarNumero(initialData.valor_desconto_total) : (initialData.desconto_total ? formatarNumero(initialData.desconto_total) : defaults.desconto_total),
       outras_despesas: initialData.valor_outras_despesas ? formatarNumero(initialData.valor_outras_despesas) : (initialData.outras_despesas ? formatarNumero(initialData.outras_despesas) : defaults.outras_despesas),
       valor_produtos: initialData.valor_produtos ? formatarNumero(initialData.valor_produtos) : "",
       valor_frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : "",
@@ -136,7 +142,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_pis: initialData.valor_pis ? formatarNumero(initialData.valor_pis) : "",
       valor_cofins: initialData.valor_cofins ? formatarNumero(initialData.valor_cofins) : "",
       base_calculo_icms: initialData.base_calculo_icms ? formatarNumero(initialData.base_calculo_icms) : "",
-      produtos_selecionados: initialData.produtos_selecionados || [],
+      produtos_selecionados: initialData.produtos_selecionados?.map(p => ({
+        ...p,
+        quantidade: formatarNumero(p.quantidade),
+        valor_total: formatarNumero(p.valor_unitario * p.quantidade), // Assuming valor_total should be unitario * qtd initially
+        desconto_item: formatarNumero(p.desconto_item || 0)
+      })) || [],
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
         valor: formatarNumero(p.valor || 0)
@@ -232,10 +243,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
-      const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-        sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0") - parseNumero(p.desconto_item || "0,00")), 0
+      // SOMA DOS VALORES TOTAIS DOS PRODUTOS (Líquido = Vlr Total - Desc. Total)
+      const totalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
+        sum + (parseNumero(p.valor_total || "0") - parseNumero(p.desconto_item || "0")), 0
       );
-      return subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+      // TOTAL = Produtos Líquido + Frete + Outras Despesas
+      return totalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas);
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -299,7 +312,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       ...prev,
       produtos_selecionados: [
         ...prev.produtos_selecionados,
-        { produto_id: "", produto_nome: "", quantidade: "", valor_unitario: "", desconto_item: "0,00" }
+        { produto_id: "", produto_nome: "", quantidade: "", valor_total: "", desconto_item: "0,00" }
       ]
     }));
   };
@@ -323,7 +336,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
             if (produto) {
               updated.produto_nome = produto.nome_produto;
               updated.unidade = produto.unidade_medida;
-              updated.valor_unitario = produto.preco_custo ? formatarNumero(produto.preco_custo) : "";
+              if (produto.preco_custo && updated.quantidade) {
+                const qtd = parseNumero(updated.quantidade);
+                updated.valor_total = formatarNumero(produto.preco_custo * qtd);
+              }
             }
           }
           
@@ -405,11 +421,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
 
       const produtosIncompletos = formData.produtos_selecionados.filter(p => 
-        !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_unitario) <= 0
+        !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
       );
 
       if (produtosIncompletos.length > 0) {
-        toast.error('❌ Preencha todos os campos de quantidade e valor unitário dos produtos com valores válidos!');
+        toast.error('❌ Preencha todos os campos de quantidade e valor total dos produtos com valores válidos!');
         return;
       }
 
@@ -519,26 +535,33 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
       forma_pagamento_paga_id: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
       forma_pagamento_paga_nome: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
-      produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => ({
-        produto_id: p.produto_id,
-        produto_nome: p.produto_nome,
-        quantidade: parseNumero(p.quantidade),
-        unidade: p.unidade,
-        valor_unitario: parseNumero(p.valor_unitario),
-        desconto_item: parseNumero(p.desconto_item || "0,00")
-      })) : [],
+      produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => {
+        const qtd = parseNumero(p.quantidade);
+        const totalGross = parseNumero(p.valor_total); // This is the gross total from the input
+        const desconto = parseNumero(p.desconto_item || "0");
+        const valorLiquido = totalGross - desconto; // This is the net value per item
+        const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0; // Calculated unit price based on net total
+
+        return {
+          produto_id: p.produto_id,
+          produto_nome: p.produto_nome,
+          quantidade: qtd,
+          unidade: p.unidade,
+          valor_unitario: valorUnitario, // Sending the calculated net unit value
+          desconto_item: desconto
+        };
+      }) : [],
       valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
       valor_juros: formData.lancar_produtos ? undefined : parseNumero(formData.valor_juros),
       valor_multa: formData.lancar_produtos ? undefined : parseNumero(formData.valor_multa),
-      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto),
+      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto), // Used when lancar_produtos is false
       valor_produtos: formData.valor_produtos ? parseNumero(formData.valor_produtos) : undefined,
       frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0,
       valor_frete: formData.valor_frete ? parseNumero(formData.valor_frete) : parseNumero(formData.frete),
       valor_seguro: formData.valor_seguro ? parseNumero(formData.valor_seguro) : 0,
-      desconto_total: formData.lancar_produtos ? parseNumero(formData.desconto_total) : 0,
-      valor_desconto_total: formData.valor_desconto_total ? parseNumero(formData.valor_desconto_total) : parseNumero(formData.desconto_total),
-      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0,
       valor_outras_despesas: formData.valor_outras_despesas ? parseNumero(formData.valor_outras_despesas) : parseNumero(formData.outras_despesas),
+      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0,
+      valor_desconto_total: formData.valor_desconto_total ? parseNumero(formData.valor_desconto_total) : 0,
       valor_ipi: formData.valor_ipi ? parseNumero(formData.valor_ipi) : 0,
       valor_icms: formData.valor_icms ? parseNumero(formData.valor_icms) : 0,
       valor_pis: formData.valor_pis ? parseNumero(formData.valor_pis) : 0,
@@ -555,17 +578,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     await onSubmit(data);
   };
 
-  const subtotalProdutos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
-    const qtd = parseNumero(p.quantidade || "0");
-    const vlrUnit = parseNumero(p.valor_unitario || "0");
-    const desc = parseNumero(p.desconto_item || "0,00");
-    return sum + (qtd * vlrUnit - desc);
+  const totalProdutos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+    const totalItemBruto = parseNumero(p.valor_total || "0");
+    const descontoItem = parseNumero(p.desconto_item || "0");
+    return sum + (totalItemBruto - descontoItem);
   }, 0) : 0;
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
 
-  const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe;
+  const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe || formData.valor_outras_despesas || formData.valor_desconto_total || formData.base_calculo_icms;
 
   return (
     <>
@@ -750,15 +772,20 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 <TableRow>
                                   <TableHead className="text-xs">Produto *</TableHead>
                                   <TableHead className="text-xs text-right">Qtd *</TableHead>
-                                  <TableHead className="text-xs text-right">Vlr Unit. *</TableHead>
-                                  <TableHead className="text-xs text-right">Desc.</TableHead>
-                                  <TableHead className="text-xs text-right">Total</TableHead>
+                                  <TableHead className="text-xs text-right">Vlr Total *</TableHead>
+                                  <TableHead className="text-xs text-right">Desc. Item</TableHead>
+                                  <TableHead className="text-xs text-right">Líquido</TableHead>
+                                  <TableHead className="text-xs text-center">Un.</TableHead>
                                   <TableHead className="w-12"></TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {formData.produtos_selecionados.map((produto, index) => {
-                                  const total = parseNumero(produto.quantidade || "0") * parseNumero(produto.valor_unitario || "0") - parseNumero(produto.desconto_item || "0,00");
+                                  const totalBruto = parseNumero(produto.valor_total || "0");
+                                  const descItem = parseNumero(produto.desconto_item || "0,00");
+                                  const liquido = totalBruto - descItem;
+                                  const qtd = parseNumero(produto.quantidade || "0");
+                                  const unitario = qtd > 0 ? (liquido / qtd) : 0;
                                   
                                   return (
                                     <TableRow key={index}>
@@ -784,15 +811,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           value={produto.quantidade}
                                           onChange={(e) => handleAtualizarProduto(index, 'quantidade', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs"
+                                          className="text-right h-8 text-xs w-20"
                                         />
                                       </TableCell>
                                       <TableCell>
                                         <Input
-                                          value={produto.valor_unitario}
-                                          onChange={(e) => handleAtualizarProduto(index, 'valor_unitario', e.target.value)}
+                                          value={produto.valor_total}
+                                          onChange={(e) => handleAtualizarProduto(index, 'valor_total', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs"
+                                          className="text-right h-8 text-xs w-24"
                                         />
                                       </TableCell>
                                       <TableCell>
@@ -800,13 +827,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           value={produto.desconto_item || "0,00"}
                                           onChange={(e) => handleAtualizarProduto(index, 'desconto_item', e.target.value)}
                                           placeholder="0,00"
-                                          className="text-right h-8 text-xs"
+                                          className="text-right h-8 text-xs w-20"
                                         />
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        <span className="font-mono font-bold text-green-700 text-xs">
-                                          {formatarMoeda(total)}
-                                        </span>
+                                        <div className="font-mono font-bold text-green-700 text-xs">
+                                          {formatarMoeda(liquido)}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500">
+                                          Un: {formatarMoeda(unitario)}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                                       </TableCell>
                                       <TableCell>
                                         <Button
@@ -857,14 +890,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           )}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <Label className="text-xs">Frete</Label>
                             <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Desconto</Label>
-                            <Input value={formData.desconto_total} onChange={(e) => handleChange('desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs">Outras Desp.</Label>
@@ -872,20 +901,28 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <Card className="bg-white border-blue-200">
-                            <CardContent className="p-2">
-                              <div className="text-xs text-slate-600">Subtotal:</div>
-                              <div className="text-base font-bold text-blue-700">{formatarMoeda(subtotalProdutos)}</div>
-                            </CardContent>
-                          </Card>
-                          <Card className="bg-white border-emerald-200">
-                            <CardContent className="p-2">
-                              <div className="text-xs text-slate-600">Total:</div>
-                              <div className="text-base font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
-                            </CardContent>
-                          </Card>
-                        </div>
+                        <Card className="bg-white border-emerald-200">
+                          <CardContent className="p-2">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-slate-600">
+                                <span>Subtotal Produtos:</span>
+                                <span className="font-bold text-blue-700">{formatarMoeda(totalProdutos)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-slate-600">
+                                <span>+ Frete:</span>
+                                <span>{formatarMoeda(parseNumero(formData.frete))}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-slate-600">
+                                <span>+ Outras Despesas:</span>
+                                <span>{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
+                              </div>
+                              <div className="pt-1 border-t flex justify-between">
+                                <span className="text-xs font-semibold">VALOR TOTAL:</span>
+                                <span className="text-base font-bold text-emerald-700">{formatarMoeda(valorTotal)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </CardContent>
                     </Card>
                   )}
@@ -930,68 +967,82 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   {temDadosNFe && (
                     <Card className="bg-purple-50 border-purple-200">
                       <CardHeader className="py-2 px-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-purple-600" />
-                          Valores Detalhados da NF-e (Informativo)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 space-y-3">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">📦 Vlr. Produtos</Label>
-                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">🚚 Vlr. Frete</Label>
-                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">🛡️ Vlr. Seguro</Label>
-                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">💼 Outras Despesas</Label>
-                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">💸 Desconto Total</Label>
-                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">📋 Vlr. IPI</Label>
-                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">💵 Vlr. ICMS</Label>
-                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">📊 Vlr. PIS</Label>
-                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">📈 Vlr. COFINS</Label>
-                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">🧮 Base Cálc. ICMS</Label>
-                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
-                          </div>
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-purple-600" />
+                            Valores Detalhados da NF-e (Informativo)
+                          </CardTitle>
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setMostrarCamposNFe(!mostrarCamposNFe)} 
+                            className="h-7 gap-1 text-xs"
+                          >
+                            {mostrarCamposNFe ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            {mostrarCamposNFe ? 'Ocultar' : 'Mostrar'}
+                          </Button>
                         </div>
-                        
-                        {formData.observacoes_nfe && (
-                          <div className="space-y-1.5 pt-2 border-t border-purple-300">
-                            <Label className="text-xs font-semibold">📄 Observações Completas da NF-e</Label>
-                            <Textarea 
-                              value={formData.observacoes_nfe} 
-                              onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
-                              className="text-xs min-h-32 bg-white" 
-                              rows={6} 
-                            />
-                            <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
+                      </CardHeader>
+                      {mostrarCamposNFe && (
+                        <CardContent className="p-3 space-y-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">📦 Vlr. Produtos</Label>
+                              <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">🚚 Vlr. Frete</Label>
+                              <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">🛡️ Vlr. Seguro</Label>
+                              <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">💼 Outras Despesas</Label>
+                              <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">💸 Desconto Total</Label>
+                              <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">📋 Vlr. IPI</Label>
+                              <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">💵 Vlr. ICMS</Label>
+                              <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">📊 Vlr. PIS</Label>
+                              <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">📈 Vlr. COFINS</Label>
+                              <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">🧮 Base Cálc. ICMS</Label>
+                              <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
+                            </div>
                           </div>
-                        )}
-                      </CardContent>
+                          
+                          {formData.observacoes_nfe && (
+                            <div className="space-y-1.5 pt-2 border-t border-purple-300">
+                              <Label className="text-xs font-semibold">📄 Observações Completas da NF-e</Label>
+                              <Textarea 
+                                value={formData.observacoes_nfe} 
+                                onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
+                                className="text-xs min-h-32 bg-white" 
+                                rows={6} 
+                              />
+                              <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      )}
                     </Card>
                   )}
 
