@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2, ShoppingCart } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
@@ -38,8 +37,7 @@ const getNextNumeroLivro = async (empresaId) => {
 export default function Financeiro() {
   const [tipoAba, setTipoAba] = useState("pagar");
   const [showForm, setShowForm] = useState(false);
-  const [showFormCompra, setShowFormCompra] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [dadosXML, setDadosXML] = useState(null);
   const [showBaixa, setShowBaixa] = useState(false);
   const [itemBaixa, setItemBaixa] = useState(null);
   const [showImportarXML, setShowImportarXML] = useState(false);
@@ -112,6 +110,12 @@ export default function Financeiro() {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
           
+          const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
+            sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
+          );
+          
+          const valorOriginal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
+          
           const lanc = await base44.entities.LancamentoFinanceiro.create({
             empresa_id: empresaSelecionadaId,
             numero_lancamento: String(numero),
@@ -119,7 +123,6 @@ export default function Financeiro() {
             tipo_documento: data.tipo_documento,
             fornecedor_id: data.fornecedor_id,
             fornecedor_nome: data.fornecedor_nome,
-            cliente_nome: data.cliente_nome,
             safra_id: data.safra_id,
             safra_nome: data.safra_nome,
             centro_custo_id: data.centro_custo_id,
@@ -132,9 +135,10 @@ export default function Financeiro() {
             forma_pagamento_nome: data.forma_pagamento_nome,
             numero_documento: data.numero_documento,
             chave_nfe: data.chave_nfe,
+            serie_documento: data.serie_documento,
             data_emissao: data.data_emissao,
             data_vencimento: parcela.data,
-            valor_original: parcela.valor,
+            valor_original: valorOriginal,
             valor_total: parcela.valor,
             valor_saldo: parcela.valor,
             valor_juros: 0,
@@ -145,7 +149,7 @@ export default function Financeiro() {
             observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
             numero_parcela: i + 1,
             total_parcelas: data.parcelas.length,
-            produtos_lancamento: data.produtos_lancamento
+            produtos_lancamento: data.produtos_selecionados
           });
           
           lancamentosCriados.push(lanc);
@@ -155,15 +159,22 @@ export default function Financeiro() {
         return lancamentosCriados[0];
       } else {
         const numero = await getNextNumber(empresaSelecionadaId);
-        const valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
+        const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
+          sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
+        );
+        const valorTotal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
         
         return base44.entities.LancamentoFinanceiro.create({
           ...data,
           empresa_id: empresaSelecionadaId,
           numero_lancamento: String(numero),
+          valor_original: valorTotal,
           valor_total: valorTotal,
           valor_pago: 0,
           valor_saldo: valorTotal,
+          valor_juros: 0,
+          valor_multa: 0,
+          valor_desconto: 0,
           status: 'Pendente'
         });
       }
@@ -171,23 +182,9 @@ export default function Financeiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setShowForm(false);
-      setShowFormCompra(false);
-      setEditingItem(null);
+      setDadosXML(null);
       toast.success('✅ Lançamento salvo!');
     },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => {
-      const valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
-      return base44.entities.LancamentoFinanceiro.update(id, { ...data, valor_total: valorTotal });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      setShowForm(false);
-      setEditingItem(null);
-      toast.success('✅ Atualizado!');
-    }
   });
 
   const deleteMutation = useMutation({
@@ -237,56 +234,7 @@ export default function Financeiro() {
   });
 
   const handleSubmit = (data) => {
-    if (editingItem?.id) {
-      updateMutation.mutate({ id: editingItem.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const handleSubmitCompra = async (formData) => {
-    try {
-      toast.info('💾 Salvando compra...');
-      
-      // Aqui você pode processar a compra e criar os lançamentos necessários
-      // Por enquanto vamos apenas criar um lançamento financeiro simples
-      
-      const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
-      
-      const data = {
-        tipo: 'Pagar',
-        tipo_documento: 'Compra',
-        fornecedor_id: formData.fornecedor_id,
-        fornecedor_nome: fornecedor?.nome,
-        numero_documento: formData.compra_nf,
-        data_emissao: formData.data_emissao,
-        data_vencimento: formData.data_entrega || formData.data_emissao,
-        valor_original: parseFloat(formData.valor?.replace(/\./g, '').replace(',', '.')) || 0,
-        valor_juros: 0,
-        valor_multa: 0,
-        valor_desconto: 0,
-        observacoes: formData.observacoes_compra || formData.observacoes_fin || '',
-        produtos_lancamento: formData.produtos_selecionados.map(p => ({
-          produto_id: p.produto_id,
-          produto_nome: p.produto_nome,
-          quantidade: parseFloat(p.quantidade?.replace(/\./g, '').replace(',', '.')) || 0,
-          valor_unitario: p.valor_unitario || 0
-        }))
-      };
-
-      await createMutation.mutateAsync(data);
-      
-      toast.success('✅ Compra registrada com sucesso!');
-      setShowFormCompra(false);
-    } catch (error) {
-      console.error('Erro ao salvar compra:', error);
-      toast.error('❌ Erro ao salvar compra!');
-    }
-  };
-
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setShowForm(true);
+    createMutation.mutate(data);
   };
 
   const handleDelete = (id) => {
@@ -307,222 +255,40 @@ export default function Financeiro() {
   };
 
   const handleImportarXMLSuccess = async (dados) => {
-    try {
-      setShowImportarXML(false);
-      setShowProgressoImportacao(true);
-      setProgressoImportacao({ etapa: '🚀 Iniciando...', current: 0, total: 100 });
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const movIds = [];
-      
-      if (dados.gerarEstoque && dados.itens?.length > 0) {
-        setProgressoImportacao({ etapa: '📦 Lançando estoque...', current: 0, total: dados.itens.length });
-        
-        for (let i = 0; i < dados.itens.length; i++) {
-          const item = dados.itens[i];
-          const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
-          const prod = produtos.find(p => p.id === item.produto_id);
-          
-          if (!prod) continue;
-
-          const mov = await base44.entities.MovimentacaoEstoque.create({
-            empresa_id: empresaSelecionadaId,
-            numero_movimentacao: String(num),
-            tipo_movimentacao: 'Entrada',
-            tipo_detalhado: 'COMPRA',
-            data_movimentacao: new Date().toISOString(),
-            produto_id: prod.id,
-            produto_nome: prod.nome_produto?.toUpperCase(),
-            produto_codigo: prod.codigo_interno?.toUpperCase(),
-            quantidade: item.quantidade,
-            unidade_medida: item.unidade?.toUpperCase(),
-            local_estoque_destino: dados.dadosComplementares.local_estoque?.toUpperCase(),
-            valor_unitario: item.valor_unitario,
-            valor_total: item.quantidade * item.valor_unitario,
-            custo_medio_antes: prod?.preco_custo || 0,
-            custo_medio_depois: (prod?.estoque_atual > 0) 
-              ? ((prod.preco_custo * prod.estoque_atual) + (item.valor_unitario * item.quantidade)) / (prod.estoque_atual + item.quantidade)
-              : item.valor_unitario,
-            saldo_antes: prod?.estoque_atual || 0,
-            saldo_depois: (prod?.estoque_atual || 0) + item.quantidade,
-            tipo_documento: 'Nota Fiscal',
-            numero_documento: dados.dadosNFe.numero,
-            chave_documento: dados.dadosNFe.chave,
-            data_documento: dados.dadosNFe.data_emissao,
-            fornecedor_id: dados.fornecedor_id,
-            fornecedor_nome: fornecedores.find(f => f.id === dados.fornecedor_id)?.nome?.toUpperCase(),
-            centro_custo_id: dados.dadosComplementares?.centro_custo_id,
-            motivo_movimentacao: `COMPRA NF-E ${dados.dadosNFe.numero}`,
-            observacoes: (dados.dadosComplementares?.observacoes || '').toUpperCase(),
-            usuario_responsavel: (await base44.auth.me()).email,
-            status: 'Ativa'
-          });
-          
-          movIds.push(mov.id);
-          
-          await base44.entities.Produto.update(prod.id, {
-            estoque_atual: (prod?.estoque_atual || 0) + item.quantidade,
-            preco_custo: mov.custo_medio_depois
-          });
-          
-          setProgressoImportacao({ etapa: '📦 Lançando estoque...', current: i + 1, total: dados.itens.length });
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        
-        toast.success(`✅ ${dados.itens.length} produto(s)!`);
-      }
-
-      if (dados.gerarLivroFiscal && dados.itens?.length > 0) {
-        setProgressoImportacao({ etapa: '📚 Criando registro...', current: 0, total: 1 });
-        
-        const num = await getNextNumeroLivro(empresaSelecionadaId);
-        const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
-        
-        await base44.entities.LivroFiscal.create({
-          empresa_id: empresaSelecionadaId,
-          numero_registro: String(num),
-          tipo_livro: 'Entrada',
-          tipo_documento: 'NF-e',
-          numero_documento: dados.dadosNFe.numero,
-          serie_documento: dados.dadosNFe.serie,
-          chave_acesso: dados.dadosNFe.chave,
-          data_emissao: dados.dadosNFe.data_emissao,
-          data_entrada_saida: new Date().toISOString().split('T')[0],
-          fornecedor_id: dados.fornecedor_id,
-          fornecedor_nome: forn?.nome?.toUpperCase(),
-          fornecedor_cnpj_cpf: forn?.cnpj || forn?.cpf,
-          cfop: dados.dadosNFe.cfop || '5102',
-          natureza_operacao: (dados.dadosNFe.natureza_operacao || 'COMPRA').toUpperCase(),
-          valor_produtos: dados.itens.reduce((s, i) => s + (i.quantidade * i.valor_unitario), 0),
-          valor_total_nota: dados.dadosNFe.valor_total,
-          itens: dados.itens.map(i => ({
-            produto_id: i.produto_id,
-            produto_nome: i.produto_nome?.toUpperCase(),
-            codigo_produto: i.codigo?.toUpperCase(),
-            ncm: i.ncm,
-            cfop: i.cfop,
-            quantidade: i.quantidade,
-            unidade: i.unidade?.toUpperCase(),
-            valor_unitario: i.valor_unitario,
-            valor_total: i.quantidade * i.valor_unitario
-          })),
-          movimentacao_estoque_ids: movIds,
-          status: 'Ativo'
-        });
-        
-        setProgressoImportacao({ etapa: '📚 Registro criado!', current: 1, total: 1 });
-        toast.success('✅ Registro fiscal!');
-      }
-
-      if (dados.gerarFinanceiro) {
-        const totalFinanceiro = dados.parcelar ? dados.parcelas.length : 1;
-        setProgressoImportacao({ etapa: '💰 Criando lançamentos...', current: 0, total: totalFinanceiro });
-        
-        const forn = fornecedores.find(f => f.id === dados.fornecedor_id);
-        const plano = planos.find(p => p.id === dados.dadosComplementares?.plano_contas_id);
-        const grupo = grupos.find(g => g.id === dados.dadosComplementares?.grupo_id);
-        
-        const produtosLancamento = dados.itens.map(i => ({
-          produto_id: i.produto_id,
-          produto_nome: i.produto_nome,
-          codigo: i.codigo,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-          valor_unitario: i.valor_unitario
-        }));
-
-        if (dados.parcelar && dados.parcelas?.length > 0) {
-          for (let i = 0; i < dados.parcelas.length; i++) {
-            const parcela = dados.parcelas[i];
-            const numero = await getNextNumber(empresaSelecionadaId);
-            
-            await base44.entities.LancamentoFinanceiro.create({
-              empresa_id: empresaSelecionadaId,
-              numero_lancamento: String(numero),
-              tipo: 'Pagar',
-              tipo_documento: 'NF-e',
-              fornecedor_id: dados.fornecedor_id,
-              fornecedor_nome: forn?.nome?.toUpperCase(),
-              numero_documento: dados.dadosNFe.numero,
-              chave_nfe: dados.dadosNFe.chave,
-              data_emissao: dados.dadosNFe.data_emissao,
-              data_vencimento: parcela.data,
-              valor_original: parcela.valor,
-              valor_total: parcela.valor,
-              valor_saldo: parcela.valor,
-              valor_juros: 0,
-              valor_multa: 0,
-              valor_desconto: 0,
-              valor_pago: 0,
-              status: 'Pendente',
-              plano_contas_id: dados.dadosComplementares?.plano_contas_id || undefined,
-              plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
-              grupo_id: dados.dadosComplementares?.grupo_id || undefined,
-              grupo_nome: grupo?.descricao,
-              centro_custo_id: dados.dadosComplementares?.centro_custo_id || undefined,
-              observacoes: `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero} - PARCELA ${i + 1}/${dados.parcelas.length}${dados.dadosComplementares?.observacoes ? ' - ' + dados.dadosComplementares.observacoes.toUpperCase() : ''}`,
-              numero_parcela: i + 1,
-              total_parcelas: dados.parcelas.length,
-              produtos_lancamento: produtosLancamento,
-              gerado_xml: true
-            });
-            
-            setProgressoImportacao({ etapa: '💰 Criando...', current: i + 1, total: dados.parcelas.length });
-            await new Promise(resolve => setTimeout(resolve, 80));
-          }
-          
-          toast.success(`✅ ${dados.parcelas.length} lançamentos!`);
-        } else {
-          const numero = await getNextNumber(empresaSelecionadaId);
-          
-          await base44.entities.LancamentoFinanceiro.create({
-            empresa_id: empresaSelecionadaId,
-            numero_lancamento: String(numero),
-            tipo: 'Pagar',
-            tipo_documento: 'NF-e',
-            fornecedor_id: dados.fornecedor_id,
-            fornecedor_nome: forn?.nome?.toUpperCase(),
-            numero_documento: dados.dadosNFe.numero,
-            chave_nfe: dados.dadosNFe.chave,
-            data_emissao: dados.dadosNFe.data_emissao,
-            data_vencimento: dados.dataVencimento,
-            valor_original: dados.dadosNFe.valor_total,
-            valor_total: dados.dadosNFe.valor_total,
-            valor_saldo: dados.dadosNFe.valor_total,
-            valor_juros: 0,
-            valor_multa: 0,
-            valor_desconto: 0,
-            valor_pago: 0,
-            status: 'Pendente',
-            plano_contas_id: dados.dadosComplementares?.plano_contas_id || undefined,
-            plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
-            grupo_id: dados.dadosComplementares?.grupo_id || undefined,
-            grupo_nome: grupo?.descricao,
-            centro_custo_id: dados.dadosComplementares?.centro_custo_id || undefined,
-            observacoes: (dados.dadosComplementares?.observacoes || `IMPORTAÇÃO NF-E ${dados.dadosNFe.numero}`).toUpperCase(),
-            produtos_lancamento: produtosLancamento,
-            gerado_xml: true
-          });
-          
-          setProgressoImportacao({ etapa: '💰 Lançamento criado!', current: 1, total: 1 });
-          toast.success('✅ Lançamento!');
-        }
-      }
-      
-      setProgressoImportacao({ etapa: '✅ Concluído!', current: 100, total: 100 });
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      setShowProgressoImportacao(false);
-      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-      toast.success('🎉 Importação concluída!');
-      
-    } catch (error) {
-      console.error('❌ Erro:', error);
-      setShowProgressoImportacao(false);
-      toast.error('Erro: ' + (error.message || 'Erro desconhecido'));
-    }
+    setShowImportarXML(false);
+    
+    // Converter dados XML para o formato do formulário
+    const dadosFormulario = {
+      tipo: "Pagar",
+      tipo_documento: "NF-e",
+      fornecedor_id: dados.fornecedor_id,
+      data_emissao: dados.dadosNFe.data_emissao,
+      data_vencimento: dados.dataVencimento,
+      numero_documento: dados.dadosNFe.numero,
+      serie_documento: dados.dadosNFe.serie,
+      chave_nfe: dados.dadosNFe.chave,
+      produtos_selecionados: dados.itens.map(item => ({
+        produto_id: item.produto_id,
+        produto_nome: item.produto_nome,
+        quantidade: String(item.quantidade).replace('.', ','),
+        valor_unitario: String(item.valor_unitario).replace('.', ','),
+        desconto_item: String(item.desconto_item || 0).replace('.', ','),
+        unidade: item.unidade
+      })),
+      frete: String(dados.dadosComplementares?.frete || 0).replace('.', ','),
+      desconto_total: String(dados.dadosComplementares?.desconto_total || 0).replace('.', ','),
+      outras_despesas: String(dados.dadosComplementares?.outras_despesas || 0).replace('.', ','),
+      observacoes: dados.dadosComplementares?.observacoes || '',
+      centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
+      plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
+      grupo_id: dados.dadosComplementares?.grupo_id || '',
+      parcelar: dados.parcelar || false,
+      parcelas: dados.parcelas || []
+    };
+    
+    setDadosXML(dadosFormulario);
+    setShowForm(true);
+    toast.success('✅ Dados importados! Complete o lançamento.');
   };
 
   const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar');
@@ -542,9 +308,6 @@ export default function Financeiro() {
       qtdReceber: contasReceber.length
     };
   }, [lancamentos, lancamentosPagar, lancamentosReceber]);
-
-  const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const progressPercentage = progressoImportacao.total > 0 ? Math.round((progressoImportacao.current / progressoImportacao.total) * 100) : 0;
 
   const cartoes = [
     {
@@ -578,7 +341,7 @@ export default function Financeiro() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      {!showForm && !showBaixa && !showFormCompra && (
+      {!showForm && !showBaixa && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
@@ -590,15 +353,11 @@ export default function Financeiro() {
           <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setShowFormCompra(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <ShoppingCart className="w-3.5 h-3.5" />
-              Nova Compra
-            </Button>
             <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <FileText className="w-3.5 h-3.5" />
               Importação NF-e (xml)
             </Button>
-            <Button onClick={() => { setEditingItem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+            <Button onClick={() => { setDadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               <Plus className="w-3.5 h-3.5" />
               Novo
             </Button>
@@ -607,20 +366,10 @@ export default function Financeiro() {
       )}
 
       {showForm && (
-        <FormularioFinanceiro
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setEditingItem(null); }}
-          initialData={editingItem}
-          fornecedores={fornecedores}
-          produtos={produtos}
-          safras={safras}
-        />
-      )}
-
-      {showFormCompra && (
         <FormularioCompraFinanceiro
-          onSubmit={handleSubmitCompra}
-          onCancel={() => setShowFormCompra(false)}
+          onSubmit={handleSubmit}
+          onCancel={() => { setShowForm(false); setDadosXML(null); }}
+          initialData={dadosXML}
           fornecedores={fornecedores}
           produtos={produtos}
         />
@@ -646,31 +395,7 @@ export default function Financeiro() {
         produtos={produtos}
       />
 
-      <Dialog open={showProgressoImportacao} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              Importando NF-e
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {progressoImportacao.etapa}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Progresso</span>
-                <span className="font-semibold text-slate-900">{progressoImportacao.current}/{progressoImportacao.total}</span>
-              </div>
-              <Progress value={progressPercentage} className="h-1.5" />
-              <p className="text-center text-xs font-semibold text-blue-600">{progressPercentage}%</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {!showForm && !showBaixa && !showFormCompra && (
+      {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
           <TabsList className="grid w-full max-w-md grid-cols-2 h-8">
             <TabsTrigger value="pagar" className="gap-1 text-xs h-7">
@@ -687,7 +412,7 @@ export default function Financeiro() {
             <TabelaFinanceiro
               lancamentos={lancamentosPagar}
               tipo="Pagar"
-              onEdit={handleEdit}
+              onEdit={() => {}}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               onCancelarBaixa={handleCancelarBaixa}
@@ -701,7 +426,7 @@ export default function Financeiro() {
             <TabelaFinanceiro
               lancamentos={lancamentosReceber}
               tipo="Receber"
-              onEdit={handleEdit}
+              onEdit={() => {}}
               onDelete={handleDelete}
               onBaixa={handleBaixa}
               onCancelarBaixa={handleCancelarBaixa}
