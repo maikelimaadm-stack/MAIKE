@@ -448,7 +448,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.data_vencimento && !formData.parcelar) {
+    if (!formData.parcelar && !formData.conta_paga && !formData.data_vencimento) { // Updated condition
       toast.error('❌ Preencha a data de vencimento!');
       return;
     }
@@ -478,7 +478,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
     }
 
-    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) {
+    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) { // Changed < 2 to < 1
       toast.error('❌ Adicione pelo menos 1 parcela!');
       return;
     }
@@ -531,7 +531,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       observacoes_nfe: formData.observacoes_nfe || undefined,
       lancar_produtos: formData.lancar_produtos,
       dar_entrada_estoque: formData.lancar_produtos ? formData.dar_entrada_estoque : false,
-      local_estoque: (formData.lancar_produtos && formData.dar_entrada_estoque) ? formData.local_estoque : undefined,
+      local_estoque: formData.lancar_produtos && formData.dar_entrada_estoque ? formData.local_estoque : undefined,
       conta_paga: formData.conta_paga,
       data_pagamento: formData.conta_paga ? formData.data_pagamento : undefined,
       valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
@@ -539,19 +539,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       forma_pagamento_paga_nome: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
       produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => {
         const qtd = parseNumero(p.quantidade);
-        const totalGross = parseNumero(p.valor_total);
+        const totalGross = parseNumero(p.valor_total); // This is the gross total from the input
         const desconto = parseNumero(p.desconto_item || "0");
-        const valorLiquido = totalGross - desconto;
-        const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0;
+        const valorLiquido = totalGross - desconto; // This is the net value per item
+        const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0; // Calculated unit price based on net total
 
         return {
           produto_id: p.produto_id,
           produto_nome: p.produto_nome,
           quantidade: qtd,
           unidade: p.unidade,
-          valor_unitario: valorUnitario,
+          valor_unitario: valorUnitario, // Sending the calculated net unit value
           desconto_item: desconto,
-          valor_total: totalGross
+          valor_total: totalGross // Added this line
         };
       }) : [],
       valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
