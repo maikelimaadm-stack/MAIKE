@@ -20,20 +20,6 @@ const getNextNumber = async (empresaId) => {
   return maxNum + 1;
 };
 
-const getNextNumeroMovimentacao = async (empresaId) => {
-  const all = await base44.entities.MovimentacaoEstoque.list();
-  const filtered = all.filter(m => m.empresa_id === empresaId);
-  const maxNum = filtered.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
-  return maxNum + 1;
-};
-
-const getNextNumeroLivro = async (empresaId) => {
-  const all = await base44.entities.LivroFiscal.list();
-  const filtered = all.filter(l => l.empresa_id === empresaId);
-  const maxNum = filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_registro) || 0), 0);
-  return maxNum + 1;
-};
-
 export default function Financeiro() {
   const [tipoAba, setTipoAba] = useState("pagar");
   const [showForm, setShowForm] = useState(false);
@@ -41,8 +27,8 @@ export default function Financeiro() {
   const [showBaixa, setShowBaixa] = useState(false);
   const [itemBaixa, setItemBaixa] = useState(null);
   const [showImportarXML, setShowImportarXML] = useState(false);
-  const [showProgressoImportacao, setShowProgressoImportacao] = useState(false);
-  const [progressoImportacao, setProgressoImportacao] = useState({ etapa: '', current: 0, total: 0 });
+  const [showProgressoSalvamento, setShowProgressoSalvamento] = useState(false);
+  const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 0 });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -74,36 +60,15 @@ export default function Financeiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: safras = [] } = useQuery({
-    queryKey: ['safras_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Safra.list();
-      return all.filter(s => s.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: planos = [] } = useQuery({
-    queryKey: ['planos_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PlanoContas.list('codigo');
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: grupos = [] } = useQuery({
-    queryKey: ['grupos_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.GrupoFinanceiro.list();
-      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const createMutation = useMutation({
     mutationFn: async (data) => {
+      setShowProgressoSalvamento(true);
+      setProgressoSalvamento({ etapa: '🚀 Iniciando...', current: 10, total: 100 });
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       if (data.parcelas && data.parcelas.length > 0) {
+        setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
         const lancamentosCriados = [];
         
         for (let i = 0; i < data.parcelas.length; i++) {
@@ -149,42 +114,77 @@ export default function Financeiro() {
             observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
             numero_parcela: i + 1,
             total_parcelas: data.parcelas.length,
-            produtos_lancamento: data.produtos_selecionados
+            produtos_lancamento: data.produtos_selecionados,
+            anexos: data.anexos
           });
           
           lancamentosCriados.push(lanc);
+          setProgressoSalvamento({ etapa: `💰 Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
         }
         
+        setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
+        await new Promise(resolve => setTimeout(resolve, 500));
         toast.success(`✅ ${data.parcelas.length} lançamentos criados!`);
         return lancamentosCriados[0];
       } else {
+        setProgressoSalvamento({ etapa: '💾 Salvando...', current: 50, total: 100 });
         const numero = await getNextNumber(empresaSelecionadaId);
         const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
           sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
         );
         const valorTotal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
         
-        return base44.entities.LancamentoFinanceiro.create({
+        const lanc = await base44.entities.LancamentoFinanceiro.create({
           ...data,
           empresa_id: empresaSelecionadaId,
           numero_lancamento: String(numero),
           valor_original: valorTotal,
           valor_total: valorTotal,
-          valor_pago: 0,
-          valor_saldo: valorTotal,
+          valor_pago: data.conta_paga ? data.valor_pago_total : 0,
+          valor_saldo: data.conta_paga ? (valorTotal - data.valor_pago_total) : valorTotal,
           valor_juros: 0,
           valor_multa: 0,
           valor_desconto: 0,
-          status: 'Pendente'
+          status: data.conta_paga ? 'Pago' : 'Pendente'
         });
+        
+        if (data.conta_paga) {
+          setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 80, total: 100 });
+          const allBaixas = await base44.entities.BaixaFinanceira.list();
+          const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
+          
+          await base44.entities.BaixaFinanceira.create({
+            empresa_id: empresaSelecionadaId,
+            numero_baixa: String(maxNumBaixa + 1),
+            lancamento_id: lanc.id,
+            data_baixa: data.data_pagamento,
+            valor_baixa: data.valor_pago_total,
+            valor_juros: 0,
+            valor_multa: 0,
+            valor_desconto: 0,
+            forma_pagamento_id: data.forma_pagamento_paga_id,
+            forma_pagamento_nome: data.forma_pagamento_paga_nome,
+            observacoes: 'BAIXA AUTOMÁTICA NO CADASTRO',
+            usuario_responsavel: (await base44.auth.me()).email
+          });
+        }
+        
+        setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return lanc;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setShowForm(false);
       setDadosXML(null);
-      toast.success('✅ Lançamento salvo!');
+      setShowProgressoSalvamento(false);
+      toast.success('✅ Lançamento salvo com sucesso!');
     },
+    onError: (error) => {
+      setShowProgressoSalvamento(false);
+      toast.error('❌ Erro ao salvar: ' + error.message);
+    }
   });
 
   const deleteMutation = useMutation({
@@ -233,8 +233,8 @@ export default function Financeiro() {
     }
   });
 
-  const handleSubmit = (data) => {
-    createMutation.mutate(data);
+  const handleSubmit = async (data) => {
+    await createMutation.mutateAsync(data);
   };
 
   const handleDelete = (id) => {
@@ -257,16 +257,21 @@ export default function Financeiro() {
   const handleImportarXMLSuccess = async (dados) => {
     setShowImportarXML(false);
     
-    // Converter dados XML para o formato do formulário
     const dadosFormulario = {
       tipo: "Pagar",
-      tipo_documento: "NF-e",
+      tipo_documento: dados.dadosNFe.tipo_documento || "NF-e",
       fornecedor_id: dados.fornecedor_id,
       data_emissao: dados.dadosNFe.data_emissao,
       data_vencimento: dados.dataVencimento,
       numero_documento: dados.dadosNFe.numero,
       serie_documento: dados.dadosNFe.serie,
       chave_nfe: dados.dadosNFe.chave,
+      safra_id: dados.dadosComplementares?.safra_id || '',
+      centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
+      plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
+      grupo_id: dados.dadosComplementares?.grupo_id || '',
+      forma_pagamento_id: dados.dadosComplementares?.forma_pagamento_id || '',
+      lancar_produtos: dados.gerarEstoque !== false,
       produtos_selecionados: dados.itens.map(item => ({
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
@@ -279,16 +284,17 @@ export default function Financeiro() {
       desconto_total: String(dados.dadosComplementares?.desconto_total || 0).replace('.', ','),
       outras_despesas: String(dados.dadosComplementares?.outras_despesas || 0).replace('.', ','),
       observacoes: dados.dadosComplementares?.observacoes || '',
-      centro_custo_id: dados.dadosComplementares?.centro_custo_id || '',
-      plano_contas_id: dados.dadosComplementares?.plano_contas_id || '',
-      grupo_id: dados.dadosComplementares?.grupo_id || '',
       parcelar: dados.parcelar || false,
-      parcelas: dados.parcelas || []
+      parcelas: dados.parcelas?.map(p => ({
+        data: p.data,
+        valor: String(p.valor).replace('.', ',')
+      })) || [],
+      anexos: []
     };
     
     setDadosXML(dadosFormulario);
     setShowForm(true);
-    toast.success('✅ Dados importados! Complete o lançamento.');
+    toast.success('✅ Dados importados! Complete e salve.');
   };
 
   const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar');
@@ -338,6 +344,8 @@ export default function Financeiro() {
       tipo: 'moeda'
     }
   ];
+
+  const progressPercentage = progressoSalvamento.total > 0 ? Math.round((progressoSalvamento.current / progressoSalvamento.total) * 100) : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -394,6 +402,26 @@ export default function Financeiro() {
         fornecedores={fornecedores}
         produtos={produtos}
       />
+
+      <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              Salvando Lançamento
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {progressoSalvamento.etapa}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Progress value={progressPercentage} className="h-2" />
+              <p className="text-center text-sm font-semibold text-emerald-600">{progressPercentage}%</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!showForm && !showBaixa && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>

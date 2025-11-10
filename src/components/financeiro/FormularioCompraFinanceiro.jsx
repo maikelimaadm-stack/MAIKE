@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft } from "lucide-react";
+import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, Upload, FileText, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
@@ -44,7 +44,7 @@ const calcularDataProximaMes = (dataBase) => {
   }
 };
 
-export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos }) {
+export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, onSaveProgress }) {
   const [etapa, setEtapa] = useState(1);
   const [formData, setFormData] = useState(() => {
     const defaults = {
@@ -61,13 +61,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       plano_contas_id: "",
       grupo_id: "",
       forma_pagamento_id: "",
+      lancar_produtos: true,
+      conta_paga: false,
+      data_pagamento: "",
+      valor_pago_total: "",
+      forma_pagamento_paga_id: "",
       parcelar: false,
       parcelas: [],
       produtos_selecionados: [],
       observacoes: "",
       frete: "0,00",
       desconto_total: "0,00",
-      outras_despesas: "0,00"
+      outras_despesas: "0,00",
+      anexos: []
     };
 
     if (!initialData) return defaults;
@@ -75,6 +81,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     return {
       ...defaults,
       ...initialData,
+      lancar_produtos: initialData.lancar_produtos !== false,
+      conta_paga: initialData.conta_paga || false,
       frete: initialData.frete ? formatarNumero(initialData.frete) : defaults.frete,
       desconto_total: initialData.desconto_total ? formatarNumero(initialData.desconto_total) : defaults.desconto_total,
       outras_despesas: initialData.outras_despesas ? formatarNumero(initialData.outras_despesas) : defaults.outras_despesas,
@@ -82,7 +90,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
         valor: formatarNumero(p.valor || 0)
-      })) || []
+      })) || [],
+      anexos: initialData.anexos || []
     };
   });
 
@@ -90,6 +99,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const [showDialogPlano, setShowDialogPlano] = useState(false);
   const [showDialogGrupo, setShowDialogGrupo] = useState(false);
   const [showDialogForma, setShowDialogForma] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -257,6 +267,47 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }));
   };
 
+  const handleUploadAnexo = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast.error('Arquivo muito grande! Máximo 10MB');
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      setFormData(prev => ({
+        ...prev,
+        anexos: [...prev.anexos, {
+          nome: file.name,
+          url: file_url,
+          tipo: file.type,
+          tamanho: file.size
+        }]
+      }));
+      
+      toast.success('✅ Arquivo anexado!');
+    } catch (error) {
+      toast.error('Erro ao fazer upload');
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoverAnexo = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      anexos: prev.anexos.filter((_, i) => i !== index)
+    }));
+    toast.success('Anexo removido!');
+  };
+
   const handleProximaEtapa = () => {
     if (!formData.fornecedor_id) {
       toast.error('❌ Selecione o fornecedor!');
@@ -268,24 +319,26 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return;
     }
 
-    if (formData.produtos_selecionados.length === 0) {
-      toast.error('❌ Adicione pelo menos 1 produto!');
-      return;
-    }
+    if (formData.lancar_produtos) {
+      if (formData.produtos_selecionados.length === 0) {
+        toast.error('❌ Adicione pelo menos 1 produto!');
+        return;
+      }
 
-    const produtosIncompletos = formData.produtos_selecionados.filter(p => 
-      !p.produto_id || !p.quantidade || !p.valor_unitario
-    );
+      const produtosIncompletos = formData.produtos_selecionados.filter(p => 
+        !p.produto_id || !p.quantidade || !p.valor_unitario
+      );
 
-    if (produtosIncompletos.length > 0) {
-      toast.error('❌ Preencha todos os campos dos produtos!');
-      return;
+      if (produtosIncompletos.length > 0) {
+        toast.error('❌ Preencha todos os campos dos produtos!');
+        return;
+      }
     }
 
     setEtapa(2);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.data_vencimento) {
@@ -303,12 +356,23 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return;
     }
 
-    if (formData.parcelar && formData.parcelas.length < 2) {
+    if (formData.conta_paga) {
+      if (!formData.data_pagamento) {
+        toast.error('❌ Preencha a data de pagamento!');
+        return;
+      }
+      if (!formData.valor_pago_total) {
+        toast.error('❌ Preencha o valor pago!');
+        return;
+      }
+    }
+
+    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 2) {
       toast.error('❌ Mínimo 2 parcelas!');
       return;
     }
 
-    if (formData.parcelar) {
+    if (!formData.conta_paga && formData.parcelar) {
       const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
         sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
       );
@@ -327,6 +391,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const plano = planos.find(p => p.id === formData.plano_contas_id);
     const grupo = grupos.find(g => g.id === formData.grupo_id);
     const forma = formasPagamento.find(f => f.id === formData.forma_pagamento_id);
+    const formaPaga = formasPagamento.find(f => f.id === formData.forma_pagamento_paga_id);
 
     const data = {
       tipo: formData.tipo,
@@ -349,33 +414,40 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       data_emissao: formData.data_emissao,
       data_vencimento: formData.data_vencimento,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
-      produtos_selecionados: formData.produtos_selecionados.map(p => ({
+      lancar_produtos: formData.lancar_produtos,
+      conta_paga: formData.conta_paga,
+      data_pagamento: formData.conta_paga ? formData.data_pagamento : undefined,
+      valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
+      forma_pagamento_paga_id: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
+      forma_pagamento_paga_nome: formData.conta_paga ? formaPaga?.descricao : undefined,
+      produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => ({
         produto_id: p.produto_id,
         produto_nome: p.produto_nome,
         quantidade: parseNumero(p.quantidade),
         unidade: p.unidade,
         valor_unitario: parseNumero(p.valor_unitario),
         desconto_item: parseNumero(p.desconto_item || "0,00")
-      })),
+      })) : [],
       frete: parseNumero(formData.frete),
       desconto_total: parseNumero(formData.desconto_total),
       outras_despesas: parseNumero(formData.outras_despesas),
-      parcelar: formData.parcelar,
-      parcelas: formData.parcelar ? formData.parcelas.map(p => ({ 
+      parcelar: !formData.conta_paga && formData.parcelar,
+      parcelas: (!formData.conta_paga && formData.parcelar) ? formData.parcelas.map(p => ({ 
         data: p.data, 
         valor: parseNumero(p.valor) 
-      })) : undefined
+      })) : undefined,
+      anexos: formData.anexos
     };
 
-    onSubmit(data);
+    await onSubmit(data);
   };
 
-  const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => {
+  const subtotalProdutos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
     const qtd = parseNumero(p.quantidade || "0");
     const vlrUnit = parseNumero(p.valor_unitario || "0");
     const desc = parseNumero(p.desconto_item || "0,00");
     return sum + (qtd * vlrUnit - desc);
-  }, 0);
+  }, 0) : 0;
 
   const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
@@ -384,235 +456,274 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
         <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200 py-3">
             <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4 text-white" />
               </div>
-              Novo Lançamento - Etapa {etapa} de 2
+              <div>
+                <div className="text-base">Novo Lançamento</div>
+                <div className="text-xs font-normal text-slate-600">Etapa {etapa} de 2</div>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* ETAPA 1: DADOS DA COMPRA */}
               {etapa === 1 && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label>Fornecedor *</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Fornecedor *</Label>
                       <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
-                          {fornecedores.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                          {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Tipo Documento *</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Tipo Documento *</Label>
                       <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="NF-e">NF-e</SelectItem>
-                          <SelectItem value="NFC-e">NFC-e</SelectItem>
-                          <SelectItem value="Recibo">Recibo</SelectItem>
-                          <SelectItem value="Boleto">Boleto</SelectItem>
-                          <SelectItem value="Nota Manual">Nota Manual</SelectItem>
-                          <SelectItem value="Outros">Outros</SelectItem>
+                          <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                          <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
+                          <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                          <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                          <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
+                          <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Data Emissão *</Label>
-                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Data Emissão *</Label>
+                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-9 text-xs" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label>Nº Documento</Label>
-                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nº Documento</Label>
+                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase h-9 text-xs" style={{ textTransform: 'uppercase' }} />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Série</Label>
-                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Série</Label>
+                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="uppercase h-9 text-xs" style={{ textTransform: 'uppercase' }} />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Safra</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Safra</Label>
                       <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                         <SelectContent>
-                          {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
+                          {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Chave NF-e (44 dígitos)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
                     <Input 
                       value={formData.chave_nfe} 
                       onChange={(e) => handleChange('chave_nfe', e.target.value)} 
                       placeholder="00000000000000000000000000000000000000000000" 
                       maxLength={44}
-                      className="font-mono text-xs"
+                      className="font-mono text-xs h-9"
                     />
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="font-semibold">Produtos *</Label>
-                      <Button type="button" size="sm" onClick={handleAdicionarProduto} className="h-8 gap-1 text-xs">
-                        <Plus className="w-3 h-3" />
-                        Adicionar
-                      </Button>
+                  <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        checked={formData.lancar_produtos} 
+                        onCheckedChange={(v) => handleChange('lancar_produtos', v)} 
+                        id="lancar_produtos" 
+                      />
+                      <label htmlFor="lancar_produtos" className="font-semibold cursor-pointer text-sm">
+                        📦 Lançar Produtos no Estoque
+                      </label>
                     </div>
 
-                    {formData.produtos_selecionados.length > 0 && (
-                      <div className="border rounded overflow-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-xs">Produto *</TableHead>
-                              <TableHead className="text-xs text-right">Qtd *</TableHead>
-                              <TableHead className="text-xs text-right">Vlr Unit. *</TableHead>
-                              <TableHead className="text-xs text-right">Desc.</TableHead>
-                              <TableHead className="text-xs text-right">Total</TableHead>
-                              <TableHead className="w-12"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {formData.produtos_selecionados.map((produto, index) => {
-                              const total = parseNumero(produto.quantidade || "0") * parseNumero(produto.valor_unitario || "0") - parseNumero(produto.desconto_item || "0,00");
-                              
-                              return (
-                                <TableRow key={index}>
-                                  <TableCell>
-                                    <Select 
-                                      value={produto.produto_id} 
-                                      onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
-                                    >
-                                      <SelectTrigger className="h-8 text-xs">
-                                        <SelectValue placeholder="Selecione" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {produtos.map(p => (
-                                          <SelectItem key={p.id} value={p.id} className="text-xs">
-                                            {p.nome_produto}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      value={produto.quantidade}
-                                      onChange={(e) => handleAtualizarProduto(index, 'quantidade', e.target.value)}
-                                      placeholder="0,00"
-                                      className="text-right h-8 text-xs"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      value={produto.valor_unitario}
-                                      onChange={(e) => handleAtualizarProduto(index, 'valor_unitario', e.target.value)}
-                                      placeholder="0,00"
-                                      className="text-right h-8 text-xs"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      value={produto.desconto_item || "0,00"}
-                                      onChange={(e) => handleAtualizarProduto(index, 'desconto_item', e.target.value)}
-                                      placeholder="0,00"
-                                      className="text-right h-8 text-xs"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <span className="font-mono font-bold text-green-700 text-xs">
-                                      {formatarMoeda(total)}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleRemoverProduto(index)}
-                                      className="h-7 w-7 text-red-600"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </TableCell>
+                    {formData.lancar_produtos && (
+                      <>
+                        <div className="flex justify-between items-center pt-2">
+                          <Label className="font-semibold text-xs">Produtos *</Label>
+                          <Button type="button" size="sm" onClick={handleAdicionarProduto} className="h-7 gap-1 text-xs">
+                            <Plus className="w-3 h-3" />
+                            Adicionar
+                          </Button>
+                        </div>
+
+                        {formData.produtos_selecionados.length > 0 && (
+                          <div className="border rounded overflow-auto max-h-72">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">Produto *</TableHead>
+                                  <TableHead className="text-xs text-right">Qtd *</TableHead>
+                                  <TableHead className="text-xs text-right">Vlr Unit. *</TableHead>
+                                  <TableHead className="text-xs text-right">Desc.</TableHead>
+                                  <TableHead className="text-xs text-right">Total</TableHead>
+                                  <TableHead className="w-12"></TableHead>
                                 </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
+                              </TableHeader>
+                              <TableBody>
+                                {formData.produtos_selecionados.map((produto, index) => {
+                                  const total = parseNumero(produto.quantidade || "0") * parseNumero(produto.valor_unitario || "0") - parseNumero(produto.desconto_item || "0,00");
+                                  
+                                  return (
+                                    <TableRow key={index}>
+                                      <TableCell>
+                                        <Select 
+                                          value={produto.produto_id} 
+                                          onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                                        >
+                                          <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue placeholder="Selecione" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {produtos.map(p => (
+                                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                                {p.nome_produto}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input
+                                          value={produto.quantidade}
+                                          onChange={(e) => handleAtualizarProduto(index, 'quantidade', e.target.value)}
+                                          placeholder="0,00"
+                                          className="text-right h-8 text-xs"
+                                        />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input
+                                          value={produto.valor_unitario}
+                                          onChange={(e) => handleAtualizarProduto(index, 'valor_unitario', e.target.value)}
+                                          placeholder="0,00"
+                                          className="text-right h-8 text-xs"
+                                        />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input
+                                          value={produto.desconto_item || "0,00"}
+                                          onChange={(e) => handleAtualizarProduto(index, 'desconto_item', e.target.value)}
+                                          placeholder="0,00"
+                                          className="text-right h-8 text-xs"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <span className="font-mono font-bold text-green-700 text-xs">
+                                          {formatarMoeda(total)}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleRemoverProduto(index)}
+                                          className="h-7 w-7 text-red-600"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-3 pt-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Frete</Label>
+                            <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Desconto</Label>
+                            <Input value={formData.desconto_total} onChange={(e) => handleChange('desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Outras Despesas</Label>
+                            <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <Card className="bg-blue-50 border-blue-200">
+                            <CardContent className="p-2">
+                              <div className="text-xs text-slate-600">Subtotal Produtos:</div>
+                              <div className="text-lg font-bold text-blue-700">{formatarMoeda(subtotalProdutos)}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-emerald-50 border-emerald-200">
+                            <CardContent className="p-2">
+                              <div className="text-xs text-slate-600">Total Geral:</div>
+                              <div className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
+                    <Label className="font-semibold text-sm flex items-center gap-2">
+                      <Paperclip className="w-4 h-4" />
+                      Anexar Documentos
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        onChange={handleUploadAnexo}
+                        disabled={uploadingFile}
+                        accept=".pdf,.xml,.jpg,.jpeg,.png"
+                        className="h-9 text-xs"
+                      />
+                      {uploadingFile && <div className="text-xs text-blue-600">Enviando...</div>}
+                    </div>
+                    
+                    {formData.anexos.length > 0 && (
+                      <div className="space-y-1 pt-2">
+                        {formData.anexos.map((anexo, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-3 h-3 text-slate-400" />
+                              <span className="font-medium">{anexo.nome}</span>
+                              <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoverAnexo(index)}
+                              className="h-6 w-6 text-red-600"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Frete</Label>
-                      <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Desconto Geral</Label>
-                      <Input value={formData.desconto_total} onChange={(e) => handleChange('desconto_total', e.target.value)} placeholder="0,00" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Outras Despesas</Label>
-                      <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" />
-                    </div>
-                  </div>
-
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="p-4 flex justify-between items-center">
-                      <span className="font-semibold text-slate-700">Subtotal Produtos:</span>
-                      <span className="text-2xl font-bold text-blue-700">{formatarMoeda(subtotalProdutos)}</span>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-emerald-50 border-emerald-200">
-                    <CardContent className="p-4">
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Subtotal:</span>
-                          <span className="font-mono">{formatarMoeda(subtotalProdutos)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>+ Frete:</span>
-                          <span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>+ Outras Despesas:</span>
-                          <span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
-                        </div>
-                        <div className="flex justify-between text-red-600">
-                          <span>- Desconto:</span>
-                          <span className="font-mono">{formatarMoeda(parseNumero(formData.desconto_total))}</span>
-                        </div>
-                        <div className="border-t-2 border-emerald-400 pt-2 flex justify-between text-lg font-bold text-emerald-700">
-                          <span>TOTAL:</span>
-                          <span>{formatarMoeda(valorTotal)}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex justify-end gap-3 pt-6 border-t">
-                    <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                      <X className="w-4 h-4" />
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-9 text-xs">
+                      <X className="w-3 h-3" />
                       Cancelar
                     </Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+                    <Button type="button" onClick={handleProximaEtapa} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg h-9 text-xs">
                       Próximo
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-3 h-3" />
                     </Button>
                   </div>
                 </>
@@ -621,162 +732,197 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               {/* ETAPA 2: DADOS FINANCEIROS */}
               {etapa === 2 && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">Plano de Contas <span className="text-red-600">*</span></Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
                       <div className="flex gap-2">
                         <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {planos.map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
+                            {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
-                          <Plus className="w-4 h-4" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">Grupo Financeiro <span className="text-red-600">*</span></Label>
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
                       <div className="flex gap-2">
                         <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {grupos.map(g => <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>)}
+                            {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
-                          <Plus className="w-4 h-4" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Centro de Custo</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Centro de Custo</Label>
                       <div className="flex gap-2">
                         <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                            {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
-                          <Plus className="w-4 h-4" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Forma de Pagamento</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Forma de Pagamento</Label>
                       <div className="flex gap-2">
                         <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            {formasPagamento.map(f => <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>)}
+                            {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
-                          <Plus className="w-4 h-4" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)} className="h-9 w-9">
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">Data de Vencimento <span className="text-red-600">*</span></Label>
-                      <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                  <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
+                      <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                      <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento</label>
+                      <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
+                      <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
+                        ✅ Conta já está paga?
+                      </label>
                     </div>
 
-                    {formData.parcelar && (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <Label>Parcelas ({formData.parcelas.length})</Label>
-                          <Button type="button" size="sm" onClick={adicionarParcela} className="h-8 gap-1 text-xs">
-                            <Plus className="w-3 h-3" />
-                            Adicionar
-                          </Button>
+                    {formData.conta_paga && (
+                      <div className="grid grid-cols-3 gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Data Pagamento *</Label>
+                          <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Valor Pago *</Label>
+                          <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Forma Pgto *</Label>
+                          <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {!formData.conta_paga && (
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
+                          <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
                         </div>
 
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-16 text-xs">Nº</TableHead>
-                              <TableHead className="text-xs">Vencimento *</TableHead>
-                              <TableHead className="text-right text-xs">Valor *</TableHead>
-                              <TableHead className="w-12"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {formData.parcelas.map((parcela, index) => (
-                              <TableRow key={index}>
-                                <TableCell className="font-bold text-xs">{index + 1}</TableCell>
-                                <TableCell>
-                                  <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
-                                </TableCell>
-                                <TableCell>
-                                  <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
-                                </TableCell>
-                                <TableCell>
-                                  <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-
-                        <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                          <CardContent className="p-3">
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex justify-between">
-                                <span>Total Parcelas:</span>
-                                <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Valor Total:</span>
-                                <span className="font-bold">{formatarMoeda(valorTotal)}</span>
-                              </div>
+                        {formData.parcelar && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
+                              <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
+                                <Plus className="w-3 h-3" />
+                                Adicionar
+                              </Button>
                             </div>
-                            {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                              <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </div>
+
+                            <div className="border rounded max-h-60 overflow-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-12 text-xs">Nº</TableHead>
+                                    <TableHead className="text-xs">Vencimento *</TableHead>
+                                    <TableHead className="text-right text-xs">Valor *</TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {formData.parcelas.map((parcela, index) => (
+                                    <TableRow key={index}>
+                                      <TableCell className="font-bold text-xs">{index + 1}</TableCell>
+                                      <TableCell>
+                                        <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+
+                            <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                              <CardContent className="p-2">
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="flex justify-between">
+                                    <span>Total Parcelas:</span>
+                                    <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Valor Total:</span>
+                                    <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                                  </div>
+                                </div>
+                                {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                                  <p className="text-xs text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Observações</Label>
-                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Observações</Label>
+                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={3} />
                   </div>
 
-                  <div className="flex justify-between gap-3 pt-6 border-t">
-                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="gap-2">
-                      <ChevronLeft className="w-4 h-4" />
+                  <div className="flex justify-between gap-3 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="gap-2 h-9 text-xs">
+                      <ChevronLeft className="w-3 h-3" />
                       Voltar
                     </Button>
                     <div className="flex gap-3">
-                      <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                        <X className="w-4 h-4" />
+                      <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-9 text-xs">
+                        <X className="w-3 h-3" />
                         Cancelar
                       </Button>
                       <Button 
                         type="submit" 
-                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-                        disabled={formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg h-9 text-xs"
+                        disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                       >
-                        <Save className="w-4 h-4" />
+                        <Save className="w-3 h-3" />
                         Salvar
                       </Button>
                     </div>
