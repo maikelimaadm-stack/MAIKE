@@ -7,6 +7,66 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Save, X, User, Building2, Phone, Mail, MapPin, FileText, Calendar, CreditCard, Hash } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+
+// Validação de CPF
+const validarCPF = (cpf) => {
+  cpf = cpf.replace(/\D/g, '');
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  
+  let soma = 0;
+  for (let i = 0; i < 9; i++) {
+    soma += parseInt(cpf.charAt(i)) * (10 - i);
+  }
+  let resto = 11 - (soma % 11);
+  let digito1 = resto > 9 ? 0 : resto;
+  
+  if (parseInt(cpf.charAt(9)) !== digito1) return false;
+  
+  soma = 0;
+  for (let i = 0; i < 10; i++) {
+    soma += parseInt(cpf.charAt(i)) * (11 - i);
+  }
+  resto = 11 - (soma % 11);
+  let digito2 = resto > 9 ? 0 : resto;
+  
+  return parseInt(cpf.charAt(10)) === digito2;
+};
+
+// Validação de CNPJ
+const validarCNPJ = (cnpj) => {
+  cnpj = cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+  
+  let tamanho = cnpj.length - 2;
+  let numeros = cnpj.substring(0, tamanho);
+  let digitos = cnpj.substring(tamanho);
+  let soma = 0;
+  let pos = tamanho - 7;
+  
+  for (let i = tamanho; i >= 1; i--) {
+    soma += numeros.charAt(tamanho - i) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  
+  let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+  if (resultado != digitos.charAt(0)) return false;
+  
+  tamanho = tamanho + 1;
+  numeros = cnpj.substring(0, tamanho);
+  soma = 0;
+  pos = tamanho - 7;
+  
+  for (let i = tamanho; i >= 1; i--) {
+    soma += numeros.charAt(tamanho - i) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  
+  resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+  return resultado == digitos.charAt(1);
+};
 
 export default function FormularioFornecedor({ onSubmit, onCancel, initialData = null, isEditing = false }) {
   const [tipoPessoa, setTipoPessoa] = useState(initialData?.tipo_pessoa || "Física");
@@ -31,6 +91,37 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validar CPF para pessoa física
+    if (tipoPessoa === "Física" && formData.cpf) {
+      const cpfLimpo = formData.cpf.replace(/\D/g, '');
+      if (cpfLimpo.length > 0) {
+        if (cpfLimpo.length !== 11) {
+          toast.error('❌ CPF deve ter 11 dígitos!');
+          return;
+        }
+        if (!validarCPF(cpfLimpo)) {
+          toast.error('❌ CPF inválido!');
+          return;
+        }
+      }
+    }
+    
+    // Validar CNPJ para pessoa jurídica
+    if (tipoPessoa === "Jurídica" && formData.cnpj) {
+      const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+      if (cnpjLimpo.length > 0) {
+        if (cnpjLimpo.length !== 14) {
+          toast.error('❌ CNPJ deve ter 14 dígitos!');
+          return;
+        }
+        if (!validarCNPJ(cnpjLimpo)) {
+          toast.error('❌ CNPJ inválido!');
+          return;
+        }
+      }
+    }
+    
     onSubmit(formData);
   };
 
@@ -108,8 +199,10 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
+                    maxLength={14}
                     className="border-slate-300 focus:border-green-500"
                   />
+                  <p className="text-xs text-slate-500">11 dígitos obrigatórios</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-700 font-medium flex items-center gap-2">
@@ -163,8 +256,10 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                       value={formData.cnpj}
                       onChange={(e) => handleChange('cnpj', e.target.value)}
                       placeholder="00.000.000/0000-00"
+                      maxLength={18}
                       className="border-slate-300 focus:border-green-500"
                     />
+                    <p className="text-xs text-slate-500">14 dígitos obrigatórios</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
