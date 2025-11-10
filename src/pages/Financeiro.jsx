@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2 } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import FormularioFinanceiro from "../components/financeiro/FormularioFinanceiro.jsx";
+import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
 import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceiro.jsx";
@@ -38,6 +38,7 @@ const getNextNumeroLivro = async (empresaId) => {
 export default function Financeiro() {
   const [tipoAba, setTipoAba] = useState("pagar");
   const [showForm, setShowForm] = useState(false);
+  const [showFormCompra, setShowFormCompra] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showBaixa, setShowBaixa] = useState(false);
   const [itemBaixa, setItemBaixa] = useState(null);
@@ -170,6 +171,7 @@ export default function Financeiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setShowForm(false);
+      setShowFormCompra(false);
       setEditingItem(null);
       toast.success('✅ Lançamento salvo!');
     },
@@ -242,6 +244,46 @@ export default function Financeiro() {
     }
   };
 
+  const handleSubmitCompra = async (formData) => {
+    try {
+      toast.info('💾 Salvando compra...');
+      
+      // Aqui você pode processar a compra e criar os lançamentos necessários
+      // Por enquanto vamos apenas criar um lançamento financeiro simples
+      
+      const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
+      
+      const data = {
+        tipo: 'Pagar',
+        tipo_documento: 'Compra',
+        fornecedor_id: formData.fornecedor_id,
+        fornecedor_nome: fornecedor?.nome,
+        numero_documento: formData.compra_nf,
+        data_emissao: formData.data_emissao,
+        data_vencimento: formData.data_entrega || formData.data_emissao,
+        valor_original: parseFloat(formData.valor?.replace(/\./g, '').replace(',', '.')) || 0,
+        valor_juros: 0,
+        valor_multa: 0,
+        valor_desconto: 0,
+        observacoes: formData.observacoes_compra || formData.observacoes_fin || '',
+        produtos_lancamento: formData.produtos_selecionados.map(p => ({
+          produto_id: p.produto_id,
+          produto_nome: p.produto_nome,
+          quantidade: parseFloat(p.quantidade?.replace(/\./g, '').replace(',', '.')) || 0,
+          valor_unitario: p.valor_unitario || 0
+        }))
+      };
+
+      await createMutation.mutateAsync(data);
+      
+      toast.success('✅ Compra registrada com sucesso!');
+      setShowFormCompra(false);
+    } catch (error) {
+      console.error('Erro ao salvar compra:', error);
+      toast.error('❌ Erro ao salvar compra!');
+    }
+  };
+
   const handleEdit = (item) => {
     setEditingItem(item);
     setShowForm(true);
@@ -280,7 +322,7 @@ export default function Financeiro() {
         for (let i = 0; i < dados.itens.length; i++) {
           const item = dados.itens[i];
           const num = await getNextNumeroMovimentacao(empresaSelecionadaId);
-          const prod = products.find(p => p.id === item.produto_id);
+          const prod = produtos.find(p => p.id === item.produto_id);
           
           if (!prod) continue;
 
@@ -536,7 +578,7 @@ export default function Financeiro() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      {!showForm && !showBaixa && (
+      {!showForm && !showBaixa && !showFormCompra && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
@@ -548,6 +590,10 @@ export default function Financeiro() {
           <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setShowFormCompra(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <ShoppingCart className="w-3.5 h-3.5" />
+              Nova Compra
+            </Button>
             <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <FileText className="w-3.5 h-3.5" />
               Importação NF-e (xml)
@@ -568,6 +614,15 @@ export default function Financeiro() {
           fornecedores={fornecedores}
           produtos={produtos}
           safras={safras}
+        />
+      )}
+
+      {showFormCompra && (
+        <FormularioCompraFinanceiro
+          onSubmit={handleSubmitCompra}
+          onCancel={() => setShowFormCompra(false)}
+          fornecedores={fornecedores}
+          produtos={produtos}
         />
       )}
 
@@ -615,7 +670,7 @@ export default function Financeiro() {
         </DialogContent>
       </Dialog>
 
-      {!showForm && !showBaixa && (
+      {!showForm && !showBaixa && !showFormCompra && (
         <Tabs value={tipoAba} onValueChange={setTipoAba}>
           <TabsList className="grid w-full max-w-md grid-cols-2 h-8">
             <TabsTrigger value="pagar" className="gap-1 text-xs h-7">
