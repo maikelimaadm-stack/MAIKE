@@ -52,7 +52,7 @@ export default function Financeiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: produtos = [] } = useQuery({
+  const { data: produtos = [] } = useQuery({ // This `produtos` query is still useful for general product display/selection
     queryKey: ['produtos_financeiro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list('nome_produto');
@@ -94,6 +94,10 @@ export default function Financeiro() {
       setProgressoSalvamento({ etapa: '🚀 Iniciando...', current: 10, total: 100 });
 
       await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // BUSCAR PRODUTOS DENTRO DA MUTATION para garantir dados mais atualizados no estoque
+      const todosProdutos = await base44.entities.Produto.list();
+      const produtosEmpresa = todosProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
 
       if (data.parcelas && data.parcelas.length > 0) {
         setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
@@ -172,7 +176,7 @@ export default function Financeiro() {
             const user = await base44.auth.me();
 
             for (const prodLanc of data.produtos_selecionados) {
-              const produto = produtos.find(p => p.id === prodLanc.produto_id);
+              const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id); // Using produtosEmpresa
               if (produto) {
                 // Atualizar estoque do produto
                 const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
@@ -266,7 +270,7 @@ export default function Financeiro() {
           const user = await base44.auth.me();
 
           for (const prodLanc of data.produtos_selecionados) {
-            const produto = produtos.find(p => p.id === prodLanc.produto_id);
+            const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id); // Using produtosEmpresa
             if (produto) {
               // Atualizar estoque do produto
               const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
