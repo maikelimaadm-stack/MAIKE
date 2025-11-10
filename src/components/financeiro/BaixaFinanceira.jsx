@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +14,21 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const FORMAS_PAGAMENTO_PADRAO = [
+  'Dinheiro',
+  'PIX',
+  'Cartão de Crédito',
+  'Cartão de Débito',
+  'Boleto Bancário',
+  'Transferência Bancária',
+  'Cheque',
+  'Crédito Loja',
+  'Vale Alimentação',
+  'Vale Refeição',
+  'Depósito Bancário',
+  'Outros'
+];
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '0,00';
@@ -31,6 +47,12 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+const parseMoeda = (str) => {
+  if (!str) return 0;
+  // Remove "R$", dots (thousands), and replaces comma with dot for decimals
+  return parseFloat(String(str).replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+};
+
 const formatarDataHora = (dataString) => {
   if (!dataString) return '-';
   try {
@@ -47,10 +69,10 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   
   const [formData, setFormData] = useState({
     data_baixa: new Date().toISOString().split('T')[0],
-    valor_baixa: formatarNumero(saldoInicial),
-    valor_juros: "0,00",
-    valor_multa: "0,00",
-    valor_desconto: "0,00",
+    valor_baixa: formatarMoeda(saldoInicial),
+    valor_juros: "R$ 0,00",
+    valor_multa: "R$ 0,00",
+    valor_desconto: "R$ 0,00",
     forma_pagamento_id: "",
     numero_comprovante: "",
     observacoes: "",
@@ -71,15 +93,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     loadUser();
   }, []);
 
-  const { data: formasPagamento = [] } = useQuery({
-    queryKey: ['formas_baixa', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.FormaPagamento.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const { data: baixasAnteriores = [], refetch: refetchBaixas } = useQuery({
     queryKey: ['baixas_anteriores', lancamento.id],
     queryFn: async () => {
@@ -98,19 +111,18 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   const baixaMutation = useMutation({
     mutationFn: async (data) => {
       const numero = await getNextBaixaNumber();
-      const forma = formasPagamento.find(f => f.id === data.forma_pagamento_id);
       
       const baixa = {
         empresa_id: empresaSelecionadaId,
         numero_baixa: String(numero),
         lancamento_id: lancamento.id,
         data_baixa: data.data_baixa,
-        valor_baixa: parseNumero(data.valor_baixa),
-        valor_juros: parseNumero(data.valor_juros),
-        valor_multa: parseNumero(data.valor_multa),
-        valor_desconto: parseNumero(data.valor_desconto),
+        valor_baixa: parseMoeda(data.valor_baixa),
+        valor_juros: parseMoeda(data.valor_juros),
+        valor_multa: parseMoeda(data.valor_multa),
+        valor_desconto: parseMoeda(data.valor_desconto),
         forma_pagamento_id: data.forma_pagamento_id || undefined,
-        forma_pagamento_nome: forma?.descricao,
+        forma_pagamento_nome: data.forma_pagamento_id,
         numero_comprovante: data.numero_comprovante?.toUpperCase() || undefined,
         observacoes: data.observacoes?.toUpperCase() || undefined,
         usuario_responsavel: user?.email,
@@ -119,7 +131,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
       const baixaCriada = await base44.entities.BaixaFinanceira.create(baixa);
 
-      const totalPago = (lancamento.valor_pago || 0) + parseNumero(data.valor_baixa);
+      const totalPago = (lancamento.valor_pago || 0) + parseMoeda(data.valor_baixa);
       const saldoRestante = (lancamento.valor_total || 0) - totalPago;
       
       let novoStatus = 'Pendente';
@@ -142,10 +154,10 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       refetchBaixas();
       setFormData({
         data_baixa: new Date().toISOString().split('T')[0],
-        valor_baixa: "",
-        valor_juros: "0,00",
-        valor_multa: "0,00",
-        valor_desconto: "0,00",
+        valor_baixa: "R$ 0,00",
+        valor_juros: "R$ 0,00",
+        valor_multa: "R$ 0,00",
+        valor_desconto: "R$ 0,00",
         forma_pagamento_id: "",
         numero_comprovante: "",
         observacoes: "",
@@ -160,16 +172,14 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
   const updateBaixaMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const forma = formasPagamento.find(f => f.id === data.forma_pagamento_id);
-      
       await base44.entities.BaixaFinanceira.update(id, {
         data_baixa: data.data_baixa,
-        valor_baixa: parseNumero(data.valor_baixa),
-        valor_juros: parseNumero(data.valor_juros),
-        valor_multa: parseNumero(data.valor_multa),
-        valor_desconto: parseNumero(data.valor_desconto),
+        valor_baixa: parseMoeda(data.valor_baixa),
+        valor_juros: parseMoeda(data.valor_juros),
+        valor_multa: parseMoeda(data.valor_multa),
+        valor_desconto: parseMoeda(data.valor_desconto),
         forma_pagamento_id: data.forma_pagamento_id || undefined,
-        forma_pagamento_nome: forma?.descricao,
+        forma_pagamento_nome: data.forma_pagamento_id,
         numero_comprovante: data.numero_comprovante?.toUpperCase() || undefined,
         observacoes: data.observacoes?.toUpperCase() || undefined,
         anexos: data.anexos || []
@@ -239,7 +249,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const valorBaixa = parseNumero(formData.valor_baixa);
+    const valorBaixa = parseMoeda(formData.valor_baixa);
     const saldoDisponivel = lancamento.valor_saldo || lancamento.valor_total;
 
     if (valorBaixa <= 0) {
@@ -261,10 +271,10 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     setEditandoBaixa({
       id: baixa.id,
       data_baixa: baixa.data_baixa,
-      valor_baixa: formatarNumero(baixa.valor_baixa),
-      valor_juros: formatarNumero(baixa.valor_juros || 0),
-      valor_multa: formatarNumero(baixa.valor_multa || 0),
-      valor_desconto: formatarNumero(baixa.valor_desconto || 0),
+      valor_baixa: formatarMoeda(baixa.valor_baixa),
+      valor_juros: formatarMoeda(baixa.valor_juros || 0),
+      valor_multa: formatarMoeda(baixa.valor_multa || 0),
+      valor_desconto: formatarMoeda(baixa.valor_desconto || 0),
       forma_pagamento_id: baixa.forma_pagamento_id || "",
       numero_comprovante: baixa.numero_comprovante || "",
       observacoes: baixa.observacoes || "",
@@ -273,7 +283,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   };
 
   const handleSalvarEdicao = () => {
-    if (parseNumero(editandoBaixa.valor_baixa) <= 0) {
+    if (parseMoeda(editandoBaixa.valor_baixa) <= 0) {
       toast.error('Valor da baixa deve ser maior que zero!');
       return;
     }
@@ -344,8 +354,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     toast.success('Anexo removido!');
   };
 
-  const totalBaixa = parseNumero(formData.valor_baixa) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
-  const totalBaixaEdit = editandoBaixa ? parseNumero(editandoBaixa.valor_baixa) + parseNumero(editandoBaixa.valor_juros) + parseNumero(editandoBaixa.valor_multa) - parseNumero(editandoBaixa.valor_desconto) : 0;
+  const totalBaixa = parseMoeda(formData.valor_baixa) + parseMoeda(formData.valor_juros) + parseMoeda(formData.valor_multa) - parseMoeda(formData.valor_desconto);
+  const totalBaixaEdit = editandoBaixa ? parseMoeda(editandoBaixa.valor_baixa) + parseMoeda(editandoBaixa.valor_juros) + parseMoeda(editandoBaixa.valor_multa) - parseMoeda(editandoBaixa.valor_desconto) : 0;
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -442,8 +452,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {formasPagamento.map(f => (
-                          <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>
+                        {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                          <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -453,22 +463,22 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Valor da Baixa *</Label>
-                    <Input value={editandoBaixa.valor_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_baixa: e.target.value })} placeholder="0,00" required className="h-9 text-xs font-bold" />
+                    <Input value={editandoBaixa.valor_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="h-9 text-xs font-bold" />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Juros</Label>
-                    <Input value={editandoBaixa.valor_juros} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_juros: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                    <Input value={editandoBaixa.valor_juros} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_juros: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Multa</Label>
-                    <Input value={editandoBaixa.valor_multa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_multa: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                    <Input value={editandoBaixa.valor_multa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_multa: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Desconto</Label>
-                    <Input value={editandoBaixa.valor_desconto} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_desconto: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                    <Input value={editandoBaixa.valor_desconto} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_desconto: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
                   </div>
                 </div>
 
@@ -557,8 +567,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formasPagamento.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>
+                    {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                      <SelectItem key={forma} value={forma}>{forma}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -568,22 +578,22 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Valor da Baixa *</Label>
-                <Input value={formData.valor_baixa} onChange={(e) => setFormData({ ...formData, valor_baixa: e.target.value })} placeholder="0,00" required className="font-bold text-lg" />
+                <Input value={formData.valor_baixa} onChange={(e) => setFormData({ ...formData, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="font-bold text-lg" />
               </div>
 
               <div className="space-y-2">
                 <Label>Juros</Label>
-                <Input value={formData.valor_juros} onChange={(e) => setFormData({ ...formData, valor_juros: e.target.value })} placeholder="0,00" />
+                <Input value={formData.valor_juros} onChange={(e) => setFormData({ ...formData, valor_juros: e.target.value })} placeholder="R$ 0,00" />
               </div>
 
               <div className="space-y-2">
                 <Label>Multa</Label>
-                <Input value={formData.valor_multa} onChange={(e) => setFormData({ ...formData, valor_multa: e.target.value })} placeholder="0,00" />
+                <Input value={formData.valor_multa} onChange={(e) => setFormData({ ...formData, valor_multa: e.target.value })} placeholder="R$ 0,00" />
               </div>
 
               <div className="space-y-2">
                 <Label>Desconto</Label>
-                <Input value={formData.valor_desconto} onChange={(e) => setFormData({ ...formData, valor_desconto: e.target.value })} placeholder="0,00" />
+                <Input value={formData.valor_desconto} onChange={(e) => setFormData({ ...formData, valor_desconto: e.target.value })} placeholder="R$ 0,00" />
               </div>
             </div>
 
@@ -639,19 +649,19 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Valor da Baixa:</span>
-                    <span className="font-mono">{formatarMoeda(parseNumero(formData.valor_baixa))}</span>
+                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_baixa))}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>+ Juros:</span>
-                    <span className="font-mono">{formatarMoeda(parseNumero(formData.valor_juros))}</span>
+                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_juros))}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>+ Multa:</span>
-                    <span className="font-mono">{formatarMoeda(parseNumero(formData.valor_multa))}</span>
+                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_multa))}</span>
                   </div>
                   <div className="flex justify-between text-sm text-red-600">
                     <span>- Desconto:</span>
-                    <span className="font-mono">{formatarMoeda(parseNumero(formData.valor_desconto))}</span>
+                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_desconto))}</span>
                   </div>
                   <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
                     <span>TOTAL A PAGAR:</span>

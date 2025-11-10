@@ -448,7 +448,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.parcelar && !formData.data_vencimento) { // Updated condition
+    if (!formData.parcelar && !formData.conta_paga && !formData.data_vencimento) { // Updated condition
       toast.error('❌ Preencha a data de vencimento!');
       return;
     }
@@ -1168,20 +1168,52 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </CardContent>
                   </Card>
 
-                  {/* CARD: PAGAMENTO - ORDEM PADRONIZADA */}
+                  {/* CARD: PAGAMENTO - ORDEM PADRONIZADA COM CAMPOS OCULTOS */}
                   <Card className="bg-green-50 border-green-200">
                     <CardHeader className="py-2 px-3">
                       <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
-                      {/* 1. PARCELAR PRIMEIRO */}
-                      <div className="flex items-center space-x-2">
-                        <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                        <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
+                      {/* CHECKBOXES PRIMEIRO */}
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
+                          <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
+                          <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
+                            Conta já está paga?
+                          </label>
+                        </div>
                       </div>
 
+                      {/* CAMPOS PADRÃO (sempre visível se não marcar nenhuma) */}
+                      {!formData.parcelar && !formData.conta_paga && (
+                        <>
+                          <div className="space-y-1.5 pt-2">
+                            <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
+                            <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Forma de Pagamento</Label>
+                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                  <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      )}
+
+                      {/* PARCELAMENTO - SÓ SE MARCAR */}
                       {formData.parcelar && (
-                        <Card className="bg-white border-amber-200">
+                        <Card className="bg-white border-amber-200 mt-3">
                           <CardContent className="p-3 space-y-3">
                             <div className="space-y-1.5">
                               <Label className="text-xs">Forma de Pagamento</Label>
@@ -1255,64 +1287,34 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </Card>
                       )}
 
-                      {!formData.parcelar && (
-                        <>
-                          <div className="space-y-1.5">
-                            <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
-                            <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Forma de Pagamento</Label>
-                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                              <SelectContent>
-                                {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                  <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </>
-                      )}
-
-                      {/* 2. CONTA PAGA POR ÚLTIMO */}
-                      <div className="pt-3 border-t">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
-                          <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
-                            Conta já está paga?
-                          </label>
-                        </div>
-
-                        {formData.conta_paga && (
-                          <Card className="bg-white border-green-300 mt-3">
-                            <CardContent className="p-3 space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs">Data Pgto *</Label>
-                                  <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs">Valor Pago *</Label>
-                                  <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
-                                </div>
+                      {/* CONTA PAGA - SÓ SE MARCAR */}
+                      {formData.conta_paga && (
+                        <Card className="bg-white border-green-300 mt-3">
+                          <CardContent className="p-3 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Data Pgto *</Label>
+                                <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-xs">Forma de Pagamento *</Label>
-                                <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                  <SelectContent>
-                                    {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <Label className="text-xs">Valor Pago *</Label>
+                                <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
                               </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Forma de Pagamento *</Label>
+                              <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
+                                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>
+                                  {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                    <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </CardContent>
                   </Card>
 

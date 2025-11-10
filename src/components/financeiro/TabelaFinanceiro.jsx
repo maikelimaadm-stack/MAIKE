@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,9 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'fornecedor_cliente', label: 'Fornecedor/Cliente', default: true },
   { id: 'tipo_documento', label: 'Tipo Doc', default: true },
   { id: 'documento', label: 'Nº Doc', default: true },
+  { id: 'chave_nfe', label: 'Chave NF-e', default: false },
+  { id: 'serie', label: 'Série', default: false },
+  { id: 'cfop', label: 'CFOP', default: false },
   { id: 'valor_original', label: 'Vlr. Original', default: false },
   { id: 'valor_total', label: 'Vlr. Total', default: true },
   { id: 'valor_pago', label: 'Vlr. Pago', default: true },
@@ -107,7 +111,24 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'status', label: 'Status', default: true },
   { id: 'safra', label: 'Safra', default: false },
   { id: 'centro_custo', label: 'Centro Custo', default: false },
+  { id: 'plano_contas', label: 'Plano Contas', default: false },
+  { id: 'grupo', label: 'Grupo', default: false },
   { id: 'forma_pagamento', label: 'Forma Pgto', default: false },
+  { id: 'lancar_produtos', label: 'Lançou Produtos', default: false },
+  { id: 'dar_entrada_estoque', label: 'Entrada Estoque', default: false },
+  { id: 'local_estoque', label: 'Local Estoque', default: false },
+  { id: 'valor_produtos_nfe', label: 'Vlr. Produtos NF-e', default: false },
+  { id: 'valor_frete_nfe', label: 'Vlr. Frete NF-e', default: false },
+  { id: 'valor_seguro_nfe', label: 'Vlr. Seguro NF-e', default: false },
+  { id: 'valor_outras_despesas_nfe', label: 'Outras Desp. NF-e', default: false },
+  { id: 'valor_desconto_total_nfe', label: 'Desc. Total NF-e', default: false },
+  { id: 'valor_ipi', label: 'IPI', default: false },
+  { id: 'valor_icms', label: 'ICMS', default: false },
+  { id: 'valor_pis', label: 'PIS', default: false },
+  { id: 'valor_cofins', label: 'COFINS', default: false },
+  { id: 'base_calculo_icms', label: 'Base Cálc. ICMS', default: false },
+  { id: 'observacoes', label: 'Observações', default: false },
+  { id: 'observacoes_nfe', label: 'Obs. NF-e', default: false },
 ];
 
 export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos }) {
@@ -162,7 +183,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       l.fornecedor_nome?.toLowerCase().includes(search) ||
       l.cliente_nome?.toLowerCase().includes(search) ||
       l.numero_documento?.toLowerCase().includes(search) ||
-      l.tipo_documento?.toLowerCase().includes(search)
+      l.tipo_documento?.toLowerCase().includes(search) ||
+      l.chave_nfe?.toLowerCase().includes(search) ||
+      l.safra_nome?.toLowerCase().includes(search) ||
+      l.centro_custo_nome?.toLowerCase().includes(search) ||
+      l.plano_contas_nome?.toLowerCase().includes(search) ||
+      l.grupo_nome?.toLowerCase().includes(search) ||
+      l.forma_pagamento_nome?.toLowerCase().includes(search) ||
+      l.local_estoque?.toLowerCase().includes(search)
     );
   });
 
@@ -222,6 +250,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         aValue = (a.centro_custo_nome || '').toLowerCase();
         bValue = (b.centro_custo_nome || '').toLowerCase();
         break;
+      case 'plano_contas':
+        aValue = (a.plano_contas_nome || '').toLowerCase();
+        bValue = (b.plano_contas_nome || '').toLowerCase();
+        break;
+      case 'grupo':
+        aValue = (a.grupo_nome || '').toLowerCase();
+        bValue = (b.grupo_nome || '').toLowerCase();
+        break;
       case 'forma_pagamento':
         aValue = (a.forma_pagamento_nome || '').toLowerCase();
         bValue = (b.forma_pagamento_nome || '').toLowerCase();
@@ -265,7 +301,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
                   <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (
@@ -314,6 +350,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <div className="flex items-center">Nº Doc {getSortIcon('documento')}</div>
                     </TableHead>
                   )}
+                  {colunasVisiveis.includes('chave_nfe') && <TableHead>Chave NF-e</TableHead>}
+                  {colunasVisiveis.includes('serie') && <TableHead>Série</TableHead>}
+                  {colunasVisiveis.includes('cfop') && <TableHead>CFOP</TableHead>}
                   {colunasVisiveis.includes('valor_original') && (
                     <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('valor_original')}>
                       <div className="flex items-center justify-end">Vlr. Original {getSortIcon('valor_original')}</div>
@@ -339,14 +378,16 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <div className="flex items-center">Status {getSortIcon('status')}</div>
                     </TableHead>
                   )}
-                  {colunasVisiveis.includes('safra') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('safra')}>
-                      <div className="flex items-center">Safra {getSortIcon('safra')}</div>
+                  {colunasVisiveis.includes('safra') && <TableHead>Safra</TableHead>}
+                  {colunasVisiveis.includes('centro_custo') && <TableHead>Centro Custo</TableHead>}
+                  {colunasVisiveis.includes('plano_contas') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('plano_contas')}>
+                      <div className="flex items-center">Plano Contas {getSortIcon('plano_contas')}</div>
                     </TableHead>
                   )}
-                  {colunasVisiveis.includes('centro_custo') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('centro_custo')}>
-                      <div className="flex items-center">Centro Custo {getSortIcon('centro_custo')}</div>
+                  {colunasVisiveis.includes('grupo') && (
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('grupo')}>
+                      <div className="flex items-center">Grupo {getSortIcon('grupo')}</div>
                     </TableHead>
                   )}
                   {colunasVisiveis.includes('forma_pagamento') && (
@@ -354,17 +395,32 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <div className="flex items-center">Forma Pgto {getSortIcon('forma_pagamento')}</div>
                     </TableHead>
                   )}
+                  {colunasVisiveis.includes('lancar_produtos') && <TableHead className="text-center">Lançou Prod.</TableHead>}
+                  {colunasVisiveis.includes('dar_entrada_estoque') && <TableHead className="text-center">Entrada Est.</TableHead>}
+                  {colunasVisiveis.includes('local_estoque') && <TableHead>Local Estoque</TableHead>}
+                  {colunasVisiveis.includes('valor_produtos_nfe') && <TableHead className="text-right">Vlr. Prod. NF-e</TableHead>}
+                  {colunasVisiveis.includes('valor_frete_nfe') && <TableHead className="text-right">Vlr. Frete NF-e</TableHead>}
+                  {colunasVisiveis.includes('valor_seguro_nfe') && <TableHead className="text-right">Vlr. Seg. NF-e</TableHead>}
+                  {colunasVisiveis.includes('valor_outras_despesas_nfe') && <TableHead className="text-right">Out. Desp. NF-e</TableHead>}
+                  {colunasVisiveis.includes('valor_desconto_total_nfe') && <TableHead className="text-right">Desc. Tot. NF-e</TableHead>}
+                  {colunasVisiveis.includes('valor_ipi') && <TableHead className="text-right">IPI</TableHead>}
+                  {colunasVisiveis.includes('valor_icms') && <TableHead className="text-right">ICMS</TableHead>}
+                  {colunasVisiveis.includes('valor_pis') && <TableHead className="text-right">PIS</TableHead>}
+                  {colunasVisiveis.includes('valor_cofins') && <TableHead className="text-right">COFINS</TableHead>}
+                  {colunasVisiveis.includes('base_calculo_icms') && <TableHead className="text-right">Base ICMS</TableHead>}
+                  {colunasVisiveis.includes('observacoes') && <TableHead>Observações</TableHead>}
+                  {colunasVisiveis.includes('observacoes_nfe') && <TableHead>Obs. NF-e</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <AnimatePresence>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={20} className="text-center py-12 text-slate-400">Carregando...</TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400">Carregando...</TableCell>
                     </TableRow>
                   ) : lancamentosOrdenados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={20} className="text-center py-12 text-slate-400">Nenhum lançamento encontrado</TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400">Nenhum lançamento encontrado</TableCell>
                     </TableRow>
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
@@ -402,6 +458,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               {colunasVisiveis.includes('documento') && (
                                 <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>
                               )}
+                              {colunasVisiveis.includes('chave_nfe') && (
+                                <TableCell className="font-mono text-xs max-w-xs truncate">{lancamento.chave_nfe || '-'}</TableCell>
+                              )}
+                              {colunasVisiveis.includes('serie') && <TableCell className="text-xs">{lancamento.serie_documento || '-'}</TableCell>}
+                              {colunasVisiveis.includes('cfop') && <TableCell className="text-xs">{lancamento.cfop || '-'}</TableCell>}
                               {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento.valor_original || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento.valor_total || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento.valor_pago || 0)}</TableCell>}
@@ -418,7 +479,24 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               )}
                               {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento.safra_nome || '-'}</TableCell>}
                               {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento.centro_custo_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('plano_contas') && <TableCell className="text-xs max-w-xs truncate">{lancamento.plano_contas_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('grupo') && <TableCell className="text-xs">{lancamento.grupo_nome || '-'}</TableCell>}
                               {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento.forma_pagamento_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('lancar_produtos') && <TableCell className="text-center">{lancamento.lancar_produtos ? '✓' : '-'}</TableCell>}
+                              {colunasVisiveis.includes('dar_entrada_estoque') && <TableCell className="text-center">{lancamento.dar_entrada_estoque ? '✓' : '-'}</TableCell>}
+                              {colunasVisiveis.includes('local_estoque') && <TableCell className="text-xs">{lancamento.local_estoque || '-'}</TableCell>}
+                              {colunasVisiveis.includes('valor_produtos_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_produtos || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_frete_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_frete || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_seguro_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_seguro || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_outras_despesas_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_outras_despesas || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_desconto_total_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_desconto_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_ipi') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_ipi || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_icms || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_pis') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_pis || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_cofins') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_cofins || 0)}</TableCell>}
+                              {colunasVisiveis.includes('base_calculo_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.base_calculo_icms || 0)}</TableCell>}
+                              {colunasVisiveis.includes('observacoes') && <TableCell className="text-xs max-w-xs truncate">{lancamento.observacoes || '-'}</TableCell>}
+                              {colunasVisiveis.includes('observacoes_nfe') && <TableCell className="text-xs max-w-xs truncate">{lancamento.observacoes_nfe || '-'}</TableCell>}
                             </motion.tr>
                           </ContextMenuTrigger>
                           <ContextMenuContent>
