@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +104,7 @@ const extrairDadosXML = (xmlText) => {
       '15': 'Boleto Bancário',
       '17': 'PIX',
       '18': 'Transferência Bancária',
-      '19': 'Depósito Bancário',
+      '19': 'Depósito Bancária',
       '90': 'Sem Pagamento',
       '99': 'Outros'
     };
@@ -211,6 +211,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [itensNFe, setItensNFe] = useState([]);
   const [itensSelecionados, setItensSelecionados] = useState([]);
   const [itemEditando, setItemEditando] = useState(null);
+  const [localEstoque, setLocalEstoque] = useState("");
   
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica",
@@ -245,6 +246,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const { data: unidadesMedida = [] } = useQuery({
     queryKey: ['unidades_medida'],
     queryFn: () => base44.entities.UnidadeMedida.list(),
+    initialData: [],
+  });
+
+  const { data: locaisEstoque = [] } = useQuery({
+    queryKey: ['locais_estoque'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
     initialData: [],
   });
 
@@ -367,7 +374,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (unidadeXML || 'UN');
 
         // CALCULAR VALOR TOTAL (quantidade * valor_unitario)
-        const valorTotalCalculated = (item.quantidade || 0) * (item.valor_unitario || 0);
+        // item.valor_total already stores vProd for the item
+        // const valorTotalCalculated = (item.quantidade || 0) * (item.valor_unitario || 0);
 
         return {
           index,
@@ -377,7 +385,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           cfop: item.cfop || '',
           unidade: unidadeFinal,
           quantidade: item.quantidade || 0,
-          valor_total: valorTotalCalculated, // Now stores the total value
+          valor_total: item.valor_total, // This is vProd for the item
           desconto_item: item.desconto_item || 0,
           produto_id: prod?.id,
           produto_nome: prod?.nome_produto,
@@ -557,6 +565,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       return;
     }
 
+    if (!localEstoque) {
+      toast.error('❌ Selecione o local de estoque!');
+      return;
+    }
+
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
 
     // CALCULAR VALOR TOTAL DA NOTA (produtos + frete + outras despesas)
@@ -567,7 +580,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     
     const frete = dadosNFe.valor_frete || 0;
     const outrasDespesas = dadosNFe.valor_outras_despesas || 0;
-    const valorTotalNota = totalProdutos + frete + outrasDespesas; // This variable is not used in the final payload, but it was in the instruction. Keeping for context.
+    // const valorTotalNota = totalProdutos + frete + outrasDespesas; // This variable is not used in the final payload, but it was in the instruction. Keeping for context.
 
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
@@ -597,6 +610,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       base_calculo_icms: dadosNFe.base_calculo_icms,
       frete: String(frete.toFixed(2)).replace('.', ','),
       outras_despesas: String(outrasDespesas.toFixed(2)).replace('.', ','),
+      local_estoque: localEstoque,
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
@@ -621,6 +635,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setItensNFe([]);
     setItensSelecionados([]);
     setItemEditando(null);
+    setLocalEstoque("");
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
     setNovoProduto({ nome_produto: "", codigo_interno: "", unidade_medida: "UN", preco_custo: "" });
     setShowNovoFornecedor(false);
@@ -630,7 +645,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setShowCadastroEmMassa(false);
   };
 
-  const produtosFiltrados = produtos.filter(p => 
+  const produtosFiltrados = products.filter(p => 
     !buscaProduto || 
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
@@ -810,17 +825,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
                       <TableHead className="text-right">Un.</TableHead>
-                      <TableHead className="text-right">Vlr Unit.</TableHead>
+                      <TableHead className="text-right">Vlr Total</TableHead> {/* Changed from Vlr Unit. */}
                       <TableHead className="text-right">Desc.</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Líquido</TableHead> {/* Changed from Total */}
                       <TableHead className="text-center w-24">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => {
-                      // item.valor_total now holds the value_prod for the item
-                      const currentUnitPrice = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
-                      const valorFinalComDesconto = item.valor_total - (item.desconto_item || 0);
+                      const valorLiquido = item.valor_total - (item.desconto_item || 0);
+                      const valorUnitario = item.quantidade > 0 ? (valorLiquido / item.quantidade) : 0;
                       const isEditing = itemEditando?.index === item.index;
                       
                       return (
@@ -848,15 +862,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                               <Input 
                                 type="number" 
                                 value={itemEditando.quantidade} 
-                                onChange={(e) => {
-                                  const newQty = parseFloat(e.target.value || '0');
-                                  const oldUnitPrice = itemEditando.quantidade > 0 ? (itemEditando.valor_total / itemEditando.quantidade) : 0;
-                                  setItemEditando({
-                                    ...itemEditando, 
-                                    quantidade: newQty,
-                                    valor_total: newQty * oldUnitPrice // Recalculate total to keep unit price constant
-                                  });
-                                }} 
+                                onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value) || 0})} 
                                 className="h-7 w-20 text-xs text-right"
                                 step="0.01"
                               />
@@ -879,39 +885,36 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                           <TableCell className="text-right">
                             {isEditing ? (
                               <Input 
-                                type="text" 
-                                // Display derived unit price from stored total and quantity
-                                value={String(itemEditando.quantidade > 0 ? (itemEditando.valor_total / itemEditando.quantidade) : 0).replace('.', ',')} 
-                                onChange={(e) => {
-                                  const newUnitPrice = parseFloat(e.target.value.replace(',', '.')) || 0;
-                                  setItemEditando({
-                                    ...itemEditando, 
-                                    // Update stored total based on new unit price and existing quantity
-                                    valor_total: newUnitPrice * itemEditando.quantidade
-                                  });
-                                }} 
+                                type="number" 
+                                value={itemEditando.valor_total} 
+                                onChange={(e) => setItemEditando({...itemEditando, valor_total: parseFloat(e.target.value) || 0})} 
                                 className="h-7 w-24 text-xs text-right"
                                 step="0.01"
                               />
                             ) : (
-                              <span className="font-mono text-xs">R$ {currentUnitPrice.toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs">R$ {item.valor_total.toFixed(2).replace('.', ',')}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
                             {isEditing ? (
                               <Input 
-                                type="text" 
-                                value={String(itemEditando.desconto_item || 0).replace('.', ',')} 
-                                onChange={(e) => setItemEditando({...itemEditando, desconto_item: parseFloat(e.target.value.replace(',', '.')) || 0})} 
+                                type="number" 
+                                value={itemEditando.desconto_item || 0} 
+                                onChange={(e) => setItemEditando({...itemEditando, desconto_item: parseFloat(e.target.value) || 0})} 
                                 className="h-7 w-20 text-xs text-right"
                                 step="0.01"
                               />
                             ) : (
-                              <span className="font-mono text-xs">{(item.desconto_item || 0).toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs text-red-600">{(item.desconto_item || 0).toFixed(2).replace('.', ',')}</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right font-mono font-bold text-green-700 text-xs">
-                            R$ {valorFinalComDesconto.toFixed(2).replace('.', ',')}
+                          <TableCell className="text-right">
+                            <div className="font-mono font-bold text-green-700 text-xs">
+                              R$ {valorLiquido.toFixed(2).replace('.', ',')}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              Un: R$ {valorUnitario.toFixed(2).replace('.', ',')}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
@@ -945,12 +948,76 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </Table>
               </div>
 
+              {/* RESUMO DOS VALORES */}
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between font-semibold text-slate-700">
+                      <span>💰 RESUMO FINANCEIRO DA NF-e</span>
+                    </div>
+                    <div className="border-t pt-1.5 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Subtotal Produtos (bruto):</span>
+                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between text-red-600">
+                        <span>(-) Descontos nos Produtos:</span>
+                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-blue-700 border-t pt-1">
+                        <span>= Subtotal Produtos (líquido):</span>
+                        <span className="font-mono">R$ {itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-700">
+                        <span>(+) Frete:</span>
+                        <span className="font-mono">R$ {(dadosNFe.valor_frete || 0).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-700">
+                        <span>(+) Outras Despesas:</span>
+                        <span className="font-mono">R$ {(dadosNFe.valor_outras_despesas || 0).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-emerald-700 text-base border-t-2 border-emerald-300 pt-1.5 mt-1">
+                        <span>= VALOR TOTAL A PAGAR:</span>
+                        <span className="font-mono">R$ {(
+                          itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) +
+                          (dadosNFe.valor_frete || 0) +
+                          (dadosNFe.valor_outras_despesas || 0)
+                        ).toFixed(2).replace('.', ',')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* LOCAL DE ESTOQUE */}
+              <Card className="bg-amber-50 border-amber-200">
+                <CardHeader className="py-2 px-3">
+                  <CardTitle className="text-sm">📦 Local de Destino do Estoque</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Onde os produtos serão armazenados? *</Label>
+                    <Select value={localEstoque} onValueChange={setLocalEstoque}>
+                      <SelectTrigger className="h-9 text-xs bg-white">
+                        <SelectValue placeholder="Selecione o local de estoque" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locaisEstoque.map(l => (
+                          <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-amber-700">⚠️ Este campo é obrigatório para dar entrada no estoque</p>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex justify-between gap-2 pt-3 border-t">
                 <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-8 text-xs">Voltar</Button>
                 <Button 
                   onClick={handleConfirmarImportacao} 
                   className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs"
-                  disabled={itensSelecionados.length === 0}
+                  disabled={itensSelecionados.length === 0 || !localEstoque}
                 >
                   <CheckCircle className="w-3 h-3" />
                   Importar para Formulário ({itensSelecionados.length})

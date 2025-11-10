@@ -201,11 +201,11 @@ export default function Financeiro() {
                   unidade_medida: prodLanc.unidade,
                   valor_unitario: prodLanc.valor_unitario,
                   valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
-                  local_origem: data.fornecedor_nome,
+                  local_origem: `📋 FINANCEIRO: ${data.fornecedor_nome}`,
                   local_destino: data.local_estoque,
                   data_movimentacao: data.data_emissao,
                   numero_documento: data.numero_documento,
-                  observacoes: `ENTRADA POR ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} - LANÇAMENTO FINANCEIRO #${String(numero)}`.trim(),
+                  observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${String(numero)} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | Entrada automática via controle financeiro`.trim(),
                   responsavel: user.email
                 });
               }
@@ -295,11 +295,11 @@ export default function Financeiro() {
                 unidade_medida: prodLanc.unidade,
                 valor_unitario: prodLanc.valor_unitario,
                 valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
-                local_origem: data.fornecedor_nome,
+                local_origem: `📋 FINANCEIRO: ${data.fornecedor_nome}`,
                 local_destino: data.local_estoque,
                 data_movimentacao: data.data_emissao,
                 numero_documento: data.numero_documento,
-                observacoes: `ENTRADA POR ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} - LANÇAMENTO FINANCEIRO #${numero}`.trim(),
+                observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${numero} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | Entrada automática via controle financeiro`.trim(),
                 responsavel: user.email
               });
             }

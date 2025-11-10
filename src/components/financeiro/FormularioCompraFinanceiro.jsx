@@ -243,10 +243,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
-      // SOMA DOS VALORES TOTAIS DOS PRODUTOS (Líquido = Vlr Total - Desc. Total)
-      const totalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-        sum + (parseNumero(p.valor_total || "0") - parseNumero(p.desconto_item || "0")), 0
-      );
+      // SOMA DOS VALORES LÍQUIDOS DOS PRODUTOS (Total - Desconto)
+      const totalProdutos = formData.produtos_selecionados.reduce((sum, p) => {
+        const total = parseNumero(p.valor_total || "0");
+        const desc = parseNumero(p.desconto_item || "0");
+        return sum + (total - desc);
+      }, 0);
       // TOTAL = Produtos Líquido + Frete + Outras Despesas
       return totalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas);
     } else {
@@ -579,15 +581,23 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   };
 
   const totalProdutos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
-    const totalItemBruto = parseNumero(p.valor_total || "0");
-    const descontoItem = parseNumero(p.desconto_item || "0");
-    return sum + (totalItemBruto - descontoItem);
+    const total = parseNumero(p.valor_total || "0");
+    const desc = parseNumero(p.desconto_item || "0");
+    return sum + (total - desc);
   }, 0) : 0;
+
+  const subtotalBruto = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => 
+    sum + parseNumero(p.valor_total || "0"), 0
+  ) : 0;
+
+  const totalDescontos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => 
+    sum + parseNumero(p.desconto_item || "0"), 0
+  ) : 0;
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
 
-  const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe || formData.valor_outras_despesas || formData.valor_desconto_total || formData.base_calculo_icms;
+  const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe;
 
   return (
     <>
@@ -772,7 +782,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                   <TableHead className="text-xs">Produto *</TableHead>
                                   <TableHead className="text-xs text-right">Qtd *</TableHead>
                                   <TableHead className="text-xs text-right">Vlr Total *</TableHead>
-                                  <TableHead className="text-xs text-right">Desc. Item</TableHead>
+                                  <TableHead className="text-xs text-right">Desc.</TableHead>
                                   <TableHead className="text-xs text-right">Líquido</TableHead>
                                   <TableHead className="text-xs text-center">Un.</TableHead>
                                   <TableHead className="w-12"></TableHead>
@@ -780,9 +790,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               </TableHeader>
                               <TableBody>
                                 {formData.produtos_selecionados.map((produto, index) => {
-                                  const totalBruto = parseNumero(produto.valor_total || "0");
-                                  const descItem = parseNumero(produto.desconto_item || "0,00");
-                                  const liquido = totalBruto - descItem;
+                                  const total = parseNumero(produto.valor_total || "0");
+                                  const desc = parseNumero(produto.desconto_item || "0");
+                                  const liquido = total - desc;
                                   const qtd = parseNumero(produto.quantidade || "0");
                                   const unitario = qtd > 0 ? (liquido / qtd) : 0;
                                   
@@ -901,23 +911,32 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
 
                         <Card className="bg-white border-emerald-200">
-                          <CardContent className="p-2">
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-xs text-slate-600">
-                                <span>Subtotal Produtos:</span>
-                                <span className="font-bold text-blue-700">{formatarMoeda(totalProdutos)}</span>
+                          <CardContent className="p-3">
+                            <div className="space-y-1.5 text-xs">
+                              <div className="font-semibold text-slate-700 mb-2">💰 RESUMO FINANCEIRO</div>
+                              <div className="flex justify-between text-slate-600">
+                                <span>Subtotal Produtos (bruto):</span>
+                                <span className="font-mono">{formatarMoeda(subtotalBruto)}</span>
                               </div>
-                              <div className="flex justify-between text-xs text-slate-600">
-                                <span>+ Frete:</span>
-                                <span>{formatarMoeda(parseNumero(formData.frete))}</span>
+                              <div className="flex justify-between text-red-600">
+                                <span>(-) Descontos nos Produtos:</span>
+                                <span className="font-mono">{formatarMoeda(totalDescontos)}</span>
                               </div>
-                              <div className="flex justify-between text-xs text-slate-600">
-                                <span>+ Outras Despesas:</span>
-                                <span>{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
+                              <div className="flex justify-between text-blue-700 font-semibold border-t pt-1">
+                                <span>= Subtotal Produtos (líquido):</span>
+                                <span className="font-mono">{formatarMoeda(totalProdutos)}</span>
                               </div>
-                              <div className="pt-1 border-t flex justify-between">
-                                <span className="text-xs font-semibold">VALOR TOTAL:</span>
-                                <span className="text-base font-bold text-emerald-700">{formatarMoeda(valorTotal)}</span>
+                              <div className="flex justify-between text-amber-700">
+                                <span>(+) Frete:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span>
+                              </div>
+                              <div className="flex justify-between text-amber-700">
+                                <span>(+) Outras Despesas:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
+                              </div>
+                              <div className="pt-2 border-t-2 border-emerald-300 flex justify-between">
+                                <span className="text-sm font-bold">= VALOR TOTAL A PAGAR:</span>
+                                <span className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</span>
                               </div>
                             </div>
                           </CardContent>
@@ -1203,10 +1222,36 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
                           </div>
 
+                          {!formData.parcelar && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Forma de Pagamento</Label>
+                              <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                                <SelectContent>
+                                  {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                    <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
                           {formData.parcelar && (
                             <Card className="bg-white border-amber-200">
-                              <CardContent className="p-3 space-y-2">
-                                <div className="flex justify-between items-center">
+                              <CardContent className="p-3 space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Forma de Pagamento</Label>
+                                  <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                                    <SelectContent>
+                                      {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                        <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t">
                                   <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
                                   <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
                                     <Plus className="w-3 h-3" />
