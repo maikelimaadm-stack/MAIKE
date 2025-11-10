@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip, Eye, EyeOff } from "lucide-react";
@@ -606,6 +607,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   // but the card for NFe details will always render (controlled by mostrarCamposNFe state)
   const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.observacoes_nfe;
 
+  // Prepare options for Combobox
+  const fornecedoresOptions = fornecedores.map(f => ({ value: f.id, label: f.nome }));
+  const produtosOptions = produtos.map(p => ({ value: p.id, label: p.nome_produto }));
+  const planosOptions = planos.map(p => ({ value: p.id, label: `${p.codigo} - ${p.descricao}` }));
+  const gruposOptions = grupos.map(g => ({ value: g.id, label: `${g.codigo} - ${g.descricao}` }));
+  const centrosOptions = centros.map(c => ({ value: c.id, label: c.nome }));
+
 
   return (
     <>
@@ -636,12 +644,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs">Fornecedor *</Label>
-                          <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={fornecedoresOptions}
+                            value={formData.fornecedor_id}
+                            onValueChange={(v) => handleChange('fornecedor_id', v)}
+                            placeholder="Selecione o fornecedor"
+                            searchPlaceholder="Buscar fornecedor..."
+                            className="h-9 text-xs"
+                          />
                         </div>
 
                         <div className="space-y-1.5">
@@ -807,21 +817,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                   return (
                                     <TableRow key={index}>
                                       <TableCell className="w-[200px]">
-                                        <Select 
-                                          value={produto.produto_id} 
+                                        <Combobox
+                                          options={produtosOptions}
+                                          value={produto.produto_id}
                                           onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
-                                        >
-                                          <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder="Selecione" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {produtos.map(p => (
-                                              <SelectItem key={p.id} value={p.id} className="text-xs">
-                                                {p.nome_produto}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                          placeholder="Selecione"
+                                          searchPlaceholder="Buscar produto..."
+                                          className="h-8 text-xs"
+                                        />
                                       </TableCell>
                                       <TableCell className="w-[80px]">
                                         <Input
@@ -1136,34 +1139,40 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
-                          <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={planosOptions}
+                            value={formData.plano_contas_id}
+                            onValueChange={(v) => handleChange('plano_contas_id', v)}
+                            placeholder="Selecione o plano"
+                            searchPlaceholder="Buscar plano de contas..."
+                            className="h-9 text-xs"
+                          />
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
-                          <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.codigo} - {g.descricao}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={gruposOptions}
+                            value={formData.grupo_id}
+                            onValueChange={(v) => handleChange('grupo_id', v)}
+                            placeholder="Selecione o grupo"
+                            searchPlaceholder="Buscar grupo financeiro..."
+                            className="h-9 text-xs"
+                          />
                         </div>
                       </div>
 
                       <div className="space-y-1.5">
                         <Label className="text-xs">Centro de Custo (Opcional)</Label>
                         <div className="flex gap-1.5">
-                          <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                            <SelectContent>
-                              {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={centrosOptions}
+                            value={formData.centro_custo_id}
+                            onValueChange={(v) => handleChange('centro_custo_id', v)}
+                            placeholder="Opcional"
+                            searchPlaceholder="Buscar centro de custo..."
+                            className="flex-1 h-9 text-xs"
+                          />
                           <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
                             <Plus className="w-4 h-4" />
                           </Button>
@@ -1365,3 +1374,4 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     </>
   );
 }
+
