@@ -53,7 +53,7 @@ const extrairDadosXML = (xmlText) => {
 
   const enderecoCompleto = numero_end ? `${logradouro}, ${numero_end}` : logradouro;
 
-  // EXTRAIR OBSERVAÇÕES (FILTRAR AS DE IMPOSTOS)
+  // EXTRAIR OBSERVAÇÕES (FILTRAR TRIBUTOS E FORMA DE PAGAMENTO)
   const infAdic = xmlDoc.getElementsByTagName('infAdic')[0];
   let observacoes = '';
   
@@ -62,22 +62,54 @@ const extrairDadosXML = (xmlText) => {
     if (infCpl) {
       const obsCompleta = infCpl.textContent || '';
       
-      // FILTRAR: remover linhas de impostos/tributos
+      // FILTRAR: remover linhas de impostos/tributos/forma de pagamento
       const linhas = obsCompleta.split(/[\n\r]+/);
       const linhasFiltradas = linhas.filter(linha => {
         const linhaLower = linha.toLowerCase();
-        return !linhaLower.includes('tribut') &&
-               !linhaLower.includes('imposto') &&
-               !linhaLower.includes('icms') &&
-               !linhaLower.includes('pis') &&
-               !linhaLower.includes('cofins') &&
-               !linhaLower.includes('ipi') &&
-               !linhaLower.includes('iss') &&
-               !linhaLower.includes('simples nacional') &&
-               !linhaLower.includes('regime') &&
-               !linhaLower.includes('alíquota') &&
-               !linhaLower.includes('base de cálculo') &&
-               linha.trim().length > 0;
+        const linhaClean = linha.trim();
+        
+        // Remover linhas vazias
+        if (linhaClean.length === 0) return false;
+        
+        // Remover linhas de tributos/impostos
+        if (linhaLower.includes('tribut') ||
+            linhaLower.includes('imposto') ||
+            linhaLower.includes('icms') ||
+            linhaLower.includes('pis') ||
+            linhaLower.includes('cofins') ||
+            linhaLower.includes('ipi') ||
+            linhaLower.includes('iss') ||
+            linhaLower.includes('simples nacional') ||
+            linhaLower.includes('regime') ||
+            linhaLower.includes('alíquota') ||
+            linhaLower.includes('base de cálculo') ||
+            linhaLower.includes('base calc') ||
+            linhaLower.includes('valor aprox') ||
+            linhaLower.includes('trib aprox') ||
+            linhaLower.includes('federal') ||
+            linhaLower.includes('estadual') ||
+            linhaLower.includes('fonte') ||
+            linhaLower.includes('ibpt') ||
+            linhaLower.includes('lei')) {
+          return false;
+        }
+        
+        // Remover linhas de forma de pagamento
+        if (linhaLower.includes('forma de pagamento') ||
+            linhaLower.includes('credito') ||
+            linhaLower.includes('boleto') ||
+            linhaLower.includes('dias') && linhaLower.includes('r$')) {
+          return false;
+        }
+        
+        // Remover linhas que parecem protocolos/códigos
+        if (linhaLower.includes('protocolo') ||
+            linhaLower.includes('conforme') ||
+            /r\$\s*\d+[,.]?\d*/.test(linhaLower)) {
+          return false;
+        }
+        
+        return true;
       });
       
       observacoes = linhasFiltradas.join('\n').trim();
@@ -85,23 +117,20 @@ const extrairDadosXML = (xmlText) => {
   }
 
   // EXTRAIR FORMA DE PAGAMENTO
-  // NFe v4.0 introduced tPag inside `detPag` or `pag`
-  // Trying to get tPag from the more specific path first, then general
-  let tPag = getValor('tPag') || xmlDoc.getElementsByTagName('tPag')[0]?.textContent;
+  let tPag = getValor('tPag');
   
-  // If tPag is still not found, try searching within the `detPag` structure for NFe 4.00+
+  // Tentar em detPag se não encontrou
   if (!tPag) {
-      const pagElement = xmlDoc.getElementsByTagName('pag')[0];
-      if (pagElement) {
-          const detPagElement = pagElement.getElementsByTagName('detPag')[0];
-          if (detPagElement) {
-              tPag = detPagElement.getElementsByTagName('tPag')[0]?.textContent;
-          }
+    const pagElement = xmlDoc.getElementsByTagName('pag')[0];
+    if (pagElement) {
+      const detPagElement = pagElement.getElementsByTagName('detPag')[0];
+      if (detPagElement) {
+        tPag = detPagElement.getElementsByTagName('tPag')[0]?.textContent;
       }
+    }
   }
-
-  let formaPagamento = null;
   
+  let formaPagamento = null;
   if (tPag) {
     const formasPag = {
       '01': 'Dinheiro',
@@ -120,8 +149,79 @@ const extrairDadosXML = (xmlText) => {
       '90': 'Sem Pagamento',
       '99': 'Outros'
     };
-    
     formaPagamento = formasPag[tPag] || 'Outros';
+  }
+
+  // EXTRAIR PARCELAMENTO
+  const parcelas = [];
+  const pagElement = xmlDoc.getElementsByTagName('pag')[0];
+  
+  if (pagElement) {
+    const detPags = pagElement.getElementsByTagName('detPag');
+    
+    // Check for explicit installments within detPag (usually via card, but can be others)
+    for (let i = 0; i < detPags.length; i++) {
+      const detPag = detPags[i];
+      const vPag = parseFloat(detPag.getElementsByTagName('vPag')[0]?.textContent || 0);
+      
+      // If there's a payment value, try to infer installments or use duplicates
+      if (vPag > 0) {
+        // Prefer specific duplicatas (if present)
+        const dups = xmlDoc.getElementsByTagName('dup');
+        
+        if (dups.length > 0) {
+          for (let j = 0; j < dups.length; j++) {
+            const dup = dups[j];
+            const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
+            const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
+            
+            if (dVenc && vDup > 0) {
+              parcelas.push({
+                data: dVenc,
+                valor: vDup
+              });
+            }
+          }
+        } else if (detPags.length > 1) { // If multiple detPag and no dups, assume each detPag is an installment
+            // This is a less common scenario, but could represent multiple forms of payment acting as installments
+            // For simplicity, we'll just take the first vPag if no clear installments or dups are found
+            // Or handle based on how many detPags are present for a 'split' payment
+            // For now, if no dups, and multiple detPags for different payment types, treat each as a separate lump sum, not installments.
+            // If it's a single payment type, and multiple detPags without dups is unlikely for installments.
+        } else {
+            // If single detPag, and no dups, it's a single payment, not installments
+        }
+      }
+    }
+  }
+
+  // If no parcelas from detPag processing, but there are explicit duplicatas
+  if (parcelas.length === 0) {
+    const dups = xmlDoc.getElementsByTagName('dup');
+    for (let i = 0; i < dups.length; i++) {
+      const dup = dups[i];
+      const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
+      const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
+      
+      if (dVenc && vDup > 0) {
+        parcelas.push({
+          data: dVenc,
+          valor: vDup
+        });
+      }
+    }
+  }
+  
+  // Sort parcelas by date
+  parcelas.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+  // VERIFICAR SE ESTÁ PAGO
+  let contaPaga = false;
+  if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') {
+    // Se não tem parcelamento explícito (duplicatas ou múltiplos detPag com parcelas)
+    // E a forma de pagamento não é "Boleto Bancário", "Sem Pagamento" ou "Outros" (que poderiam ser a prazo)
+    // Assume-se que a conta foi paga à vista ou no momento da emissão (ex: dinheiro, cartão)
+    contaPaga = true;
   }
 
   const itensNFe = [];
@@ -171,6 +271,8 @@ const extrairDadosXML = (xmlText) => {
     valor_total: valorTotal,
     forma_pagamento: formaPagamento,
     observacoes: observacoes,
+    parcelas: parcelas,
+    conta_paga: contaPaga,
     itens: itensNFe
   };
 };
@@ -442,6 +544,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       return;
     }
 
+    const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
+
     // Passar dados para o formulário principal
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
@@ -453,6 +557,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       data_emissao: dadosNFe.data_emissao,
       forma_pagamento_id: dadosNFe.forma_pagamento || '',
       observacoes: dadosNFe.observacoes || '',
+      conta_paga: dadosNFe.conta_paga || false,
+      parcelar: temParcelas,
+      parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({
+        data: p.data,
+        valor: String(p.valor.toFixed(2)).replace('.', ',')
+      })) : [],
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
