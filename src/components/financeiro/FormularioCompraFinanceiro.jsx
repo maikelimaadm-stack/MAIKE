@@ -126,8 +126,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   });
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
-  const [showDialogPlano, setShowDialogPlano] = useState(false);
-  const [showDialogGrupo, setShowDialogGrupo] = useState(false);
   const [showDialogLocal, setShowDialogLocal] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
@@ -186,7 +184,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         valor_pago_total: formatarNumero(valorTotal)
       }));
     }
-  }, [formData.conta_paga]);
+  }, [formData.conta_paga, formData.data_emissao]); // Added formData.data_emissao to deps
 
   // Preencher data de vencimento automaticamente
   useEffect(() => {
@@ -196,8 +194,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         data_vencimento: prev.data_emissao
       }));
     }
-  }, [formData.data_emissao]);
-
+  }, [formData.data_emissao, formData.data_vencimento]); // Added formData.data_vencimento to deps
 
   useEffect(() => {
     if (formData.parcelar && formData.parcelas.length === 0 && formData.data_vencimento) {
@@ -212,7 +209,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         ]
       }));
     }
-  }, [formData.parcelar, formData.data_vencimento]);
+  }, [formData.parcelar, formData.data_vencimento, formData.parcelas.length]); // Added formData.parcelas.length to deps
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
@@ -964,32 +961,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
-                          <div className="flex gap-1.5">
-                            <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                              <SelectContent>
-                                {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
-                          <div className="flex gap-1.5">
-                            <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                              <SelectContent>
-                                {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
@@ -1182,9 +1169,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       </motion.div>
 
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_compra'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
-      <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_compra'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} tipoFinanceiro="Despesa" />
-      <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_compra'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} tipoFinanceiro="Despesa" />
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_compra'] }); const local = locais.find(l => l.id === id); if (local) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais'] }); const local = locais.find(l => l.id === id); if (local) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
     </>
   );
 }
