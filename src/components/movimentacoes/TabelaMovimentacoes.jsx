@@ -18,13 +18,16 @@ import {
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
-  return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  // Handle potential string input with comma as decimal separator
+  const numericValue = typeof numero === 'string' ? parseFloat(numero.replace('.', '').replace(',', '.')) : numero;
+  if (isNaN(numericValue)) return "0,00";
+  return numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
   // Ensure valor is a number before calling toLocaleString
-  const numericValue = typeof valor === 'string' ? parseFloat(valor.replace(',', '.')) : valor;
+  const numericValue = typeof valor === 'string' ? parseFloat(valor.replace('.', '').replace(',', '.')) : valor;
   if (isNaN(numericValue)) return "R$ 0,00";
   return numericValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
@@ -45,19 +48,30 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data/Hora', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'tipo_detalhado', label: 'Tipo Detalhado', default: true, sortable: true },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: false, sortable: false },
+  { id: 'documento', label: 'Nº Doc', default: false, sortable: false },
+  { id: 'chave_documento', label: 'Chave NF-e', default: false, sortable: false },
+  { id: 'serie_documento', label: 'Série', default: false, sortable: false },
   { id: 'produto', label: 'Produto', default: true, sortable: true },
+  { id: 'produto_codigo', label: 'Cód. Produto', default: false, sortable: false },
+  { id: 'produto_categoria', label: 'Categoria', default: false, sortable: false },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
-  { id: 'origem', label: 'Origem', default: true, sortable: false },
-  { id: 'destino', label: 'Destino', default: true, sortable: false },
+  { id: 'unidade', label: 'Unidade', default: false, sortable: false },
+  { id: 'local_origem', label: 'Origem', default: true, sortable: false },
+  { id: 'local_destino', label: 'Destino', default: true, sortable: false },
   { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
   { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
-  { id: 'tipo_documento', label: 'Tipo Doc', default: true, sortable: false },
-  { id: 'documento', label: 'Nº Doc', default: true, sortable: false },
-  { id: 'fornecedor', label: 'Fornecedor', default: true, sortable: true },
+  { id: 'fornecedor', label: 'Fornecedor', default: false, sortable: true },
   { id: 'cliente', label: 'Cliente', default: false, sortable: false },
+  { id: 'safra', label: 'Safra', default: false, sortable: false },
+  { id: 'centro_custo', label: 'Centro Custo', default: false, sortable: false },
   { id: 'usuario', label: 'Usuário', default: false, sortable: false },
-  { id: 'origem_dados', label: 'Origem', default: true, sortable: false },
-  { id: 'motivo', label: 'Motivo', default: false, sortable: false },
+  { id: 'lancamento_origem', label: 'Lanc. Origem', default: false, sortable: false },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: false },
+  { id: 'saldo_antes', label: 'Saldo Antes', default: false, sortable: false },
+  { id: 'saldo_depois', label: 'Saldo Depois', default: false, sortable: false },
+  { id: 'custo_medio_antes', label: 'Custo Médio Antes', default: false, sortable: false },
+  { id: 'custo_medio_depois', label: 'Custo Médio Depois', default: false, sortable: false },
 ];
 
 export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCancel, isLoading }) {
@@ -70,7 +84,10 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       const saved = localStorage.getItem('colunas_movimentacoes');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          // Filter out any column IDs that no longer exist in COLUNAS_DISPONIVEIS
+          const parsed = JSON.parse(saved);
+          const validColumns = COLUNAS_DISPONIVEIS.map(c => c.id);
+          return parsed.filter(id => validColumns.includes(id));
         } catch {
           return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
         }
@@ -94,6 +111,10 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
   };
 
   const handleSort = (field) => {
+    // Only sort if the field is marked as sortable in COLUNAS_DISPONIVEIS
+    const columnDef = COLUNAS_DISPONIVEIS.find(c => c.id === field);
+    if (!columnDef || !columnDef.sortable) return;
+
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -103,6 +124,10 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
   };
 
   const getSortIcon = (field) => {
+    // Only show sort icon if the field is sortable
+    const columnDef = COLUNAS_DISPONIVEIS.find(c => c.id === field);
+    if (!columnDef || !columnDef.sortable) return null;
+
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
     return sortDirection === 'asc' 
       ? <ArrowUp className="w-3 h-3 ml-1 text-green-600" />
@@ -113,6 +138,8 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
     const searchLower = searchTerm.toLowerCase();
     return (
       mov.produto_nome?.toLowerCase().includes(searchLower) ||
+      mov.produto_codigo?.toLowerCase().includes(searchLower) ||
+      mov.produto_categoria?.toLowerCase().includes(searchLower) ||
       mov.tipo_movimentacao?.toLowerCase().includes(searchLower) ||
       mov.tipo_detalhado?.toLowerCase().includes(searchLower) ||
       mov.fornecedor_nome?.toLowerCase().includes(searchLower) ||
@@ -120,7 +147,10 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       mov.numero_documento?.toLowerCase().includes(searchLower) ||
       mov.numero_movimentacao?.includes(searchLower) ||
       mov.usuario_responsavel?.toLowerCase().includes(searchLower) ||
-      mov.tipo_documento?.toLowerCase().includes(searchLower) // Added tipo_documento to search
+      mov.tipo_documento?.toLowerCase().includes(searchLower) ||
+      mov.centro_custo_nome?.toLowerCase().includes(searchLower) ||
+      mov.safra_nome?.toLowerCase().includes(searchLower) ||
+      mov.observacoes?.toLowerCase().includes(searchLower) // Added observations to search
     );
   });
 
@@ -164,8 +194,25 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
         aValue = a.fornecedor_nome || '';
         bValue = b.fornecedor_nome || '';
         break;
+      case 'cliente': // Added client to sortable fields as a string
+        aValue = a.cliente_nome || '';
+        bValue = b.cliente_nome || '';
+        break;
+      case 'safra': // Added safra to sortable fields as a string
+        aValue = a.safra_nome || '';
+        bValue = b.safra_nome || '';
+        break;
+      case 'centro_custo': // Added centro_custo to sortable fields as a string
+        aValue = a.centro_custo_nome || '';
+        bValue = b.centro_custo_nome || '';
+        break;
+      // Note: New sortable fields like 'produto_codigo', 'produto_categoria', etc., can be added here if needed.
+      // Current COLUNAS_DISPONIVEIS outline does not mark them as sortable.
       default:
-        return 0;
+        // Default sort by data if sortField is not recognized or not explicitly handled
+        aValue = new Date(a.data_movimentacao).getTime();
+        bValue = new Date(b.data_movimentacao).getTime();
+        break;
     }
 
     if (typeof aValue === 'string') {
@@ -252,10 +299,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('numero')}
                   >
-                    <div className="flex items-center">
-                      Nº
-                      {getSortIcon('numero')}
-                    </div>
+                    <div className="flex items-center">Nº {getSortIcon('numero')}</div>
                   </TableHead>
                 )}
                 {colunasVisiveis.includes('data') && (
@@ -263,10 +307,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('data')}
                   >
-                    <div className="flex items-center">
-                      Data/Hora
-                      {getSortIcon('data')}
-                    </div>
+                    <div className="flex items-center">Data/Hora {getSortIcon('data')}</div>
                   </TableHead>
                 )}
                 {colunasVisiveis.includes('tipo') && (
@@ -274,10 +315,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('tipo')}
                   >
-                    <div className="flex items-center">
-                      Tipo
-                      {getSortIcon('tipo')}
-                    </div>
+                    <div className="flex items-center">Tipo {getSortIcon('tipo')}</div>
                   </TableHead>
                 )}
                 {colunasVisiveis.includes('tipo_detalhado') && (
@@ -285,45 +323,40 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('tipo_detalhado')}
                   >
-                    <div className="flex items-center">
-                      Tipo Detalhado
-                      {getSortIcon('tipo_detalhado')}
-                    </div>
+                    <div className="flex items-center">Tipo Detalhado {getSortIcon('tipo_detalhado')}</div>
                   </TableHead>
                 )}
+                {colunasVisiveis.includes('tipo_documento') && <TableHead className="font-semibold text-slate-700">Tipo Doc</TableHead>}
+                {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">Nº Doc</TableHead>}
+                {colunasVisiveis.includes('chave_documento') && <TableHead className="font-semibold text-slate-700">Chave NF-e</TableHead>}
+                {colunasVisiveis.includes('serie_documento') && <TableHead className="font-semibold text-slate-700">Série</TableHead>}
                 {colunasVisiveis.includes('produto') && (
                   <TableHead 
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('produto')}
                   >
-                    <div className="flex items-center">
-                      Produto
-                      {getSortIcon('produto')}
-                    </div>
+                    <div className="flex items-center">Produto {getSortIcon('produto')}</div>
                   </TableHead>
                 )}
+                {colunasVisiveis.includes('produto_codigo') && <TableHead className="font-semibold text-slate-700">Cód. Produto</TableHead>}
+                {colunasVisiveis.includes('produto_categoria') && <TableHead className="font-semibold text-slate-700">Categoria</TableHead>}
                 {colunasVisiveis.includes('quantidade') && (
                   <TableHead 
                     className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('quantidade')}
                   >
-                    <div className="flex items-center justify-end">
-                      Quantidade
-                      {getSortIcon('quantidade')}
-                    </div>
+                    <div className="flex items-center justify-end">Quantidade {getSortIcon('quantidade')}</div>
                   </TableHead>
                 )}
-                {colunasVisiveis.includes('origem') && <TableHead className="font-semibold text-slate-700">Origem</TableHead>}
-                {colunasVisiveis.includes('destino') && <TableHead className="font-semibold text-slate-700">Destino</TableHead>}
+                {colunasVisiveis.includes('unidade') && <TableHead className="font-semibold text-slate-700">Unidade</TableHead>}
+                {colunasVisiveis.includes('local_origem') && <TableHead className="font-semibold text-slate-700">Origem</TableHead>}
+                {colunasVisiveis.includes('local_destino') && <TableHead className="font-semibold text-slate-700">Destino</TableHead>}
                 {colunasVisiveis.includes('valor_unitario') && (
                   <TableHead 
                     className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('valor_unitario')}
                   >
-                    <div className="flex items-center justify-end">
-                      Vlr. Unit.
-                      {getSortIcon('valor_unitario')}
-                    </div>
+                    <div className="flex items-center justify-end">Vlr. Unit. {getSortIcon('valor_unitario')}</div>
                   </TableHead>
                 )}
                 {colunasVisiveis.includes('valor_total') && (
@@ -331,29 +364,27 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                     className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('valor_total')}
                   >
-                    <div className="flex items-center justify-end">
-                      Vlr. Total
-                      {getSortIcon('valor_total')}
-                    </div>
+                    <div className="flex items-center justify-end">Vlr. Total {getSortIcon('valor_total')}</div>
                   </TableHead>
                 )}
-                {colunasVisiveis.includes('tipo_documento') && <TableHead className="font-semibold text-slate-700">Tipo Doc</TableHead>}
-                {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700">Nº Doc</TableHead>}
                 {colunasVisiveis.includes('fornecedor') && (
                   <TableHead 
                     className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('fornecedor')}
                   >
-                    <div className="flex items-center">
-                      Fornecedor
-                      {getSortIcon('fornecedor')}
-                    </div>
+                    <div className="flex items-center">Fornecedor {getSortIcon('fornecedor')}</div>
                   </TableHead>
                 )}
                 {colunasVisiveis.includes('cliente') && <TableHead className="font-semibold text-slate-700">Cliente</TableHead>}
+                {colunasVisiveis.includes('safra') && <TableHead className="font-semibold text-slate-700">Safra</TableHead>}
+                {colunasVisiveis.includes('centro_custo') && <TableHead className="font-semibold text-slate-700">Centro Custo</TableHead>}
                 {colunasVisiveis.includes('usuario') && <TableHead className="font-semibold text-slate-700">Usuário</TableHead>}
-                {colunasVisiveis.includes('origem_dados') && <TableHead className="font-semibold text-slate-700">Origem</TableHead>}
-                {colunasVisiveis.includes('motivo') && <TableHead className="font-semibold text-slate-700">Motivo</TableHead>}
+                {colunasVisiveis.includes('lancamento_origem') && <TableHead className="font-semibold text-slate-700">Lanc. Origem</TableHead>}
+                {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700">Observações</TableHead>}
+                {colunasVisiveis.includes('saldo_antes') && <TableHead className="font-semibold text-slate-700 text-right">Saldo Antes</TableHead>}
+                {colunasVisiveis.includes('saldo_depois') && <TableHead className="font-semibold text-slate-700 text-right">Saldo Depois</TableHead>}
+                {colunasVisiveis.includes('custo_medio_antes') && <TableHead className="font-semibold text-slate-700 text-right">Custo Méd. Antes</TableHead>}
+                {colunasVisiveis.includes('custo_medio_depois') && <TableHead className="font-semibold text-slate-700 text-right">Custo Méd. Depois</TableHead>}
                 <TableHead className="font-semibold text-slate-700 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -363,7 +394,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                   Array(5).fill(0).map((_, i) => (
                     <TableRow key={i} className="animate-pulse">
                       {colunasVisiveis.map((_, idx) => (
-                        <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
+                        <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
                       ))}
                       <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                     </TableRow>
@@ -403,54 +434,101 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                         </TableCell>
                       )}
                       {colunasVisiveis.includes('tipo_detalhado') && (
-                        <TableCell className="text-xs text-slate-700">{mov.tipo_detalhado}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('produto') && (
-                        <TableCell className="font-semibold text-slate-900">{mov.produto_nome}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('quantidade') && (
-                        <TableCell className="text-right font-mono font-bold text-green-700">
-                          {formatarNumero(mov.quantidade)} {mov.unidade_medida}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('origem') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.local_estoque_origem || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('destino') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.local_estoque_destino || '-'}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('valor_unitario') && (
-                        <TableCell className="text-right font-mono text-slate-700">
-                          {mov.valor_unitario ? formatarMoeda(mov.valor_unitario) : '-'}
-                        </TableCell>
-                      )}
-                      {colunasVisiveis.includes('valor_total') && (
-                        <TableCell className="text-right font-mono font-bold text-green-700">
-                          {mov.valor_total ? formatarMoeda(mov.valor_total) : '-'}
-                        </TableCell>
+                        <TableCell className="text-xs text-slate-700">{mov.tipo_detalhado || '-'}</TableCell>
                       )}
                       {colunasVisiveis.includes('tipo_documento') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.tipo_documento || '-'}</TableCell>
+                        <TableCell className="text-xs text-slate-700">{mov.tipo_documento || '-'}</TableCell>
                       )}
                       {colunasVisiveis.includes('documento') && (
                         <TableCell className="font-mono text-xs">{mov.numero_documento || '-'}</TableCell>
                       )}
+                      {colunasVisiveis.includes('chave_documento') && (
+                        <TableCell className="font-mono text-xs max-w-[150px] truncate" title={mov.chave_documento}>
+                            {mov.chave_documento || '-'}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('serie_documento') && (
+                        <TableCell className="text-xs">{mov.serie_documento || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('produto') && (
+                        <TableCell className="font-semibold text-slate-900">{mov.produto_nome}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('produto_codigo') && (
+                        <TableCell className="font-mono text-xs">{mov.produto_codigo || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('produto_categoria') && (
+                        <TableCell className="text-xs">{mov.produto_categoria || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('quantidade') && (
+                        <TableCell className="text-right font-mono font-bold text-green-700">
+                          {formatarNumero(mov.quantidade)}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('unidade') && (
+                        <TableCell className="text-xs">{mov.unidade_medida || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('local_origem') && (
+                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_origem || mov.local_estoque_origem}>
+                            {mov.local_origem || mov.local_estoque_origem || '-'}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('local_destino') && (
+                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.local_destino || mov.local_estoque_destino}>
+                            {mov.local_destino || mov.local_estoque_destino || '-'}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('valor_unitario') && (
+                        <TableCell className="text-right font-mono text-slate-700">
+                          {formatarMoeda(mov.valor_unitario)}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('valor_total') && (
+                        <TableCell className="text-right font-mono font-bold text-green-700">
+                          {formatarMoeda(mov.valor_total)}
+                        </TableCell>
+                      )}
                       {colunasVisiveis.includes('fornecedor') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.fornecedor_nome || '-'}</TableCell>
+                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.fornecedor_nome}>
+                            {mov.fornecedor_nome || '-'}
+                        </TableCell>
                       )}
                       {colunasVisiveis.includes('cliente') && (
-                        <TableCell className="text-slate-700 text-xs">{mov.cliente_nome || '-'}</TableCell>
+                        <TableCell className="text-slate-700 text-xs max-w-[120px] truncate" title={mov.cliente_nome}>
+                            {mov.cliente_nome || '-'}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('safra') && (
+                        <TableCell className="text-slate-700 text-xs">{mov.safra_nome || '-'}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('centro_custo') && (
+                        <TableCell className="text-slate-700 text-xs">{mov.centro_custo_nome || '-'}</TableCell>
                       )}
                       {colunasVisiveis.includes('usuario') && (
-                        <TableCell className="text-slate-600 text-xs">{mov.usuario_responsavel || '-'}</TableCell>
+                        <TableCell className="text-slate-600 text-xs">{mov.responsavel || mov.usuario_responsavel || '-'}</TableCell>
                       )}
-                      {colunasVisiveis.includes('origem_dados') && (
-                        <TableCell>{getOrigemDados(mov)}</TableCell>
-                      )}
-                      {colunasVisiveis.includes('motivo') && (
-                        <TableCell className="text-slate-600 text-xs max-w-xs truncate" title={mov.motivo_movimentacao}>
-                          {mov.motivo_movimentacao || '-'}
+                      {colunasVisiveis.includes('lancamento_origem') && (
+                        <TableCell className="text-xs">
+                          {mov.lancamento_origem_id ? (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700">Financeiro</Badge>
+                          ) : '-'}
                         </TableCell>
+                      )}
+                      {colunasVisiveis.includes('observacoes') && (
+                        <TableCell className="text-slate-600 text-xs max-w-[150px] truncate" title={mov.observacoes}>
+                          {mov.observacoes || '-'}
+                        </TableCell>
+                      )}
+                      {colunasVisiveis.includes('saldo_antes') && (
+                        <TableCell className="text-right font-mono text-xs">{formatarNumero(mov.saldo_antes)}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('saldo_depois') && (
+                        <TableCell className="text-right font-mono text-xs font-bold">{formatarNumero(mov.saldo_depois)}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('custo_medio_antes') && (
+                        <TableCell className="text-right font-mono text-xs">{formatarMoeda(mov.custo_medio_antes)}</TableCell>
+                      )}
+                      {colunasVisiveis.includes('custo_medio_depois') && (
+                        <TableCell className="text-right font-mono text-xs font-bold">{formatarMoeda(mov.custo_medio_depois)}</TableCell>
                       )}
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
