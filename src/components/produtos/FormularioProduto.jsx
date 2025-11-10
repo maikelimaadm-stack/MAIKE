@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Package, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -190,6 +192,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     });
   };
 
+  const categoriasOptions = categorias.map(c => ({ value: c.nome, label: c.nome }));
+  const unidadesOptions = unidades.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.descricao}` }));
+  const locaisOptions = locais.map(l => ({ value: l.nome, label: l.nome }));
+
   return (
     <>
       <motion.div
@@ -248,18 +254,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-2">
                   <Label className="text-slate-700 font-medium">Categoria</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.categoria} onValueChange={(value) => handleChange('categoria', value)}>
-                      <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categorias.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.nome}>
-                            {cat.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={categoriasOptions}
+                      value={formData.categoria}
+                      onValueChange={(value) => handleChange('categoria', value)}
+                      placeholder="Selecione uma categoria"
+                      searchPlaceholder="Buscar categoria..."
+                      className="flex-1 border-slate-300 focus:border-green-500"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -269,18 +271,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-2">
                   <Label className="text-slate-700 font-medium">Unidade de Medida *</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.unidade_medida} onValueChange={(value) => handleChange('unidade_medida', value)}>
-                      <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                        <SelectValue placeholder="Selecione uma unidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unidades.map((un) => (
-                          <SelectItem key={un.id} value={un.sigla}>
-                            {un.sigla} - {un.descricao}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={unidadesOptions}
+                      value={formData.unidade_medida}
+                      onValueChange={(value) => handleChange('unidade_medida', value)}
+                      placeholder="Selecione uma unidade"
+                      searchPlaceholder="Buscar unidade..."
+                      className="flex-1 border-slate-300 focus:border-green-500"
+                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)}>
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -340,18 +338,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium">Local de Estoque</Label>
                 <div className="flex gap-2">
-                  <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
-                    <SelectTrigger className="border-slate-300 focus:border-green-500 flex-1">
-                      <SelectValue placeholder="Selecione um local" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locais.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.nome}>
-                          {loc.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={locaisOptions}
+                    value={formData.local_estoque}
+                    onValueChange={(value) => handleChange('local_estoque', value)}
+                    placeholder="Selecione um local"
+                    searchPlaceholder="Buscar local..."
+                    className="flex-1 border-slate-300 focus:border-green-500"
+                  />
                   <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)}>
                     <Plus className="w-4 h-4" />
                   </Button>

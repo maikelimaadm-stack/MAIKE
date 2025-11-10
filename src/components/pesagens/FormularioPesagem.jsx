@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,8 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Scale, Save, X, Calculator, Calendar, TrendingDown, TrendingUp, Truck, User, Package, Building2, FileText } from "lucide-react";
 import { motion } from "framer-motion";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 
 export default function FormularioPesagem({ onSubmit, onCancel, initialData = null, isEditing = false }) {
   const getDataAtual = () => {
@@ -28,14 +30,34 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
   const [formData, setFormData] = useState({
     data_pesagem: getDataInicial(),
     tipo_pesagem: initialData?.tipo_pesagem || "",
-    placa_caminhao: initialData?.placa_caminhao?.toUpperCase() || "", // Ensure initial data is also uppercase
-    nome_motorista: initialData?.nome_motorista?.toUpperCase() || "", // Ensure initial data is also uppercase
-    produto: initialData?.produto?.toUpperCase() || "", // Ensure initial data is also uppercase
-    fornecedor_destino: initialData?.fornecedor_destino?.toUpperCase() || "", // Ensure initial data is also uppercase
+    placa_caminhao: initialData?.placa_caminhao?.toUpperCase() || "",
+    nome_motorista: initialData?.nome_motorista?.toUpperCase() || "",
+    produto: initialData?.produto?.toUpperCase() || "",
+    fornecedor_destino: initialData?.fornecedor_destino?.toUpperCase() || "",
     peso_tara: initialData?.peso_tara || "",
     peso_bruto: initialData?.peso_bruto || "",
     peso_liquido: initialData?.peso_liquido || 0,
-    observacoes: initialData?.observacoes?.toUpperCase() || "" // Ensure initial data is also uppercase
+    observacoes: initialData?.observacoes?.toUpperCase() || ""
+  });
+
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: fornecedores = [] } = useQuery({
+    queryKey: ['fornecedores_pesagem', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Fornecedor.list('nome');
+      return all.filter(f => f.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: produtos = [] } = useQuery({
+    queryKey: ['produtos_pesagem', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list('nome_produto');
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   useEffect(() => {
@@ -51,13 +73,15 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
   };
 
   const handleChange = (field, value) => {
-    // Converter para maiúsculas campos de texto específicos
     let processedValue = value;
     if (['placa_caminhao', 'nome_motorista', 'produto', 'fornecedor_destino', 'observacoes'].includes(field) && typeof value === 'string') {
       processedValue = value.toUpperCase();
     }
     setFormData(prev => ({ ...prev, [field]: processedValue }));
   };
+
+  const fornecedoresOptions = fornecedores.map(f => ({ value: f.nome, label: f.nome }));
+  const produtosOptions = produtos.map(p => ({ value: p.nome_produto, label: p.nome_produto }));
 
   return (
     <motion.div
@@ -146,13 +170,13 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   <Package className="w-4 h-4 text-amber-600" />
                   Produto/Insumo
                 </Label>
-                <Input
-                  id="produto"
+                <Combobox
+                  options={produtosOptions}
                   value={formData.produto}
-                  onChange={(e) => handleChange('produto', e.target.value)}
-                  placeholder="EX: SOJA, MILHO, ADUBO"
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
+                  onValueChange={(value) => handleChange('produto', value)}
+                  placeholder="Selecione o produto"
+                  searchPlaceholder="Buscar produto..."
+                  className="border-slate-300 focus:border-green-500 focus:ring-green-500"
                 />
               </div>
             </div>
@@ -162,13 +186,13 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                 <Building2 className="w-4 h-4 text-cyan-600" />
                 Fornecedor/Destino
               </Label>
-              <Input
-                id="fornecedor_destino"
+              <Combobox
+                options={fornecedoresOptions}
                 value={formData.fornecedor_destino}
-                onChange={(e) => handleChange('fornecedor_destino', e.target.value)}
-                placeholder="NOME DO FORNECEDOR OU DESTINO"
-                className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
-                style={{ textTransform: 'uppercase' }}
+                onValueChange={(value) => handleChange('fornecedor_destino', value)}
+                placeholder="Selecione fornecedor/destino"
+                searchPlaceholder="Buscar fornecedor..."
+                className="border-slate-300 focus:border-green-500 focus:ring-green-500"
               />
             </div>
 
