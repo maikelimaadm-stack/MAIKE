@@ -19,7 +19,6 @@ import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
 import CentrosCusto from './pages/CentrosCusto';
 import Home from './pages/Home';
 import PlanoContas from './pages/PlanoContas';
-import FormasPagamento from './pages/FormasPagamento';
 import GruposFinanceiros from './pages/GruposFinanceiros';
 import Financeiro from './pages/Financeiro';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
@@ -50,7 +49,6 @@ export const PAGES = {
     "CentrosCusto": CentrosCusto,
     "Home": Home,
     "PlanoContas": PlanoContas,
-    "FormasPagamento": FormasPagamento,
     "GruposFinanceiros": GruposFinanceiros,
     "Financeiro": Financeiro,
     "RelatorioFinanceiro": RelatorioFinanceiro,

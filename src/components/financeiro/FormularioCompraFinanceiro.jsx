@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +14,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
+
+const FORMAS_PAGAMENTO_PADRAO = [
+  'Dinheiro',
+  'PIX',
+  'Cartão de Crédito',
+  'Cartão de Débito',
+  'Boleto Bancário',
+  'Transferência Bancária',
+  'Cheque',
+  'Crédito Loja',
+  'Vale Alimentação',
+  'Vale Refeição',
+  'Depósito Bancário',
+  'Outros'
+];
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '';
@@ -112,7 +128,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogPlano, setShowDialogPlano] = useState(false);
   const [showDialogGrupo, setShowDialogGrupo] = useState(false);
-  const [showDialogForma, setShowDialogForma] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -150,15 +165,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     queryFn: async () => {
       const all = await base44.entities.GrupoFinanceiro.list();
       return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false && g.tipo === 'Despesa');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: formasPagamento = [] } = useQuery({
-    queryKey: ['formas_compra', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.FormaPagamento.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -340,6 +346,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return;
     }
 
+    if (formData.tipo_documento === 'Boleto' ? !formData.numero_boleto : !formData.numero_documento) {
+      toast.error('❌ Preencha o número do documento!');
+      return;
+    }
+
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
         toast.error('❌ Adicione pelo menos 1 produto!');
@@ -422,8 +433,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const centro = centros.find(c => c.id === formData.centro_custo_id);
     const plano = planos.find(p => p.id === formData.plano_contas_id);
     const grupo = grupos.find(g => g.id === formData.grupo_id);
-    const forma = formasPagamento.find(f => f.id === formData.forma_pagamento_id);
-    const formaPaga = formasPagamento.find(f => f.id === formData.forma_pagamento_paga_id);
 
     const data = {
       tipo: formData.tipo,
@@ -439,7 +448,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       grupo_id: formData.grupo_id,
       grupo_nome: grupo?.descricao,
       forma_pagamento_id: formData.forma_pagamento_id || undefined,
-      forma_pagamento_nome: forma?.descricao,
+      forma_pagamento_nome: formData.forma_pagamento_id || undefined,
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_nfe: formData.tipo_documento === 'NF-e' ? formData.chave_nfe : undefined,
       serie_documento: ['NF-e', 'NFC-e'].includes(formData.tipo_documento) ? formData.serie_documento : undefined,
@@ -456,7 +465,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       data_pagamento: formData.conta_paga ? formData.data_pagamento : undefined,
       valor_pago_total: formData.conta_paga ? parseNumero(formData.valor_pago_total) : undefined,
       forma_pagamento_paga_id: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
-      forma_pagamento_paga_nome: formData.conta_paga ? formaPaga?.descricao : undefined,
+      forma_pagamento_paga_nome: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
       produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => ({
         produto_id: p.produto_id,
         produto_nome: p.produto_nome,
@@ -551,14 +560,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       </div>
 
+                      {/* Update numero_documento field to be required */}
+                      {formData.tipo_documento !== 'Boleto' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número do Documento *</Label>
+                          <Input 
+                            value={formData.numero_documento} 
+                            onChange={(e) => handleChange('numero_documento', e.target.value)} 
+                            placeholder="000000" 
+                            required
+                            className="h-9 text-xs" 
+                          />
+                        </div>
+                      )}
+
                       {/* CAMPOS DINÂMICOS POR TIPO */}
                       {formData.tipo_documento === 'NF-e' && (
                         <div className="space-y-3 pt-2 border-t">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Número NF-e</Label>
-                              <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-9 text-xs" />
-                            </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                               <Label className="text-xs">Série</Label>
                               <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
@@ -582,30 +601,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       )}
 
                       {formData.tipo_documento === 'NFC-e' && (
-                        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Número NFC-e</Label>
-                            <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-9 text-xs" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Série</Label>
-                            <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
-                          </div>
-                        </div>
-                      )}
-
-                      {formData.tipo_documento === 'Recibo' && (
                         <div className="space-y-1.5 pt-2 border-t">
-                          <Label className="text-xs">Número do Recibo</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" className="h-9 text-xs" />
+                          <Label className="text-xs">Série</Label>
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
                         </div>
                       )}
 
                       {formData.tipo_documento === 'Boleto' && (
                         <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                           <div className="space-y-1.5">
-                            <Label className="text-xs">Número do Boleto</Label>
-                            <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000000000" className="h-9 text-xs" />
+                            <Label className="text-xs">Número do Boleto *</Label>
+                            <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000000000" required className="h-9 text-xs" />
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs">Banco</Label>
@@ -613,21 +619,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         </div>
                       )}
-
-                      {formData.tipo_documento === 'Nota Manual' && (
-                        <div className="space-y-1.5 pt-2 border-t">
-                          <Label className="text-xs">Número da Nota</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" className="h-9 text-xs" />
-                        </div>
-                      )}
-
-                      {formData.tipo_documento === 'Outros' && (
-                        <div className="space-y-1.5 pt-2 border-t">
-                          <Label className="text-xs">Número/Identificação</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="Identificação" className="h-9 text-xs" />
-                        </div>
-                      )}
-
+                      
                       <div className="space-y-1.5 pt-2">
                         <Label className="text-xs">Safra (Opcional)</Label>
                         <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
@@ -961,17 +953,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                         <div className="space-y-1.5">
                           <Label className="text-xs">Forma de Pagamento</Label>
-                          <div className="flex gap-1.5">
-                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                              <SelectContent>
-                                {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" onClick={() => setShowDialogForma(true)} className="h-9 px-2 text-xs">
-                              Novo
-                            </Button>
-                          </div>
+                          <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                            <SelectContent>
+                              {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </CardContent>
@@ -1012,7 +1001,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
                                   <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                                   <SelectContent>
-                                    {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
+                                    {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1135,7 +1126,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_compra'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
       <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_compra'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} tipoFinanceiro="Despesa" />
       <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_compra'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} tipoFinanceiro="Despesa" />
-      <DialogCadastroRapido tipo="forma_pagamento" open={showDialogForma} onClose={() => setShowDialogForma(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['formas_compra'] }); handleChange('forma_pagamento_id', id); setShowDialogForma(false); }} />
     </>
   );
 }
