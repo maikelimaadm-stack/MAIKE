@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Settings, Package, FileText } from "lucide-react"; // Added FileText
+import { Printer, Settings, Package, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -31,9 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner"; // Added toast
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog imports
-import CartoesResumo from "../components/shared/CartoesResumo"; // Added CartoesResumo
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -248,8 +247,8 @@ export default function RelatorioProdutos() {
           <DialogHeader className="p-6 pb-0">
             <DialogTitle>Configurações do Relatório</DialogTitle>
           </DialogHeader>
-          <Card className="shadow-none border-none"> {/* Removed shadow-lg border-green-200 */}
-            <CardContent className="p-6 space-y-4"> {/* Kept p-6 space-y-4 */}
+          <Card className="shadow-none border-none">
+            <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Orientação</Label>
