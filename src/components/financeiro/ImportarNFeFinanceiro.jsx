@@ -645,7 +645,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setShowCadastroEmMassa(false);
   };
 
-  const produtosFiltrados = products.filter(p => 
+  const produtosFiltrados = produtos.filter(p => 
     !buscaProduto || 
     p.nome_produto?.toLowerCase().includes(buscaProduto.toLowerCase()) ||
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
