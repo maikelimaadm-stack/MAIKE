@@ -103,11 +103,13 @@ export default function Financeiro() {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
           
-          const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
-            sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
-          );
+          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => 
+            sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
+          ) || 0;
           
-          const valorOriginal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
+          const valorOriginal = data.lancar_produtos 
+            ? subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0) - (data.desconto_total || 0)
+            : data.valor_original;
           
           const lanc = await base44.entities.LancamentoFinanceiro.create({
             empresa_id: empresaSelecionadaId,
@@ -135,6 +137,16 @@ export default function Financeiro() {
             data_emissao: data.data_emissao,
             data_vencimento: parcela.data,
             valor_original: valorOriginal,
+            valor_produtos: data.valor_produtos,
+            valor_frete: data.frete || 0,
+            valor_seguro: data.valor_seguro || 0,
+            valor_outras_despesas: data.outras_despesas || 0,
+            valor_desconto_total: data.desconto_total || 0,
+            valor_ipi: data.valor_ipi || 0,
+            valor_icms: data.valor_icms || 0,
+            valor_pis: data.valor_pis || 0,
+            valor_cofins: data.valor_cofins || 0,
+            base_calculo_icms: data.base_calculo_icms || 0,
             valor_total: parcela.valor,
             valor_saldo: parcela.valor,
             valor_juros: 0,
@@ -143,11 +155,53 @@ export default function Financeiro() {
             valor_pago: 0,
             status: 'Pendente',
             observacoes: `${data.observacoes || ''} - PARCELA ${i + 1}/${data.parcelas.length}`.trim(),
+            observacoes_nfe: data.observacoes_nfe,
             numero_parcela: i + 1,
             total_parcelas: data.parcelas.length,
+            lancar_produtos: data.lancar_produtos,
+            dar_entrada_estoque: data.dar_entrada_estoque,
+            local_estoque: data.local_estoque,
             produtos_lancamento: data.produtos_selecionados,
             anexos: data.anexos
           });
+          
+          // LANÇAR NO ESTOQUE SE MARCADO
+          if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0 && i === 0) {
+            setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 60, total: 100 });
+            
+            for (const prodLanc of data.produtos_selecionados) {
+              const produto = produtos.find(p => p.id === prodLanc.produto_id);
+              if (produto) {
+                // Atualizar estoque do produto
+                const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
+                await base44.entities.Produto.update(produto.id, {
+                  estoque_atual: novoEstoque
+                });
+                
+                // Criar movimentação de estoque
+                const allMov = await base44.entities.MovimentacaoEstoque.list();
+                const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
+                
+                await base44.entities.MovimentacaoEstoque.create({
+                  empresa_id: empresaSelecionadaId,
+                  numero_movimentacao: String(maxNumMov + 1),
+                  tipo_movimentacao: 'Entrada',
+                  produto_id: produto.id,
+                  produto_nome: produto.nome_produto,
+                  quantidade: prodLanc.quantidade,
+                  unidade_medida: prodLanc.unidade,
+                  valor_unitario: prodLanc.valor_unitario,
+                  valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
+                  local_origem: data.fornecedor_nome,
+                  local_destino: data.local_estoque,
+                  data_movimentacao: data.data_emissao,
+                  numero_documento: data.numero_documento,
+                  observacoes: `ENTRADA POR NF-e ${data.numero_documento} - LANÇAMENTO FINANCEIRO #${String(numero)}`,
+                  responsavel: (await base44.auth.me()).email
+                });
+              }
+            }
+          }
           
           lancamentosCriados.push(lanc);
           setProgressoSalvamento({ etapa: `💰 Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
@@ -155,7 +209,7 @@ export default function Financeiro() {
         
         setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
         await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success(`✅ ${data.parcelas.length} lançamentos criados!`);
+        toast.success(`✅ ${data.parcelas.length} lançamentos criados${data.dar_entrada_estoque ? ' e estoque atualizado' : ''}!`);
         return lancamentosCriados[0];
       } else {
         setProgressoSalvamento({ etapa: '💾 Salvando...', current: 50, total: 100 });
@@ -163,10 +217,10 @@ export default function Financeiro() {
         
         let valorTotal;
         if (data.lancar_produtos) {
-          const subtotalProdutos = data.produtos_selecionados.reduce((sum, p) => 
-            sum + (p.quantidade * p.valor_unitario - p.desconto_item), 0
-          );
-          valorTotal = subtotalProdutos + data.frete + data.outras_despesas - data.desconto_total;
+          const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => 
+            sum + (p.quantidade * p.valor_unitario - (p.desconto_item || 0)), 0
+          ) || 0;
+          valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0) - (data.desconto_total || 0);
         } else {
           valorTotal = data.valor_original + data.valor_juros + data.valor_multa - data.valor_desconto;
         }
@@ -176,17 +230,66 @@ export default function Financeiro() {
           empresa_id: empresaSelecionadaId,
           numero_lancamento: String(numero),
           valor_original: data.lancar_produtos ? valorTotal : data.valor_original,
+          valor_produtos: data.valor_produtos,
+          valor_frete: data.frete || 0,
+          valor_seguro: data.valor_seguro || 0,
+          valor_outras_despesas: data.outras_despesas || 0,
+          valor_desconto_total: data.desconto_total || 0,
+          valor_ipi: data.valor_ipi || 0,
+          valor_icms: data.valor_icms || 0,
+          valor_pis: data.valor_pis || 0,
+          valor_cofins: data.valor_cofins || 0,
+          base_calculo_icms: data.base_calculo_icms || 0,
           valor_total: valorTotal,
           valor_pago: data.conta_paga ? data.valor_pago_total : 0,
           valor_saldo: data.conta_paga ? (valorTotal - data.valor_pago_total) : valorTotal,
           valor_juros: data.lancar_produtos ? 0 : data.valor_juros,
           valor_multa: data.lancar_produtos ? 0 : data.valor_multa,
           valor_desconto: data.lancar_produtos ? 0 : data.valor_desconto,
-          status: data.conta_paga ? 'Pago' : 'Pendente'
+          status: data.conta_paga ? 'Pago' : 'Pendente',
+          observacoes_nfe: data.observacoes_nfe
         });
         
+        // LANÇAR NO ESTOQUE SE MARCADO
+        if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0) {
+          setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 70, total: 100 });
+          
+          for (const prodLanc of data.produtos_selecionados) {
+            const produto = produtos.find(p => p.id === prodLanc.produto_id);
+            if (produto) {
+              // Atualizar estoque do produto
+              const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
+              await base44.entities.Produto.update(produto.id, {
+                estoque_atual: novoEstoque
+              });
+              
+              // Criar movimentação de estoque
+              const allMov = await base44.entities.MovimentacaoEstoque.list();
+              const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
+              
+              await base44.entities.MovimentacaoEstoque.create({
+                empresa_id: empresaSelecionadaId,
+                numero_movimentacao: String(maxNumMov + 1),
+                tipo_movimentacao: 'Entrada',
+                produto_id: produto.id,
+                produto_nome: produto.nome_produto,
+                quantidade: prodLanc.quantidade,
+                unidade_medida: prodLanc.unidade,
+                valor_unitario: prodLanc.valor_unitario,
+                valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
+                local_origem: data.fornecedor_nome,
+                local_destino: data.local_estoque,
+                data_movimentacao: data.data_emissao,
+                numero_documento: data.numero_documento,
+                observacoes: `ENTRADA POR NF-e ${data.numero_documento} - LANÇAMENTO FINANCEIRO #${numero}`,
+                responsavel: (await base44.auth.me()).email
+              });
+            }
+          }
+        }
+        
         if (data.conta_paga) {
-          setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 80, total: 100 });
+          setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 85, total: 100 });
           const allBaixas = await base44.entities.BaixaFinanceira.list();
           const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
           
@@ -213,6 +316,7 @@ export default function Financeiro() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
       setShowForm(false);
       setDadosXML(null);
       setShowProgressoSalvamento(false);
@@ -382,6 +486,9 @@ export default function Financeiro() {
           initialData={dadosXML}
           fornecedores={fornecedores}
           produtos={produtos}
+          planos={planos}
+          grupos={grupos}
+          formasPagamento={formasPagamento}
         />
       )}
 
