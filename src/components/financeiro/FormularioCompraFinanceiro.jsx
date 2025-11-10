@@ -40,7 +40,9 @@ const formatarNumero = (num) => {
 
 const parseNumero = (str) => {
   if (!str) return 0;
-  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+  // Remove currency symbols, thousand separators (.), and replace decimal comma (,) with dot (.)
+  const cleanedStr = String(str).replace(/[R$ ]/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(cleanedStr) || 0;
 };
 
 const formatarMoeda = (valor) => {
@@ -126,12 +128,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       lancar_produtos: initialData.lancar_produtos !== false,
       dar_entrada_estoque: initialData.dar_entrada_estoque !== false,
       conta_paga: initialData.conta_paga || false,
+      parcelar: initialData.parcelar || false,
       valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : "",
       valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
       valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
       frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : (initialData.frete ? formatarNumero(initialData.frete) : defaults.frete),
       outras_despesas: initialData.valor_outras_despesas ? formatarNumero(initialData.valor_outras_despesas) : (initialData.outras_despesas ? formatarNumero(initialData.outras_despesas) : defaults.outras_despesas),
+      valor_pago_total: initialData.valor_pago_total ? formatarNumero(initialData.valor_pago_total) : "", // Kept formatarNumero for parsing
       valor_produtos: initialData.valor_produtos ? formatarNumero(initialData.valor_produtos) : "",
       valor_frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : "",
       valor_seguro: initialData.valor_seguro ? formatarNumero(initialData.valor_seguro) : "",
@@ -145,12 +149,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       produtos_selecionados: initialData.produtos_selecionados?.map(p => ({
         ...p,
         quantidade: formatarNumero(p.quantidade),
-        valor_total: formatarNumero(p.valor_total || 0), // Changed this line
+        valor_total: formatarNumero(p.valor_total || 0),
         desconto_item: formatarNumero(p.desconto_item || 0)
       })) || [],
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
-        valor: formatarNumero(p.valor || 0)
+        valor: formatarNumero(p.valor || 0) // Kept formatarNumero for parsing
       })) || [],
       anexos: initialData.anexos || [],
       observacoes_nfe: initialData.observacoes_nfe || ""
@@ -1056,7 +1060,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             value={formData.observacoes_nfe || ''} 
                             onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
                             className="text-xs min-h-32 bg-white" 
-                            placeholder="Observações extraídas da NF-e..." // Added placeholder
+                            placeholder="Observações extraídas da NF-e..."
                             rows={6} 
                           />
                           <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
