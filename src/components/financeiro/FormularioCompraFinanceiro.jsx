@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, Upload, FileText, Paperclip } from "lucide-react";
+import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
@@ -44,7 +44,7 @@ const calcularDataProximaMes = (dataBase) => {
   }
 };
 
-export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, onSaveProgress }) {
+export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos }) {
   const [etapa, setEtapa] = useState(1);
   const [formData, setFormData] = useState(() => {
     const defaults = {
@@ -56,12 +56,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       numero_documento: "",
       chave_nfe: "",
       serie_documento: "",
+      numero_boleto: "",
+      banco_boleto: "",
+      cfop: "",
       safra_id: "",
       centro_custo_id: "",
       plano_contas_id: "",
       grupo_id: "",
       forma_pagamento_id: "",
       lancar_produtos: true,
+      valor_original: "",
+      valor_juros: "0,00",
+      valor_multa: "0,00",
+      valor_desconto: "0,00",
       conta_paga: false,
       data_pagamento: "",
       valor_pago_total: "",
@@ -83,6 +90,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       ...initialData,
       lancar_produtos: initialData.lancar_produtos !== false,
       conta_paga: initialData.conta_paga || false,
+      valor_original: initialData.valor_original ? formatarNumero(initialData.valor_original) : "",
+      valor_juros: initialData.valor_juros ? formatarNumero(initialData.valor_juros) : defaults.valor_juros,
+      valor_multa: initialData.valor_multa ? formatarNumero(initialData.valor_multa) : defaults.valor_multa,
+      valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
       frete: initialData.frete ? formatarNumero(initialData.frete) : defaults.frete,
       desconto_total: initialData.desconto_total ? formatarNumero(initialData.desconto_total) : defaults.desconto_total,
       outras_despesas: initialData.outras_despesas ? formatarNumero(initialData.outras_despesas) : defaults.outras_despesas,
@@ -151,10 +162,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   useEffect(() => {
     if (formData.parcelar && formData.parcelas.length === 0 && formData.data_vencimento) {
-      const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-        sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
-      );
-      const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+      const valorTotal = calcularValorTotal();
       const valorParcela = valorTotal / 2;
       
       setFormData(prev => ({
@@ -167,14 +175,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }
   }, [formData.parcelar, formData.data_vencimento]);
 
+  const calcularValorTotal = () => {
+    if (formData.lancar_produtos) {
+      const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
+        sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
+      );
+      return subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+    } else {
+      return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
+    }
+  };
+
   const adicionarParcela = () => {
     const ultimaParcela = formData.parcelas[formData.parcelas.length - 1];
     const proximaData = ultimaParcela ? calcularDataProximaMes(ultimaParcela.data) : formData.data_vencimento;
-    
-    const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-      sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
-    );
-    const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+    const valorTotal = calcularValorTotal();
     const newNumberOfParcelas = formData.parcelas.length + 1;
     const equalParcelValue = valorTotal / newNumberOfParcelas;
 
@@ -202,10 +217,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       return;
     }
     const newParcelas = formData.parcelas.filter((_, i) => i !== index);
-    const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-      sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
-    );
-    const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+    const valorTotal = calcularValorTotal();
     const equalParcelValue = valorTotal / newParcelas.length;
 
     const updatedParcelas = newParcelas.map(p => ({
@@ -271,7 +283,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const file = e.target.files[0];
     if (!file) return;
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error('Arquivo muito grande! Máximo 10MB');
       return;
@@ -333,6 +345,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         toast.error('❌ Preencha todos os campos dos produtos!');
         return;
       }
+    } else {
+      if (!formData.valor_original) {
+        toast.error('❌ Preencha o valor original!');
+        return;
+      }
     }
 
     setEtapa(2);
@@ -365,6 +382,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         toast.error('❌ Preencha o valor pago!');
         return;
       }
+      if (!formData.forma_pagamento_paga_id) {
+        toast.error('❌ Selecione a forma de pagamento!');
+        return;
+      }
     }
 
     if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 2) {
@@ -373,10 +394,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }
 
     if (!formData.conta_paga && formData.parcelar) {
-      const subtotalProdutos = formData.produtos_selecionados.reduce((sum, p) => 
-        sum + (parseNumero(p.quantidade || "0") * parseNumero(p.valor_unitario || "0")), 0
-      );
-      const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+      const valorTotal = calcularValorTotal();
       const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
       
       if (Math.abs(totalParcelas - valorTotal) > 0.01) {
@@ -409,8 +427,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       forma_pagamento_id: formData.forma_pagamento_id || undefined,
       forma_pagamento_nome: forma?.descricao,
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
-      chave_nfe: formData.chave_nfe || undefined,
-      serie_documento: formData.serie_documento || undefined,
+      chave_nfe: formData.tipo_documento === 'NF-e' ? formData.chave_nfe : undefined,
+      serie_documento: ['NF-e', 'NFC-e'].includes(formData.tipo_documento) ? formData.serie_documento : undefined,
+      numero_boleto: formData.tipo_documento === 'Boleto' ? formData.numero_boleto : undefined,
+      banco_boleto: formData.tipo_documento === 'Boleto' ? formData.banco_boleto : undefined,
+      cfop: formData.tipo_documento === 'NF-e' ? formData.cfop : undefined,
       data_emissao: formData.data_emissao,
       data_vencimento: formData.data_vencimento,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
@@ -428,9 +449,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         valor_unitario: parseNumero(p.valor_unitario),
         desconto_item: parseNumero(p.desconto_item || "0,00")
       })) : [],
-      frete: parseNumero(formData.frete),
-      desconto_total: parseNumero(formData.desconto_total),
-      outras_despesas: parseNumero(formData.outras_despesas),
+      valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
+      valor_juros: formData.lancar_produtos ? undefined : parseNumero(formData.valor_juros),
+      valor_multa: formData.lancar_produtos ? undefined : parseNumero(formData.valor_multa),
+      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto),
+      frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0,
+      desconto_total: formData.lancar_produtos ? parseNumero(formData.desconto_total) : 0,
+      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0,
       parcelar: !formData.conta_paga && formData.parcelar,
       parcelas: (!formData.conta_paga && formData.parcelar) ? formData.parcelas.map(p => ({ 
         data: p.data, 
@@ -449,7 +474,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     return sum + (qtd * vlrUnit - desc);
   }, 0) : 0;
 
-  const valorTotal = subtotalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas) - parseNumero(formData.desconto_total);
+  const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
 
   return (
@@ -469,98 +494,167 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* ETAPA 1: DADOS DA COMPRA */}
+              {/* ETAPA 1 */}
               {etapa === 1 && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Fornecedor *</Label>
-                      <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {/* CARD: DADOS BÁSICOS */}
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="py-2 px-3">
+                      <CardTitle className="text-sm">📋 Dados Básicos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Fornecedor *</Label>
+                          <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Tipo Documento *</Label>
-                      <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
-                          <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
-                          <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
-                          <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
-                          <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
-                          <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Tipo Documento *</Label>
+                          <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="NF-e" className="text-xs">NF-e (Nota Fiscal Eletrônica)</SelectItem>
+                              <SelectItem value="NFC-e" className="text-xs">NFC-e (Cupom Fiscal)</SelectItem>
+                              <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                              <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                              <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
+                              <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Data Emissão *</Label>
-                      <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-9 text-xs" />
-                    </div>
-                  </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Data Emissão *</Label>
+                          <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-9 text-xs" />
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Nº Documento</Label>
-                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase h-9 text-xs" style={{ textTransform: 'uppercase' }} />
-                    </div>
+                      {/* CAMPOS DINÂMICOS POR TIPO */}
+                      {formData.tipo_documento === 'NF-e' && (
+                        <div className="space-y-3 pt-2 border-t">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Número NF-e</Label>
+                              <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-9 text-xs" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Série</Label>
+                              <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">CFOP</Label>
+                              <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-9 text-xs" maxLength={4} />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
+                            <Input 
+                              value={formData.chave_nfe} 
+                              onChange={(e) => handleChange('chave_nfe', e.target.value)} 
+                              placeholder="00000000000000000000000000000000000000000000" 
+                              maxLength={44}
+                              className="font-mono text-xs h-9"
+                            />
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Série</Label>
-                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="uppercase h-9 text-xs" style={{ textTransform: 'uppercase' }} />
-                    </div>
+                      {formData.tipo_documento === 'NFC-e' && (
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Número NFC-e</Label>
+                            <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Série</Label>
+                            <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9 text-xs" />
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Safra</Label>
-                      <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                        <SelectContent>
-                          {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                      {formData.tipo_documento === 'Recibo' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número do Recibo</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" className="h-9 text-xs" />
+                        </div>
+                      )}
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
-                    <Input 
-                      value={formData.chave_nfe} 
-                      onChange={(e) => handleChange('chave_nfe', e.target.value)} 
-                      placeholder="00000000000000000000000000000000000000000000" 
-                      maxLength={44}
-                      className="font-mono text-xs h-9"
-                    />
-                  </div>
+                      {formData.tipo_documento === 'Boleto' && (
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Número do Boleto</Label>
+                            <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000000000" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Banco</Label>
+                            <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Ex: Banco do Brasil" className="h-9 text-xs" />
+                          </div>
+                        </div>
+                      )}
 
-                  <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        checked={formData.lancar_produtos} 
-                        onCheckedChange={(v) => handleChange('lancar_produtos', v)} 
-                        id="lancar_produtos" 
-                      />
-                      <label htmlFor="lancar_produtos" className="font-semibold cursor-pointer text-sm">
-                        📦 Lançar Produtos no Estoque
-                      </label>
-                    </div>
+                      {formData.tipo_documento === 'Nota Manual' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número da Nota</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" className="h-9 text-xs" />
+                        </div>
+                      )}
 
-                    {formData.lancar_produtos && (
-                      <>
-                        <div className="flex justify-between items-center pt-2">
-                          <Label className="font-semibold text-xs">Produtos *</Label>
+                      {formData.tipo_documento === 'Outros' && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-xs">Número/Identificação</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="Identificação" className="h-9 text-xs" />
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 pt-2">
+                        <Label className="text-xs">Safra (Opcional)</Label>
+                        <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                          <SelectContent>
+                            {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* CARD: TIPO DE LANÇAMENTO */}
+                  <Card className="bg-slate-50 border-slate-200">
+                    <CardContent className="p-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          checked={formData.lancar_produtos} 
+                          onCheckedChange={(v) => handleChange('lancar_produtos', v)} 
+                          id="lancar_produtos" 
+                        />
+                        <label htmlFor="lancar_produtos" className="font-semibold cursor-pointer text-sm">
+                          📦 Lançar Produtos no Estoque
+                        </label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* CARD: PRODUTOS */}
+                  {formData.lancar_produtos && (
+                    <Card className="bg-green-50 border-green-200">
+                      <CardHeader className="py-2 px-3">
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-sm">📦 Produtos</CardTitle>
                           <Button type="button" size="sm" onClick={handleAdicionarProduto} className="h-7 gap-1 text-xs">
                             <Plus className="w-3 h-3" />
                             Adicionar
                           </Button>
                         </div>
-
+                      </CardHeader>
+                      <CardContent className="p-3 space-y-3">
                         {formData.produtos_selecionados.length > 0 && (
-                          <div className="border rounded overflow-auto max-h-72">
+                          <div className="border rounded overflow-auto max-h-72 bg-white">
                             <Table>
                               <TableHeader>
                                 <TableRow>
@@ -643,7 +737,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         )}
 
-                        <div className="grid grid-cols-3 gap-3 pt-2">
+                        <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1.5">
                             <Label className="text-xs">Frete</Label>
                             <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
@@ -653,35 +747,74 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Input value={formData.desconto_total} onChange={(e) => handleChange('desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">Outras Despesas</Label>
+                            <Label className="text-xs">Outras Desp.</Label>
                             <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 pt-2">
-                          <Card className="bg-blue-50 border-blue-200">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Card className="bg-white border-blue-200">
                             <CardContent className="p-2">
-                              <div className="text-xs text-slate-600">Subtotal Produtos:</div>
-                              <div className="text-lg font-bold text-blue-700">{formatarMoeda(subtotalProdutos)}</div>
+                              <div className="text-xs text-slate-600">Subtotal:</div>
+                              <div className="text-base font-bold text-blue-700">{formatarMoeda(subtotalProdutos)}</div>
                             </CardContent>
                           </Card>
-                          <Card className="bg-emerald-50 border-emerald-200">
+                          <Card className="bg-white border-emerald-200">
                             <CardContent className="p-2">
-                              <div className="text-xs text-slate-600">Total Geral:</div>
-                              <div className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
+                              <div className="text-xs text-slate-600">Total:</div>
+                              <div className="text-base font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
                             </CardContent>
                           </Card>
                         </div>
-                      </>
-                    )}
-                  </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
-                    <Label className="font-semibold text-sm flex items-center gap-2">
-                      <Paperclip className="w-4 h-4" />
-                      Anexar Documentos
-                    </Label>
-                    <div className="flex gap-2">
+                  {/* CARD: VALORES MANUAIS */}
+                  {!formData.lancar_produtos && (
+                    <Card className="bg-amber-50 border-amber-200">
+                      <CardHeader className="py-2 px-3">
+                        <CardTitle className="text-sm">💰 Valores</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 space-y-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Valor Original *</Label>
+                            <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required className="h-9 text-xs font-semibold" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Juros</Label>
+                            <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Multa</Label>
+                            <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Desconto</Label>
+                            <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                        </div>
+
+                        <Card className="bg-white border-emerald-200">
+                          <CardContent className="p-2">
+                            <div className="text-xs text-slate-600">Valor Total:</div>
+                            <div className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
+                          </CardContent>
+                        </Card>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* CARD: ANEXOS */}
+                  <Card className="bg-slate-50 border-slate-200">
+                    <CardHeader className="py-2 px-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Paperclip className="w-4 h-4" />
+                        Anexar Documentos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-2">
                       <Input
                         type="file"
                         onChange={handleUploadAnexo}
@@ -689,32 +822,31 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         accept=".pdf,.xml,.jpg,.jpeg,.png"
                         className="h-9 text-xs"
                       />
-                      {uploadingFile && <div className="text-xs text-blue-600">Enviando...</div>}
-                    </div>
-                    
-                    {formData.anexos.length > 0 && (
-                      <div className="space-y-1 pt-2">
-                        {formData.anexos.map((anexo, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-3 h-3 text-slate-400" />
-                              <span className="font-medium">{anexo.nome}</span>
-                              <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
+                      
+                      {formData.anexos.length > 0 && (
+                        <div className="space-y-1">
+                          {formData.anexos.map((anexo, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-3 h-3 text-slate-400" />
+                                <span className="font-medium">{anexo.nome}</span>
+                                <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoverAnexo(index)}
+                                className="h-6 w-6 text-red-600"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoverAnexo(index)}
-                              className="h-6 w-6 text-red-600"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   <div className="flex justify-end gap-3 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-9 text-xs">
@@ -732,180 +864,205 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               {/* ETAPA 2: DADOS FINANCEIROS */}
               {etapa === 2 && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Centro de Custo</Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Forma de Pagamento</Label>
-                      <div className="flex gap-2">
-                        <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)} className="h-9 w-9">
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
-                    <div className="space-y-1.5">
-                      <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
-                      <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
-                      <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
-                        ✅ Conta já está paga?
-                      </label>
-                    </div>
-
-                    {formData.conta_paga && (
-                      <div className="grid grid-cols-3 gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                  {/* CARD: CLASSIFICAÇÃO */}
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="py-2 px-3">
+                      <CardTitle className="text-sm">📊 Classificação Financeira</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Data Pagamento *</Label>
-                          <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
+                          <Label className="flex items-center gap-1 text-xs">Plano de Contas <span className="text-red-600">*</span></Label>
+                          <div className="flex gap-2">
+                            <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                {planos.map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-9 w-9">
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
+
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Valor Pago *</Label>
-                          <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Forma Pgto *</Label>
-                          <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Label className="flex items-center gap-1 text-xs">Grupo Financeiro <span className="text-red-600">*</span></Label>
+                          <div className="flex gap-2">
+                            <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                {grupos.map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-9 w-9">
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    )}
 
-                    {!formData.conta_paga && (
-                      <>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                          <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Centro de Custo</Label>
+                          <div className="flex gap-2">
+                            <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                              <SelectContent>
+                                {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
 
-                        {formData.parcelar && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
-                              <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
-                                <Plus className="w-3 h-3" />
-                                Adicionar
-                              </Button>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Forma de Pagamento</Label>
+                          <div className="flex gap-2">
+                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                              <SelectContent>
+                                {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)} className="h-9 w-9">
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* CARD: PAGAMENTO */}
+                  <Card className="bg-green-50 border-green-200">
+                    <CardHeader className="py-2 px-3">
+                      <CardTitle className="text-sm">💳 Condições de Pagamento</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1 text-xs">Data de Vencimento <span className="text-red-600">*</span></Label>
+                        <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9 text-xs" />
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
+                        <label htmlFor="conta_paga" className="font-semibold cursor-pointer text-sm">
+                          ✅ Conta já está paga?
+                        </label>
+                      </div>
+
+                      {formData.conta_paga && (
+                        <Card className="bg-white border-green-300">
+                          <CardContent className="p-3 space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Data Pgto *</Label>
+                                <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9 text-xs" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Valor Pago *</Label>
+                                <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-9 text-xs" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Forma *</Label>
+                                <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
+                                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                  <SelectContent>
+                                    {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                            <div className="border rounded max-h-60 overflow-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-12 text-xs">Nº</TableHead>
-                                    <TableHead className="text-xs">Vencimento *</TableHead>
-                                    <TableHead className="text-right text-xs">Valor *</TableHead>
-                                    <TableHead className="w-12"></TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {formData.parcelas.map((parcela, index) => (
-                                    <TableRow key={index}>
-                                      <TableCell className="font-bold text-xs">{index + 1}</TableCell>
-                                      <TableCell>
-                                        <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
-                                      </TableCell>
-                                      <TableCell>
-                                        <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
+                      {!formData.conta_paga && (
+                        <>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
+                            <label htmlFor="parcelar" className="font-semibold cursor-pointer text-sm">Parcelar lançamento</label>
+                          </div>
 
-                            <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                              <CardContent className="p-2">
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  <div className="flex justify-between">
-                                    <span>Total Parcelas:</span>
-                                    <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Valor Total:</span>
-                                    <span className="font-bold">{formatarMoeda(valorTotal)}</span>
-                                  </div>
+                          {formData.parcelar && (
+                            <Card className="bg-white border-amber-200">
+                              <CardContent className="p-3 space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
+                                  <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 gap-1 text-xs">
+                                    <Plus className="w-3 h-3" />
+                                    Adicionar
+                                  </Button>
                                 </div>
-                                {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                                  <p className="text-xs text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
-                                )}
+
+                                <div className="border rounded max-h-60 overflow-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="w-12 text-xs">Nº</TableHead>
+                                        <TableHead className="text-xs">Vencimento *</TableHead>
+                                        <TableHead className="text-right text-xs">Valor *</TableHead>
+                                        <TableHead className="w-12"></TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {formData.parcelas.map((parcela, index) => (
+                                        <TableRow key={index}>
+                                          <TableCell className="font-bold text-xs">{index + 1}</TableCell>
+                                          <TableCell>
+                                            <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8 text-xs" />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-8 text-xs" />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+
+                                <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                                  <CardContent className="p-2">
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      <div className="flex justify-between">
+                                        <span>Total Parcelas:</span>
+                                        <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Valor Total:</span>
+                                        <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                                      </div>
+                                    </div>
+                                    {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                                      <p className="text-xs text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
+                                    )}
+                                  </CardContent>
+                                </Card>
                               </CardContent>
                             </Card>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Observações</Label>
-                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={3} />
-                  </div>
+                  {/* CARD: OBSERVAÇÕES */}
+                  <Card className="bg-slate-50 border-slate-200">
+                    <CardHeader className="py-2 px-3">
+                      <CardTitle className="text-sm">📝 Observações</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={3} />
+                    </CardContent>
+                  </Card>
 
                   <div className="flex justify-between gap-3 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="gap-2 h-9 text-xs">
