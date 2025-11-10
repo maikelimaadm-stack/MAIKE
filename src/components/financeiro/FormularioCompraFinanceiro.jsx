@@ -98,7 +98,18 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       desconto_total: "0,00",
       outras_despesas: "0,00",
       local_estoque: "",
-      anexos: []
+      anexos: [],
+      observacoes_nfe: "", // New
+      valor_produtos: "",  // New
+      valor_frete: "",     // New
+      valor_seguro: "",    // New
+      valor_ipi: "",       // New
+      valor_icms: "",      // New
+      valor_pis: "",       // New
+      valor_cofins: "",    // New
+      base_calculo_icms: "", // New
+      valor_desconto_total: "", // New (distinct from desconto_total)
+      valor_outras_despesas: "", // New (distinct from outras_despesas)
     };
 
     if (!initialData) return defaults;
@@ -121,7 +132,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         data: p.data,
         valor: formatarNumero(p.valor || 0)
       })) || [],
-      anexos: initialData.anexos || []
+      anexos: initialData.anexos || [],
+      // New NFe fields
+      observacoes_nfe: initialData.observacoes_nfe || "",
+      valor_produtos: initialData.valor_produtos ? formatarNumero(initialData.valor_produtos) : "",
+      valor_frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : "",
+      valor_seguro: initialData.valor_seguro ? formatarNumero(initialData.valor_seguro) : "",
+      valor_ipi: initialData.valor_ipi ? formatarNumero(initialData.valor_ipi) : "",
+      valor_icms: initialData.valor_icms ? formatarNumero(initialData.valor_icms) : "",
+      valor_pis: initialData.valor_pis ? formatarNumero(initialData.valor_pis) : "",
+      valor_cofins: initialData.valor_cofins ? formatarNumero(initialData.valor_cofins) : "",
+      base_calculo_icms: initialData.base_calculo_icms ? formatarNumero(initialData.base_calculo_icms) : "",
+      valor_desconto_total: initialData.valor_desconto_total ? formatarNumero(initialData.valor_desconto_total) : "",
+      valor_outras_despesas: initialData.valor_outras_despesas ? formatarNumero(initialData.valor_outras_despesas) : "",
     };
   });
 
@@ -343,8 +366,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     } catch (error) {
       toast.error('Erro ao fazer upload');
     } finally {
+      e.target.value = ''; // Clear the input after upload
       setUploadingFile(false);
-      e.target.value = '';
     }
   };
 
@@ -491,6 +514,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       data_emissao: formData.data_emissao,
       data_vencimento: formData.data_vencimento,
       observacoes: formData.observacoes?.toUpperCase() || undefined,
+      observacoes_nfe: formData.observacoes_nfe || undefined, // New
       lancar_produtos: formData.lancar_produtos,
       dar_entrada_estoque: formData.lancar_produtos ? formData.dar_entrada_estoque : false,
       local_estoque: formData.lancar_produtos && formData.dar_entrada_estoque ? formData.local_estoque : undefined,
@@ -511,9 +535,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_juros: formData.lancar_produtos ? undefined : parseNumero(formData.valor_juros),
       valor_multa: formData.lancar_produtos ? undefined : parseNumero(formData.valor_multa),
       valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto),
-      frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0,
-      desconto_total: formData.lancar_produtos ? parseNumero(formData.desconto_total) : 0,
-      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0,
+      valor_produtos: formData.valor_produtos ? parseNumero(formData.valor_produtos) : undefined, // New
+      frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0, // General frete
+      valor_frete: formData.valor_frete ? parseNumero(formData.valor_frete) : undefined, // NFe specific frete
+      valor_seguro: formData.valor_seguro ? parseNumero(formData.valor_seguro) : undefined, // New
+      desconto_total: formData.lancar_produtos ? parseNumero(formData.desconto_total) : 0, // General desconto
+      valor_desconto_total: formData.valor_desconto_total ? parseNumero(formData.valor_desconto_total) : undefined, // NFe specific desconto total
+      outras_despesas: formData.lancar_produtos ? parseNumero(formData.outras_despesas) : 0, // General outras despesas
+      valor_outras_despesas: formData.valor_outras_despesas ? parseNumero(formData.valor_outras_despesas) : undefined, // NFe specific outras despesas
+      valor_ipi: formData.valor_ipi ? parseNumero(formData.valor_ipi) : undefined, // New
+      valor_icms: formData.valor_icms ? parseNumero(formData.valor_icms) : undefined, // New
+      valor_pis: formData.valor_pis ? parseNumero(formData.valor_pis) : undefined, // New
+      valor_cofins: formData.valor_cofins ? parseNumero(formData.valor_cofins) : undefined, // New
+      base_calculo_icms: formData.base_calculo_icms ? parseNumero(formData.base_calculo_icms) : undefined, // New
       parcelar: !formData.conta_paga && formData.parcelar,
       parcelas: (!formData.conta_paga && formData.parcelar) ? formData.parcelas.map(p => ({ 
         data: p.data, 
@@ -534,6 +568,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+
+  const temDadosNFe = formData.valor_produtos || formData.valor_frete || formData.valor_seguro || formData.valor_ipi || formData.valor_icms || formData.valor_pis || formData.valor_cofins || formData.base_calculo_icms || formData.valor_desconto_total || formData.valor_outras_despesas || formData.observacoes_nfe;
 
   return (
     <>
@@ -814,7 +850,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 <Select value={formData.local_estoque} onValueChange={(v) => handleChange('local_estoque', v)} className="flex-1">
                                   <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
                                   <SelectContent>
-                                    {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
+                                    {locais.map(l => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}
                                   </SelectContent>
                                 </Select>
                                 <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-9 w-9">
@@ -890,6 +926,70 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <div className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
                           </CardContent>
                         </Card>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* CARD: VALORES DETALHADOS DA NF-E (SE EXISTIREM) */}
+                  {temDadosNFe && (
+                    <Card className="bg-purple-50 border-purple-200">
+                      <CardHeader className="py-2 px-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-purple-600" />
+                          Valores Detalhados da NF-e
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 space-y-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. Produtos</Label>
+                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs" disabled />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. Frete</Label>
+                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. Seguro</Label>
+                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Outras Despesas</Label>
+                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Desconto Total</Label>
+                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. IPI</Label>
+                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. ICMS</Label>
+                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. PIS</Label>
+                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Vlr. COFINS</Label>
+                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Base Cálc. ICMS</Label>
+                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs" />
+                          </div>
+                        </div>
+                        
+                        {formData.observacoes_nfe && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Observações da NF-e</Label>
+                            <Textarea value={formData.observacoes_nfe} onChange={(e) => handleChange('observacoes_nfe', e.target.value)} className="text-xs min-h-24" rows={4} />
+                            <p className="text-xs text-slate-500">Informações completas extraídas da NF-e (vendedor, contatos, etc)</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   )}
