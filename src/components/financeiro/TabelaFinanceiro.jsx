@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +47,17 @@ const formatarData = (dataString) => {
     const date = new Date(dataString + 'T00:00:00');
     if (isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('pt-BR');
+  } catch {
+    return '-';
+  }
+};
+
+const formatarDataHora = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('pt-BR');
   } catch {
     return '-';
   }
@@ -233,12 +243,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     setProdutosAberto(lancamento);
   };
 
-  const handleDoubleClick = (lancamento) => {
-    if (lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado') {
-      onBaixa(lancamento);
-    }
-  };
-
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento.fornecedor_id);
 
   return (
@@ -350,7 +354,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       <div className="flex items-center">Forma Pgto {getSortIcon('forma_pagamento')}</div>
                     </TableHead>
                   )}
-                  <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -374,8 +377,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               initial={{ opacity: 0 }} 
                               animate={{ opacity: 1 }} 
                               exit={{ opacity: 0 }} 
-                              className="hover:bg-slate-50 transition-colors cursor-pointer"
-                              onDoubleClick={() => handleDoubleClick(lancamento)}
+                              className="hover:bg-slate-50 transition-colors"
                             >
                               {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
                               {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
@@ -417,37 +419,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento.safra_nome || '-'}</TableCell>}
                               {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento.centro_custo_nome || '-'}</TableCell>}
                               {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento.forma_pagamento_nome || '-'}</TableCell>}
-                              <TableCell>
-                                <div className="flex gap-1 justify-center">
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirDetalhes(lancamento); }} title="Ver detalhes">
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  {temProdutos && (
-                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); abrirProdutos(lancamento); }} title="Ver produtos" className="text-green-600">
-                                      <Package className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEdit(lancamento); }} title="Editar">
-                                    <Edit className="w-4 h-4 text-blue-600" />
-                                  </Button>
-                                  {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
-                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onBaixa(lancamento); }} title="Dar baixa" className="text-green-600">
-                                      <DollarSign className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  {lancamento.status === 'Pago' && onCancelarBaixa && (
-                                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onCancelarBaixa(lancamento); }} title="Cancelar baixa" className="text-orange-600">
-                                      <XCircle className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(lancamento.id); }} title="Excluir" className="text-red-600 hover:bg-red-50">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
                             </motion.tr>
                           </ContextMenuTrigger>
                           <ContextMenuContent>
+                            <ContextMenuItem onClick={() => abrirDetalhes(lancamento)}>
+                              <Eye className="w-4 h-4 mr-2 text-blue-600" />
+                              Ver Detalhes
+                            </ContextMenuItem>
+                            {temProdutos && (
+                              <ContextMenuItem onClick={() => abrirProdutos(lancamento)}>
+                                <Package className="w-4 h-4 mr-2 text-green-600" />
+                                Ver Produtos
+                              </ContextMenuItem>
+                            )}
                             {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
                               <ContextMenuItem onClick={() => onBaixa(lancamento)}>
                                 <DollarSign className="w-4 h-4 mr-2 text-green-600" />
@@ -460,6 +444,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                 Cancelar Baixa
                               </ContextMenuItem>
                             )}
+                            <ContextMenuItem onClick={() => onDelete(lancamento.id)}>
+                              <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                              Excluir
+                            </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
                       );
@@ -472,13 +460,15 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         </CardContent>
       </Card>
 
+      {/* DIALOG DETALHES - COMPLETO */}
       <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Lançamento #{detalhesAberto?.numero_lancamento}</DialogTitle>
           </DialogHeader>
           {detalhesAberto && (
             <div className="space-y-4">
+              {/* INFORMAÇÕES GERAIS */}
               <Card>
                 <CardHeader><CardTitle className="text-base">Informações Gerais</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -491,11 +481,34 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   {detalhesAberto.chave_nfe && (
                     <div className="col-span-2"><strong>Chave NF-e:</strong> <span className="font-mono text-xs">{detalhesAberto.chave_nfe}</span></div>
                   )}
+                  {detalhesAberto.serie_documento && (
+                    <div><strong>Série:</strong> {detalhesAberto.serie_documento}</div>
+                  )}
+                  {detalhesAberto.cfop && (
+                    <div><strong>CFOP:</strong> {detalhesAberto.cfop}</div>
+                  )}
+                  <div><strong>Lançou Produtos:</strong> {detalhesAberto.lancar_produtos ? 'Sim' : 'Não'}</div>
+                  <div><strong>Deu Entrada Estoque:</strong> {detalhesAberto.dar_entrada_estoque ? 'Sim' : 'Não'}</div>
+                  {detalhesAberto.local_estoque && (
+                    <div><strong>Local Estoque:</strong> {detalhesAberto.local_estoque}</div>
+                  )}
                 </CardContent>
               </Card>
 
+              {/* RASTREAMENTO */}
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader><CardTitle className="text-base">🔍 Rastreamento</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                  <div><strong>Criado por:</strong> {detalhesAberto.created_by || '-'}</div>
+                  <div><strong>Data Criação:</strong> {formatarDataHora(detalhesAberto.created_date)}</div>
+                  <div><strong>Última Edição:</strong> {formatarDataHora(detalhesAberto.updated_date)}</div>
+                  <div><strong>Tipo Origem:</strong> <Badge className="ml-2">{detalhesAberto.origem_importacao === 'XML' ? '📋 Importação XML' : '✍️ Cadastro Manual'}</Badge></div>
+                </CardContent>
+              </Card>
+
+              {/* FORNECEDOR/CLIENTE */}
               {tipo === 'Pagar' && detalhesAberto.fornecedor_id && (
-                <Card className="bg-blue-50 border-blue-200">
+                <Card className="bg-purple-50 border-purple-200">
                   <CardHeader><CardTitle className="text-base">Fornecedor</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     {(() => {
@@ -506,6 +519,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           <div><strong>Tipo:</strong> {fornecedor.tipo_pessoa}</div>
                           <div><strong>CPF/CNPJ:</strong> {fornecedor.cpf || fornecedor.cnpj || '-'}</div>
                           <div><strong>Telefone:</strong> {fornecedor.telefone || '-'}</div>
+                          <div><strong>Email:</strong> {fornecedor.email || '-'}</div>
                         </>
                       ) : <div className="text-slate-500">Fornecedor não encontrado</div>;
                     })()}
@@ -513,6 +527,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 </Card>
               )}
 
+              {/* CLASSIFICAÇÃO */}
+              <Card className="bg-green-50 border-green-200">
+                <CardHeader><CardTitle className="text-base">Classificação Financeira</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                  <div><strong>Plano Contas:</strong> {detalhesAberto.plano_contas_nome || '-'}</div>
+                  <div><strong>Grupo:</strong> {detalhesAberto.grupo_nome || '-'}</div>
+                  <div><strong>Centro Custo:</strong> {detalhesAberto.centro_custo_nome || '-'}</div>
+                  <div><strong>Safra:</strong> {detalhesAberto.safra_nome || '-'}</div>
+                  <div><strong>Forma Pgto:</strong> {detalhesAberto.forma_pagamento_nome || '-'}</div>
+                </CardContent>
+              </Card>
+
+              {/* VALORES */}
               <Card>
                 <CardHeader><CardTitle className="text-base">Valores</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -526,11 +553,42 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 </CardContent>
               </Card>
 
-              {detalhesAberto.observacoes && (
+              {/* VALORES NF-E */}
+              {(detalhesAberto.valor_produtos || detalhesAberto.valor_frete || detalhesAberto.valor_ipi) && (
+                <Card className="bg-purple-50 border-purple-200">
+                  <CardHeader><CardTitle className="text-base">Valores Detalhados NF-e</CardTitle></CardHeader>
+                  <CardContent className="grid grid-cols-3 gap-3 text-sm">
+                    <div><strong>Vlr. Produtos:</strong> {formatarMoeda(detalhesAberto.valor_produtos || 0)}</div>
+                    <div><strong>Vlr. Frete:</strong> {formatarMoeda(detalhesAberto.valor_frete || 0)}</div>
+                    <div><strong>Vlr. Seguro:</strong> {formatarMoeda(detalhesAberto.valor_seguro || 0)}</div>
+                    <div><strong>Outras Desp.:</strong> {formatarMoeda(detalhesAberto.valor_outras_despesas || 0)}</div>
+                    <div><strong>Desc. Total:</strong> {formatarMoeda(detalhesAberto.valor_desconto_total || 0)}</div>
+                    <div><strong>IPI:</strong> {formatarMoeda(detalhesAberto.valor_ipi || 0)}</div>
+                    <div><strong>ICMS:</strong> {formatarMoeda(detalhesAberto.valor_icms || 0)}</div>
+                    <div><strong>PIS:</strong> {formatarMoeda(detalhesAberto.valor_pis || 0)}</div>
+                    <div><strong>COFINS:</strong> {formatarMoeda(detalhesAberto.valor_cofins || 0)}</div>
+                    <div><strong>Base ICMS:</strong> {formatarMoeda(detalhesAberto.base_calculo_icms || 0)}</div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* OBSERVAÇÕES */}
+              {(detalhesAberto.observacoes || detalhesAberto.observacoes_nfe) && (
                 <Card>
                   <CardHeader><CardTitle className="text-base">Observações</CardTitle></CardHeader>
-                  <CardContent>
-                    <p className="text-sm whitespace-pre-wrap">{detalhesAberto.observacoes}</p>
+                  <CardContent className="space-y-2">
+                    {detalhesAberto.observacoes && (
+                      <div>
+                        <strong className="text-sm">Observações Personalizadas:</strong>
+                        <p className="text-sm whitespace-pre-wrap mt-1 bg-slate-50 p-2 rounded">{detalhesAberto.observacoes}</p>
+                      </div>
+                    )}
+                    {detalhesAberto.observacoes_nfe && (
+                      <div>
+                        <strong className="text-sm">Observações da NF-e:</strong>
+                        <p className="text-sm whitespace-pre-wrap mt-1 bg-purple-50 p-2 rounded">{detalhesAberto.observacoes_nfe}</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -539,8 +597,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         </DialogContent>
       </Dialog>
 
+      {/* DIALOG PRODUTOS */}
       <Dialog open={!!produtosAberto} onOpenChange={(open) => !open && setProdutosAberto(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-green-600" />

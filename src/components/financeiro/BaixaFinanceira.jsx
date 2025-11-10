@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, Save, X, AlertCircle } from "lucide-react";
+import { CheckCircle, Save, X, AlertCircle, Edit, Trash2, Paperclip, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +31,17 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+const formatarDataHora = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('pt-BR');
+  } catch {
+    return '-';
+  }
+};
+
 export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   const saldoInicial = (lancamento.valor_saldo || lancamento.valor_total || 0);
   
@@ -43,9 +53,12 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     valor_desconto: "0,00",
     forma_pagamento_id: "",
     numero_comprovante: "",
-    observacoes: ""
+    observacoes: "",
+    anexos: []
   });
 
+  const [editandoBaixa, setEditandoBaixa] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [user, setUser] = useState(null);
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -67,7 +80,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: baixasAnteriores = [] } = useQuery({
+  const { data: baixasAnteriores = [], refetch: refetchBaixas } = useQuery({
     queryKey: ['baixas_anteriores', lancamento.id],
     queryFn: async () => {
       const all = await base44.entities.BaixaFinanceira.list('-data_baixa');
@@ -100,13 +113,12 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
         forma_pagamento_nome: forma?.descricao,
         numero_comprovante: data.numero_comprovante?.toUpperCase() || undefined,
         observacoes: data.observacoes?.toUpperCase() || undefined,
-        usuario_responsavel: user?.email
+        usuario_responsavel: user?.email,
+        anexos: data.anexos || []
       };
 
-      // Criar a baixa
       const baixaCriada = await base44.entities.BaixaFinanceira.create(baixa);
 
-      // Atualizar o lançamento
       const totalPago = (lancamento.valor_pago || 0) + parseNumero(data.valor_baixa);
       const saldoRestante = (lancamento.valor_total || 0) - totalPago;
       
@@ -127,12 +139,100 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      queryClient.invalidateQueries({ queryKey: ['baixas_anteriores'] });
+      refetchBaixas();
+      setFormData({
+        data_baixa: new Date().toISOString().split('T')[0],
+        valor_baixa: "",
+        valor_juros: "0,00",
+        valor_multa: "0,00",
+        valor_desconto: "0,00",
+        forma_pagamento_id: "",
+        numero_comprovante: "",
+        observacoes: "",
+        anexos: []
+      });
       toast.success('Baixa registrada com sucesso!');
-      onSuccess();
     },
     onError: (error) => {
       toast.error(error.message || 'Erro ao registrar baixa.');
+    }
+  });
+
+  const updateBaixaMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      const forma = formasPagamento.find(f => f.id === data.forma_pagamento_id);
+      
+      await base44.entities.BaixaFinanceira.update(id, {
+        data_baixa: data.data_baixa,
+        valor_baixa: parseNumero(data.valor_baixa),
+        valor_juros: parseNumero(data.valor_juros),
+        valor_multa: parseNumero(data.valor_multa),
+        valor_desconto: parseNumero(data.valor_desconto),
+        forma_pagamento_id: data.forma_pagamento_id || undefined,
+        forma_pagamento_nome: forma?.descricao,
+        numero_comprovante: data.numero_comprovante?.toUpperCase() || undefined,
+        observacoes: data.observacoes?.toUpperCase() || undefined,
+        anexos: data.anexos || []
+      });
+
+      const allBaixas = await base44.entities.BaixaFinanceira.list();
+      const baixasDoLancamento = allBaixas.filter(b => b.lancamento_id === lancamento.id);
+      const totalPago = baixasDoLancamento.reduce((sum, b) => sum + (b.valor_baixa || 0), 0);
+      const saldoRestante = (lancamento.valor_total || 0) - totalPago;
+      
+      let novoStatus = 'Pendente';
+      if (saldoRestante <= 0.01) {
+        novoStatus = 'Pago';
+      } else if (totalPago > 0) {
+        novoStatus = 'Pago Parcial';
+      }
+
+      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+        valor_pago: totalPago,
+        valor_saldo: Math.max(0, saldoRestante),
+        status: novoStatus
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      refetchBaixas();
+      setEditandoBaixa(null);
+      toast.success('Baixa atualizada com sucesso!');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao atualizar baixa.');
+    }
+  });
+
+  const deleteBaixaMutation = useMutation({
+    mutationFn: async (baixaId) => {
+      await base44.entities.BaixaFinanceira.delete(baixaId);
+
+      const allBaixas = await base44.entities.BaixaFinanceira.list();
+      const baixasRestantes = allBaixas.filter(b => b.lancamento_id === lancamento.id);
+      const totalPago = baixasRestantes.reduce((sum, b) => sum + (b.valor_baixa || 0), 0);
+      const saldoRestante = (lancamento.valor_total || 0) - totalPago;
+      
+      let novoStatus = 'Pendente';
+      if (saldoRestante <= 0.01 && totalPago > 0) {
+        novoStatus = 'Pago';
+      } else if (totalPago > 0) {
+        novoStatus = 'Pago Parcial';
+      }
+
+      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+        valor_pago: totalPago,
+        valor_saldo: Math.max(0, saldoRestante),
+        status: novoStatus
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      refetchBaixas();
+      toast.success('Baixa excluída com sucesso!');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Erro ao excluir baixa.');
     }
   });
 
@@ -157,7 +257,95 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     }
   };
 
+  const handleEditarBaixa = (baixa) => {
+    setEditandoBaixa({
+      id: baixa.id,
+      data_baixa: baixa.data_baixa,
+      valor_baixa: formatarNumero(baixa.valor_baixa),
+      valor_juros: formatarNumero(baixa.valor_juros || 0),
+      valor_multa: formatarNumero(baixa.valor_multa || 0),
+      valor_desconto: formatarNumero(baixa.valor_desconto || 0),
+      forma_pagamento_id: baixa.forma_pagamento_id || "",
+      numero_comprovante: baixa.numero_comprovante || "",
+      observacoes: baixa.observacoes || "",
+      anexos: baixa.anexos || []
+    });
+  };
+
+  const handleSalvarEdicao = () => {
+    if (parseNumero(editandoBaixa.valor_baixa) <= 0) {
+      toast.error('Valor da baixa deve ser maior que zero!');
+      return;
+    }
+
+    updateBaixaMutation.mutate({ id: editandoBaixa.id, data: editandoBaixa });
+  };
+
+  const handleExcluirBaixa = (baixaId) => {
+    if (window.confirm('⚠️ Confirma a exclusão desta baixa?')) {
+      deleteBaixaMutation.mutate(baixaId);
+    }
+  };
+
+  const handleUploadAnexo = async (e, tipo = 'nova') => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Arquivo muito grande! Máximo 10MB');
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      const anexo = {
+        nome: file.name,
+        url: file_url,
+        tipo: file.type,
+        tamanho: file.size
+      };
+
+      if (tipo === 'nova') {
+        setFormData(prev => ({
+          ...prev,
+          anexos: [...prev.anexos, anexo]
+        }));
+      } else {
+        setEditandoBaixa(prev => ({
+          ...prev,
+          anexos: [...prev.anexos, anexo]
+        }));
+      }
+      
+      toast.success('✅ Arquivo anexado!');
+    } catch (error) {
+      toast.error('Erro ao fazer upload');
+    } finally {
+      e.target.value = '';
+      setUploadingFile(false);
+    }
+  };
+
+  const handleRemoverAnexo = (index, tipo = 'nova') => {
+    if (tipo === 'nova') {
+      setFormData(prev => ({
+        ...prev,
+        anexos: prev.anexos.filter((_, i) => i !== index)
+      }));
+    } else {
+      setEditandoBaixa(prev => ({
+        ...prev,
+        anexos: prev.anexos.filter((_, i) => i !== index)
+      }));
+    }
+    toast.success('Anexo removido!');
+  };
+
   const totalBaixa = parseNumero(formData.valor_baixa) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
+  const totalBaixaEdit = editandoBaixa ? parseNumero(editandoBaixa.valor_baixa) + parseNumero(editandoBaixa.valor_juros) + parseNumero(editandoBaixa.valor_multa) - parseNumero(editandoBaixa.valor_desconto) : 0;
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -167,7 +355,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
-            Dar Baixa no Lançamento
+            Baixas do Lançamento
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -192,34 +380,169 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </AlertDescription>
           </Alert>
 
-          {/* Histórico de Baixas Anteriores */}
+          {/* Histórico de Baixas */}
           {baixasAnteriores.length > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Histórico de Baixas</Label>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Data</TableHead>
-                    <TableHead className="text-xs">Valor</TableHead>
-                    <TableHead className="text-xs">Forma</TableHead>
-                    <TableHead className="text-xs">Usuário</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {baixasAnteriores.map(b => (
-                    <TableRow key={b.id}>
-                      <TableCell className="text-xs">{new Date(b.data_baixa).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell className="text-xs font-semibold">{formatarMoeda(b.valor_baixa)}</TableCell>
-                      <TableCell className="text-xs">{b.forma_pagamento_nome || '-'}</TableCell>
-                      <TableCell className="text-xs">{b.usuario_responsavel}</TableCell>
+              <div className="border rounded overflow-auto max-h-60">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Data</TableHead>
+                      <TableHead className="text-xs text-right">Valor</TableHead>
+                      <TableHead className="text-xs">Forma</TableHead>
+                      <TableHead className="text-xs">Usuário</TableHead>
+                      <TableHead className="text-xs">Editado</TableHead>
+                      <TableHead className="text-xs text-center">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {baixasAnteriores.map(b => (
+                      <TableRow key={b.id}>
+                        <TableCell className="text-xs">{new Date(b.data_baixa).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell className="text-xs font-semibold text-right">{formatarMoeda(b.valor_baixa)}</TableCell>
+                        <TableCell className="text-xs">{b.forma_pagamento_nome || '-'}</TableCell>
+                        <TableCell className="text-xs">{b.usuario_responsavel}</TableCell>
+                        <TableCell className="text-xs">{formatarDataHora(b.updated_date)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex gap-1 justify-center">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditarBaixa(b)} className="h-7 w-7 p-0 text-blue-600">
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleExcluirBaixa(b.id)} className="h-7 w-7 p-0 text-red-600">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
 
-          {/* Formulário de Baixa */}
+          {/* Formulário de Edição de Baixa */}
+          {editandoBaixa && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader className="py-2 px-3">
+                <CardTitle className="text-sm">Editar Baixa</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Data da Baixa *</Label>
+                    <Input type="date" value={editandoBaixa.data_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, data_baixa: e.target.value })} required className="h-9 text-xs" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Forma de Pagamento</Label>
+                    <Select value={editandoBaixa.forma_pagamento_id} onValueChange={(v) => setEditandoBaixa({ ...editandoBaixa, forma_pagamento_id: v })}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formasPagamento.map(f => (
+                          <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Valor da Baixa *</Label>
+                    <Input value={editandoBaixa.valor_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_baixa: e.target.value })} placeholder="0,00" required className="h-9 text-xs font-bold" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Juros</Label>
+                    <Input value={editandoBaixa.valor_juros} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_juros: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Multa</Label>
+                    <Input value={editandoBaixa.valor_multa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_multa: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Desconto</Label>
+                    <Input value={editandoBaixa.valor_desconto} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_desconto: e.target.value })} placeholder="0,00" className="h-9 text-xs" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Número do Comprovante</Label>
+                  <Input value={editandoBaixa.numero_comprovante} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, numero_comprovante: e.target.value })} placeholder="NÚMERO" className="h-9 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Observações</Label>
+                  <Textarea value={editandoBaixa.observacoes} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={3} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-2">
+                    <Paperclip className="w-3 h-3" />
+                    Anexar Documentos
+                  </Label>
+                  <Input
+                    type="file"
+                    onChange={(e) => handleUploadAnexo(e, 'editar')}
+                    disabled={uploadingFile}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="h-9 text-xs"
+                  />
+                  
+                  {editandoBaixa.anexos?.length > 0 && (
+                    <div className="space-y-1">
+                      {editandoBaixa.anexos.map((anexo, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3 h-3 text-slate-400" />
+                            <a href={anexo.url} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{anexo.nome}</a>
+                            <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoverAnexo(index, 'editar')}
+                            className="h-6 w-6 text-red-600"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Card className="bg-white border-blue-300">
+                  <CardContent className="p-2">
+                    <div className="text-sm">
+                      <span className="text-slate-700">Total a Pagar:</span>
+                      <span className="ml-2 font-bold text-blue-700">{formatarMoeda(totalBaixaEdit)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditandoBaixa(null)} className="h-8 text-xs">
+                    <X className="w-3 h-3 mr-1" />
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSalvarEdicao} className="bg-blue-600 hover:bg-blue-700 h-8 text-xs" disabled={updateBaixaMutation.isPending}>
+                    <Save className="w-3 h-3 mr-1" />
+                    Salvar Edição
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Formulário de Nova Baixa */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -274,6 +597,43 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
               <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
 
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Paperclip className="w-4 h-4" />
+                Anexar Documentos
+              </Label>
+              <Input
+                type="file"
+                onChange={(e) => handleUploadAnexo(e, 'nova')}
+                disabled={uploadingFile}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="h-9 text-xs"
+              />
+              
+              {formData.anexos.length > 0 && (
+                <div className="space-y-1">
+                  {formData.anexos.map((anexo, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3 h-3 text-slate-400" />
+                        <span className="font-medium">{anexo.nome}</span>
+                        <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoverAnexo(index, 'nova')}
+                        className="h-6 w-6 text-red-600"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <Card className="bg-green-50 border-green-200">
               <CardContent className="p-4">
                 <div className="space-y-2">
@@ -304,7 +664,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} className="gap-2">
                 <X className="w-4 h-4" />
-                Cancelar
+                Fechar
               </Button>
               <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" disabled={baixaMutation.isPending}>
                 <Save className="w-4 h-4" />

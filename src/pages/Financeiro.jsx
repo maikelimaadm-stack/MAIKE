@@ -95,9 +95,12 @@ export default function Financeiro() {
 
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // BUSCAR PRODUTOS DENTRO DA MUTATION para garantir dados mais atualizados no estoque
       const todosProdutos = await base44.entities.Produto.list();
       const produtosEmpresa = todosProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
+      const user = await base44.auth.me();
+
+      // DETERMINAR ORIGEM
+      const origem_importacao = data.origem_importacao || (data.chave_nfe ? 'XML' : 'MANUAL');
 
       if (data.parcelas && data.parcelas.length > 0) {
         setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
@@ -107,7 +110,6 @@ export default function Financeiro() {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
 
-          // CALCULAR VALOR ORIGINAL CORRETO
           let valorOriginal;
           if (data.lancar_produtos) {
             const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
@@ -171,25 +173,22 @@ export default function Financeiro() {
             dar_entrada_estoque: data.dar_entrada_estoque,
             local_estoque: data.local_estoque,
             produtos_lancamento: data.produtos_selecionados,
-            anexos: data.anexos
+            anexos: data.anexos,
+            origem_importacao: origem_importacao,
+            usuario_lancamento: user.email
           });
 
-          // LANÇAR NO ESTOQUE SE MARCADO - SÓ NA PRIMEIRA PARCELA
           if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0 && i === 0) {
             setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 60, total: 100 });
 
-            const user = await base44.auth.me();
-
             for (const prodLanc of data.produtos_selecionados) {
-              const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id); // Using produtosEmpresa
+              const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
               if (produto) {
-                // Atualizar estoque do produto
                 const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
                 await base44.entities.Produto.update(produto.id, {
                   estoque_atual: novoEstoque
                 });
 
-                // Criar movimentação de estoque COM TODOS OS CAMPOS
                 const allMov = await base44.entities.MovimentacaoEstoque.list();
                 const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
@@ -214,8 +213,9 @@ export default function Financeiro() {
                   local_destino: data.local_estoque,
                   data_movimentacao: data.data_emissao,
                   numero_documento: data.numero_documento,
-                  observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${String(numero)} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | Entrada automática via controle financeiro`.trim(),
-                  responsavel: user.email
+                  observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${String(numero)} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | ${origem_importacao === 'XML' ? '📋 Importado via XML' : '✍️ Cadastrado manualmente'} | Entrada automática via controle financeiro`.trim(),
+                  responsavel: user.email,
+                  lancamento_origem_id: lanc.id
                 });
               }
             }
@@ -267,25 +267,22 @@ export default function Financeiro() {
           valor_multa: data.lancar_produtos ? 0 : data.valor_multa,
           valor_desconto: data.lancar_produtos ? 0 : data.valor_desconto,
           status: data.conta_paga ? 'Pago' : 'Pendente',
-          observacoes_nfe: data.observacoes_nfe
+          observacoes_nfe: data.observacoes_nfe,
+          origem_importacao: origem_importacao,
+          usuario_lancamento: user.email
         });
 
-        // LANÇAR NO ESTOQUE SE MARCADO
         if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0) {
           setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 70, total: 100 });
 
-          const user = await base44.auth.me();
-
           for (const prodLanc of data.produtos_selecionados) {
-            const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id); // Using produtosEmpresa
+            const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
             if (produto) {
-              // Atualizar estoque do produto
               const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
               await base44.entities.Produto.update(produto.id, {
                 estoque_atual: novoEstoque
               });
 
-              // Criar movimentação de estoque COM TODOS OS CAMPOS
               const allMov = await base44.entities.MovimentacaoEstoque.list();
               const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
@@ -310,8 +307,9 @@ export default function Financeiro() {
                 local_destino: data.local_estoque,
                 data_movimentacao: data.data_emissao,
                 numero_documento: data.numero_documento,
-                observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${numero} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | Entrada automática via controle financeiro`.trim(),
-                responsavel: user.email
+                observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${numero} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | ${origem_importacao === 'XML' ? '📋 Importado via XML' : '✍️ Cadastrado manualmente'} | Entrada automática via controle financeiro`.trim(),
+                responsavel: user.email,
+                lancamento_origem_id: lanc.id
               });
             }
           }
@@ -321,8 +319,6 @@ export default function Financeiro() {
           setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 85, total: 100 });
           const allBaixas = await base44.entities.BaixaFinanceira.list();
           const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
-
-          const user = await base44.auth.me();
 
           await base44.entities.BaixaFinanceira.create({
             empresa_id: empresaSelecionadaId,
