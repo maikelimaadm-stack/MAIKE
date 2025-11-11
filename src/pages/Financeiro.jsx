@@ -101,6 +101,9 @@ export default function Financeiro() {
 
       // DETERMINAR ORIGEM
       const origem_importacao = data.origem_importacao || (data.chave_nfe ? 'XML' : 'MANUAL');
+      
+      // PREPARAR TIPO DETALHADO
+      const tipo_detalhado_base = data.tipo_documento || 'COMPRA';
 
       if (data.parcelas && data.parcelas.length > 0) {
         setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
@@ -196,7 +199,12 @@ export default function Financeiro() {
                   empresa_id: empresaSelecionadaId,
                   numero_movimentacao: String(maxNumMov + 1),
                   tipo_movimentacao: 'Entrada',
+                  tipo_detalhado: tipo_detalhado_base,
                   tipo_documento: data.tipo_documento || 'NF-e',
+                  numero_documento: data.numero_documento,
+                  chave_documento: data.chave_nfe,
+                  data_documento: data.data_emissao,
+                  data_movimentacao: new Date().toISOString(),
                   fornecedor_id: data.fornecedor_id,
                   fornecedor_nome: data.fornecedor_nome,
                   safra_id: data.safra_id,
@@ -211,13 +219,16 @@ export default function Financeiro() {
                   unidade_medida: prodLanc.unidade,
                   valor_unitario: prodLanc.valor_unitario,
                   valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
-                  local_origem: `📋 FINANCEIRO: ${data.fornecedor_nome}`,
+                  local_origem: data.fornecedor_nome,
                   local_destino: data.local_estoque,
-                  data_movimentacao: data.data_emissao,
-                  numero_documento: data.numero_documento,
-                  observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${String(numero)} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | ${origem_importacao === 'XML' ? '📋 Importado via XML' : '✍️ Cadastrado manualmente'} | Entrada automática via controle financeiro`.trim(),
+                  local_estoque_destino: data.local_estoque,
+                  saldo_antes: produto.estoque_atual || 0,
+                  saldo_depois: novoEstoque,
+                  motivo_movimentacao: `Entrada via Controle Financeiro - ${origem_importacao === 'XML' ? 'Importado via XML' : 'Cadastrado manualmente'}`,
+                  observacoes: `ORIGEM: Lançamento Financeiro #${String(numero)} | ${data.observacoes || ''}`.trim(),
                   responsavel: user.email,
-                  lancamento_origem_id: lanc.id
+                  lancamento_origem_id: lanc.id,
+                  status: 'Ativa'
                 });
               }
             }
@@ -292,7 +303,12 @@ export default function Financeiro() {
                 empresa_id: empresaSelecionadaId,
                 numero_movimentacao: String(maxNumMov + 1),
                 tipo_movimentacao: 'Entrada',
+                tipo_detalhado: tipo_detalhado_base,
                 tipo_documento: data.tipo_documento || 'NF-e',
+                numero_documento: data.numero_documento,
+                chave_documento: data.chave_nfe,
+                data_documento: data.data_emissao,
+                data_movimentacao: new Date().toISOString(),
                 fornecedor_id: data.fornecedor_id,
                 fornecedor_nome: data.fornecedor_nome,
                 safra_id: data.safra_id,
@@ -307,13 +323,16 @@ export default function Financeiro() {
                 unidade_medida: prodLanc.unidade,
                 valor_unitario: prodLanc.valor_unitario,
                 valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
-                local_origem: `📋 FINANCEIRO: ${data.fornecedor_nome}`,
+                local_origem: data.fornecedor_nome,
                 local_destino: data.local_estoque,
-                data_movimentacao: data.data_emissao,
-                numero_documento: data.numero_documento,
-                observacoes: `🔗 ORIGEM: LANÇAMENTO FINANCEIRO #${numero} | ${data.tipo_documento || 'NF-e'} ${data.numero_documento || ''} | ${origem_importacao === 'XML' ? '📋 Importado via XML' : '✍️ Cadastrado manualmente'} | Entrada automática via controle financeiro`.trim(),
+                local_estoque_destino: data.local_estoque,
+                saldo_antes: produto.estoque_atual || 0,
+                saldo_depois: novoEstoque,
+                motivo_movimentacao: `Entrada via Controle Financeiro - ${origem_importacao === 'XML' ? 'Importado via XML' : 'Cadastrado manualmente'}`,
+                observacoes: `ORIGEM: Lançamento Financeiro #${numero} | ${data.observacoes || ''}`.trim(),
                 responsavel: user.email,
-                lancamento_origem_id: lanc.id
+                lancamento_origem_id: lanc.id,
+                status: 'Ativa'
               });
             }
           }
