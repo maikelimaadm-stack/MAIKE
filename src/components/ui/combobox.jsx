@@ -36,7 +36,7 @@ export function Combobox({ options, value, onValueChange, placeholder = "Selecio
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
@@ -44,7 +44,7 @@ export function Combobox({ options, value, onValueChange, placeholder = "Selecio
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label}
+                  keywords={[option.label]}
                   onSelect={() => {
                     onValueChange(option.value === value ? "" : option.value)
                     setOpen(false)
