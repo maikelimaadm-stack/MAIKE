@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { FileText, Upload, Loader2, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, CheckSquare, Edit2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -243,9 +244,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [novoProduto, setNovoProduto] = useState({
     nome_produto: "",
     codigo_interno: "",
+    codigo_barras: "",
     unidade_medida: "UN",
+    categoria: "",
+    descricao: "",
     preco_custo: ""
   });
+
+  const [showNovaUnidade, setShowNovaUnidade] = useState(false);
+  const [novaUnidade, setNovaUnidade] = useState({ sigla: "", nome: "" });
+  
+  const [showNovaCategoria, setShowNovaCategoria] = useState(false);
+  const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "" });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -253,6 +263,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const { data: unidadesMedida = [] } = useQuery({
     queryKey: ['unidades_medida'],
     queryFn: () => base44.entities.UnidadeMedida.list(),
+    initialData: [],
+  });
+
+  const { data: categorias = [] } = useQuery({
+    queryKey: ['categorias_produtos'],
+    queryFn: () => base44.entities.Categoria.list(),
     initialData: [],
   });
 
@@ -281,6 +297,42 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     },
   });
 
+  const createUnidadeMutation = useMutation({
+    mutationFn: async (data) => {
+      const all = await base44.entities.UnidadeMedida.list();
+      const maxNum = all.reduce((max, u) => Math.max(max, parseInt(u.numero) || 0), 0);
+      return base44.entities.UnidadeMedida.create({
+        ...data,
+        numero: String(maxNum + 1)
+      });
+    },
+    onSuccess: (newUnidade) => {
+      queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
+      setNovoProduto(prev => ({ ...prev, unidade_medida: newUnidade.sigla }));
+      setShowNovaUnidade(false);
+      setNovaUnidade({ sigla: "", nome: "" });
+      toast.success('✅ Unidade cadastrada!');
+    },
+  });
+
+  const createCategoriaMutation = useMutation({
+    mutationFn: async (data) => {
+      const all = await base44.entities.Categoria.list();
+      const maxNum = all.reduce((max, c) => Math.max(max, parseInt(c.numero_categoria) || 0), 0);
+      return base44.entities.Categoria.create({
+        ...data,
+        numero_categoria: String(maxNum + 1)
+      });
+    },
+    onSuccess: (newCategoria) => {
+      queryClient.invalidateQueries({ queryKey: ['categorias_produtos'] });
+      setNovoProduto(prev => ({ ...prev, categoria: newCategoria.nome }));
+      setShowNovaCategoria(false);
+      setNovaCategoria({ nome: "", descricao: "" });
+      toast.success('✅ Categoria cadastrada!');
+    },
+  });
+
   const createProdutoMutation = useMutation({
     mutationFn: async (data) => {
       const all = await base44.entities.Produto.list();
@@ -303,7 +355,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         setItemEditando(null);
       }
       setShowNovoProduto(false);
-      setNovoProduto({ nome_produto: "", codigo_interno: "", unidade_medida: "UN", preco_custo: "" });
+      setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
       toast.success('✅ Produto cadastrado!');
     },
   });
@@ -380,10 +432,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === unidadeXML);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (unidadeXML || 'UN');
 
-        // CALCULAR VALOR TOTAL (quantidade * valor_unitario)
-        // item.valor_total already stores vProd for the item
-        // const valorTotalCalculated = (item.quantidade || 0) * (item.valor_unitario || 0);
-
         return {
           index,
           codigo: item.codigo || '',
@@ -450,8 +498,57 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     createProdutoMutation.mutate({
       nome_produto: novoProduto.nome_produto.toUpperCase(),
       codigo_interno: novoProduto.codigo_interno?.toUpperCase(),
+      codigo_barras: novoProduto.codigo_barras,
       unidade_medida: novoProduto.unidade_medida.toUpperCase(),
+      categoria: novoProduto.categoria?.toUpperCase(),
+      descricao: novoProduto.descricao?.toUpperCase(),
       preco_custo: precoCustoParsed
+    });
+  };
+
+  const handleAbrirCadastroProduto = (item) => {
+    const unidadeCadastrada = unidadesMedida.find(u => u.sigla === item.unidade);
+    const precoCusto = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
+    
+    setNovoProduto({
+      nome_produto: item.descricao || "",
+      codigo_interno: item.codigo || "",
+      codigo_barras: "",
+      unidade_medida: unidadeCadastrada ? unidadeCadastrada.sigla : (item.unidade || "UN"),
+      categoria: "",
+      descricao: "",
+      preco_custo: precoCusto.toFixed(2).replace('.', ',')
+    });
+    
+    setItemEditando(item); // Set itemEditando for onSuccess to work
+    setShowNovoProduto(true);
+  };
+
+  const handleCadastrarUnidade = () => {
+    if (!novaUnidade.sigla) {
+      toast.error('❌ Sigla obrigatória!');
+      return;
+    }
+    if (!novaUnidade.nome) {
+      toast.error('❌ Nome obrigatório!');
+      return;
+    }
+
+    createUnidadeMutation.mutate({
+      sigla: novaUnidade.sigla.toUpperCase(),
+      nome: novaUnidade.nome.toUpperCase()
+    });
+  };
+
+  const handleCadastrarCategoria = () => {
+    if (!novaCategoria.nome) {
+      toast.error('❌ Nome obrigatório!');
+      return;
+    }
+
+    createCategoriaMutation.mutate({
+      nome: novaCategoria.nome.toUpperCase(),
+      descricao: novaCategoria.descricao?.toUpperCase()
     });
   };
 
@@ -474,7 +571,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === item.unidade);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (item.unidade || 'UN');
 
-        // Derive preco_custo from the item's valor_total and quantidade
         const precoCusto = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
 
         const newProduto = await base44.entities.Produto.create({
@@ -482,8 +578,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           numero_produto: String(maxNum + 1),
           nome_produto: item.descricao.toUpperCase(),
           codigo_interno: item.codigo?.toUpperCase(),
+          codigo_barras: '', // XML doesn't provide this directly
           unidade_medida: unidadeFinal.toUpperCase(),
-          preco_custo: precoCusto, // Use derived unit price
+          categoria: '', // XML doesn't provide this directly
+          descricao: '', // Full description not usually in XML items
+          preco_custo: precoCusto,
           estoque_atual: 0
         });
 
@@ -527,7 +626,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       toast.error('❌ Quantidade deve ser maior que zero!');
       return;
     }
-    // Changed validation to valor_total
     if (itemEditando.valor_total <= 0) {
       toast.error('❌ Valor total deve ser maior que zero!');
       return;
@@ -579,7 +677,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
 
-    // CALCULAR VALOR TOTAL DA NOTA (produtos + frete + outras despesas)
     const totalProdutos = itensParaImportar.reduce((sum, i) => {
       const total = i.valor_total - (i.desconto_item || 0);
       return sum + total;
@@ -587,7 +684,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     
     const frete = dadosNFe.valor_frete || 0;
     const outrasDespesas = dadosNFe.valor_outras_despesas || 0;
-    // const valorTotalNota = totalProdutos + frete + outrasDespesas; // This variable is not used in the final payload, but it was in the instruction. Keeping for context.
 
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
@@ -622,7 +718,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         produto_id: i.produto_id,
         produto_nome: i.produto_nome,
         quantidade: String(i.quantidade).replace('.', ','),
-        // Changed to valor_total
         valor_total: String(i.valor_total).replace('.', ','),
         desconto_item: String(i.desconto_item || 0).replace('.', ','),
         unidade: i.unidade
@@ -644,12 +739,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setItemEditando(null);
     setLocalEstoque("");
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
-    setNovoProduto({ nome_produto: "", codigo_interno: "", unidade_medida: "UN", preco_custo: "" });
+    setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
     setShowNovoFornecedor(false);
     setShowBuscaProduto(false);
     setShowNovoProduto(false);
     setBuscaProduto("");
     setShowCadastroEmMassa(false);
+    setShowNovaUnidade(false);
+    setNovaUnidade({ sigla: "", nome: "" });
+    setShowNovaCategoria(false);
+    setNovaCategoria({ nome: "", descricao: "" });
   };
 
   const produtosFiltrados = produtos.filter(p => 
@@ -660,6 +759,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
   const estadosOptions = ESTADOS_BRASIL.map(uf => ({ value: uf, label: uf }));
   const unidadesOptions = unidadesMedida.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.nome}` }));
+  const categoriasOptions = categorias.map(c => ({ value: c.nome, label: c.nome }));
 
   return (
     <>
@@ -932,10 +1032,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                             <div className="flex gap-1 justify-center">
                               {isEditing ? (
                                 <>
-                                  <Button size="sm" variant="ghost" onClick={handleSalvarEdicao} className="h-6 w-6 p-0 text-green-600">
+                                  <Button size="sm" variant="ghost" onClick={handleSalvarEdicao} className="h-6 w-6 p-0 text-green-600" title="Salvar">
                                     <Save className="w-3 h-3" />
                                   </Button>
-                                  <Button size="sm" variant="ghost" onClick={handleCancelarEdicao} className="h-6 w-6 p-0 text-red-600">
+                                  <Button size="sm" variant="ghost" onClick={handleCancelarEdicao} className="h-6 w-6 p-0 text-red-600" title="Cancelar">
                                     <X className="w-3 h-3" />
                                   </Button>
                                 </>
@@ -946,11 +1046,23 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                                   </Button>
                                   {item.status === 'pendente' && (
                                     <>
-                                      <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-purple-600" title="Associar produto">
-                                        <RefreshCw className="w-3 h-3" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowNovoProduto(true); }} className="h-6 w-6 p-0 text-emerald-600" title="Cadastrar novo produto">
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => handleAbrirCadastroProduto(item)} 
+                                        className="h-6 w-6 p-0 text-emerald-600" 
+                                        title="Cadastrar este produto"
+                                      >
                                         <Plus className="w-3 h-3" />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} 
+                                        className="h-6 w-6 p-0 text-purple-600" 
+                                        title="Associar com produto existente"
+                                      >
+                                        <RefreshCw className="w-3 h-3" />
                                       </Button>
                                     </>
                                   )}
@@ -1101,21 +1213,24 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: NOVO PRODUTO */}
+      {/* DIALOG: NOVO PRODUTO - MELHORADO */}
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm">Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription className="text-xs">
+              Preencha os dados do produto para associá-lo à NF-e
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Nome do Produto *</Label>
+              <Label className="text-xs font-semibold">Nome do Produto *</Label>
               <Input 
                 value={novoProduto.nome_produto} 
                 onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} 
                 placeholder="NOME DO PRODUTO" 
-                className="h-8 text-xs uppercase"
+                className="h-9 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
                 autoFocus
               />
@@ -1128,21 +1243,95 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   value={novoProduto.codigo_interno} 
                   onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} 
                   placeholder="CÓDIGO" 
-                  className="h-8 text-xs uppercase"
+                  className="h-9 text-xs uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Unidade *</Label>
-                <Combobox
-                  options={unidadesOptions}
-                  value={novoProduto.unidade_medida}
-                  onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}
-                  placeholder="Selecione"
-                  searchPlaceholder="Buscar unidade..."
-                  className="h-8 text-xs"
+                <Label className="text-xs">Código de Barras</Label>
+                <Input 
+                  value={novoProduto.codigo_barras} 
+                  onChange={(e) => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} 
+                  placeholder="7891234567890" 
+                  className="h-9 text-xs"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Unidade de Medida *</Label>
+                <div className="flex gap-1.5">
+                  <Select 
+                    value={novoProduto.unidade_medida} 
+                    onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unidadesMedida.map(u => (
+                        <SelectItem key={u.id} value={u.sigla} className="text-xs">
+                          {u.sigla} - {u.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setShowNovaUnidade(true)} 
+                    className="h-9 w-9"
+                    title="Cadastrar nova unidade"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Categoria</Label>
+                <div className="flex gap-1.5">
+                  <Select 
+                    value={novoProduto.categoria} 
+                    onValueChange={(v) => setNovoProduto({...novoProduto, categoria: v})}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorias.map(c => (
+                        <SelectItem key={c.id} value={c.nome} className="text-xs">
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setShowNovaCategoria(true)} 
+                    className="h-9 w-9"
+                    title="Cadastrar nova categoria"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea 
+                value={novoProduto.descricao} 
+                onChange={(e) => setNovoProduto({...novoProduto, descricao: e.target.value})} 
+                placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..." 
+                className="text-xs uppercase min-h-20"
+                style={{ textTransform: 'uppercase' }}
+                rows={3}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -1152,7 +1341,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 value={String(novoProduto.preco_custo).replace('.', ',')} 
                 onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} 
                 placeholder="0,00" 
-                className="h-8 text-xs"
+                className="h-9 text-xs"
               />
             </div>
 
@@ -1160,8 +1349,119 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" disabled={createProdutoMutation.isPending}>
+              <Button 
+                onClick={handleCadastrarProduto} 
+                size="sm" 
+                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
+                disabled={createProdutoMutation.isPending}
+              >
                 {createProdutoMutation.isPending ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-3 h-3" />Salvar e Associar</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: NOVA UNIDADE */}
+      <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Nova Unidade de Medida</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Sigla *</Label>
+              <Input 
+                value={novaUnidade.sigla} 
+                onChange={(e) => setNovaUnidade({...novaUnidade, sigla: e.target.value})} 
+                placeholder="UN" 
+                className="h-9 text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+                maxLength={10}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome *</Label>
+              <Input 
+                value={novaUnidade.nome} 
+                onChange={(e) => setNovaUnidade({...novaUnidade, nome: e.target.value})} 
+                placeholder="UNIDADE" 
+                className="h-9 text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowNovaUnidade(false)} size="sm" className="h-8 text-xs">
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleCadastrarUnidade} 
+                size="sm" 
+                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
+                disabled={createUnidadeMutation.isPending}
+              >
+                {createUnidadeMutation.isPending ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-3 h-3" />Salvar</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: NOVA CATEGORIA */}
+      <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Nova Categoria</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome *</Label>
+              <Input 
+                value={novaCategoria.nome} 
+                onChange={(e) => setNovaCategoria({...novaCategoria, nome: e.target.value})} 
+                placeholder="NOME DA CATEGORIA" 
+                className="h-9 text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea 
+                value={novaCategoria.descricao} 
+                onChange={(e) => setNovaCategoria({...novaCategoria, descricao: e.target.value})} 
+                placeholder="DESCRIÇÃO DA CATEGORIA..." 
+                className="text-xs uppercase min-h-20"
+                style={{ textTransform: 'uppercase' }}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" onClick={() => setShowNovaCategoria(false)} size="sm" className="h-8 text-xs">
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleCadastrarCategoria} 
+                size="sm" 
+                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
+                disabled={createCategoriaMutation.isPending}
+              >
+                {createCategoriaMutation.isPending ? (
                   <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
                 ) : (
                   <><Save className="w-3 h-3" />Salvar</>
