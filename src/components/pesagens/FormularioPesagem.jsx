@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { Scale, Save, X, Calculator, Calendar, TrendingDown, TrendingUp, Truck, User, Package, Building2, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
@@ -79,9 +79,6 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
     }
     setFormData(prev => ({ ...prev, [field]: processedValue }));
   };
-
-  const fornecedoresOptions = fornecedores.map(f => ({ value: f.nome, label: f.nome }));
-  const produtosOptions = produtos.map(p => ({ value: p.nome_produto, label: p.nome_produto }));
 
   return (
     <motion.div
@@ -170,14 +167,16 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   <Package className="w-4 h-4 text-amber-600" />
                   Produto/Insumo
                 </Label>
-                <Combobox
-                  options={produtosOptions}
-                  value={formData.produto}
-                  onValueChange={(value) => handleChange('produto', value)}
-                  placeholder="Selecione o produto"
-                  searchPlaceholder="Buscar produto..."
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500"
-                />
+                <Select value={formData.produto} onValueChange={(value) => handleChange('produto', value)}>
+                  <SelectTrigger className="border-slate-300 focus:border-green-500 focus:ring-green-500">
+                    <SelectValue placeholder="Selecione o produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {produtos.map(p => (
+                      <SelectItem key={p.id} value={p.nome_produto}>{p.nome_produto}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -186,14 +185,16 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                 <Building2 className="w-4 h-4 text-cyan-600" />
                 Fornecedor/Destino
               </Label>
-              <Combobox
-                options={fornecedoresOptions}
-                value={formData.fornecedor_destino}
-                onValueChange={(value) => handleChange('fornecedor_destino', value)}
-                placeholder="Selecione fornecedor/destino"
-                searchPlaceholder="Buscar fornecedor..."
-                className="border-slate-300 focus:border-green-500 focus:ring-green-500"
-              />
+              <Select value={formData.fornecedor_destino} onValueChange={(value) => handleChange('fornecedor_destino', value)}>
+                <SelectTrigger className="border-slate-300 focus:border-green-500 focus:ring-green-500">
+                  <SelectValue placeholder="Selecione fornecedor/destino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fornecedores.map(f => (
+                    <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
