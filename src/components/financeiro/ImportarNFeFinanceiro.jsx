@@ -648,6 +648,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     );
   };
 
+  const handleRemoverItem = (index) => {
+    if (window.confirm('❌ Deseja remover este item do lançamento?')) {
+      setItensNFe(prev => prev.filter(i => i.index !== index));
+      setItensSelecionados(prev => prev.filter(i => i !== index));
+      toast.success('✅ Item removido!');
+    }
+  };
+
   const handleSelecionarTodos = () => {
     if (itensSelecionados.length === itensNFe.length && itensNFe.length > 0) {
       setItensSelecionados([]);
@@ -940,7 +948,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead className="text-right">Vlr Total</TableHead>
                       <TableHead className="text-right">Desc.</TableHead>
                       <TableHead className="text-right">Líquido</TableHead>
-                      <TableHead className="text-center w-28">Ações</TableHead>
+                      <TableHead className="text-center w-32">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1029,7 +1037,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1 justify-center">
+                            <div className="flex gap-1 justify-center flex-wrap">
                               {isEditing ? (
                                 <>
                                   <Button size="sm" variant="ghost" onClick={handleSalvarEdicao} className="h-6 w-6 p-0 text-green-600" title="Salvar">
@@ -1041,31 +1049,47 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                                 </>
                               ) : (
                                 <>
-                                  <Button size="sm" variant="ghost" onClick={() => handleEditarItem(item)} className="h-6 w-6 p-0 text-blue-600" title="Editar valores">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => handleEditarItem(item)} 
+                                    className="h-6 w-6 p-0 text-blue-600" 
+                                    title="Editar valores"
+                                  >
                                     <Edit2 className="w-3 h-3" />
                                   </Button>
+                                  
                                   {item.status === 'pendente' && (
-                                    <>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        onClick={() => handleAbrirCadastroProduto(item)} 
-                                        className="h-6 w-6 p-0 text-emerald-600" 
-                                        title="Cadastrar este produto"
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </Button>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} 
-                                        className="h-6 w-6 p-0 text-purple-600" 
-                                        title="Associar com produto existente"
-                                      >
-                                        <RefreshCw className="w-3 h-3" />
-                                      </Button>
-                                    </>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={() => handleAbrirCadastroProduto(item)} 
+                                      className="h-6 w-6 p-0 text-emerald-600" 
+                                      title="Cadastrar este produto"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
                                   )}
+                                  
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} 
+                                    className="h-6 w-6 p-0 text-purple-600" 
+                                    title="Trocar produto"
+                                  >
+                                    <RefreshCw className="w-3 h-3" />
+                                  </Button>
+                                  
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => handleRemoverItem(item.index)} 
+                                    className="h-6 w-6 p-0 text-red-600" 
+                                    title="Remover do lançamento"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
                                 </>
                               )}
                             </div>
