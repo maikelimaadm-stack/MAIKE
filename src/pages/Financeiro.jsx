@@ -220,6 +220,7 @@ export default function Financeiro() {
                   valor_unitario: prodLanc.valor_unitario,
                   valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
                   local_origem: data.fornecedor_nome,
+                  local_estoque_origem: data.local_estoque, // Added this line
                   local_destino: data.local_estoque,
                   local_estoque_destino: data.local_estoque,
                   saldo_antes: produto.estoque_atual || 0,
@@ -324,6 +325,7 @@ export default function Financeiro() {
                 valor_unitario: prodLanc.valor_unitario,
                 valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
                 local_origem: data.fornecedor_nome,
+                local_estoque_origem: data.local_estoque, // Added this line
                 local_destino: data.local_estoque,
                 local_estoque_destino: data.local_estoque,
                 saldo_antes: produto.estoque_atual || 0,
