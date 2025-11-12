@@ -137,7 +137,6 @@ export default function Financeiro() {
             valor_cofins: data.valor_cofins || 0,
             base_calculo_icms: data.base_calculo_icms || 0,
             valor_total: parcela.valor,
-            valor_saldo: parcela.valor,
             valor_juros: 0,
             valor_multa: 0,
             valor_desconto: 0,
@@ -270,7 +269,6 @@ export default function Financeiro() {
           base_calculo_icms: data.base_calculo_icms || 0,
           valor_total: valorTotal,
           valor_pago: data.conta_paga ? (data.valor_pago_total || 0) : 0,
-          valor_saldo: data.conta_paga ? (valorTotal - (data.valor_pago_total || 0)) : valorTotal,
           valor_juros: data.lancar_produtos ? 0 : (data.valor_juros || 0),
           valor_multa: data.lancar_produtos ? 0 : (data.valor_multa || 0),
           valor_desconto: data.lancar_produtos ? 0 : (data.valor_desconto || 0),
@@ -414,8 +412,7 @@ export default function Financeiro() {
       if (lancamento) {
         await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
           status: 'Pendente',
-          valor_pago: 0,
-          valor_saldo: lancamento.valor_total || 0
+          valor_pago: 0
         });
       }
     },
