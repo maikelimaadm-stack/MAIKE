@@ -52,6 +52,17 @@ const formatarData = (dataString) => {
   }
 };
 
+const formatarDataHora = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('pt-BR');
+  } catch {
+    return '-';
+  }
+};
+
 const calcularDias = (dataVencimento) => {
   if (!dataVencimento) return '-';
   try {
@@ -186,8 +197,8 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo = "Pagar", onE
         bValue = b.valor_pago || 0;
         break;
       case 'saldo':
-        aValue = (a.valor_total || 0) - (a.valor_pago || 0);
-        bValue = (b.valor_total || 0) - (b.valor_pago || 0);
+        aValue = a.valor_saldo || a.valor_total || 0;
+        bValue = b.valor_saldo || b.valor_total || 0;
         break;
       case 'status':
         aValue = (a.status || '').toLowerCase();
@@ -320,9 +331,9 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo = "Pagar", onE
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
                       const temProdutos = lancamento.produtos_lancamento && Array.isArray(lancamento.produtos_lancamento) && lancamento.produtos_lancamento.length > 0;
-                      const valorTotal = lancamento.valor_total || 0;
+                      const valorSaldo = lancamento.valor_saldo || lancamento.valor_total || 0;
                       const valorPago = lancamento.valor_pago || 0;
-                      const valorSaldo = valorTotal - valorPago;
+                      const valorTotal = lancamento.valor_total || 0;
                       
                       return (
                         <ContextMenu key={lancamento.id}>
@@ -541,7 +552,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo = "Pagar", onE
                     <strong>Vlr. Pago:</strong> {formatarMoeda(detalhesAberto.valor_pago || 0)}
                   </div>
                   <div className="text-red-700">
-                    <strong>Vlr. Saldo:</strong> {formatarMoeda((detalhesAberto.valor_total || 0) - (detalhesAberto.valor_pago || 0))}
+                    <strong>Vlr. Saldo:</strong> {formatarMoeda(detalhesAberto.valor_saldo || detalhesAberto.valor_total || 0)}
                   </div>
                 </CardContent>
               </Card>
