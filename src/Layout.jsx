@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -140,10 +139,15 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
+  // Se estiver na página de acesso, renderizar sem layout
+  if (currentPageName === 'Acesso') {
+    return children;
+  }
+
   // Verificar autenticação
   useEffect(() => {
-    // Não verificar na página de acesso e de usuários
-    if (currentPageName === 'Acesso' || currentPageName === 'Usuarios') {
+    // Permitir acesso à página de usuários para primeiro acesso
+    if (currentPageName === 'Usuarios') {
       return;
     }
 
@@ -197,7 +201,6 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
-    enabled: currentPageName !== 'Acesso',
   });
 
   const { data: empresaAtual } = useQuery({
@@ -207,16 +210,16 @@ export default function Layout({ children, currentPageName }) {
       const empresa = empresas.find(e => e.id === empresaSelecionada);
       return empresa || null;
     },
-    enabled: !!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Acesso',
+    enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Acesso') {
+    if (!empresaSelecionada && empresas.length > 0) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas, empresaSelecionada, currentPageName]);
+  }, [empresas, empresaSelecionada]);
 
   const handleEmpresaChange = (empresaId) => {
     setEmpresaSelecionada(empresaId);
@@ -225,26 +228,24 @@ export default function Layout({ children, currentPageName }) {
   };
 
   useEffect(() => {
-    if (currentPageName !== 'Acesso') {
-      const fetchWeather = async () => {
-        try {
-          const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
-          );
-          const data = await response.json();
-          setWeather({
-            temperature: Math.round(data.current.temperature_2m),
-            precipitation: data.current.precipitation > 0,
-          });
-        } catch (error) {
-          console.error("Erro clima:", error);
-        }
-      };
-      fetchWeather();
-      const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [currentPageName]);
+    const fetchWeather = async () => {
+      try {
+        const response = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
+        );
+        const data = await response.json();
+        setWeather({
+          temperature: Math.round(data.current.temperature_2m),
+          precipitation: data.current.precipitation > 0,
+        });
+      } catch (error) {
+        console.error("Erro clima:", error);
+      }
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('usuario_logado');
@@ -256,11 +257,6 @@ export default function Layout({ children, currentPageName }) {
     if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
-
-  // Se estiver na página de acesso, renderizar sem layout
-  if (currentPageName === 'Acesso') {
-    return children;
-  }
 
   const allPages = getAllPages(menuItems);
   const filteredPages = searchTerm 
