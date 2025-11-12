@@ -124,18 +124,12 @@ const getAllPages = (menuItems) => {
 };
 
 export default function Layout({ children, currentPageName }) {
-  // PRIMEIRO: Verificar se é página de login - renderizar sem layout
-  if (currentPageName === 'Acesso') {
-    return children;
-  }
-
   const location = useLocation();
   const [user, setUser] = useState(null);
   const [weather, setWeather] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [authChecked, setAuthChecked] = useState(false);
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
@@ -145,13 +139,15 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // Verificar autenticação UMA ÚNICA VEZ
+  // Se estiver na página de acesso, renderizar sem layout
+  if (currentPageName === 'Acesso') {
+    return children;
+  }
+
+  // Verificar autenticação
   useEffect(() => {
-    if (authChecked) return;
-    
-    // Permitir página de usuários sem login (primeiro acesso)
+    // Permitir acesso à página de usuários para primeiro acesso
     if (currentPageName === 'Usuarios') {
-      setAuthChecked(true);
       return;
     }
 
@@ -164,13 +160,12 @@ export default function Layout({ children, currentPageName }) {
     try {
       const userData = JSON.parse(usuarioLogado);
       setUser(userData);
-      setAuthChecked(true);
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
       localStorage.removeItem('usuario_logado');
       window.location.href = createPageUrl('Acesso');
     }
-  }, [authChecked, currentPageName]);
+  }, [currentPageName]);
 
   // ATUALIZAR MENU QUANDO localStorage MUDAR
   useEffect(() => {
@@ -206,7 +201,6 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
-    enabled: authChecked,
   });
 
   const { data: empresaAtual } = useQuery({
@@ -216,16 +210,16 @@ export default function Layout({ children, currentPageName }) {
       const empresa = empresas.find(e => e.id === empresaSelecionada);
       return empresa || null;
     },
-    enabled: !!empresaSelecionada && empresas.length > 0 && authChecked,
+    enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0 && authChecked) {
+    if (!empresaSelecionada && empresas.length > 0) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas, empresaSelecionada, authChecked]);
+  }, [empresas, empresaSelecionada]);
 
   const handleEmpresaChange = (empresaId) => {
     setEmpresaSelecionada(empresaId);
@@ -248,13 +242,10 @@ export default function Layout({ children, currentPageName }) {
         console.error("Erro clima:", error);
       }
     };
-    
-    if (authChecked) {
-      fetchWeather();
-      const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [authChecked]);
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('usuario_logado');
@@ -266,18 +257,6 @@ export default function Layout({ children, currentPageName }) {
     if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
-
-  // Mostrar loading enquanto verifica auth
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
 
   const allPages = getAllPages(menuItems);
   const filteredPages = searchTerm 
