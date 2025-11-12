@@ -27,7 +27,7 @@ const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currenc
 export default function Home() {
   const [cartoesVisiveis, setCartoesVisiveis] = useState(() => {
     const saved = localStorage.getItem('cartoes_dashboard');
-    return saved ? JSON.parse(saved) : ['produtos', 'estoque_valor', 'estoque_baixo', 'movimentacoes_mes'];
+    return saved ? JSON.parse(saved) : ['produtos', 'estoque_valor', 'estoque_baixo'];
   });
   
   const [showConfigCartoes, setShowConfigCartoes] = useState(false);
@@ -296,7 +296,6 @@ export default function Home() {
                 Estoque por Categoria
               </label>
             </div>
-
           </div>
         </DialogContent>
       </Dialog>
@@ -333,7 +332,6 @@ export default function Home() {
                     <Card className="shadow-sm"><CardContent className="p-2.5"><div className="text-xs text-slate-600">% do Total</div><div className="text-lg font-bold">{produtos.length > 0 ? ((estatisticas.estoque_baixo.dados.length / produtos.length) * 100).toFixed(0) : 0}%</div></CardContent></Card>
                   </>
                 )}
-
                 {showDetalhesCartao === 'fornecedores' && (
                   <>
                     <Card className="shadow-sm"><CardContent className="p-2.5"><div className="text-xs text-slate-600">Total</div><div className="text-lg font-bold">{fornecedores.length}</div></CardContent></Card>
@@ -373,7 +371,6 @@ export default function Home() {
                           <TableHead className="text-right text-xs">Diferença</TableHead>
                         </>
                       )}
-
                       {showDetalhesCartao === 'fornecedores' && (
                         <>
                           <TableHead className="text-xs">Nome</TableHead>
@@ -412,7 +409,6 @@ export default function Home() {
                             <TableCell className="text-right text-red-600 font-bold">{(item.estoque_minimo || 0) - (item.estoque_atual || 0)}</TableCell>
                           </>
                         )}
-
                         {showDetalhesCartao === 'fornecedores' && (
                           <>
                             <TableCell>{item.nome}</TableCell>
