@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Layers, Save, X, Calendar, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
-import CartoesResumo from "../components/shared/CartoesResumo";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -140,15 +139,14 @@ export default function GerenciarSafras() {
     );
   });
 
-  const totalSafras = safras.length;
-  const safrasEmAndamento = safras.filter(s => s.status === 'Em Andamento').length;
-  const safrasFinalizadas = safras.filter(s => s.status === 'Finalizada').length;
-
-  const cartoes = [
-    { id: 'total', label: 'Total de Safras', valor: totalSafras, sublabel: 'Cadastradas', icon: Layers, cor: 'blue', tipo: 'numero' },
-    { id: 'andamento', label: 'Em Andamento', valor: safrasEmAndamento, sublabel: 'Ativas', icon: Calendar, cor: 'emerald', tipo: 'numero' },
-    { id: 'finalizadas', label: 'Finalizadas', valor: safrasFinalizadas, sublabel: 'Concluídas', icon: Calendar, cor: 'violet', tipo: 'numero' },
-  ];
+  const filteredSafras = safras.filter(s => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      `${s.ano_inicio}/${s.ano_fim}`.includes(searchLower) ||
+      s.descricao?.toLowerCase().includes(searchLower) ||
+      s.status?.toLowerCase().includes(searchLower)
+    );
+  });
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -160,8 +158,6 @@ export default function GerenciarSafras() {
               <p className="text-xs text-slate-600">Gerenciar safras</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex justify-between gap-2">
             <div className="relative flex-1 max-w-md">

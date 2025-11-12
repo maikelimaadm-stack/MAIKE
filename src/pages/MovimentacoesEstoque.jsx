@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,6 @@ import { format } from "date-fns";
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeXML from "../components/movimentacoes/ImportarNFeXML";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 const getNextSystemNumber = async () => {
   try {
@@ -344,20 +342,6 @@ export default function MovimentacoesEstoque() {
     queryClient.invalidateQueries({ queryKey: ['produtos'] });
   };
 
-  const totalMovimentacoes = movimentacoes.length;
-  const totalEntradas = movimentacoes.filter(m => m.tipo_movimentacao === 'Entrada').length;
-  const totalSaidas = movimentacoes.filter(m => m.tipo_movimentacao === 'Saída').length;
-  const totalAjustes = movimentacoes.filter(m => m.tipo_movimentacao === 'Ajuste').length;
-  const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0));
-
-  const cartoes = [
-    { id: 'total', label: 'Total Movimentações', valor: totalMovimentacoes, sublabel: 'Registros', icon: ArrowRightLeft, cor: 'blue', tipo: 'numero' },
-    { id: 'entradas', label: 'Entradas', valor: totalEntradas, sublabel: 'Recebimentos', icon: TrendingUp, cor: 'emerald', tipo: 'numero' },
-    { id: 'saidas', label: 'Saídas', valor: totalSaidas, sublabel: 'Expedições', icon: TrendingDown, cor: 'orange', tipo: 'numero' },
-    { id: 'ajustes', label: 'Ajustes', valor: totalAjustes, sublabel: 'Correções', icon: Package, cor: 'violet', tipo: 'numero' },
-    { id: 'alertas', label: 'Estoque Crítico', valor: produtosEstoqueBaixo.length, sublabel: 'Produtos baixos', icon: AlertTriangle, cor: 'red', tipo: 'numero' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
@@ -368,8 +352,6 @@ export default function MovimentacoesEstoque() {
               <p className="text-xs text-slate-600">Entradas, saídas e ajustes</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">

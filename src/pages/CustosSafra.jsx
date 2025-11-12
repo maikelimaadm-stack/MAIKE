@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +14,6 @@ import { format } from "date-fns";
 import TabelaCustos from "../components/custos/TabelaCustos";
 import FormularioCusto from "../components/custos/FormularioCusto";
 import LancarEntrega from "../components/custos/LancarEntrega";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 const getNextSystemNumber = async () => {
   try {
@@ -393,16 +391,6 @@ export default function CustosSafra() {
     return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
-  const custosPorFornecedor = custos.reduce((acc, custo) => {
-    if (!acc[custo.fornecedor_id]) {
-      acc[custo.fornecedor_id] = { fornecedor_id: custo.fornecedor_id, fornecedor_nome: custo.fornecedor_nome, custos: [], total: 0 };
-    }
-    acc[custo.fornecedor_id].custos.push(custo);
-    acc[custo.fornecedor_id].total += custo.valor_total || 0;
-    return acc;
-  }, {});
-
-  const totalGeralSafra = Object.values(custosPorFornecedor).reduce((sum, f) => sum + f.total, 0);
   const progressPercentage = importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0;
 
   if (!safraAtiva && safras.length === 0) {
@@ -459,8 +447,6 @@ export default function CustosSafra() {
               </Button>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
