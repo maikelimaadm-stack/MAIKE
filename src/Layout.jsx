@@ -3,9 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
-  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, 
+  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Search, X
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -139,6 +139,7 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
+  // ATUALIZAR MENU QUANDO localStorage MUDAR
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('custom_menu');
@@ -149,6 +150,7 @@ export default function Layout({ children, currentPageName }) {
 
     window.addEventListener('storage', handleStorageChange);
     
+    // Também escutar mudanças locais (mesma aba)
     const interval = setInterval(() => {
       const saved = localStorage.getItem('custom_menu');
       if (saved) {
@@ -256,11 +258,9 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* HEADER SUPERIOR */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            {/* LOGO E NOME */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-[1600px] mx-auto px-4 py-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {empresaAtual?.logotipo_url ? (
                 <img 
@@ -283,30 +283,29 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
 
-            {/* INFORMAÇÕES CENTRAIS */}
-            <div className="hidden lg:flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-6">
               {weather && (
                 <>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-md">
+                  <div className="flex items-center gap-2">
                     {weather.precipitation ? (
-                      <CloudRain className="w-3.5 h-3.5 text-blue-500" />
+                      <CloudRain className="w-4 h-4 text-blue-500" />
                     ) : (
-                      <CloudOff className="w-3.5 h-3.5 text-slate-400" />
+                      <CloudOff className="w-4 h-4 text-slate-400" />
                     )}
                     <span className="text-xs text-slate-700 font-medium">
                       {weather.precipitation ? 'Chuva' : 'Sem chuva'}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-md">
-                    <Thermometer className="w-3.5 h-3.5 text-orange-500" />
+                  <div className="flex items-center gap-2">
+                    <Thermometer className="w-4 h-4 text-orange-500" />
                     <span className="text-xs text-slate-700 font-medium">
                       {weather.temperature}°C
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-md">
-                    <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-slate-500" />
                     <span className="text-xs text-slate-700 font-medium">
                       Cuiabá - MT
                     </span>
@@ -314,17 +313,16 @@ export default function Layout({ children, currentPageName }) {
                 </>
               )}
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-md">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-emerald-700 font-medium">Online</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-700 font-medium">Sistema Online</span>
               </div>
             </div>
 
-            {/* AÇÕES DIREITA */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {empresas.length > 0 && (
                 <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
-                  <SelectTrigger className="h-9 w-[140px] text-xs hidden lg:flex">
+                  <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -337,24 +335,24 @@ export default function Layout({ children, currentPageName }) {
                 </Select>
               )}
 
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setSearchOpen(true)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
                 <Search className="w-4 h-4 text-slate-600" />
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-9 w-9 hidden md:inline-flex">
+              <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
                 <Bell className="w-4 h-4 text-slate-600" />
               </Button>
 
               <Link to={createPageUrl("ConfiguracoesGerais")}>
-                <Button variant="ghost" size="icon" className="h-9 w-9 hidden md:inline-flex">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
                   <Settings className="w-4 h-4 text-slate-600" />
                 </Button>
               </Link>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 gap-2 px-2.5">
-                    <div className="w-7 h-7 bg-slate-200 rounded-full flex items-center justify-center">
+                  <Button variant="ghost" size="sm" className="h-8 gap-2 px-2">
+                    <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center">
                       <span className="text-slate-700 font-semibold text-xs">
                         {user?.full_name?.charAt(0).toUpperCase() || 'U'}
                       </span>
@@ -390,7 +388,7 @@ export default function Layout({ children, currentPageName }) {
 
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
                     <Menu className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
@@ -450,73 +448,77 @@ export default function Layout({ children, currentPageName }) {
               </Sheet>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* MENU NAVEGAÇÃO */}
-          <div className="hidden md:flex items-center gap-1 pb-2 border-t border-slate-100 pt-2">
-            {menuItems.map((item) => {
-              const Icon = iconsMap[item.icon] || Home;
-              const active = isActive(item);
+      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4">
+          <div className="flex items-center gap-0.5 h-10">
+            <div className="hidden md:flex items-center gap-0.5">
+              {menuItems.map((item) => {
+                const Icon = iconsMap[item.icon] || Home;
+                const active = isActive(item);
 
-              if (item.submenu) {
+                if (item.submenu) {
+                  return (
+                    <div key={item.id} className="relative group">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
+                          active 
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {item.title}
+                        <ChevronDown className="w-3 h-3 opacity-50" />
+                      </Button>
+                      
+                      <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div className="py-1">
+                          {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                            <Link 
+                              key={sub.id}
+                              to={createPageUrl(sub.url)}
+                              className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
+                                location.pathname === createPageUrl(sub.url)
+                                  ? 'bg-emerald-50 text-emerald-800 font-medium'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {sub.title}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={item.id} className="relative group">
+                  <Link key={item.id} to={createPageUrl(item.url)}>
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      className={`h-8 px-2.5 gap-1.5 text-xs font-medium ${
+                      className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
                         active 
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                          : 'text-slate-700 hover:bg-slate-100'
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
                       {item.title}
-                      <ChevronDown className="w-3 h-3 opacity-60" />
                     </Button>
-                    
-                    <div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      <div className="py-1.5">
-                        {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
-                          <Link 
-                            key={sub.id}
-                            to={createPageUrl(sub.url)}
-                            className={`block px-3.5 py-2 text-xs hover:bg-slate-50 transition-colors ${
-                              location.pathname === createPageUrl(sub.url)
-                                ? 'bg-emerald-50 text-emerald-800 font-semibold'
-                                : 'text-slate-700'
-                            }`}
-                          >
-                            {sub.title}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  </Link>
                 );
-              }
-
-              return (
-                <Link key={item.id} to={createPageUrl(item.url)}>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className={`h-8 px-2.5 gap-1.5 text-xs font-medium ${
-                      active 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {item.title}
-                  </Button>
-                </Link>
-              );
-            })}
+              })}
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* DIALOG BUSCA */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -581,7 +583,6 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      {/* CONTEÚDO */}
       <main className="max-w-[1600px] mx-auto">
         {children}
       </main>

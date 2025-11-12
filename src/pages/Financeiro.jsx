@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -441,8 +440,8 @@ export default function Financeiro() {
     setAbaAtiva("pesquisar");
   };
 
-  const lancamentosPagar = useMemo(() => (lancamentos || []).filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
-  const lancamentosReceber = useMemo(() => (lancamentos || []).filter(l => l && l.tipo === 'Receber'), [lancamentos]);
+  const lancamentosPagar = useMemo(() => lancamentos.filter(l => l.tipo === 'Pagar'), [lancamentos]);
+  const lancamentosReceber = useMemo(() => lancamentos.filter(l => l.tipo === 'Receber'), [lancamentos]);
 
   return (
     <div className="p-4 bg-slate-50 min-h-screen">
