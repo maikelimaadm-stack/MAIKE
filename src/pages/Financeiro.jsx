@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { DollarSign, Save, X, Search, Edit, Trash2, Eye, TrendingUp, TrendingDown, AlertCircle, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -37,65 +37,27 @@ const getNextNumber = async (empresaId) => {
 };
 
 export default function Financeiro() {
-  const [modoTela, setModoTela] = useState("lista"); // lista, criar, editar
-  const [abaAtiva, setAbaAtiva] = useState("dados_financeiros");
-  const [editingId, setEditingId] = useState(null);
+  const [abaAtiva, setAbaAtiva] = useState("cadastrar");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [detalhesAberto, setDetalhesAberto] = useState(null);
   
   const [formData, setFormData] = useState({
-    // Dados Financeiros
-    tipo: "Despesa",
-    numero_referencia: "",
-    status: "Pendente",
-    data_documento: new Date().toISOString().split('T')[0],
+    tipo: "Pagar",
+    fornecedor_id: "",
+    descricao: "",
+    documento: "",
+    data_emissao: new Date().toISOString().split('T')[0],
     data_vencimento: new Date().toISOString().split('T')[0],
-    data_baixa: "",
-    valor_liquido: "",
+    valor_original: "",
+    juros: "0",
+    multa: "0",
     desconto: "0",
-    juros_multa: "0",
-    valor_total: "0",
-    moeda: "BRL",
-    taxa_cambio: "",
-    conta_bancaria_id: "",
-    forma_pagamento: "",
-    parcelado: false,
-    numero_parcelas: "",
-    centro_custo_id: "",
-    projeto_id: "",
-    categoria_id: "",
-    pessoa_id: "",
     plano_contas_id: "",
-    origem: "Manual",
-    tags: [],
-    observacoes: "",
-    // Fiscal
-    tipo_documento_fiscal: "",
-    numero_nf: "",
-    chave_nf: "",
-    data_emissao_fiscal: "",
-    cfop: "",
-    icms_base: "0",
-    icms_aliquota: "0",
-    icms_valor: "0",
-    pis_base: "0",
-    pis_aliquota: "0",
-    pis_valor: "0",
-    cofins_base: "0",
-    cofins_aliquota: "0",
-    cofins_valor: "0",
-    iss_base: "0",
-    iss_aliquota: "0",
-    iss_valor: "0",
-    irrf_valor: "0",
-    inss_valor: "0",
-    csll_valor: "0",
-    // Arrays
-    itens: [],
-    rateio: [],
-    anexos: [],
-    // Aprovação
-    requer_aprovacao: false,
-    status_aprovacao: "Pendente"
+    centro_custo_id: "",
+    forma_pagamento: "",
+    observacoes: ""
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -105,7 +67,7 @@ export default function Financeiro() {
     queryKey: ['lancamentos_financeiros', empresaSelecionadaId],
     queryFn: async () => {
       if (!empresaSelecionadaId) return [];
-      const all = await base44.entities.LancamentoFinanceiro.list('-data_documento');
+      const all = await base44.entities.LancamentoFinanceiro.list('-data_emissao');
       return all.filter(l => l && l.empresa_id === empresaSelecionadaId) || [];
     },
     enabled: !!empresaSelecionadaId,
@@ -113,97 +75,106 @@ export default function Financeiro() {
   });
 
   const { data: fornecedores = [] } = useQuery({
-    queryKey: ['fornecedores_fin'],
+    queryKey: ['fornecedores_fin', empresaSelecionadaId],
     queryFn: async () => {
+      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.Fornecedor.list('nome');
-      return all.filter(f => f.empresa_id === empresaSelecionadaId) || [];
+      return all.filter(f => f && f.empresa_id === empresaSelecionadaId) || [];
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
   });
 
   const { data: planos = [] } = useQuery({
-    queryKey: ['planos_fin'],
+    queryKey: ['planos_fin', empresaSelecionadaId],
     queryFn: async () => {
+      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.PlanoContas.list('codigo');
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.aceita_lancamento !== false) || [];
+      return all.filter(p => p && p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.aceita_lancamento !== false) || [];
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
   });
 
   const { data: centros = [] } = useQuery({
-    queryKey: ['centros_fin'],
+    queryKey: ['centros_fin', empresaSelecionadaId],
     queryFn: async () => {
+      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.CentroCusto.list();
-      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false) || [];
+      return all.filter(c => c && c.empresa_id === empresaSelecionadaId && c.ativo !== false) || [];
     },
     enabled: !!empresaSelecionadaId,
     initialData: [],
   });
 
-  // Calcular valor total automaticamente
-  useEffect(() => {
-    const liquido = parseFloat(formData.valor_liquido) || 0;
-    const desc = parseFloat(formData.desconto) || 0;
-    const juros = parseFloat(formData.juros_multa) || 0;
-    const total = liquido - desc + juros;
-    setFormData(prev => ({ ...prev, valor_total: total.toFixed(2) }));
-  }, [formData.valor_liquido, formData.desconto, formData.juros_multa]);
-
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const numero = await getNextNumber(empresaSelecionadaId);
-      const pessoa = fornecedores.find(f => f.id === data.pessoa_id);
+      const fornecedor = fornecedores.find(f => f.id === data.fornecedor_id);
       const plano = planos.find(p => p.id === data.plano_contas_id);
       const centro = centros.find(c => c.id === data.centro_custo_id);
 
       return base44.entities.LancamentoFinanceiro.create({
         empresa_id: empresaSelecionadaId,
         numero_lancamento: String(numero),
-        ...data,
-        pessoa_nome: pessoa?.nome,
-        pessoa_cpf_cnpj: pessoa?.cnpj || pessoa?.cpf,
-        plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
-        centro_custo_nome: centro?.nome,
-        valor_liquido: parseFloat(data.valor_liquido) || 0,
+        tipo: data.tipo,
+        fornecedor_id: data.fornecedor_id,
+        fornecedor_nome: fornecedor?.nome,
+        descricao: data.descricao.toUpperCase(),
+        documento: data.documento?.toUpperCase(),
+        data_emissao: data.data_emissao,
+        data_vencimento: data.data_vencimento,
+        valor_original: parseFloat(data.valor_original) || 0,
+        juros: parseFloat(data.juros) || 0,
+        multa: parseFloat(data.multa) || 0,
         desconto: parseFloat(data.desconto) || 0,
-        juros_multa: parseFloat(data.juros_multa) || 0,
-        valor_total: parseFloat(data.valor_total) || 0,
+        valor_pago: 0,
+        plano_contas_id: data.plano_contas_id,
+        plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
+        centro_custo_id: data.centro_custo_id,
+        centro_custo_nome: centro?.nome,
+        forma_pagamento: data.forma_pagamento,
+        status: 'Pendente',
         observacoes: data.observacoes?.toUpperCase()
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       resetForm();
-      setModoTela("lista");
       toast.success('✅ Lançamento cadastrado!');
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => {
-      const pessoa = fornecedores.find(f => f.id === data.pessoa_id);
+      const fornecedor = fornecedores.find(f => f.id === data.fornecedor_id);
       const plano = planos.find(p => p.id === data.plano_contas_id);
       const centro = centros.find(c => c.id === data.centro_custo_id);
 
       return base44.entities.LancamentoFinanceiro.update(id, {
-        ...data,
-        pessoa_nome: pessoa?.nome,
-        pessoa_cpf_cnpj: pessoa?.cnpj || pessoa?.cpf,
-        plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
-        centro_custo_nome: centro?.nome,
-        valor_liquido: parseFloat(data.valor_liquido) || 0,
+        tipo: data.tipo,
+        fornecedor_id: data.fornecedor_id,
+        fornecedor_nome: fornecedor?.nome,
+        descricao: data.descricao.toUpperCase(),
+        documento: data.documento?.toUpperCase(),
+        data_emissao: data.data_emissao,
+        data_vencimento: data.data_vencimento,
+        valor_original: parseFloat(data.valor_original) || 0,
+        juros: parseFloat(data.juros) || 0,
+        multa: parseFloat(data.multa) || 0,
         desconto: parseFloat(data.desconto) || 0,
-        juros_multa: parseFloat(data.juros_multa) || 0,
-        valor_total: parseFloat(data.valor_total) || 0,
+        plano_contas_id: data.plano_contas_id,
+        plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
+        centro_custo_id: data.centro_custo_id,
+        centro_custo_nome: centro?.nome,
+        forma_pagamento: data.forma_pagamento,
         observacoes: data.observacoes?.toUpperCase()
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       resetForm();
-      setModoTela("lista");
+      setEditingId(null);
       toast.success('✅ Lançamento atualizado!');
     },
   });
@@ -218,94 +189,58 @@ export default function Financeiro() {
 
   const resetForm = () => {
     setFormData({
-      tipo: "Despesa",
-      numero_referencia: "",
-      status: "Pendente",
-      data_documento: new Date().toISOString().split('T')[0],
+      tipo: "Pagar",
+      fornecedor_id: "",
+      descricao: "",
+      documento: "",
+      data_emissao: new Date().toISOString().split('T')[0],
       data_vencimento: new Date().toISOString().split('T')[0],
-      data_baixa: "",
-      valor_liquido: "",
+      valor_original: "",
+      juros: "0",
+      multa: "0",
       desconto: "0",
-      juros_multa: "0",
-      valor_total: "0",
-      moeda: "BRL",
-      taxa_cambio: "",
-      conta_bancaria_id: "",
-      forma_pagamento: "",
-      parcelado: false,
-      numero_parcelas: "",
-      centro_custo_id: "",
-      projeto_id: "",
-      categoria_id: "",
-      pessoa_id: "",
       plano_contas_id: "",
-      origem: "Manual",
-      tags: [],
-      observacoes: "",
-      tipo_documento_fiscal: "",
-      numero_nf: "",
-      chave_nf: "",
-      data_emissao_fiscal: "",
-      cfop: "",
-      icms_base: "0",
-      icms_aliquota: "0",
-      icms_valor: "0",
-      pis_base: "0",
-      pis_aliquota: "0",
-      pis_valor: "0",
-      cofins_base: "0",
-      cofins_aliquota: "0",
-      cofins_valor: "0",
-      iss_base: "0",
-      iss_aliquota: "0",
-      iss_valor: "0",
-      irrf_valor: "0",
-      inss_valor: "0",
-      csll_valor: "0",
-      itens: [],
-      rateio: [],
-      anexos: [],
-      requer_aprovacao: false,
-      status_aprovacao: "Pendente"
+      centro_custo_id: "",
+      forma_pagamento: "",
+      observacoes: ""
     });
     setEditingId(null);
-    setAbaAtiva("dados_financeiros");
   };
 
-  const handleSubmit = (isDraft = false) => {
-    if (!isDraft) {
-      if (!formData.tipo || !formData.valor_liquido || !formData.data_vencimento) {
-        toast.error('❌ Preencha os campos obrigatórios!');
-        return;
-      }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formData.fornecedor_id || !formData.descricao || !formData.valor_original || !formData.plano_contas_id) {
+      toast.error('❌ Preencha os campos obrigatórios!');
+      return;
     }
 
-    const dataToSave = {
-      ...formData,
-      status: isDraft ? "Rascunho" : formData.status
-    };
-
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: dataToSave });
+      updateMutation.mutate({ id: editingId, data: formData });
     } else {
-      createMutation.mutate(dataToSave);
+      createMutation.mutate(formData);
     }
   };
 
   const handleEdit = (lancamento) => {
     setFormData({
-      ...lancamento,
-      valor_liquido: String(lancamento.valor_liquido || 0),
+      tipo: lancamento.tipo,
+      fornecedor_id: lancamento.fornecedor_id || "",
+      descricao: lancamento.descricao || "",
+      documento: lancamento.documento || "",
+      data_emissao: lancamento.data_emissao,
+      data_vencimento: lancamento.data_vencimento,
+      valor_original: String(lancamento.valor_original || 0),
+      juros: String(lancamento.juros || 0),
+      multa: String(lancamento.multa || 0),
       desconto: String(lancamento.desconto || 0),
-      juros_multa: String(lancamento.juros_multa || 0),
-      valor_total: String(lancamento.valor_total || 0),
-      itens: lancamento.itens || [],
-      rateio: lancamento.rateio || [],
-      anexos: lancamento.anexos || [],
-      tags: lancamento.tags || []
+      plano_contas_id: lancamento.plano_contas_id || "",
+      centro_custo_id: lancamento.centro_custo_id || "",
+      forma_pagamento: lancamento.forma_pagamento || "",
+      observacoes: lancamento.observacoes || ""
     });
     setEditingId(lancamento.id);
-    setModoTela("editar");
+    setAbaAtiva("cadastrar");
   };
 
   const handleDelete = (id) => {
@@ -315,587 +250,527 @@ export default function Financeiro() {
   };
 
   const lancamentosFiltrados = lancamentos.filter(l => {
-    const searchLower = searchTerm.toLowerCase();
-    return !searchTerm || 
-      (l.pessoa_nome || '').toLowerCase().includes(searchLower) ||
-      (l.numero_referencia || '').toLowerCase().includes(searchLower) ||
-      (l.observacoes || '').toLowerCase().includes(searchLower);
+    const matchTipo = filtroTipo === "todos" || l.tipo === filtroTipo;
+    const matchSearch = !searchTerm || 
+      (l.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (l.fornecedor_nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (l.documento || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchTipo && matchSearch;
   });
 
-  const pessoaSelecionada = fornecedores.find(f => f.id === formData.pessoa_id);
+  const totalPagar = lancamentos.filter(l => l.tipo === 'Pagar' && l.status !== 'Pago').reduce((sum, l) => sum + ((l.valor_original || 0) - (l.valor_pago || 0)), 0);
+  const totalReceber = lancamentos.filter(l => l.tipo === 'Receber' && l.status !== 'Pago').reduce((sum, l) => sum + ((l.valor_original || 0) - (l.valor_pago || 0)), 0);
+  const totalPago = lancamentos.filter(l => l.status === 'Pago').reduce((sum, l) => sum + (l.valor_pago || 0), 0);
 
-  // MODO LISTA
-  if (modoTela === "lista") {
-    return (
-      <div className="p-4 bg-white min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <Card className="border shadow-sm">
-            <CardHeader className="border-b bg-slate-50">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-lg">Lançamentos Financeiros</CardTitle>
-                <Button size="sm" onClick={() => setModoTela("criar")} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Lançamento
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input 
-                    placeholder="Pesquisar por pessoa, referência, observações..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)} 
-                    className="pl-8 h-8 text-sm"
-                  />
+  const valorTotal = (parseFloat(formData.valor_original) || 0) + (parseFloat(formData.juros) || 0) + (parseFloat(formData.multa) || 0) - (parseFloat(formData.desconto) || 0);
+
+  return (
+    <div className="p-6 bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">FINANCEIRO</h1>
+          <p className="text-sm text-slate-600">Controle de contas a pagar e receber</p>
+        </div>
+
+        <Card className="border-slate-300 shadow-lg">
+          <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+            <TabsList className="w-full justify-start bg-slate-100 border-b rounded-none h-12">
+              <TabsTrigger value="cadastrar" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+                Cadastrar
+              </TabsTrigger>
+              <TabsTrigger value="pesquisar" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+                Pesquisar
+              </TabsTrigger>
+              <TabsTrigger value="painel" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+                Painel
+              </TabsTrigger>
+              <TabsTrigger value="valores" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+                Valores
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ABA CADASTRAR */}
+            <TabsContent value="cadastrar" className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* TIPO */}
+                <div className="bg-slate-50 p-4 rounded border">
+                  <Label className="text-sm font-semibold mb-3 block">Tipo:</Label>
+                  <RadioGroup value={formData.tipo} onValueChange={(v) => setFormData({...formData, tipo: v})} className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Pagar" id="pagar" />
+                      <Label htmlFor="pagar" className="cursor-pointer font-normal">Contas a Pagar</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Receber" id="receber" />
+                      <Label htmlFor="receber" className="cursor-pointer font-normal">Contas a Receber</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-              </div>
 
-              <div className="border rounded overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="h-8 text-xs">Nº</TableHead>
-                      <TableHead className="h-8 text-xs">Tipo</TableHead>
-                      <TableHead className="h-8 text-xs">Pessoa</TableHead>
-                      <TableHead className="h-8 text-xs">Referência</TableHead>
-                      <TableHead className="h-8 text-xs">Vencimento</TableHead>
-                      <TableHead className="h-8 text-xs text-right">Valor</TableHead>
-                      <TableHead className="h-8 text-xs">Status</TableHead>
-                      <TableHead className="h-8 text-xs text-center">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4 text-xs">Carregando...</TableCell>
+                {/* DADOS PRINCIPAIS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">{formData.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}: *</Label>
+                    <Select value={formData.fornecedor_id} onValueChange={(v) => setFormData({...formData, fornecedor_id: v})}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fornecedores.map(f => (
+                          <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Nº Documento:</Label>
+                    <Input value={formData.documento} onChange={(e) => setFormData({...formData, documento: e.target.value})} placeholder="Número do documento" className="bg-white uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">Descrição: *</Label>
+                  <Input value={formData.descricao} onChange={(e) => setFormData({...formData, descricao: e.target.value})} placeholder="Descrição do lançamento" className="bg-white uppercase" style={{ textTransform: 'uppercase' }} required />
+                </div>
+
+                {/* DATAS E VALORES */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Data Emissão: *</Label>
+                    <Input type="date" value={formData.data_emissao} onChange={(e) => setFormData({...formData, data_emissao: e.target.value})} className="bg-white" required />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Data Vencimento: *</Label>
+                    <Input type="date" value={formData.data_vencimento} onChange={(e) => setFormData({...formData, data_vencimento: e.target.value})} className="bg-white" required />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Valor Original: *</Label>
+                    <Input type="number" step="0.01" value={formData.valor_original} onChange={(e) => setFormData({...formData, valor_original: e.target.value})} placeholder="0.00" className="bg-white" required />
+                  </div>
+
+                  <div className="space-y-2 bg-green-50 p-3 rounded border border-green-200">
+                    <Label className="text-xs font-semibold text-green-800">Valor Total:</Label>
+                    <div className="text-xl font-bold text-green-700">{formatarMoeda(valorTotal)}</div>
+                  </div>
+                </div>
+
+                {/* AJUSTES */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Juros:</Label>
+                    <Input type="number" step="0.01" value={formData.juros} onChange={(e) => setFormData({...formData, juros: e.target.value})} placeholder="0.00" className="bg-white" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Multa:</Label>
+                    <Input type="number" step="0.01" value={formData.multa} onChange={(e) => setFormData({...formData, multa: e.target.value})} placeholder="0.00" className="bg-white" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Desconto:</Label>
+                    <Input type="number" step="0.01" value={formData.desconto} onChange={(e) => setFormData({...formData, desconto: e.target.value})} placeholder="0.00" className="bg-white" />
+                  </div>
+                </div>
+
+                {/* CLASSIFICAÇÃO */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Plano de Contas: *</Label>
+                    <Select value={formData.plano_contas_id} onValueChange={(v) => setFormData({...formData, plano_contas_id: v})}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Centro de Custo:</Label>
+                    <Select value={formData.centro_custo_id} onValueChange={(v) => setFormData({...formData, centro_custo_id: v})}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Opcional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {centros.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Forma Pagamento:</Label>
+                    <Select value={formData.forma_pagamento} onValueChange={(v) => setFormData({...formData, forma_pagamento: v})}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                        <SelectItem value="PIX">PIX</SelectItem>
+                        <SelectItem value="Boleto">Boleto</SelectItem>
+                        <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
+                        <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
+                        <SelectItem value="Transferência">Transferência</SelectItem>
+                        <SelectItem value="Cheque">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* OBSERVAÇÕES */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Observações:</Label>
+                  <Textarea value={formData.observacoes} onChange={(e) => setFormData({...formData, observacoes: e.target.value})} placeholder="OBSERVAÇÕES ADICIONAIS..." rows={3} className="bg-white uppercase" style={{ textTransform: 'uppercase' }} />
+                </div>
+
+                {/* BOTÕES */}
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={resetForm} className="gap-2">
+                    <X className="w-4 h-4" />
+                    {editingId ? 'Cancelar' : 'Limpar'}
+                  </Button>
+                  <Button type="submit" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                    <Save className="w-4 h-4" />
+                    {editingId ? 'Atualizar' : 'Salvar'}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+
+            {/* ABA PESQUISAR */}
+            <TabsContent value="pesquisar" className="p-6">
+              <div className="space-y-4">
+                {/* FILTROS */}
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex-1 min-w-[300px]">
+                    <Label className="text-sm mb-2 block">Pesquisa Rápida:</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input 
+                        placeholder="Fornecedor, descrição, documento..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="pl-10 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                    <SelectTrigger className="w-48 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="Pagar">Contas a Pagar</SelectItem>
+                      <SelectItem value="Receber">Contas a Receber</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* TABELA */}
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead className="font-semibold">Nº</TableHead>
+                        <TableHead className="font-semibold">Tipo</TableHead>
+                        <TableHead className="font-semibold">Fornecedor/Cliente</TableHead>
+                        <TableHead className="font-semibold">Descrição</TableHead>
+                        <TableHead className="font-semibold">Doc</TableHead>
+                        <TableHead className="font-semibold">Emissão</TableHead>
+                        <TableHead className="font-semibold">Vencimento</TableHead>
+                        <TableHead className="text-right font-semibold">Valor</TableHead>
+                        <TableHead className="text-right font-semibold">Pago</TableHead>
+                        <TableHead className="text-right font-semibold">Saldo</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="text-center font-semibold">Ações</TableHead>
                       </TableRow>
-                    ) : lancamentosFiltrados.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          <DollarSign className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                          <p className="text-xs text-slate-500">Nenhum lançamento encontrado</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      lancamentosFiltrados.map((lanc) => (
-                        <TableRow key={lanc.id} className="hover:bg-slate-50">
-                          <TableCell className="py-2 text-xs font-semibold">{lanc.numero_lancamento}</TableCell>
-                          <TableCell className="py-2">
-                            <Badge variant="outline" className="text-xs">{lanc.tipo}</Badge>
-                          </TableCell>
-                          <TableCell className="py-2 text-xs">{lanc.pessoa_nome || '-'}</TableCell>
-                          <TableCell className="py-2 text-xs">{lanc.numero_referencia || '-'}</TableCell>
-                          <TableCell className="py-2 text-xs">{formatarData(lanc.data_vencimento)}</TableCell>
-                          <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(lanc.valor_total)}</TableCell>
-                          <TableCell className="py-2">
-                            <Badge className={`text-xs ${
-                              lanc.status === 'Pago' ? 'bg-green-100 text-green-800' :
-                              lanc.status === 'Rascunho' ? 'bg-slate-100 text-slate-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {lanc.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <div className="flex gap-1 justify-center">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-6 w-6">
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-6 w-6 text-red-600">
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={12} className="text-center py-8 text-slate-400">
+                            Carregando...
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+                      ) : lancamentosFiltrados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={12} className="text-center py-12">
+                            <DollarSign className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                            <p className="text-slate-500">Nenhum lançamento encontrado</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        lancamentosFiltrados.map((lanc) => {
+                          const valorOriginal = lanc.valor_original || 0;
+                          const valorPago = lanc.valor_pago || 0;
+                          const saldo = valorOriginal - valorPago;
 
-  // MODO CRIAR/EDITAR
-  return (
-    <div className="p-4 bg-white min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-12 gap-4">
-          {/* ÁREA PRINCIPAL - FORMULÁRIO */}
-          <div className="col-span-9">
-            <Card className="border shadow-sm">
-              <CardHeader className="border-b bg-slate-50">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-base">
-                    {editingId ? 'Editar Lançamento' : 'Novo Lançamento'}
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleSubmit(true)}>
-                      <Save className="w-3 h-3 mr-1" />
-                      Salvar Rascunho
-                    </Button>
-                    <Button size="sm" onClick={() => handleSubmit(false)} className="bg-blue-600">
-                      <Save className="w-3 h-3 mr-1" />
-                      Salvar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => { resetForm(); setModoTela("lista"); }}>
-                      <X className="w-3 h-3 mr-1" />
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-                <TabsList className="w-full justify-start bg-slate-50 border-b rounded-none h-10">
-                  <TabsTrigger value="dados_financeiros" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Dados Financeiros
-                  </TabsTrigger>
-                  <TabsTrigger value="itens" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Produtos/Itens
-                  </TabsTrigger>
-                  <TabsTrigger value="fiscal" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Informações Fiscais
-                  </TabsTrigger>
-                  <TabsTrigger value="rateio" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Rateio
-                  </TabsTrigger>
-                  <TabsTrigger value="anexos" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Anexos
-                  </TabsTrigger>
-                  <TabsTrigger value="aprovacao" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
-                    Aprovação
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* ABA 1 - DADOS FINANCEIROS */}
-                <TabsContent value="dados_financeiros" className="p-4">
-                  <div className="space-y-3">
-                    {/* Tipo */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Tipo de Lançamento: *</Label>
-                      <div className="col-span-9">
-                        <Select value={formData.tipo} onValueChange={(v) => setFormData({...formData, tipo: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Receita">Receita</SelectItem>
-                            <SelectItem value="Despesa">Despesa</SelectItem>
-                            <SelectItem value="Transferência">Transferência</SelectItem>
-                            <SelectItem value="Ajuste">Ajuste</SelectItem>
-                            <SelectItem value="Provisão">Provisão</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Número/Referência */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Número/Referência:</Label>
-                      <div className="col-span-9">
-                        <Input 
-                          value={formData.numero_referencia} 
-                          onChange={(e) => setFormData({...formData, numero_referencia: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pessoa */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">
-                        {formData.tipo === 'Receita' ? 'Cliente' : 'Fornecedor'}: *
-                      </Label>
-                      <div className="col-span-9">
-                        <Select value={formData.pessoa_id} onValueChange={(v) => setFormData({...formData, pessoa_id: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {fornecedores.map(f => (
-                              <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* CPF/CNPJ */}
-                    {pessoaSelecionada && (
-                      <div className="grid grid-cols-12 gap-3 items-center">
-                        <Label className="col-span-3 text-right text-xs">CPF/CNPJ:</Label>
-                        <div className="col-span-9">
-                          <Input 
-                            value={pessoaSelecionada.cnpj || pessoaSelecionada.cpf || ''} 
-                            className="h-8 text-xs bg-slate-50" 
-                            disabled 
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Datas */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Data Documento: *</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          type="date" 
-                          value={formData.data_documento} 
-                          onChange={(e) => setFormData({...formData, data_documento: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs">Data Vencimento: *</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          type="date" 
-                          value={formData.data_vencimento} 
-                          onChange={(e) => setFormData({...formData, data_vencimento: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Valores */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Valor Líquido: *</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          value={formData.valor_liquido} 
-                          onChange={(e) => setFormData({...formData, valor_liquido: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs">Desconto:</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          value={formData.desconto} 
-                          onChange={(e) => setFormData({...formData, desconto: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Juros/Multa:</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          value={formData.juros_multa} 
-                          onChange={(e) => setFormData({...formData, juros_multa: e.target.value})} 
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs font-semibold">Valor Total:</Label>
-                      <div className="col-span-3">
-                        <Input 
-                          value={formatarMoeda(parseFloat(formData.valor_total) || 0)} 
-                          className="h-8 text-xs font-bold bg-green-50" 
-                          disabled 
-                        />
-                      </div>
-                    </div>
-
-                    {/* Forma Pagamento */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Forma de Pagamento:</Label>
-                      <div className="col-span-9">
-                        <Select value={formData.forma_pagamento} onValueChange={(v) => setFormData({...formData, forma_pagamento: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PIX">PIX</SelectItem>
-                            <SelectItem value="Boleto">Boleto</SelectItem>
-                            <SelectItem value="Transferência">Transferência (TED/DOC)</SelectItem>
-                            <SelectItem value="Cartão">Cartão</SelectItem>
-                            <SelectItem value="Cheque">Cheque</SelectItem>
-                            <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Plano de Contas */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Plano de Contas: *</Label>
-                      <div className="col-span-9">
-                        <Select value={formData.plano_contas_id} onValueChange={(v) => setFormData({...formData, plano_contas_id: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {planos.map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Centro de Custo */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Centro de Custo:</Label>
-                      <div className="col-span-9">
-                        <Select value={formData.centro_custo_id} onValueChange={(v) => setFormData({...formData, centro_custo_id: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {centros.map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Parcelamento */}
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Parcelado:</Label>
-                      <div className="col-span-2 flex items-center gap-2">
-                        <Switch 
-                          checked={formData.parcelado} 
-                          onCheckedChange={(v) => setFormData({...formData, parcelado: v})}
-                        />
-                        <span className="text-xs">{formData.parcelado ? 'Sim' : 'Não'}</span>
-                      </div>
-                      {formData.parcelado && (
-                        <>
-                          <Label className="col-span-2 text-right text-xs">Nº Parcelas:</Label>
-                          <div className="col-span-2">
-                            <Input 
-                              type="number"
-                              value={formData.numero_parcelas} 
-                              onChange={(e) => setFormData({...formData, numero_parcelas: e.target.value})} 
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                        </>
+                          return (
+                            <TableRow key={lanc.id} className="hover:bg-slate-50">
+                              <TableCell className="font-bold">{lanc.numero_lancamento}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={lanc.tipo === 'Pagar' ? 'border-red-300 text-red-700' : 'border-green-300 text-green-700'}>
+                                  {lanc.tipo}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate">{lanc.fornecedor_nome || '-'}</TableCell>
+                              <TableCell className="max-w-[250px] truncate">{lanc.descricao}</TableCell>
+                              <TableCell className="text-xs font-mono">{lanc.documento || '-'}</TableCell>
+                              <TableCell className="text-xs">{formatarData(lanc.data_emissao)}</TableCell>
+                              <TableCell className="text-xs">{formatarData(lanc.data_vencimento)}</TableCell>
+                              <TableCell className="text-right font-mono font-semibold">{formatarMoeda(valorOriginal)}</TableCell>
+                              <TableCell className="text-right font-mono text-blue-600">{formatarMoeda(valorPago)}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-red-600">{formatarMoeda(saldo)}</TableCell>
+                              <TableCell>
+                                <Badge className={
+                                  lanc.status === 'Pago' ? 'bg-green-100 text-green-800' :
+                                  lanc.status === 'Vencido' ? 'bg-red-100 text-red-800' :
+                                  lanc.status === 'Parcial' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }>
+                                  {lanc.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 justify-center">
+                                  <Button variant="ghost" size="icon" onClick={() => setDetalhesAberto(lanc)} className="h-8 w-8" title="Detalhes">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-8 w-8 text-blue-600" title="Editar">
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-8 w-8 text-red-600" title="Excluir">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
-                    </div>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </TabsContent>
 
-                    {/* Observações */}
-                    <div className="grid grid-cols-12 gap-3 items-start">
-                      <Label className="col-span-3 text-right text-xs pt-2">Observações:</Label>
-                      <div className="col-span-9">
-                        <Textarea 
-                          value={formData.observacoes} 
-                          onChange={(e) => setFormData({...formData, observacoes: e.target.value})} 
-                          className="text-xs uppercase min-h-20"
-                          style={{ textTransform: 'uppercase' }}
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
+            {/* ABA PAINEL */}
+            <TabsContent value="painel" className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-red-200 bg-red-50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingDown className="w-5 h-5 text-red-600" />
+                      A Pagar
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-700">{formatarMoeda(totalPagar)}</div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {lancamentos.filter(l => l.tipo === 'Pagar' && l.status !== 'Pago').length} lançamento(s)
+                    </p>
+                  </CardContent>
+                </Card>
 
-                {/* ABA 2 - PRODUTOS/ITENS */}
-                <TabsContent value="itens" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Grid de itens em desenvolvimento</p>
-                    <p className="text-xs mt-1">Adicione produtos/serviços ao lançamento</p>
-                  </div>
-                </TabsContent>
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                      A Receber
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-700">{formatarMoeda(totalReceber)}</div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {lancamentos.filter(l => l.tipo === 'Receber' && l.status !== 'Pago').length} lançamento(s)
+                    </p>
+                  </CardContent>
+                </Card>
 
-                {/* ABA 3 - INFORMAÇÕES FISCAIS */}
-                <TabsContent value="fiscal" className="p-4">
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Tipo Documento Fiscal:</Label>
-                      <div className="col-span-9">
-                        <Select value={formData.tipo_documento_fiscal} onValueChange={(v) => setFormData({...formData, tipo_documento_fiscal: v})}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NF-e">NF-e</SelectItem>
-                            <SelectItem value="NFS-e">NFS-e</SelectItem>
-                            <SelectItem value="NFC-e">NFC-e</SelectItem>
-                            <SelectItem value="Sem Documento">Sem Documento</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                      Total Pago
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-700">{formatarMoeda(totalPago)}</div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {lancamentos.filter(l => l.status === 'Pago').length} lançamento(s)
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
 
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Número NF:</Label>
-                      <div className="col-span-3">
-                        <Input value={formData.numero_nf} onChange={(e) => setFormData({...formData, numero_nf: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs">Chave NF-e:</Label>
-                      <div className="col-span-3">
-                        <Input value={formData.chave_nf} onChange={(e) => setFormData({...formData, chave_nf: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">CFOP:</Label>
-                      <div className="col-span-9">
-                        <Input value={formData.cfop} onChange={(e) => setFormData({...formData, cfop: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 mb-2 pb-2 border-b">
-                      <h3 className="text-xs font-semibold">ICMS</h3>
-                    </div>
-
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Base ICMS:</Label>
-                      <div className="col-span-3">
-                        <Input type="number" step="0.01" value={formData.icms_base} onChange={(e) => setFormData({...formData, icms_base: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs">Alíquota %:</Label>
-                      <div className="col-span-3">
-                        <Input type="number" step="0.01" value={formData.icms_aliquota} onChange={(e) => setFormData({...formData, icms_aliquota: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 mb-2 pb-2 border-b">
-                      <h3 className="text-xs font-semibold">PIS / COFINS</h3>
-                    </div>
-
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Base PIS:</Label>
-                      <div className="col-span-3">
-                        <Input type="number" step="0.01" value={formData.pis_base} onChange={(e) => setFormData({...formData, pis_base: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                      <Label className="col-span-3 text-right text-xs">Alíquota %:</Label>
-                      <div className="col-span-3">
-                        <Input type="number" step="0.01" value={formData.pis_aliquota} onChange={(e) => setFormData({...formData, pis_aliquota: e.target.value})} className="h-8 text-xs" />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* ABA 4 - RATEIO */}
-                <TabsContent value="rateio" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Rateio entre centros de custo em desenvolvimento</p>
-                  </div>
-                </TabsContent>
-
-                {/* ABA 5 - ANEXOS */}
-                <TabsContent value="anexos" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <Upload className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Upload de anexos em desenvolvimento</p>
-                    <p className="text-xs mt-1">Arraste arquivos ou clique para selecionar</p>
-                  </div>
-                </TabsContent>
-
-                {/* ABA 6 - APROVAÇÃO */}
-                <TabsContent value="aprovacao" className="p-4">
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      <Label className="col-span-3 text-right text-xs">Requer Aprovação:</Label>
-                      <div className="col-span-9 flex items-center gap-2">
-                        <Switch 
-                          checked={formData.requer_aprovacao} 
-                          onCheckedChange={(v) => setFormData({...formData, requer_aprovacao: v})}
-                        />
-                        <span className="text-xs">{formData.requer_aprovacao ? 'Sim' : 'Não'}</span>
-                      </div>
-                    </div>
-
-                    {formData.requer_aprovacao && (
-                      <div className="grid grid-cols-12 gap-3 items-center">
-                        <Label className="col-span-3 text-right text-xs">Status Aprovação:</Label>
-                        <div className="col-span-9">
-                          <Badge className="text-xs">{formData.status_aprovacao}</Badge>
+              <Card className="mt-6 border-amber-200 bg-amber-50">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-amber-600" />
+                    Vencimentos Próximos (7 dias)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {lancamentos
+                      .filter(l => {
+                        if (l.status === 'Pago') return false;
+                        const hoje = new Date();
+                        const venc = new Date(l.data_vencimento);
+                        const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
+                        return diff >= 0 && diff <= 7;
+                      })
+                      .slice(0, 5)
+                      .map(l => (
+                        <div key={l.id} className="flex justify-between items-center p-3 bg-white rounded border">
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">{l.descricao}</div>
+                            <div className="text-xs text-slate-600">{l.fornecedor_nome}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-sm">{formatarMoeda(l.valor_original || 0)}</div>
+                            <div className="text-xs text-amber-700">{formatarData(l.data_vencimento)}</div>
+                          </div>
                         </div>
+                      ))}
+                    {lancamentos.filter(l => {
+                      if (l.status === 'Pago') return false;
+                      const hoje = new Date();
+                      const venc = new Date(l.data_vencimento);
+                      const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
+                      return diff >= 0 && diff <= 7;
+                    }).length === 0 && (
+                      <div className="text-center py-6 text-slate-500">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Nenhum vencimento próximo</p>
                       </div>
                     )}
                   </div>
-                </TabsContent>
-              </Tabs>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* PAINEL LATERAL - RESUMO */}
-          <div className="col-span-3">
-            <Card className="border shadow-sm sticky top-4">
-              <CardHeader className="border-b bg-slate-50 pb-3">
-                <CardTitle className="text-sm">Resumo Financeiro</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Valor Líquido:</span>
-                    <span className="font-semibold">{formatarMoeda(parseFloat(formData.valor_liquido) || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Desconto:</span>
-                    <span className="text-green-600">- {formatarMoeda(parseFloat(formData.desconto) || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Juros/Multa:</span>
-                    <span className="text-red-600">+ {formatarMoeda(parseFloat(formData.juros_multa) || 0)}</span>
-                  </div>
-                  <div className="pt-2 border-t flex justify-between items-center">
-                    <span className="text-xs font-semibold">Valor Total:</span>
-                    <span className="text-base font-bold text-blue-600">{formatarMoeda(parseFloat(formData.valor_total) || 0)}</span>
-                  </div>
-                </div>
+            {/* ABA VALORES */}
+            <TabsContent value="valores" className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Por Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {['Pendente', 'Pago', 'Parcial', 'Vencido', 'Cancelado'].map(status => {
+                      const total = lancamentos.filter(l => l.status === status).reduce((sum, l) => sum + (l.valor_original || 0), 0);
+                      const count = lancamentos.filter(l => l.status === status).length;
+                      
+                      return (
+                        <div key={status} className="flex justify-between items-center p-3 bg-slate-50 rounded">
+                          <span className="font-medium">{status}</span>
+                          <div className="text-right">
+                            <div className="font-bold">{formatarMoeda(total)}</div>
+                            <div className="text-xs text-slate-500">{count} item(ns)</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
 
-                {/* Alertas */}
-                <div className="space-y-2 pt-3 border-t">
-                  {!formData.pessoa_id && (
-                    <div className="flex items-start gap-2 p-2 bg-yellow-50 rounded text-xs">
-                      <AlertTriangle className="w-3 h-3 text-yellow-600 mt-0.5" />
-                      <span className="text-yellow-800">Selecione uma pessoa</span>
-                    </div>
-                  )}
-                  {!formData.plano_contas_id && (
-                    <div className="flex items-start gap-2 p-2 bg-yellow-50 rounded text-xs">
-                      <AlertTriangle className="w-3 h-3 text-yellow-600 mt-0.5" />
-                      <span className="text-yellow-800">Selecione um plano de contas</span>
-                    </div>
-                  )}
-                  {formData.valor_liquido && parseFloat(formData.valor_liquido) > 0 && (
-                    <div className="flex items-start gap-2 p-2 bg-green-50 rounded text-xs">
-                      <CheckCircle className="w-3 h-3 text-green-600 mt-0.5" />
-                      <span className="text-green-800">Dados financeiros OK</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Informações */}
-                <div className="pt-3 border-t space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Tipo:</span>
-                    <Badge variant="outline" className="text-xs">{formData.tipo}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Status:</span>
-                    <Badge variant="outline" className="text-xs">{formData.status}</Badge>
-                  </div>
-                  {formData.parcelado && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Parcelas:</span>
-                      <span className="font-medium">{formData.numero_parcelas || '-'}x</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Por Forma de Pagamento</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {['Dinheiro', 'PIX', 'Boleto', 'Cartão Crédito', 'Transferência'].map(forma => {
+                      const total = lancamentos.filter(l => l.forma_pagamento === forma).reduce((sum, l) => sum + (l.valor_original || 0), 0);
+                      const count = lancamentos.filter(l => l.forma_pagamento === forma).length;
+                      
+                      if (count === 0) return null;
+                      
+                      return (
+                        <div key={forma} className="flex justify-between items-center p-3 bg-slate-50 rounded">
+                          <span className="font-medium">{forma}</span>
+                          <div className="text-right">
+                            <div className="font-bold">{formatarMoeda(total)}</div>
+                            <div className="text-xs text-slate-500">{count} item(ns)</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </Card>
       </div>
+
+      {/* DIALOG DETALHES */}
+      <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lançamento #{detalhesAberto?.numero_lancamento}</DialogTitle>
+          </DialogHeader>
+          {detalhesAberto && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><strong>Tipo:</strong> {detalhesAberto.tipo}</div>
+                <div><strong>Status:</strong> <Badge>{detalhesAberto.status}</Badge></div>
+                <div><strong>Fornecedor/Cliente:</strong> {detalhesAberto.fornecedor_nome || '-'}</div>
+                <div><strong>Documento:</strong> {detalhesAberto.documento || '-'}</div>
+                <div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div>
+                <div><strong>Vencimento:</strong> {formatarData(detalhesAberto.data_vencimento)}</div>
+                <div className="col-span-2"><strong>Descrição:</strong> {detalhesAberto.descricao}</div>
+              </div>
+
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Valor Original:</span>
+                      <span className="font-bold">{formatarMoeda(detalhesAberto.valor_original || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-red-600">
+                      <span>+ Juros:</span>
+                      <span>{formatarMoeda(detalhesAberto.juros || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-red-600">
+                      <span>+ Multa:</span>
+                      <span>{formatarMoeda(detalhesAberto.multa || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600">
+                      <span>- Desconto:</span>
+                      <span>{formatarMoeda(detalhesAberto.desconto || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-600 pt-2 border-t">
+                      <span>Valor Pago:</span>
+                      <span className="font-bold">{formatarMoeda(detalhesAberto.valor_pago || 0)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t-2">
+                      <span>Saldo:</span>
+                      <span className="text-red-700">{formatarMoeda((detalhesAberto.valor_original || 0) - (detalhesAberto.valor_pago || 0))}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {detalhesAberto.observacoes && (
+                <div className="bg-slate-50 p-4 rounded">
+                  <strong className="text-sm">Observações:</strong>
+                  <p className="text-sm mt-2 whitespace-pre-wrap">{detalhesAberto.observacoes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
