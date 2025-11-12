@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, FolderOpen, Settings, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
-import CartoesResumo from "../components/shared/CartoesResumo";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -187,8 +186,6 @@ export default function Categorias() {
               <p className="text-xs text-slate-600">Gerenciar categorias</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex justify-between gap-2">
             <div className="relative flex-1 max-w-md">

@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
-import CartoesResumo from "../components/shared/CartoesResumo";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -145,10 +144,6 @@ export default function LocaisEstoque() {
     );
   });
 
-  const cartoes = [
-    { id: 'total', label: 'Total de Locais', valor: locais.length, sublabel: 'Cadastrados', icon: Warehouse, cor: 'blue', tipo: 'numero' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
@@ -159,8 +154,6 @@ export default function LocaisEstoque() {
               <p className="text-xs text-slate-600">Gerenciar locais</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex justify-between gap-2">
             <div className="relative flex-1 max-w-md">
