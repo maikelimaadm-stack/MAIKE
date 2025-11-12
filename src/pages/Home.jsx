@@ -420,7 +420,7 @@ export default function Home() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {estatisticas[showDetalhesCartao]?.dados.slice(0, 50).map((item, idx) => (
+                    {showDetalhesCartao && estatisticas[showDetalhesCartao]?.dados?.slice(0, 50).map((item, idx) => (
                       <TableRow key={idx} className="text-xs">
                         {showDetalhesCartao === 'produtos' && (
                           <>
