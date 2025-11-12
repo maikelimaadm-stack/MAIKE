@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Printer, Settings, BarChart3 } from "lucide-react"; // Updated lucide-react import
+import { FileText, Printer, Settings, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -25,9 +25,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner"; // New import
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // New import
-import CartoesResumo from "../components/shared/CartoesResumo"; // New import
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -84,7 +83,7 @@ export default function RelatorioCustosSafra() {
   const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [showConfig, setShowConfig] = useState(false); // NEW STATE ADDED
+  const [showConfig, setShowConfig] = useState(false);
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -106,7 +105,6 @@ export default function RelatorioCustosSafra() {
   const [statusSelecionados, setStatusSelecionados] = useState([]);
   const [buscaObservacoes, setBuscaObservacoes] = useState("");
 
-  // CHANGED: Removed typeof window !== 'undefined' check as per outline
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: custos = [] } = useQuery({
@@ -310,8 +308,8 @@ export default function RelatorioCustosSafra() {
     setTipoRelatorio('analitico');
     setDataInicio('');
     setDataFim('');
-    setShowConfig(false); // Close config dialog
-    toast.info("Filtros limpos com sucesso."); // Show toast notification
+    setShowConfig(false);
+    toast.info("Filtros limpos com sucesso.");
   };
 
   const imprimir = () => window.print();
@@ -328,19 +326,18 @@ export default function RelatorioCustosSafra() {
   const desmarcarTodosStatus = () => setStatusSelecionados([]);
 
   return (
-    <div className="p-4 md:p-6 space-y-2"> {/* Changed main div classes */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"> {/* Changed header div classes */}
-        <div> {/* Removed previous flex items-center gap-3 div */}
-          {/* Removed icon div and icon */}
-          <h1 className="text-xl font-bold text-slate-900">Relatório de Custos de Safra</h1> {/* Changed h1 classes */}
-          <p className="text-xs text-slate-600">Análise e impressão</p> {/* Changed p classes and text */}
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Relatório de Custos de Safra</h1>
+          <p className="text-xs text-slate-600">Análise e impressão</p>
         </div>
-        <div className="flex gap-2"> {/* Added flex gap-2 for buttons */}
+        <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
             <Settings className="w-3.5 h-3.5" />
             Config
           </Button>
-          <Button onClick={imprimir} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"> {/* Changed button classes */}
+          <Button onClick={imprimir} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
             <Printer className="w-3.5 h-3.5" />
             Imprimir
           </Button>
@@ -353,8 +350,8 @@ export default function RelatorioCustosSafra() {
           <DialogHeader>
             <DialogTitle>Filtros e Configurações</DialogTitle>
           </DialogHeader>
-          <Card className="shadow-none border-0"> {/* Removed shadow and border, now inside dialog. Removed old CardHeader */}
-            <CardContent className="p-0 space-y-4"> {/* Changed padding to p-0 */}
+          <Card className="shadow-none border-0">
+            <CardContent className="p-0 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Orientação</Label>
@@ -709,7 +706,7 @@ export default function RelatorioCustosSafra() {
 
           <div className="mt-4 border-t-2 border-black pt-2">
             <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)</div>
+              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)}</div>
               <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValor)}</div>
             </div>
           </div>
