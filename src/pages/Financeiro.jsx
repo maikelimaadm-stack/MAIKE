@@ -2,6 +2,14 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle, AlertCircle } from "lucide-react";
+import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle, AlertCircle, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -30,6 +38,24 @@ const formatarData = (dataString) => {
   }
 };
 
+const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº Lanç.', default: true },
+  { id: 'tipo', label: 'Tipo', default: true },
+  { id: 'pessoa', label: 'Pessoa', default: true },
+  { id: 'referencia', label: 'Nº Referência', default: true },
+  { id: 'data_documento', label: 'Data Doc.', default: true },
+  { id: 'data_vencimento', label: 'Vencimento', default: true },
+  { id: 'data_baixa', label: 'Data Baixa', default: false },
+  { id: 'valor_liquido', label: 'Vlr Líquido', default: false },
+  { id: 'desconto', label: 'Desconto', default: false },
+  { id: 'juros_multa', label: 'Juros/Multa', default: false },
+  { id: 'valor_total', label: 'Vlr Total', default: true },
+  { id: 'forma_pagamento', label: 'Forma Pgto', default: true },
+  { id: 'plano_contas', label: 'Plano de Contas', default: false },
+  { id: 'centro_custo', label: 'Centro Custo', default: true },
+  { id: 'status', label: 'Status', default: true },
+];
+
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
   const filtered = all.filter(l => l && l.empresa_id === empresaId);
@@ -37,10 +63,24 @@ const getNextNumber = async (empresaId) => {
 };
 
 export default function Financeiro() {
-  const [modoTela, setModoTela] = useState("lista"); // lista, criar, editar
-  const [abaAtiva, setAbaAtiva] = useState("dados_financeiros");
+  const [abaModulo, setAbaModulo] = useState("pesquisa"); // pesquisa, cadastro
+  const [abaFormulario, setAbaFormulario] = useState("dados_financeiros");
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('colunas_financeiro');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        }
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
   
   const [formData, setFormData] = useState({
     // Dados Financeiros
@@ -176,7 +216,7 @@ export default function Financeiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       resetForm();
-      setModoTela("lista");
+      setAbaModulo("pesquisa");
       toast.success('✅ Lançamento cadastrado!');
     },
   });
@@ -203,7 +243,7 @@ export default function Financeiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       resetForm();
-      setModoTela("lista");
+      setAbaModulo("pesquisa");
       toast.success('✅ Lançamento atualizado!');
     },
   });
@@ -215,6 +255,20 @@ export default function Financeiro() {
       toast.success('✅ Lançamento excluído!');
     },
   });
+
+  const toggleColuna = (colunaId) => {
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId];
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('colunas_financeiro', JSON.stringify(novasColunas));
+      }
+      
+      return novasColunas;
+    });
+  };
 
   const resetForm = () => {
     setFormData({
@@ -269,7 +323,7 @@ export default function Financeiro() {
       status_aprovacao: "Pendente"
     });
     setEditingId(null);
-    setAbaAtiva("dados_financeiros");
+    setAbaFormulario("dados_financeiros");
   };
 
   const handleSubmit = (isDraft = false) => {
@@ -305,7 +359,12 @@ export default function Financeiro() {
       tags: lancamento.tags || []
     });
     setEditingId(lancamento.id);
-    setModoTela("editar");
+    setAbaModulo("cadastro");
+  };
+
+  const handleNovoLancamento = () => {
+    resetForm();
+    setAbaModulo("cadastro");
   };
 
   const handleDelete = (id) => {
@@ -324,108 +383,150 @@ export default function Financeiro() {
 
   const pessoaSelecionada = fornecedores.find(f => f.id === formData.pessoa_id);
 
-  // MODO LISTA
-  if (modoTela === "lista") {
-    return (
-      <div className="p-4 bg-white min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <Card className="border shadow-sm">
-            <CardHeader className="border-b bg-slate-50">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-lg">Lançamentos Financeiros</CardTitle>
-                <Button size="sm" onClick={() => setModoTela("criar")} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Lançamento
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input 
-                    placeholder="Pesquisar por pessoa, referência, observações..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)} 
-                    className="pl-8 h-8 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="border rounded overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="h-8 text-xs">Nº</TableHead>
-                      <TableHead className="h-8 text-xs">Tipo</TableHead>
-                      <TableHead className="h-8 text-xs">Pessoa</TableHead>
-                      <TableHead className="h-8 text-xs">Referência</TableHead>
-                      <TableHead className="h-8 text-xs">Vencimento</TableHead>
-                      <TableHead className="h-8 text-xs text-right">Valor</TableHead>
-                      <TableHead className="h-8 text-xs">Status</TableHead>
-                      <TableHead className="h-8 text-xs text-center">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4 text-xs">Carregando...</TableCell>
-                      </TableRow>
-                    ) : lancamentosFiltrados.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          <DollarSign className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                          <p className="text-xs text-slate-500">Nenhum lançamento encontrado</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      lancamentosFiltrados.map((lanc) => (
-                        <TableRow key={lanc.id} className="hover:bg-slate-50">
-                          <TableCell className="py-2 text-xs font-semibold">{lanc.numero_lancamento}</TableCell>
-                          <TableCell className="py-2">
-                            <Badge variant="outline" className="text-xs">{lanc.tipo}</Badge>
-                          </TableCell>
-                          <TableCell className="py-2 text-xs">{lanc.pessoa_nome || '-'}</TableCell>
-                          <TableCell className="py-2 text-xs">{lanc.numero_referencia || '-'}</TableCell>
-                          <TableCell className="py-2 text-xs">{formatarData(lanc.data_vencimento)}</TableCell>
-                          <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(lanc.valor_total)}</TableCell>
-                          <TableCell className="py-2">
-                            <Badge className={`text-xs ${
-                              lanc.status === 'Pago' ? 'bg-green-100 text-green-800' :
-                              lanc.status === 'Rascunho' ? 'bg-slate-100 text-slate-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {lanc.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <div className="flex gap-1 justify-center">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-6 w-6">
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-6 w-6 text-red-600">
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // MODO CRIAR/EDITAR
   return (
     <div className="p-4 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-12 gap-4">
+        <Tabs value={abaModulo} onValueChange={setAbaModulo} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-4">
+            <TabsTrigger value="pesquisa">Pesquisa</TabsTrigger>
+            <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
+          </TabsList>
+
+          {/* ABA PESQUISA */}
+          <TabsContent value="pesquisa">
+            <Card className="border shadow-sm">
+              <CardHeader className="border-b bg-slate-50">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg">Lançamentos Financeiros</CardTitle>
+                  <Button size="sm" onClick={handleNovoLancamento} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Lançamento
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="flex gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input 
+                      placeholder="Pesquisar por pessoa, referência, observações..." 
+                      value={searchTerm} 
+                      onChange={(e) => setSearchTerm(e.target.value)} 
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" title="Configurar Colunas" className="h-8 w-8">
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {COLUNAS_DISPONIVEIS.map((coluna) => (
+                        <DropdownMenuCheckboxItem
+                          key={coluna.id}
+                          checked={colunasVisiveis.includes(coluna.id)}
+                          onCheckedChange={() => toggleColuna(coluna.id)}
+                        >
+                          {coluna.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="border rounded overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        {colunasVisiveis.includes('numero') && <TableHead className="h-8 text-xs">Nº</TableHead>}
+                        {colunasVisiveis.includes('tipo') && <TableHead className="h-8 text-xs">Tipo</TableHead>}
+                        {colunasVisiveis.includes('pessoa') && <TableHead className="h-8 text-xs">Pessoa</TableHead>}
+                        {colunasVisiveis.includes('referencia') && <TableHead className="h-8 text-xs">Referência</TableHead>}
+                        {colunasVisiveis.includes('data_documento') && <TableHead className="h-8 text-xs">Data Doc.</TableHead>}
+                        {colunasVisiveis.includes('data_vencimento') && <TableHead className="h-8 text-xs">Vencimento</TableHead>}
+                        {colunasVisiveis.includes('data_baixa') && <TableHead className="h-8 text-xs">Data Baixa</TableHead>}
+                        {colunasVisiveis.includes('valor_liquido') && <TableHead className="h-8 text-xs text-right">Vlr Líquido</TableHead>}
+                        {colunasVisiveis.includes('desconto') && <TableHead className="h-8 text-xs text-right">Desconto</TableHead>}
+                        {colunasVisiveis.includes('juros_multa') && <TableHead className="h-8 text-xs text-right">Juros/Multa</TableHead>}
+                        {colunasVisiveis.includes('valor_total') && <TableHead className="h-8 text-xs text-right">Vlr Total</TableHead>}
+                        {colunasVisiveis.includes('forma_pagamento') && <TableHead className="h-8 text-xs">Forma Pgto</TableHead>}
+                        {colunasVisiveis.includes('plano_contas') && <TableHead className="h-8 text-xs">Plano Contas</TableHead>}
+                        {colunasVisiveis.includes('centro_custo') && <TableHead className="h-8 text-xs">Centro Custo</TableHead>}
+                        {colunasVisiveis.includes('status') && <TableHead className="h-8 text-xs">Status</TableHead>}
+                        <TableHead className="h-8 text-xs text-center">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={20} className="text-center py-4 text-xs">Carregando...</TableCell>
+                        </TableRow>
+                      ) : lancamentosFiltrados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={20} className="text-center py-8">
+                            <DollarSign className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                            <p className="text-xs text-slate-500">Nenhum lançamento encontrado</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        lancamentosFiltrados.map((lanc) => (
+                          <TableRow key={lanc.id} className="hover:bg-slate-50">
+                            {colunasVisiveis.includes('numero') && <TableCell className="py-2 text-xs font-semibold">{lanc.numero_lancamento}</TableCell>}
+                            {colunasVisiveis.includes('tipo') && (
+                              <TableCell className="py-2">
+                                <Badge variant="outline" className="text-xs">{lanc.tipo}</Badge>
+                              </TableCell>
+                            )}
+                            {colunasVisiveis.includes('pessoa') && <TableCell className="py-2 text-xs">{lanc.pessoa_nome || '-'}</TableCell>}
+                            {colunasVisiveis.includes('referencia') && <TableCell className="py-2 text-xs">{lanc.numero_referencia || '-'}</TableCell>}
+                            {colunasVisiveis.includes('data_documento') && <TableCell className="py-2 text-xs">{formatarData(lanc.data_documento)}</TableCell>}
+                            {colunasVisiveis.includes('data_vencimento') && <TableCell className="py-2 text-xs">{formatarData(lanc.data_vencimento)}</TableCell>}
+                            {colunasVisiveis.includes('data_baixa') && <TableCell className="py-2 text-xs">{formatarData(lanc.data_baixa)}</TableCell>}
+                            {colunasVisiveis.includes('valor_liquido') && <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(lanc.valor_liquido)}</TableCell>}
+                            {colunasVisiveis.includes('desconto') && <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(lanc.desconto)}</TableCell>}
+                            {colunasVisiveis.includes('juros_multa') && <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(lanc.juros_multa)}</TableCell>}
+                            {colunasVisiveis.includes('valor_total') && <TableCell className="py-2 text-xs text-right font-mono font-semibold">{formatarMoeda(lanc.valor_total)}</TableCell>}
+                            {colunasVisiveis.includes('forma_pagamento') && <TableCell className="py-2 text-xs">{lanc.forma_pagamento || '-'}</TableCell>}
+                            {colunasVisiveis.includes('plano_contas') && <TableCell className="py-2 text-xs">{lanc.plano_contas_nome || '-'}</TableCell>}
+                            {colunasVisiveis.includes('centro_custo') && <TableCell className="py-2 text-xs">{lanc.centro_custo_nome || '-'}</TableCell>}
+                            {colunasVisiveis.includes('status') && (
+                              <TableCell className="py-2">
+                                <Badge className={`text-xs ${
+                                  lanc.status === 'Pago' ? 'bg-green-100 text-green-800' :
+                                  lanc.status === 'Rascunho' ? 'bg-slate-100 text-slate-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {lanc.status}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            <TableCell className="py-2">
+                              <div className="flex gap-1 justify-center">
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-6 w-6">
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-6 w-6 text-red-600">
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ABA CADASTRO */}
+          <TabsContent value="cadastro">
+            <div className="grid grid-cols-12 gap-4">
           {/* ÁREA PRINCIPAL - FORMULÁRIO */}
           <div className="col-span-9">
             <Card className="border shadow-sm">
@@ -451,7 +552,7 @@ export default function Financeiro() {
                 </div>
               </CardHeader>
 
-              <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+              <Tabs value={abaFormulario} onValueChange={setAbaFormulario}>
                 <TabsList className="w-full justify-start bg-slate-50 border-b rounded-none h-10">
                   <TabsTrigger value="dados_financeiros" className="text-xs data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
                     Dados Financeiros
@@ -1436,8 +1537,9 @@ export default function Financeiro() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
