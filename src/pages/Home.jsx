@@ -98,8 +98,8 @@ export default function Home() {
       produtos: { valor: totalProdutos, dados: produtos },
       estoque_valor: { valor: valorEstoque, dados: produtos },
       estoque_baixo: { valor: estoqueBaixo.length, dados: estoqueBaixo },
-      contas_pagar: { valor: contasPagar.reduce((sum, c) => sum + ((c?.valor_saldo ?? c?.valor_total) || 0), 0), dados: contasPagar },
-      contas_receber: { valor: contasReceber.reduce((sum, c) => sum + ((c?.valor_saldo ?? c?.valor_total) || 0), 0), dados: contasReceber },
+      contas_pagar: { valor: contasPagar.reduce((sum, c) => sum + ((c?.valor_saldo ?? c?.valor_total ?? 0)), 0), dados: contasPagar },
+      contas_receber: { valor: contasReceber.reduce((sum, c) => sum + ((c?.valor_saldo ?? c?.valor_total ?? 0)), 0), dados: contasReceber },
       fornecedores: { valor: fornecedores.length, dados: fornecedores },
       vencidos: { valor: vencidos.length, dados: vencidos },
       movimentacoes_mes: { valor: movimentacoesMes.length, dados: movimentacoesMes },
@@ -403,7 +403,7 @@ export default function Home() {
                 {showDetalhesCartao === 'vencidos' && (
                   <>
                     <Card className="shadow-sm"><CardContent className="p-2.5"><div className="text-xs text-slate-600">Quantidade</div><div className="text-lg font-bold text-red-600">{estatisticas.vencidos.dados.length}</div></CardContent></Card>
-                    <Card className="shadow-sm"><CardContent className="p-2.5"><div className="text-xs text-slate-600">Valor Total</div><div className="text-lg font-bold text-red-600">{formatarMoeda(estatisticas.vencidos.dados.reduce((s, v) => s + ((v?.valor_saldo ?? v?.valor_total) || 0), 0))}</div></CardContent></Card>
+                    <Card className="shadow-sm"><CardContent className="p-2.5"><div className="text-xs text-slate-600">Valor Total</div><div className="text-lg font-bold text-red-600">{formatarMoeda(estatisticas.vencidos.dados.reduce((s, v) => s + ((v?.valor_saldo ?? v?.valor_total ?? 0)), 0))}</div></CardContent></Card>
                   </>
                 )}
                 {showDetalhesCartao === 'fornecedores' && (
@@ -497,7 +497,7 @@ export default function Home() {
                             <TableCell className="font-bold">{item.numero_lancamento}</TableCell>
                             <TableCell>{item.data_vencimento ? new Date(item.data_vencimento).toLocaleDateString('pt-BR') : '-'}</TableCell>
                             <TableCell>{item.fornecedor_nome || item.cliente_nome || '-'}</TableCell>
-                            <TableCell className="text-right font-semibold">{formatarMoeda((item?.valor_saldo ?? item?.valor_total) || 0)}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatarMoeda((item?.valor_saldo ?? item?.valor_total ?? 0))}</TableCell>
                             <TableCell><Badge className="text-xs py-0">{item.status}</Badge></TableCell>
                           </>
                         )}
