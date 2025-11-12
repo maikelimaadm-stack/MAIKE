@@ -139,15 +139,6 @@ export default function GerenciarSafras() {
     );
   });
 
-  const filteredSafras = safras.filter(s => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      `${s.ano_inicio}/${s.ano_fim}`.includes(searchLower) ||
-      s.descricao?.toLowerCase().includes(searchLower) ||
-      s.status?.toLowerCase().includes(searchLower)
-    );
-  });
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (

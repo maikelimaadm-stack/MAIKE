@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -706,7 +705,7 @@ export default function RelatorioCustosSafra() {
 
           <div className="mt-4 border-t-2 border-black pt-2">
             <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)}</div>
+              <div className="text-xs font-bold">TOTAL GERAL: {custosFiltrados.length} lançamento(s)</div>
               <div className="text-xs font-bold">Valor Total: R$ {formatarNumero(totalValor)}</div>
             </div>
           </div>
