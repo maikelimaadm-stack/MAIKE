@@ -172,10 +172,6 @@ export default function Categorias() {
     );
   });
 
-  const cartoes = [
-    { id: 'total', label: 'Categorias Cadastradas', valor: categorias.length, sublabel: 'Total', icon: FolderOpen, cor: 'blue', tipo: 'numero' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
