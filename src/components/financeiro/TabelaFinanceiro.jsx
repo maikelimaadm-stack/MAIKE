@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,7 +131,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes_nfe', label: 'Obs. NF-e', default: false },
 ];
 
-export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores = [], produtos = [] }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -174,8 +175,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
       : <ArrowDown className="w-3 h-3 ml-1 text-green-600" />;
   };
 
-  const lancamentosFiltrados = (lancamentos || []).filter((l) => {
-    if (!l) return false;
+  const lancamentosFiltrados = lancamentos.filter((l) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -195,8 +195,6 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
   });
 
   const lancamentosOrdenados = [...lancamentosFiltrados].sort((a, b) => {
-    if (!a || !b) return 0;
-    
     let aValue, bValue;
 
     switch (sortField) {
@@ -205,12 +203,12 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
         bValue = parseInt(b.numero_lancamento) || 0;
         break;
       case 'emissao':
-        aValue = new Date(a.data_emissao || 0).getTime();
-        bValue = new Date(b.data_emissao || 0).getTime();
+        aValue = new Date(a.data_emissao).getTime();
+        bValue = new Date(b.data_emissao).getTime();
         break;
       case 'vencimento':
-        aValue = new Date(a.data_vencimento || 0).getTime();
-        bValue = new Date(b.data_vencimento || 0).getTime();
+        aValue = new Date(a.data_vencimento).getTime();
+        bValue = new Date(b.data_vencimento).getTime();
         break;
       case 'fornecedor_cliente':
         aValue = (a.fornecedor_nome || a.cliente_nome || '').toLowerCase();
@@ -281,7 +279,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
     setProdutosAberto(lancamento);
   };
 
-  const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
+  const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento.fornecedor_id);
 
   return (
     <>
@@ -426,8 +424,6 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                     </TableRow>
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
-                      if (!lancamento) return null;
-                      
                       const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
                       
                       return (
@@ -439,7 +435,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                               exit={{ opacity: 0 }} 
                               className="hover:bg-slate-50 transition-colors cursor-pointer"
                             >
-                              {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento || 0))}</TableCell>}
+                              {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
                               {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
                               {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs">{formatarData(lancamento.data_vencimento)}</TableCell>}
                               {colunasVisiveis.includes('dias') && (
@@ -554,6 +550,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
           </DialogHeader>
           {detalhesAberto && (
             <div className="space-y-4">
+              {/* INFORMAÇÕES GERAIS */}
               <Card>
                 <CardHeader><CardTitle className="text-base">Informações Gerais</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -580,16 +577,18 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                 </CardContent>
               </Card>
 
+              {/* RASTREAMENTO */}
               <Card className="bg-blue-50 border-blue-200">
-                <CardHeader><CardTitle className="text-base">Rastreamento</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">🔍 Rastreamento</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <div><strong>Criado por:</strong> {detalhesAberto.created_by || '-'}</div>
                   <div><strong>Data Criação:</strong> {formatarDataHora(detalhesAberto.created_date)}</div>
                   <div><strong>Última Edição:</strong> {formatarDataHora(detalhesAberto.updated_date)}</div>
-                  <div><strong>Tipo Origem:</strong> <Badge className="ml-2">{detalhesAberto.origem_importacao === 'XML' ? 'Importação XML' : 'Cadastro Manual'}</Badge></div>
+                  <div><strong>Tipo Origem:</strong> <Badge className="ml-2">{detalhesAberto.origem_importacao === 'XML' ? '📋 Importação XML' : '✍️ Cadastro Manual'}</Badge></div>
                 </CardContent>
               </Card>
 
+              {/* FORNECEDOR/CLIENTE */}
               {tipo === 'Pagar' && detalhesAberto.fornecedor_id && (
                 <Card className="bg-purple-50 border-purple-200">
                   <CardHeader><CardTitle className="text-base">Fornecedor</CardTitle></CardHeader>
@@ -610,6 +609,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                 </Card>
               )}
 
+              {/* CLASSIFICAÇÃO */}
               <Card className="bg-green-50 border-green-200">
                 <CardHeader><CardTitle className="text-base">Classificação Financeira</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -621,6 +621,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                 </CardContent>
               </Card>
 
+              {/* VALORES */}
               <Card>
                 <CardHeader><CardTitle className="text-base">Valores</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -634,6 +635,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                 </CardContent>
               </Card>
 
+              {/* VALORES NF-E */}
               {(detalhesAberto.valor_produtos || detalhesAberto.valor_frete || detalhesAberto.valor_ipi) && (
                 <Card className="bg-purple-50 border-purple-200">
                   <CardHeader><CardTitle className="text-base">Valores Detalhados NF-e</CardTitle></CardHeader>
@@ -652,6 +654,7 @@ export default function TabelaFinanceiro({ lancamentos = [], tipo, onEdit, onDel
                 </Card>
               )}
 
+              {/* OBSERVAÇÕES */}
               {(detalhesAberto.observacoes || detalhesAberto.observacoes_nfe) && (
                 <Card>
                   <CardHeader><CardTitle className="text-base">Observações</CardTitle></CardHeader>
