@@ -704,10 +704,156 @@ export default function Financeiro() {
 
                 {/* ABA 2 - PRODUTOS/ITENS */}
                 <TabsContent value="itens" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Grid de itens em desenvolvimento</p>
-                    <p className="text-xs mt-1">Adicione produtos/serviços ao lançamento</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-semibold">Itens do Lançamento</h3>
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          const novosItens = [...(formData.itens || []), {
+                            id: Date.now(),
+                            produto: "",
+                            descricao: "",
+                            quantidade: "1",
+                            preco_unitario: "0",
+                            total: "0",
+                            cfop: ""
+                          }];
+                          setFormData({...formData, itens: novosItens});
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Adicionar Item
+                      </Button>
+                    </div>
+
+                    <div className="border rounded overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50">
+                            <TableHead className="h-8 text-xs w-8">#</TableHead>
+                            <TableHead className="h-8 text-xs">Produto/Serviço</TableHead>
+                            <TableHead className="h-8 text-xs">Descrição</TableHead>
+                            <TableHead className="h-8 text-xs w-24">Qtd</TableHead>
+                            <TableHead className="h-8 text-xs w-32">Preço Unit.</TableHead>
+                            <TableHead className="h-8 text-xs w-32">Total</TableHead>
+                            <TableHead className="h-8 text-xs w-24">CFOP</TableHead>
+                            <TableHead className="h-8 text-xs w-16"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(!formData.itens || formData.itens.length === 0) ? (
+                            <TableRow>
+                              <TableCell colSpan={8} className="text-center py-6 text-xs text-slate-400">
+                                Nenhum item adicionado. Clique em "Adicionar Item" para começar.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            formData.itens.map((item, index) => {
+                              const total = (parseFloat(item.quantidade) || 0) * (parseFloat(item.preco_unitario) || 0);
+                              return (
+                                <TableRow key={item.id}>
+                                  <TableCell className="py-2 text-xs">{index + 1}</TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      value={item.produto} 
+                                      onChange={(e) => {
+                                        const novosItens = [...formData.itens];
+                                        novosItens[index].produto = e.target.value;
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 text-xs"
+                                      placeholder="Nome do produto"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      value={item.descricao} 
+                                      onChange={(e) => {
+                                        const novosItens = [...formData.itens];
+                                        novosItens[index].descricao = e.target.value;
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 text-xs"
+                                      placeholder="Descrição"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      type="number"
+                                      step="0.01"
+                                      value={item.quantidade} 
+                                      onChange={(e) => {
+                                        const novosItens = [...formData.itens];
+                                        novosItens[index].quantidade = e.target.value;
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      type="number"
+                                      step="0.01"
+                                      value={item.preco_unitario} 
+                                      onChange={(e) => {
+                                        const novosItens = [...formData.itens];
+                                        novosItens[index].preco_unitario = e.target.value;
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2 text-xs font-mono font-semibold">
+                                    {formatarMoeda(total)}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      value={item.cfop} 
+                                      onChange={(e) => {
+                                        const novosItens = [...formData.itens];
+                                        novosItens[index].cfop = e.target.value;
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 text-xs"
+                                      placeholder="5102"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => {
+                                        const novosItens = formData.itens.filter((_, i) => i !== index);
+                                        setFormData({...formData, itens: novosItens});
+                                      }}
+                                      className="h-7 w-7 text-red-600"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {formData.itens && formData.itens.length > 0 && (
+                      <div className="bg-slate-50 p-3 rounded border">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold">Subtotal dos Itens:</span>
+                          <span className="text-lg font-bold text-blue-600">
+                            {formatarMoeda(
+                              formData.itens.reduce((sum, item) => {
+                                return sum + ((parseFloat(item.quantidade) || 0) * (parseFloat(item.preco_unitario) || 0));
+                              }, 0)
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
@@ -778,29 +924,324 @@ export default function Financeiro() {
                         <Input type="number" step="0.01" value={formData.pis_aliquota} onChange={(e) => setFormData({...formData, pis_aliquota: e.target.value})} className="h-8 text-xs" />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      <Label className="col-span-3 text-right text-xs">Base COFINS:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.cofins_base} onChange={(e) => setFormData({...formData, cofins_base: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                      <Label className="col-span-3 text-right text-xs">Alíquota %:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.cofins_aliquota} onChange={(e) => setFormData({...formData, cofins_aliquota: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 mb-2 pb-2 border-b">
+                      <h3 className="text-xs font-semibold">ISS</h3>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      <Label className="col-span-3 text-right text-xs">Base ISS:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.iss_base} onChange={(e) => setFormData({...formData, iss_base: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                      <Label className="col-span-3 text-right text-xs">Alíquota %:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.iss_aliquota} onChange={(e) => setFormData({...formData, iss_aliquota: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 mb-2 pb-2 border-b">
+                      <h3 className="text-xs font-semibold">Retenções na Fonte</h3>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      <Label className="col-span-3 text-right text-xs">IRRF:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.irrf_valor} onChange={(e) => setFormData({...formData, irrf_valor: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                      <Label className="col-span-3 text-right text-xs">INSS:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.inss_valor} onChange={(e) => setFormData({...formData, inss_valor: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      <Label className="col-span-3 text-right text-xs">CSLL:</Label>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" value={formData.csll_valor} onChange={(e) => setFormData({...formData, csll_valor: e.target.value})} className="h-8 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-200">
+                      <div className="flex gap-2">
+                        <Upload className="w-4 h-4 text-blue-600 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-900">Importar XML da NF-e</p>
+                          <p className="text-xs text-blue-700 mt-1">Faça upload do arquivo XML para preencher automaticamente os dados fiscais</p>
+                          <Button size="sm" variant="outline" className="mt-2">
+                            <Upload className="w-3 h-3 mr-1" />
+                            Selecionar XML
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
 
                 {/* ABA 4 - RATEIO */}
                 <TabsContent value="rateio" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Rateio entre centros de custo em desenvolvimento</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-sm font-semibold">Rateio de Centro de Custo</h3>
+                        <p className="text-xs text-slate-600">Distribua o valor entre diferentes centros de custo</p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          const novosRateios = [...(formData.rateio || []), {
+                            id: Date.now(),
+                            centro_custo_id: "",
+                            percentual: "0",
+                            valor: "0",
+                            observacao: ""
+                          }];
+                          setFormData({...formData, rateio: novosRateios});
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Adicionar Rateio
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-3 items-center bg-slate-50 p-3 rounded">
+                      <Label className="col-span-3 text-xs">Tipo de Rateio:</Label>
+                      <div className="col-span-9">
+                        <Select defaultValue="percentual">
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percentual">Percentual (%)</SelectItem>
+                            <SelectItem value="valor">Valor Fixo (R$)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="border rounded overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50">
+                            <TableHead className="h-8 text-xs w-8">#</TableHead>
+                            <TableHead className="h-8 text-xs">Centro de Custo</TableHead>
+                            <TableHead className="h-8 text-xs w-32">Percentual %</TableHead>
+                            <TableHead className="h-8 text-xs w-32">Valor R$</TableHead>
+                            <TableHead className="h-8 text-xs">Observação</TableHead>
+                            <TableHead className="h-8 text-xs w-16"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(!formData.rateio || formData.rateio.length === 0) ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-6 text-xs text-slate-400">
+                                Nenhum rateio configurado. Use o centro de custo principal ou adicione rateios.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            formData.rateio.map((rat, index) => {
+                              const valorTotal = parseFloat(formData.valor_total) || 0;
+                              const valorCalculado = (valorTotal * (parseFloat(rat.percentual) || 0)) / 100;
+                              return (
+                                <TableRow key={rat.id}>
+                                  <TableCell className="py-2 text-xs">{index + 1}</TableCell>
+                                  <TableCell className="py-2">
+                                    <Select 
+                                      value={rat.centro_custo_id} 
+                                      onValueChange={(v) => {
+                                        const novosRateios = [...formData.rateio];
+                                        novosRateios[index].centro_custo_id = v;
+                                        setFormData({...formData, rateio: novosRateios});
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-7 text-xs">
+                                        <SelectValue placeholder="Selecione" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {centros.map(c => (
+                                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      type="number"
+                                      step="0.01"
+                                      value={rat.percentual} 
+                                      onChange={(e) => {
+                                        const novosRateios = [...formData.rateio];
+                                        novosRateios[index].percentual = e.target.value;
+                                        setFormData({...formData, rateio: novosRateios});
+                                      }}
+                                      className="h-7 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2 text-xs font-mono">
+                                    {formatarMoeda(valorCalculado)}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Input 
+                                      value={rat.observacao} 
+                                      onChange={(e) => {
+                                        const novosRateios = [...formData.rateio];
+                                        novosRateios[index].observacao = e.target.value;
+                                        setFormData({...formData, rateio: novosRateios});
+                                      }}
+                                      className="h-7 text-xs"
+                                      placeholder="Observação..."
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => {
+                                        const novosRateios = formData.rateio.filter((_, i) => i !== index);
+                                        setFormData({...formData, rateio: novosRateios});
+                                      }}
+                                      className="h-7 w-7 text-red-600"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {formData.rateio && formData.rateio.length > 0 && (
+                      <div className="bg-slate-50 p-3 rounded border">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold">Total Rateado:</span>
+                          <span className={`text-lg font-bold ${
+                            Math.abs(formData.rateio.reduce((sum, r) => sum + (parseFloat(r.percentual) || 0), 0) - 100) < 0.01
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}>
+                            {formData.rateio.reduce((sum, r) => sum + (parseFloat(r.percentual) || 0), 0).toFixed(2)}%
+                          </span>
+                        </div>
+                        {Math.abs(formData.rateio.reduce((sum, r) => sum + (parseFloat(r.percentual) || 0), 0) - 100) >= 0.01 && (
+                          <div className="flex items-center gap-2 mt-2 text-xs text-red-600">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>O total deve somar 100%</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
                 {/* ABA 5 - ANEXOS */}
                 <TabsContent value="anexos" className="p-4">
-                  <div className="text-center py-8 text-slate-500">
-                    <Upload className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Upload de anexos em desenvolvimento</p>
-                    <p className="text-xs mt-1">Arraste arquivos ou clique para selecionar</p>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold mb-2">Documentos e Anexos</h3>
+                      <p className="text-xs text-slate-600">Adicione comprovantes, notas fiscais, contratos e outros documentos</p>
+                    </div>
+
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                      <Upload className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+                      <p className="text-sm text-slate-600 mb-2">Arraste arquivos aqui ou clique para selecionar</p>
+                      <p className="text-xs text-slate-500">PDF, XML, JPG, PNG até 10MB</p>
+                      <Button size="sm" variant="outline" className="mt-3">
+                        <Upload className="w-3 h-3 mr-1" />
+                        Escolher Arquivos
+                      </Button>
+                    </div>
+
+                    {formData.anexos && formData.anexos.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold">Arquivos Anexados:</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {formData.anexos.map((anexo, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 border rounded hover:bg-slate-50">
+                              <FileText className="w-8 h-8 text-blue-600" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{anexo}</p>
+                                <p className="text-xs text-slate-500">-</p>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => {
+                                  const novosAnexos = formData.anexos.filter((_, i) => i !== index);
+                                  setFormData({...formData, anexos: novosAnexos});
+                                }}
+                                className="h-6 w-6 text-red-600"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-semibold mb-3">Histórico de Ações</h4>
+                      <div className="space-y-2">
+                        <div className="flex gap-3 text-xs">
+                          <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5"></div>
+                          <div className="flex-1">
+                            <p className="font-medium">Lançamento criado</p>
+                            <p className="text-slate-500">Por: {formData.origem} • Hoje às 14:30</p>
+                          </div>
+                        </div>
+                        {editingId && (
+                          <div className="flex gap-3 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5"></div>
+                            <div className="flex-1">
+                              <p className="font-medium">Lançamento em edição</p>
+                              <p className="text-slate-500">Última modificação: Agora</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-semibold mb-3">Comentários Internos</h4>
+                      <div className="space-y-2">
+                        <Textarea 
+                          placeholder="Adicione um comentário para a equipe financeira..."
+                          className="text-xs min-h-20"
+                          rows={3}
+                        />
+                        <div className="flex justify-end">
+                          <Button size="sm">
+                            <Plus className="w-3 h-3 mr-1" />
+                            Adicionar Comentário
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
 
                 {/* ABA 6 - APROVAÇÃO */}
                 <TabsContent value="aprovacao" className="p-4">
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold mb-2">Controle de Aprovação</h3>
+                      <p className="text-xs text-slate-600">Configure o fluxo de aprovação para este lançamento</p>
+                    </div>
+
                     <div className="grid grid-cols-12 gap-3 items-center">
                       <Label className="col-span-3 text-right text-xs">Requer Aprovação:</Label>
                       <div className="col-span-9 flex items-center gap-2">
@@ -808,18 +1249,120 @@ export default function Financeiro() {
                           checked={formData.requer_aprovacao} 
                           onCheckedChange={(v) => setFormData({...formData, requer_aprovacao: v})}
                         />
-                        <span className="text-xs">{formData.requer_aprovacao ? 'Sim' : 'Não'}</span>
+                        <span className="text-xs font-medium">{formData.requer_aprovacao ? 'Sim' : 'Não'}</span>
                       </div>
                     </div>
 
                     {formData.requer_aprovacao && (
-                      <div className="grid grid-cols-12 gap-3 items-center">
-                        <Label className="col-span-3 text-right text-xs">Status Aprovação:</Label>
-                        <div className="col-span-9">
-                          <Badge className="text-xs">{formData.status_aprovacao}</Badge>
+                      <>
+                        <div className="grid grid-cols-12 gap-3 items-center">
+                          <Label className="col-span-3 text-right text-xs">Status Aprovação:</Label>
+                          <div className="col-span-9">
+                            <Select value={formData.status_aprovacao} onValueChange={(v) => setFormData({...formData, status_aprovacao: v})}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Pendente">Pendente</SelectItem>
+                                <SelectItem value="Aprovado">Aprovado</SelectItem>
+                                <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+                                <SelectItem value="Em Revisão">Em Revisão</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
+
+                        <div className="bg-slate-50 p-4 rounded border">
+                          <h4 className="text-xs font-semibold mb-3">Linha do Tempo de Aprovação</h4>
+                          <div className="space-y-3">
+                            <div className="flex gap-3">
+                              <div className="flex flex-col items-center">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                  formData.status_aprovacao === 'Pendente' ? 'bg-yellow-100' :
+                                  formData.status_aprovacao === 'Aprovado' ? 'bg-green-100' :
+                                  formData.status_aprovacao === 'Rejeitado' ? 'bg-red-100' :
+                                  'bg-blue-100'
+                                }`}>
+                                  {formData.status_aprovacao === 'Aprovado' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                  ) : formData.status_aprovacao === 'Rejeitado' ? (
+                                    <X className="w-4 h-4 text-red-600" />
+                                  ) : (
+                                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                  )}
+                                </div>
+                                <div className="w-0.5 h-8 bg-slate-200"></div>
+                              </div>
+                              <div className="flex-1 pb-4">
+                                <p className="text-xs font-semibold">Status Atual: {formData.status_aprovacao}</p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {formData.status_aprovacao === 'Pendente' && 'Aguardando aprovação do responsável'}
+                                  {formData.status_aprovacao === 'Aprovado' && 'Lançamento aprovado e liberado'}
+                                  {formData.status_aprovacao === 'Rejeitado' && 'Lançamento rejeitado - verificar observações'}
+                                  {formData.status_aprovacao === 'Em Revisão' && 'Em análise pela equipe financeira'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <div className="flex flex-col items-center">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                  <Eye className="w-4 h-4 text-slate-400" />
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold">Lançamento Criado</p>
+                                <p className="text-xs text-slate-500 mt-1">Por: {formData.origem}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-12 gap-3 items-start">
+                          <Label className="col-span-3 text-right text-xs pt-2">Justificativa:</Label>
+                          <div className="col-span-9">
+                            <Textarea 
+                              placeholder="Adicione uma justificativa para aprovação/rejeição..."
+                              className="text-xs min-h-20"
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-3 border-t">
+                          <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50">
+                            <X className="w-3 h-3 mr-1" />
+                            Rejeitar
+                          </Button>
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Aprovar
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                    {!formData.requer_aprovacao && (
+                      <div className="text-center py-8 text-slate-500">
+                        <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">Aprovação não necessária para este lançamento</p>
+                        <p className="text-xs mt-1">Ative a opção acima para configurar o fluxo de aprovação</p>
                       </div>
                     )}
+
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <div className="flex gap-2">
+                        <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-900">Regras de Aprovação</p>
+                          <p className="text-xs text-blue-700 mt-1">
+                            • Valores acima de R$ 10.000,00 requerem aprovação automática<br/>
+                            • Lançamentos com status "Rascunho" não precisam de aprovação<br/>
+                            • Apenas usuários com permissão podem aprovar/rejeitar
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>
