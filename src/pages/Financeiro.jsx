@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle } from "lucide-react";
+import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
