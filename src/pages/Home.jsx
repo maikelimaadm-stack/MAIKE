@@ -51,7 +51,7 @@ export default function Home() {
     queryKey: ['produtos_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+      return all.filter(p => p && p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -60,7 +60,7 @@ export default function Home() {
     queryKey: ['movimentacoes_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list('-data_movimentacao');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
+      return all.filter(m => m && m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -69,7 +69,7 @@ export default function Home() {
     queryKey: ['fornecedores_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Fornecedor.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId);
+      return all.filter(f => f && f.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -78,7 +78,7 @@ export default function Home() {
     queryKey: ['financeiro_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.LancamentoFinanceiro.list('-data_emissao');
-      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+      return all.filter(l => l && l.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
