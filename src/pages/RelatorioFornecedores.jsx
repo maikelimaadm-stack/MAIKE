@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import CartoesResumo from "../components/shared/CartoesResumo";
+import { Building2, UserCheck, UserX } from "lucide-react";
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº Cadastro', default: true },
@@ -224,11 +223,56 @@ export default function RelatorioFornecedores() {
         </div>
       </div>
 
-      <CartoesResumo
-        isLoading={isLoading}
-        fornecedores={fornecedoresFiltrados}
-        className="print:hidden"
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-2 print:hidden">
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Total</p>
+                <p className="text-lg font-bold text-blue-700 truncate leading-tight">{fornecedoresFiltrados.length}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Fornecedores/Clientes</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Pessoa Física</p>
+                <p className="text-lg font-bold text-emerald-700 truncate leading-tight">
+                  {fornecedoresFiltrados.filter(f => f.tipo_pessoa === 'Física').length}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">CPF</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-violet-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Pessoa Jurídica</p>
+                <p className="text-lg font-bold text-violet-700 truncate leading-tight">
+                  {fornecedoresFiltrados.filter(f => f.tipo_pessoa === 'Jurídica').length}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">CNPJ</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <Users className="w-3.5 h-3.5 text-violet-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Dialog open={showConfig} onOpenChange={setShowConfig}>
         <DialogContent className="sm:max-w-[800px] p-0">
