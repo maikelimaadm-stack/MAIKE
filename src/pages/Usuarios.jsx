@@ -1,131 +1,205 @@
-import React from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Users, Trash2, Shield, User as UserIcon } from "lucide-react";
+import { Users, Plus, UserCog } from "lucide-react";
 import { toast } from "sonner";
-import CartoesResumo from "../components/shared/CartoesResumo";
+import { motion, AnimatePresence } from "framer-motion";
+import FormularioUsuario from "@/components/usuarios/FormularioUsuario";
+import TabelaUsuarios from "@/components/usuarios/TabelaUsuarios";
+import CartoesResumo from "@/components/shared/CartoesResumo";
 
 export default function Usuarios() {
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+
   const queryClient = useQueryClient();
 
-  const { data: usuarios, isLoading } = useQuery({
+  const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ['usuarios'],
-    queryFn: async () => {
-      try {
-        return await base44.entities.User.list('-created_date');
-      } catch (error) {
-        return [];
-      }
-    },
+    queryFn: () => base44.entities.User.list(),
     initialData: [],
   });
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me(),
+  const createMutation = useMutation({
+    mutationFn: async (data) => {
+      // Verificar se CPF já existe
+      const cpfExiste = usuarios.some(u => u.cpf === data.cpf);
+      if (cpfExiste) {
+        throw new Error('CPF já cadastrado!');
+      }
+
+      // Verificar se email já existe
+      const emailExiste = usuarios.some(u => u.email === data.email);
+      if (emailExiste) {
+        throw new Error('E-mail já cadastrado!');
+      }
+
+      return base44.entities.User.create(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      setShowForm(false);
+      setEditingUser(null);
+      toast.success('✅ Usuário cadastrado com sucesso!');
+    },
+    onError: (error) => {
+      toast.error(`❌ ${error.message}`);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      // Verificar se CPF já existe (exceto o próprio usuário)
+      const cpfExiste = usuarios.some(u => u.cpf === data.cpf && u.id !== id);
+      if (cpfExiste) {
+        throw new Error('CPF já cadastrado!');
+      }
+
+      // Verificar se email já existe (exceto o próprio usuário)
+      const emailExiste = usuarios.some(u => u.email === data.email && u.id !== id);
+      if (emailExiste) {
+        throw new Error('E-mail já cadastrado!');
+      }
+
+      return base44.entities.User.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      setShowForm(false);
+      setEditingUser(null);
+      toast.success('✅ Usuário atualizado com sucesso!');
+    },
+    onError: (error) => {
+      toast.error(`❌ ${error.message}`);
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.User.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      toast.success('Usuário excluído!');
+      toast.success('✅ Usuário excluído com sucesso!');
     },
     onError: () => {
-      toast.error('Erro.');
+      toast.error('❌ Erro ao excluir usuário');
     }
   });
 
-  const handleDelete = (id) => {
-    if (currentUser?.id === id) {
-      toast.error('Você não pode excluir seu próprio usuário!');
-      return;
-    }
-    if (window.confirm('⚠️ Excluir usuário?')) {
-      deleteMutation.mutate(id);
+  const handleSubmit = async (data) => {
+    if (editingUser) {
+      await updateMutation.mutateAsync({ id: editingUser.id, data });
+    } else {
+      await createMutation.mutateAsync(data);
     }
   };
 
-  const totalUsuarios = usuarios.length;
-  const admins = usuarios.filter(u => u.role === 'admin').length;
-  const users = usuarios.filter(u => u.role === 'user').length;
+  const handleEdit = (user) => {
+    setEditingUser(user);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('⚠️ Deseja realmente excluir este usuário?')) {
+      await deleteMutation.mutateAsync(id);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingUser(null);
+  };
+
+  const usuariosAtivos = usuarios.filter(u => u.ativo !== false);
+  const usuariosInativos = usuarios.filter(u => u.ativo === false);
+  const administradores = usuarios.filter(u => u.role === 'admin');
 
   const cartoes = [
-    { id: 'total', label: 'Total de Usuários', valor: totalUsuarios, sublabel: 'Cadastrados', icon: Users, cor: 'blue', tipo: 'numero' },
-    { id: 'admins', label: 'Administradores', valor: admins, sublabel: 'Com permissões', icon: Shield, cor: 'violet', tipo: 'numero' },
-    { id: 'users', label: 'Operadores', valor: users, sublabel: 'Padrão', icon: UserIcon, cor: 'emerald', tipo: 'numero' },
+    {
+      id: 1,
+      label: "Total de Usuários",
+      valor: usuarios.length,
+      tipo: 'numero',
+      icon: Users,
+      cor: "blue"
+    },
+    {
+      id: 2,
+      label: "Usuários Ativos",
+      valor: usuariosAtivos.length,
+      tipo: 'numero',
+      icon: UserCog,
+      cor: "green"
+    },
+    {
+      id: 3,
+      label: "Usuários Inativos",
+      valor: usuariosInativos.length,
+      tipo: 'numero',
+      icon: Users,
+      cor: "orange"
+    },
+    {
+      id: 4,
+      label: "Administradores",
+      valor: administradores.length,
+      tipo: 'numero',
+      icon: UserCog,
+      cor: "purple"
+    }
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Usuários</h1>
-          <p className="text-xs text-slate-600">Gerenciar usuários</p>
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <Users className="w-8 h-8 text-blue-600" />
+            Gerenciar Usuários
+          </h1>
+          <p className="text-slate-600 mt-1">Controle de usuários e permissões do sistema</p>
         </div>
+
+        <AnimatePresence mode="wait">
+          {!showForm && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+            >
+              <Button
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 gap-2 shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+                Novo Usuário
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <CartoesResumo cartoes={cartoes} />
 
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Users className="w-4 h-4" />
-            Usuários ({usuarios.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="text-xs">
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-xs">Carregando...</TableCell>
-                  </TableRow>
-                ) : usuarios.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs">Nenhum usuário</TableCell>
-                  </TableRow>
-                ) : (
-                  usuarios.map((user) => (
-                    <TableRow key={user.id} className="text-xs">
-                      <TableCell className="font-semibold">
-                        {user.full_name}
-                        {currentUser?.id === user.id && <Badge variant="outline" className="ml-2 text-xs py-0">Você</Badge>}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge className={`text-xs py-0 ${user.role === 'admin' ? 'bg-violet-100 text-violet-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                          {user.role === 'admin' ? 'Admin' : 'Operador'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)} className="h-7 w-7 text-red-600 hover:bg-red-50" disabled={currentUser?.id === user.id}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <AnimatePresence mode="wait">
+        {showForm ? (
+          <FormularioUsuario
+            key="form"
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+            initialData={editingUser}
+          />
+        ) : (
+          <TabelaUsuarios
+            key="table"
+            usuarios={usuarios}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            isLoading={isLoading}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
