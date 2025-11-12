@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Users, Trash2, Shield, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 export default function Usuarios() {
   const queryClient = useQueryClient();
@@ -50,16 +49,6 @@ export default function Usuarios() {
     }
   };
 
-  const totalUsuarios = usuarios.length;
-  const admins = usuarios.filter(u => u.role === 'admin').length;
-  const users = usuarios.filter(u => u.role === 'user').length;
-
-  const cartoes = [
-    { id: 'total', label: 'Total de Usuários', valor: totalUsuarios, sublabel: 'Cadastrados', icon: Users, cor: 'blue', tipo: 'numero' },
-    { id: 'admins', label: 'Administradores', valor: admins, sublabel: 'Com permissões', icon: Shield, cor: 'violet', tipo: 'numero' },
-    { id: 'users', label: 'Operadores', valor: users, sublabel: 'Padrão', icon: UserIcon, cor: 'emerald', tipo: 'numero' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -68,8 +57,6 @@ export default function Usuarios() {
           <p className="text-xs text-slate-600">Gerenciar usuários</p>
         </div>
       </div>
-
-      <CartoesResumo cartoes={cartoes} />
 
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
