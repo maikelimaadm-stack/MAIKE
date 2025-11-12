@@ -24,6 +24,7 @@ import Financeiro from './pages/Financeiro';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
 import LivrosFiscais from './pages/LivrosFiscais';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
+import Acesso from './pages/Acesso';
 import Layout from './Layout.jsx';
 
 
@@ -54,6 +55,7 @@ export const PAGES = {
     "RelatorioFinanceiro": RelatorioFinanceiro,
     "LivrosFiscais": LivrosFiscais,
     "ConfiguracoesGerais": ConfiguracoesGerais,
+    "Acesso": Acesso,
 }
 
 export const pagesConfig = {

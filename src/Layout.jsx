@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -139,16 +140,16 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // Verificar autenticação - redirecionar se não estiver logado
+  // Verificar autenticação
   useEffect(() => {
-    // Não verificar na página de login e de usuários (para primeiro acesso)
-    if (currentPageName === 'Login' || currentPageName === 'Usuarios') {
+    // Não verificar na página de acesso e de usuários
+    if (currentPageName === 'Acesso' || currentPageName === 'Usuarios') {
       return;
     }
 
     const usuarioLogado = localStorage.getItem('usuario_logado');
     if (!usuarioLogado) {
-      window.location.href = createPageUrl('Login');
+      window.location.href = createPageUrl('Acesso');
       return;
     }
 
@@ -158,7 +159,7 @@ export default function Layout({ children, currentPageName }) {
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
       localStorage.removeItem('usuario_logado');
-      window.location.href = createPageUrl('Login');
+      window.location.href = createPageUrl('Acesso');
     }
   }, [currentPageName]);
 
@@ -196,7 +197,7 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
-    enabled: currentPageName !== 'Login',
+    enabled: currentPageName !== 'Acesso',
   });
 
   const { data: empresaAtual } = useQuery({
@@ -206,11 +207,11 @@ export default function Layout({ children, currentPageName }) {
       const empresa = empresas.find(e => e.id === empresaSelecionada);
       return empresa || null;
     },
-    enabled: !!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login',
+    enabled: !!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Acesso',
   });
 
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login') {
+    if (!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Acesso') {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
@@ -224,7 +225,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   useEffect(() => {
-    if (currentPageName !== 'Login') {
+    if (currentPageName !== 'Acesso') {
       const fetchWeather = async () => {
         try {
           const response = await fetch(
@@ -247,7 +248,7 @@ export default function Layout({ children, currentPageName }) {
 
   const handleLogout = () => {
     localStorage.removeItem('usuario_logado');
-    window.location.href = createPageUrl('Login');
+    window.location.href = createPageUrl('Acesso');
   };
 
   const isActive = (item) => {
@@ -256,8 +257,8 @@ export default function Layout({ children, currentPageName }) {
     return false;
   };
 
-  // Se estiver na página de login, renderizar sem layout
-  if (currentPageName === 'Login') {
+  // Se estiver na página de acesso, renderizar sem layout
+  if (currentPageName === 'Acesso') {
     return children;
   }
 
