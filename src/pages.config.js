@@ -22,7 +22,6 @@ import PlanoContas from './pages/PlanoContas';
 import GruposFinanceiros from './pages/GruposFinanceiros';
 import LivrosFiscais from './pages/LivrosFiscais';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
-import Financeiro from './pages/Financeiro';
 import Layout from './Layout.jsx';
 
 
@@ -51,7 +50,6 @@ export const PAGES = {
     "GruposFinanceiros": GruposFinanceiros,
     "LivrosFiscais": LivrosFiscais,
     "ConfiguracoesGerais": ConfiguracoesGerais,
-    "Financeiro": Financeiro,
 }
 
 export const pagesConfig = {
