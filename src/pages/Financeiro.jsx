@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5,7 +6,6 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, FileDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 
@@ -16,7 +16,7 @@ import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceir
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
-  const filtered = all.filter(l => l && l.empresa_id === empresaId);
+  const filtered = all.filter(l => l.empresa_id === empresaId);
   return filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0) + 1;
 };
 
@@ -36,34 +36,28 @@ export default function Financeiro() {
   const { data: lancamentos = [], isLoading: loadingLancamentos } = useQuery({
     queryKey: ['lancamentos_financeiros', empresaSelecionadaId],
     queryFn: async () => {
-      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.LancamentoFinanceiro.list('-data_emissao');
-      return all.filter(l => l && l.empresa_id === empresaSelecionadaId) || [];
+      return all.filter(l => l.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
   });
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ['fornecedores_financeiro', empresaSelecionadaId],
     queryFn: async () => {
-      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.Fornecedor.list('nome');
-      return all.filter(f => f && f.empresa_id === empresaSelecionadaId) || [];
+      return all.filter(f => f.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
   });
 
   const { data: produtos = [] } = useQuery({
     queryKey: ['produtos_financeiro', empresaSelecionadaId],
     queryFn: async () => {
-      if (!empresaSelecionadaId) return [];
       const all = await base44.entities.Produto.list('nome_produto');
-      return all.filter(p => p && p.empresa_id === empresaSelecionadaId) || [];
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
-    initialData: [],
   });
 
   const createMutation = useMutation({
@@ -74,7 +68,7 @@ export default function Financeiro() {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       const todosProdutos = await base44.entities.Produto.list();
-      const produtosEmpresa = todosProdutos.filter(p => p && p.empresa_id === empresaSelecionadaId) || [];
+      const produtosEmpresa = todosProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
       const user = await base44.auth.me();
 
       const origem_importacao = data.origem_importacao || (data.chave_nfe ? 'XML' : 'MANUAL');
@@ -88,7 +82,7 @@ export default function Financeiro() {
           const parcela = data.parcelas[i];
           const numero = await getNextNumber(empresaSelecionadaId);
 
-          let valorOriginal = 0;
+          let valorOriginal;
           if (data.lancar_produtos) {
             const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
               const totalItem = parseFloat(p.valor_total) || 0;
@@ -97,7 +91,7 @@ export default function Financeiro() {
             }, 0) || 0;
             valorOriginal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
           } else {
-            valorOriginal = data.valor_original || 0;
+            valorOriginal = data.valor_original;
           }
 
           const lanc = await base44.entities.LancamentoFinanceiro.create({
@@ -126,7 +120,7 @@ export default function Financeiro() {
             data_emissao: data.data_emissao,
             data_vencimento: parcela.data,
             valor_original: valorOriginal,
-            valor_produtos: data.valor_produtos || 0,
+            valor_produtos: data.valor_produtos,
             valor_frete: data.frete || 0,
             valor_seguro: data.valor_seguro || 0,
             valor_outras_despesas: data.outras_despesas || 0,
@@ -160,7 +154,7 @@ export default function Financeiro() {
             setProgressoSalvamento({ etapa: 'Atualizando estoque...', current: 60, total: 100 });
 
             for (const prodLanc of data.produtos_selecionados) {
-              const produto = produtosEmpresa.find(p => p && p.id === prodLanc.produto_id);
+              const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
               if (produto) {
                 const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
                 await base44.entities.Produto.update(produto.id, {
@@ -168,7 +162,7 @@ export default function Financeiro() {
                 });
 
                 const allMov = await base44.entities.MovimentacaoEstoque.list();
-                const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m?.numero_movimentacao) || 0), 0);
+                const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
                 await base44.entities.MovimentacaoEstoque.create({
                   empresa_id: empresaSelecionadaId,
@@ -220,7 +214,7 @@ export default function Financeiro() {
         setProgressoSalvamento({ etapa: 'Salvando...', current: 50, total: 100 });
         const numero = await getNextNumber(empresaSelecionadaId);
 
-        let valorTotal = 0;
+        let valorTotal;
         if (data.lancar_produtos) {
           const subtotalProdutos = data.produtos_selecionados?.reduce((sum, p) => {
             const totalItem = parseFloat(p.valor_total) || 0;
@@ -229,36 +223,15 @@ export default function Financeiro() {
           }, 0) || 0;
           valorTotal = subtotalProdutos + (data.frete || 0) + (data.outras_despesas || 0);
         } else {
-          valorTotal = (data.valor_original || 0) + (data.valor_juros || 0) + (data.valor_multa || 0) - (data.valor_desconto || 0);
+          valorTotal = data.valor_original + data.valor_juros + data.valor_multa - data.valor_desconto;
         }
 
         const lanc = await base44.entities.LancamentoFinanceiro.create({
+          ...data,
           empresa_id: empresaSelecionadaId,
           numero_lancamento: String(numero),
-          tipo: data.tipo,
-          tipo_documento: data.tipo_documento,
-          fornecedor_id: data.fornecedor_id,
-          fornecedor_nome: data.fornecedor_nome,
-          safra_id: data.safra_id,
-          safra_nome: data.safra_nome,
-          centro_custo_id: data.centro_custo_id,
-          centro_custo_nome: data.centro_custo_nome,
-          plano_contas_id: data.plano_contas_id,
-          plano_contas_nome: data.plano_contas_nome,
-          grupo_id: data.grupo_id,
-          grupo_nome: data.grupo_nome,
-          forma_pagamento_id: data.forma_pagamento_id,
-          forma_pagamento_nome: data.forma_pagamento_nome,
-          numero_documento: data.numero_documento,
-          chave_nfe: data.chave_nfe,
-          serie_documento: data.serie_documento,
-          numero_boleto: data.numero_boleto,
-          banco_boleto: data.banco_boleto,
-          cfop: data.cfop,
-          data_emissao: data.data_emissao,
-          data_vencimento: data.data_vencimento,
-          valor_original: data.lancar_produtos ? valorTotal : (data.valor_original || 0),
-          valor_produtos: data.valor_produtos || 0,
+          valor_original: data.lancar_produtos ? valorTotal : data.valor_original,
+          valor_produtos: data.valor_produtos,
           valor_frete: data.frete || 0,
           valor_seguro: data.valor_seguro || 0,
           valor_outras_despesas: data.outras_despesas || 0,
@@ -269,19 +242,13 @@ export default function Financeiro() {
           valor_cofins: data.valor_cofins || 0,
           base_calculo_icms: data.base_calculo_icms || 0,
           valor_total: valorTotal,
-          valor_pago: data.conta_paga ? (data.valor_pago_total || 0) : 0,
-          valor_saldo: data.conta_paga ? (valorTotal - (data.valor_pago_total || 0)) : valorTotal,
-          valor_juros: data.lancar_produtos ? 0 : (data.valor_juros || 0),
-          valor_multa: data.lancar_produtos ? 0 : (data.valor_multa || 0),
-          valor_desconto: data.lancar_produtos ? 0 : (data.valor_desconto || 0),
+          valor_pago: data.conta_paga ? data.valor_pago_total : 0,
+          valor_saldo: data.conta_paga ? (valorTotal - data.valor_pago_total) : valorTotal,
+          valor_juros: data.lancar_produtos ? 0 : data.valor_juros,
+          valor_multa: data.lancar_produtos ? 0 : data.valor_multa,
+          valor_desconto: data.lancar_produtos ? 0 : data.valor_desconto,
           status: data.conta_paga ? 'Pago' : 'Pendente',
-          observacoes: data.observacoes,
           observacoes_nfe: data.observacoes_nfe,
-          lancar_produtos: data.lancar_produtos,
-          dar_entrada_estoque: data.dar_entrada_estoque,
-          local_estoque: data.local_estoque,
-          produtos_lancamento: data.produtos_selecionados,
-          anexos: data.anexos,
           origem_importacao: origem_importacao,
           usuario_lancamento: user.email
         });
@@ -290,7 +257,7 @@ export default function Financeiro() {
           setProgressoSalvamento({ etapa: 'Atualizando estoque...', current: 70, total: 100 });
 
           for (const prodLanc of data.produtos_selecionados) {
-            const produto = produtosEmpresa.find(p => p && p.id === prodLanc.produto_id);
+            const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
             if (produto) {
               const novoEstoque = (produto.estoque_atual || 0) + prodLanc.quantidade;
               await base44.entities.Produto.update(produto.id, {
@@ -298,7 +265,7 @@ export default function Financeiro() {
               });
 
               const allMov = await base44.entities.MovimentacaoEstoque.list();
-              const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m?.numero_movimentacao) || 0), 0);
+              const maxNumMov = allMov.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
               await base44.entities.MovimentacaoEstoque.create({
                 empresa_id: empresaSelecionadaId,
@@ -341,14 +308,14 @@ export default function Financeiro() {
         if (data.conta_paga) {
           setProgressoSalvamento({ etapa: 'Registrando baixa...', current: 85, total: 100 });
           const allBaixas = await base44.entities.BaixaFinanceira.list();
-          const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b?.numero_baixa) || 0), 0);
+          const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
 
           await base44.entities.BaixaFinanceira.create({
             empresa_id: empresaSelecionadaId,
             numero_baixa: String(maxNumBaixa + 1),
             lancamento_id: lanc.id,
             data_baixa: data.data_pagamento,
-            valor_baixa: data.valor_pago_total || 0,
+            valor_baixa: data.valor_pago_total,
             valor_juros: 0,
             valor_multa: 0,
             valor_desconto: 0,
@@ -371,60 +338,60 @@ export default function Financeiro() {
       setEditingLancamento(null);
       setDadosXML(null);
       setShowProgressoSalvamento(false);
-      toast.success('✅ Lançamento salvo!');
+      toast.success('Lançamento salvo com sucesso!');
     },
     onError: (error) => {
       setShowProgressoSalvamento(false);
-      toast.error('❌ Erro: ' + error.message);
+      toast.error('Erro ao salvar: ' + error.message);
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const baixas = await base44.entities.BaixaFinanceira.list();
-      const baixaAssociada = baixas.find(b => b && b.lancamento_id === id);
+      const baixaAssociada = baixas.find(b => b.lancamento_id === id);
       
       if (baixaAssociada) {
-        throw new Error('Não é possível excluir lançamento com baixa. Cancele a baixa primeiro.');
+        throw new Error('Não é possível excluir lançamento com baixa associada. Cancele a baixa primeiro.');
       }
       
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      toast.success('✅ Lançamento excluído!');
+      toast.success('Lançamento excluído!');
     },
     onError: (error) => {
-      toast.error('❌ ' + error.message);
+      toast.error(error.message);
     }
   });
 
   const cancelarBaixaMutation = useMutation({
     mutationFn: async (lancamentoId) => {
       const baixas = await base44.entities.BaixaFinanceira.list();
-      const baixasDoLancamento = baixas.filter(b => b && b.lancamento_id === lancamentoId);
+      const baixasDoLancamento = baixas.filter(b => b.lancamento_id === lancamentoId);
       
       for (const baixa of baixasDoLancamento) {
         await base44.entities.BaixaFinanceira.delete(baixa.id);
       }
       
       const lanc = await base44.entities.LancamentoFinanceiro.list();
-      const lancamento = lanc.find(l => l && l.id === lancamentoId);
+      const lancamento = lanc.find(l => l.id === lancamentoId);
       
       if (lancamento) {
         await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
           status: 'Pendente',
           valor_pago: 0,
-          valor_saldo: lancamento.valor_total || 0
+          valor_saldo: lancamento.valor_total
         });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      toast.success('✅ Baixa cancelada!');
+      toast.success('Baixa cancelada!');
     },
     onError: (error) => {
-      toast.error('❌ Erro: ' + error.message);
+      toast.error('Erro ao cancelar baixa: ' + error.message);
     }
   });
 
@@ -434,14 +401,14 @@ export default function Financeiro() {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
       setAbaAtiva("pesquisar");
-      toast.success('✅ Lançamento atualizado!');
+      toast.success('Lançamento atualizado!');
     } else {
       createMutation.mutate(data);
     }
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('⚠️ Deseja realmente excluir este lançamento?')) {
+    if (window.confirm('Deseja realmente excluir este lançamento?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -451,7 +418,7 @@ export default function Financeiro() {
   };
 
   const handleCancelarBaixa = (lancamento) => {
-    if (window.confirm('⚠️ Deseja cancelar a baixa deste lançamento?')) {
+    if (window.confirm('Deseja cancelar a baixa deste lançamento?')) {
       cancelarBaixaMutation.mutate(lancamento.id);
     }
   };
@@ -474,55 +441,63 @@ export default function Financeiro() {
     setAbaAtiva("pesquisar");
   };
 
-  const lancamentosPagar = useMemo(() => {
-    return (lancamentos || []).filter(l => l && l.tipo === 'Pagar');
-  }, [lancamentos]);
-
-  const lancamentosReceber = useMemo(() => {
-    return (lancamentos || []).filter(l => l && l.tipo === 'Receber');
-  }, [lancamentos]);
+  const lancamentosPagar = useMemo(() => (lancamentos || []).filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
+  const lancamentosReceber = useMemo(() => (lancamentos || []).filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
   return (
-    <div className="p-4 md:p-6 space-y-4 bg-slate-50 min-h-screen">
-      <Card className="border-slate-200 shadow-lg">
+    <div className="p-4 bg-slate-50 min-h-screen">
+      <div className="mb-3">
+        <h1 className="text-xl font-bold text-slate-800">Controle Financeiro</h1>
+        <p className="text-xs text-slate-600">Gestão de contas a pagar e receber</p>
+      </div>
+
+      <Card className="border border-slate-300">
         <CardContent className="p-0">
           <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
-            <TabsList className="w-full justify-start rounded-none border-b bg-white h-12 px-4">
-              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-slate-100 data-[state=active]:shadow-sm px-6 text-sm">
-                📊 Pesquisar
+            <TabsList className="w-full justify-start rounded-none border-b bg-slate-100 h-10">
+              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Cadastrar
               </TabsTrigger>
-              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-slate-100 data-[state=active]:shadow-sm px-6 text-sm">
-                ✍️ Cadastrar
+              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Pesquisar
               </TabsTrigger>
-              <TabsTrigger value="importar" className="data-[state=active]:bg-slate-100 data-[state=active]:shadow-sm px-6 text-sm">
-                📥 Importar XML
+              <TabsTrigger value="importar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Importar de XML
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pesquisar" className="p-6 m-0">
-              <div className="space-y-4">
-                <div className="flex justify-end gap-3">
-                  <Button onClick={handleNovoCadastro} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                    <Plus className="w-4 h-4" />
+            <TabsContent value="cadastrar" className="p-4 m-0">
+              <FormularioCompraFinanceiro
+                onSubmit={handleSubmit}
+                onCancel={handleCancelarCadastro}
+                initialData={editingLancamento || dadosXML}
+                fornecedores={fornecedores}
+                produtos={produtos}
+              />
+            </TabsContent>
+
+            <TabsContent value="pesquisar" className="p-4 m-0">
+              <div className="space-y-3">
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={handleNovoCadastro}>
                     Novo Lançamento
                   </Button>
-                  <Button onClick={() => setShowImportXML(true)} variant="outline" className="gap-2">
-                    <FileDown className="w-4 h-4" />
+                  <Button variant="outline" size="sm" onClick={() => setShowImportXML(true)}>
                     Importar XML
                   </Button>
                 </div>
 
                 <Tabs value={tipoAtivo} onValueChange={setTipoAtivo}>
-                  <TabsList className="w-full justify-start bg-slate-100 h-11">
-                    <TabsTrigger value="pagar" className="data-[state=active]:bg-white data-[state=active]:shadow px-8 text-sm font-semibold">
-                      💸 Contas a Pagar ({lancamentosPagar.length})
+                  <TabsList className="w-full justify-start border-b bg-slate-50 h-9 rounded-none">
+                    <TabsTrigger value="pagar" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                      Contas a Pagar ({lancamentosPagar.length})
                     </TabsTrigger>
-                    <TabsTrigger value="receber" className="data-[state=active]:bg-white data-[state=active]:shadow px-8 text-sm font-semibold">
-                      💰 Contas a Receber ({lancamentosReceber.length})
+                    <TabsTrigger value="receber" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                      Contas a Receber ({lancamentosReceber.length})
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="pagar" className="m-0 mt-4">
+                  <TabsContent value="pagar" className="m-0 mt-3">
                     <TabelaFinanceiro
                       lancamentos={lancamentosPagar}
                       tipo="Pagar"
@@ -536,7 +511,7 @@ export default function Financeiro() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="receber" className="m-0 mt-4">
+                  <TabsContent value="receber" className="m-0 mt-3">
                     <TabelaFinanceiro
                       lancamentos={lancamentosReceber}
                       tipo="Receber"
@@ -553,30 +528,13 @@ export default function Financeiro() {
               </div>
             </TabsContent>
 
-            <TabsContent value="cadastrar" className="p-6 m-0">
-              <FormularioCompraFinanceiro
-                onSubmit={handleSubmit}
-                onCancel={handleCancelarCadastro}
-                initialData={editingLancamento || dadosXML}
-                fornecedores={fornecedores}
-                produtos={produtos}
-              />
-            </TabsContent>
-
-            <TabsContent value="importar" className="p-6 m-0">
-              <Card className="bg-gradient-to-br from-blue-50 to-emerald-50 border-slate-200">
-                <CardContent className="p-12 text-center">
-                  <FileDown className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Importar NF-e (XML)</h3>
-                  <p className="text-sm text-slate-600 mb-6 max-w-md mx-auto">
-                    Selecione um arquivo XML de NF-e para importar automaticamente os dados para o formulário
-                  </p>
-                  <Button onClick={() => setShowImportXML(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                    <FileDown className="w-4 h-4" />
-                    Selecionar Arquivo XML
-                  </Button>
-                </CardContent>
-              </Card>
+            <TabsContent value="importar" className="p-4 m-0">
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-600 mb-4">Importar dados de XML (NF-e)</p>
+                <Button onClick={() => setShowImportXML(true)}>
+                  Selecionar Arquivo XML
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -602,14 +560,11 @@ export default function Financeiro() {
       <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base">💾 Salvando Lançamento</DialogTitle>
+            <DialogTitle className="text-sm">Salvando Lançamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-slate-700 text-center font-medium">{progressoSalvamento.etapa}</p>
-            <Progress value={progressoSalvamento.current} className="w-full h-3" />
-            <p className="text-center text-sm text-emerald-600 font-semibold">
-              {Math.round(progressoSalvamento.current)}%
-            </p>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{progressoSalvamento.etapa}</p>
+            <Progress value={progressoSalvamento.current} className="w-full" />
           </div>
         </DialogContent>
       </Dialog>
