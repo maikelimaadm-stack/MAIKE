@@ -199,68 +199,68 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
     switch (sortField) {
       case 'numero':
-        aValue = parseInt(a.numero_lancamento) || 0;
-        bValue = parseInt(b.numero_lancamento) || 0;
+        aValue = parseInt(a?.numero_lancamento) || 0;
+        bValue = parseInt(b?.numero_lancamento) || 0;
         break;
       case 'emissao':
-        aValue = new Date(a.data_emissao).getTime();
-        bValue = new Date(b.data_emissao).getTime();
+        aValue = new Date(a?.data_emissao).getTime();
+        bValue = new Date(b?.data_emissao).getTime();
         break;
       case 'vencimento':
-        aValue = new Date(a.data_vencimento).getTime();
-        bValue = new Date(b.data_vencimento).getTime();
+        aValue = new Date(a?.data_vencimento).getTime();
+        bValue = new Date(b?.data_vencimento).getTime();
         break;
       case 'fornecedor_cliente':
-        aValue = (a.fornecedor_nome || a.cliente_nome || '').toLowerCase();
-        bValue = (b.fornecedor_nome || b.cliente_nome || '').toLowerCase();
+        aValue = (a?.fornecedor_nome || a?.cliente_nome || '').toLowerCase();
+        bValue = (b?.fornecedor_nome || b?.cliente_nome || '').toLowerCase();
         break;
       case 'tipo_documento':
-        aValue = (a.tipo_documento || '').toLowerCase();
-        bValue = (b.tipo_documento || '').toLowerCase();
+        aValue = (a?.tipo_documento || '').toLowerCase();
+        bValue = (b?.tipo_documento || '').toLowerCase();
         break;
       case 'documento':
-        aValue = (a.numero_documento || '').toLowerCase();
-        bValue = (b.numero_documento || '').toLowerCase();
+        aValue = (a?.numero_documento || '').toLowerCase();
+        bValue = (b?.numero_documento || '').toLowerCase();
         break;
       case 'valor_original':
-        aValue = a.valor_original || 0;
-        bValue = b.valor_original || 0;
+        aValue = a?.valor_original || 0;
+        bValue = b?.valor_original || 0;
         break;
       case 'valor_total':
-        aValue = a.valor_total || 0;
-        bValue = b.valor_total || 0;
+        aValue = a?.valor_total || 0;
+        bValue = b?.valor_total || 0;
         break;
       case 'valor_pago':
-        aValue = a.valor_pago || 0;
-        bValue = b.valor_pago || 0;
+        aValue = a?.valor_pago || 0;
+        bValue = b?.valor_pago || 0;
         break;
       case 'saldo':
-        aValue = a.valor_saldo || a.valor_total || 0;
-        bValue = b.valor_saldo || b.valor_total || 0;
+        aValue = a?.valor_saldo || a?.valor_total || 0;
+        bValue = b?.valor_saldo || b?.valor_total || 0;
         break;
       case 'status':
-        aValue = (a.status || '').toLowerCase();
-        bValue = (b.status || '').toLowerCase();
+        aValue = (a?.status || '').toLowerCase();
+        bValue = (b?.status || '').toLowerCase();
         break;
       case 'safra':
-        aValue = (a.safra_nome || '').toLowerCase();
-        bValue = (b.safra_nome || '').toLowerCase();
+        aValue = (a?.safra_nome || '').toLowerCase();
+        bValue = (b?.safra_nome || '').toLowerCase();
         break;
       case 'centro_custo':
-        aValue = (a.centro_custo_nome || '').toLowerCase();
-        bValue = (b.centro_custo_nome || '').toLowerCase();
+        aValue = (a?.centro_custo_nome || '').toLowerCase();
+        bValue = (b?.centro_custo_nome || '').toLowerCase();
         break;
       case 'plano_contas':
-        aValue = (a.plano_contas_nome || '').toLowerCase();
-        bValue = (b.plano_contas_nome || '').toLowerCase();
+        aValue = (a?.plano_contas_nome || '').toLowerCase();
+        bValue = (b?.plano_contas_nome || '').toLowerCase();
         break;
       case 'grupo':
-        aValue = (a.grupo_nome || '').toLowerCase();
-        bValue = (b.grupo_nome || '').toLowerCase();
+        aValue = (a?.grupo_nome || '').toLowerCase();
+        bValue = (b?.grupo_nome || '').toLowerCase();
         break;
       case 'forma_pagamento':
-        aValue = (a.forma_pagamento_nome || '').toLowerCase();
-        bValue = (b.forma_pagamento_nome || '').toLowerCase();
+        aValue = (a?.forma_pagamento_nome || '').toLowerCase();
+        bValue = (b?.forma_pagamento_nome || '').toLowerCase();
         break;
       default:
         return 0;
@@ -279,7 +279,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     setProdutosAberto(lancamento);
   };
 
-  const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento.fornecedor_id);
+  const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
   return (
     <>
@@ -424,6 +424,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     </TableRow>
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
+                      if (!lancamento) return null;
+                      
                       const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
                       
                       return (
@@ -435,68 +437,68 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               exit={{ opacity: 0 }} 
                               className="hover:bg-slate-50 transition-colors cursor-pointer"
                             >
-                              {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento.numero_lancamento))}</TableCell>}
-                              {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento.data_emissao)}</TableCell>}
-                              {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs">{formatarData(lancamento.data_vencimento)}</TableCell>}
+                              {colunasVisiveis.includes('numero') && <TableCell className="font-bold">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>}
+                              {colunasVisiveis.includes('emissao') && <TableCell className="text-xs">{formatarData(lancamento?.data_emissao)}</TableCell>}
+                              {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs">{formatarData(lancamento?.data_vencimento)}</TableCell>}
                               {colunasVisiveis.includes('dias') && (
                                 <TableCell className="text-xs">
-                                  {lancamento.status === 'Pendente' && (
-                                    <span className={`font-medium ${calcularDias(lancamento.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-blue-600'}`}>
-                                      {calcularDias(lancamento.data_vencimento)}
+                                  {lancamento?.status === 'Pendente' && (
+                                    <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-blue-600'}`}>
+                                      {calcularDias(lancamento?.data_vencimento)}
                                     </span>
                                   )}
                                 </TableCell>
                               )}
                               {colunasVisiveis.includes('fornecedor_cliente') && (
                                 <TableCell className="max-w-xs truncate">
-                                  {lancamento.fornecedor_nome || lancamento.cliente_nome || '-'}
+                                  {lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}
                                 </TableCell>
                               )}
                               {colunasVisiveis.includes('tipo_documento') && (
-                                <TableCell className="text-xs">{lancamento.tipo_documento || '-'}</TableCell>
+                                <TableCell className="text-xs">{lancamento?.tipo_documento || '-'}</TableCell>
                               )}
                               {colunasVisiveis.includes('documento') && (
-                                <TableCell className="font-mono text-xs">{lancamento.numero_documento || '-'}</TableCell>
+                                <TableCell className="font-mono text-xs">{lancamento?.numero_documento || '-'}</TableCell>
                               )}
                               {colunasVisiveis.includes('chave_nfe') && (
-                                <TableCell className="font-mono text-xs max-w-xs truncate">{lancamento.chave_nfe || '-'}</TableCell>
+                                <TableCell className="font-mono text-xs max-w-xs truncate">{lancamento?.chave_nfe || '-'}</TableCell>
                               )}
-                              {colunasVisiveis.includes('serie') && <TableCell className="text-xs">{lancamento.serie_documento || '-'}</TableCell>}
-                              {colunasVisiveis.includes('cfop') && <TableCell className="text-xs">{lancamento.cfop || '-'}</TableCell>}
-                              {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento.valor_original || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento.valor_total || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento.valor_pago || 0)}</TableCell>}
-                              {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('serie') && <TableCell className="text-xs">{lancamento?.serie_documento || '-'}</TableCell>}
+                              {colunasVisiveis.includes('cfop') && <TableCell className="text-xs">{lancamento?.cfop || '-'}</TableCell>}
+                              {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento?.valor_original || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>}
+                              {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda(lancamento?.valor_saldo || lancamento?.valor_total || 0)}</TableCell>}
                               {colunasVisiveis.includes('status') && (
                                 <TableCell>
-                                  <Badge className={getBadgeStyle(lancamento.status)}>{lancamento.status}</Badge>
-                                  {lancamento.numero_parcela && (
+                                  <Badge className={getBadgeStyle(lancamento?.status)}>{lancamento?.status}</Badge>
+                                  {lancamento?.numero_parcela && (
                                     <div className="text-xs text-slate-500 mt-1">
                                       Parcela {lancamento.numero_parcela}/{lancamento.total_parcelas}
                                     </div>
                                   )}
                                 </TableCell>
                               )}
-                              {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento.safra_nome || '-'}</TableCell>}
-                              {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento.centro_custo_nome || '-'}</TableCell>}
-                              {colunasVisiveis.includes('plano_contas') && <TableCell className="text-xs max-w-xs truncate">{lancamento.plano_contas_nome || '-'}</TableCell>}
-                              {colunasVisiveis.includes('grupo') && <TableCell className="text-xs">{lancamento.grupo_nome || '-'}</TableCell>}
-                              {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento.forma_pagamento_nome || '-'}</TableCell>}
-                              {colunasVisiveis.includes('lancar_produtos') && <TableCell className="text-center">{lancamento.lancar_produtos ? '✓' : '-'}</TableCell>}
-                              {colunasVisiveis.includes('dar_entrada_estoque') && <TableCell className="text-center">{lancamento.dar_entrada_estoque ? '✓' : '-'}</TableCell>}
-                              {colunasVisiveis.includes('local_estoque') && <TableCell className="text-xs">{lancamento.local_estoque || '-'}</TableCell>}
-                              {colunasVisiveis.includes('valor_produtos_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_produtos || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_frete_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_frete || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_seguro_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_seguro || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_outras_despesas_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_outras_despesas || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_desconto_total_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_desconto_total || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_ipi') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_ipi || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_icms || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_pis') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_pis || 0)}</TableCell>}
-                              {colunasVisiveis.includes('valor_cofins') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.valor_cofins || 0)}</TableCell>}
-                              {colunasVisiveis.includes('base_calculo_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento.base_calculo_icms || 0)}</TableCell>}
-                              {colunasVisiveis.includes('observacoes') && <TableCell className="text-xs max-w-xs truncate">{lancamento.observacoes || '-'}</TableCell>}
-                              {colunasVisiveis.includes('observacoes_nfe') && <TableCell className="text-xs max-w-xs truncate">{lancamento.observacoes_nfe || '-'}</TableCell>}
+                              {colunasVisiveis.includes('safra') && <TableCell className="text-xs">{lancamento?.safra_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('centro_custo') && <TableCell className="text-xs">{lancamento?.centro_custo_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('plano_contas') && <TableCell className="text-xs max-w-xs truncate">{lancamento?.plano_contas_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('grupo') && <TableCell className="text-xs">{lancamento?.grupo_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('forma_pagamento') && <TableCell className="text-xs">{lancamento?.forma_pagamento_nome || '-'}</TableCell>}
+                              {colunasVisiveis.includes('lancar_produtos') && <TableCell className="text-center">{lancamento?.lancar_produtos ? '✓' : '-'}</TableCell>}
+                              {colunasVisiveis.includes('dar_entrada_estoque') && <TableCell className="text-center">{lancamento?.dar_entrada_estoque ? '✓' : '-'}</TableCell>}
+                              {colunasVisiveis.includes('local_estoque') && <TableCell className="text-xs">{lancamento?.local_estoque || '-'}</TableCell>}
+                              {colunasVisiveis.includes('valor_produtos_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_produtos || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_frete_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_frete || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_seguro_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_seguro || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_outras_despesas_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_desconto_total_nfe') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_ipi') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_ipi || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_icms || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_pis') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_pis || 0)}</TableCell>}
+                              {colunasVisiveis.includes('valor_cofins') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.valor_cofins || 0)}</TableCell>}
+                              {colunasVisiveis.includes('base_calculo_icms') && <TableCell className="text-right font-mono text-xs">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</TableCell>}
+                              {colunasVisiveis.includes('observacoes') && <TableCell className="text-xs max-w-xs truncate">{lancamento?.observacoes || '-'}</TableCell>}
+                              {colunasVisiveis.includes('observacoes_nfe') && <TableCell className="text-xs max-w-xs truncate">{lancamento?.observacoes_nfe || '-'}</TableCell>}
                             </motion.tr>
                           </ContextMenuTrigger>
                           <ContextMenuContent>
@@ -514,13 +516,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                 Ver Produtos
                               </ContextMenuItem>
                             )}
-                            {lancamento.status !== 'Pago' && lancamento.status !== 'Cancelado' && (
+                            {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
                               <ContextMenuItem onClick={() => onBaixa(lancamento)}>
                                 <DollarSign className="w-4 h-4 mr-2 text-green-600" />
                                 Dar Baixa
                               </ContextMenuItem>
                             )}
-                            {lancamento.status === 'Pago' && onCancelarBaixa && (
+                            {lancamento?.status === 'Pago' && onCancelarBaixa && (
                               <ContextMenuItem onClick={() => onCancelarBaixa(lancamento)}>
                                 <XCircle className="w-4 h-4 mr-2 text-orange-600" />
                                 Cancelar Baixa
