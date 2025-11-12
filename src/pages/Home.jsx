@@ -1,22 +1,15 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Users, Calendar, Settings, BarChart3, Eye, Table as TableIcon, List, TrendingDown } from "lucide-react";
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart3 } from "lucide-react";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, subMonths } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const CORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
-
-
-
-const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function Home() {
   const [showConfigGraficos, setShowConfigGraficos] = useState(false);
@@ -40,6 +33,11 @@ export default function Home() {
     return ['movimentacoes_mes', 'estoque_categoria'];
   });
 
+  // Limpar cache antigo ao montar o componente
+  useEffect(() => {
+    localStorage.removeItem('cartoes_dashboard');
+  }, []);
+
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: produtos = [] } = useQuery({
@@ -59,19 +57,6 @@ export default function Home() {
     },
     enabled: !!empresaSelecionadaId,
   });
-
-  const { data: fornecedores = [] } = useQuery({
-    queryKey: ['fornecedores_dashboard', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Fornecedor.list();
-      return all.filter(f => f && f.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-
-
-
 
   const dadosGraficos = useMemo(() => {
     const movimentacoesMes = [];
@@ -113,8 +98,6 @@ export default function Home() {
       return novos;
     });
   };
-
-
 
   return (
     <div className="p-4 md:p-6 space-y-3">
@@ -181,8 +164,6 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
-
-
       </div>
 
       <Dialog open={showConfigGraficos} onOpenChange={setShowConfigGraficos}>
@@ -206,8 +187,6 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
-
-
     </div>
   );
 }
