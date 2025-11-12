@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,7 +27,6 @@ import {
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 // Função global para obter próximo número único do sistema
 const getNextSystemNumber = async () => {
@@ -434,10 +432,6 @@ export default function Produtos() {
     link.click();
   };
 
-  const totalProdutos = produtos.length;
-  const valorTotalEstoque = produtos.reduce((sum, p) => sum + ((p.preco_custo || 0) * (p.estoque_atual || 0)), 0);
-  const produtosEstoqueBaixo = produtos.filter(p => (p.estoque_atual || 0) <= (p.estoque_minimo || 0)).length;
-
   const formatarNumero = (numero) => {
     if (!numero && numero !== 0) return "0,00";
     return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -446,12 +440,6 @@ export default function Produtos() {
   const progressPercentage = importProgress.total > 0 
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
-
-  const cartoes = [
-    { id: 'total', label: 'Total de Produtos', valor: totalProdutos, sublabel: 'Cadastrados', icon: Package, cor: 'blue', tipo: 'numero' },
-    { id: 'valor', label: 'Valor em Estoque', valor: valorTotalEstoque, sublabel: 'Custo total', icon: TrendingDown, cor: 'emerald', tipo: 'moeda' },
-    { id: 'baixo', label: 'Estoque Baixo', valor: produtosEstoqueBaixo, sublabel: 'Abaixo do mínimo', icon: AlertTriangle, cor: 'amber', tipo: 'numero' },
-  ];
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -463,8 +451,6 @@ export default function Produtos() {
               <p className="text-xs text-slate-600">Gerenciar produtos e estoque</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">

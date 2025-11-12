@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +26,6 @@ import {
 import FormularioFornecedor from "../components/fornecedores/FormularioFornecedor";
 import TabelaFornecedores from "../components/fornecedores/TabelaFornecedores";
 import FichaFornecedor from "../components/fornecedores/FichaFornecedor";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 // Função global para obter próximo número único do sistema
 async function getNextSystemNumber() {
@@ -472,19 +470,9 @@ export default function Fornecedores() {
     link.click();
   };
 
-  const totalFornecedores = fornecedores.length;
-  const pessoasFisicas = fornecedores.filter(f => f.tipo_pessoa === 'Física').length;
-  const pessoasJuridicas = fornecedores.filter(f => f.tipo_pessoa === 'Jurídica').length;
-
   const progressPercentage = importProgress.total > 0 
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
-
-  const cartoes = [
-    { id: 'total', label: 'Total de Cadastros', valor: totalFornecedores, sublabel: 'Fornecedores/Clientes', icon: Users, cor: 'blue', tipo: 'numero' },
-    { id: 'fisica', label: 'Pessoas Físicas', valor: pessoasFisicas, sublabel: 'CPF', icon: UserCircle, cor: 'emerald', tipo: 'numero' },
-    { id: 'juridica', label: 'Pessoas Jurídicas', valor: pessoasJuridicas, sublabel: 'CNPJ', icon: Building2, cor: 'violet', tipo: 'numero' },
-  ];
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -496,8 +484,6 @@ export default function Fornecedores() {
               <p className="text-xs text-slate-600">Gerenciar cadastros</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">

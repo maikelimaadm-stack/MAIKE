@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +26,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -326,16 +324,7 @@ export default function RelatorioEstoque() {
         </div>
       </div>
 
-      {/* Cartões de Resumo - Visível apenas fora da impressão */}
-      <div className="print:hidden">
-        <CartoesResumo
-          data={[
-            { id: 'total_itens', label: 'Total de Itens', value: totalItens, icon: Package },
-            { id: 'valor_total', label: 'Valor Total do Estoque', value: `R$ ${formatarNumero(totalValorEstoque)}`, icon: FileText },
-            { id: 'estoque_baixo', label: 'Itens em Estoque Baixo', value: totalEstoqueBaixo, icon: FileText, subText: "Verificar reposição" },
-          ]}
-        />
-      </div>
+
 
       {/* Configurações em Modal/Dialog */}
       <Dialog open={showConfig} onOpenChange={setShowConfig}>
