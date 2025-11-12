@@ -544,7 +544,7 @@ export default function Financeiro() {
                       <Save className="w-3 h-3 mr-1" />
                       Salvar
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { resetForm(); setModoTela("lista"); }}>
+                    <Button size="sm" variant="outline" onClick={() => { resetForm(); setAbaModulo("pesquisa"); }}>
                       <X className="w-3 h-3 mr-1" />
                       Cancelar
                     </Button>
