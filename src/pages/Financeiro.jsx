@@ -1,40 +1,38 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { DollarSign, Plus, TrendingUp, TrendingDown, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
 import BaixaFinanceira from "../components/financeiro/BaixaFinanceira.jsx";
 import ImportarNFeFinanceiro from "../components/financeiro/ImportarNFeFinanceiro.jsx";
-import CartoesResumo from "../components/shared/CartoesResumo.jsx";
 
 const getNextNumber = async (empresaId) => {
   const all = await base44.entities.LancamentoFinanceiro.list();
   const filtered = all.filter(l => l.empresa_id === empresaId);
-  const maxNum = filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0);
-  return maxNum + 1;
+  return filtered.reduce((max, l) => Math.max(max, parseInt(l.numero_lancamento) || 0), 0) + 1;
 };
 
 export default function Financeiro() {
-  const [tipoAba, setTipoAba] = useState("pagar");
-  const [showForm, setShowForm] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState("pesquisar");
+  const [tipoAtivo, setTipoAtivo] = useState("pagar");
+  const [editingLancamento, setEditingLancamento] = useState(null);
+  const [baixaLancamento, setBaixaLancamento] = useState(null);
+  const [showImportXML, setShowImportXML] = useState(false);
   const [dadosXML, setDadosXML] = useState(null);
-  const [showBaixa, setShowBaixa] = useState(false);
-  const [itemBaixa, setItemBaixa] = useState(null);
-  const [showImportarXML, setShowImportarXML] = useState(false);
   const [showProgressoSalvamento, setShowProgressoSalvamento] = useState(false);
-  const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 0 });
+  const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 100 });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
-  const { data: lancamentos = [], isLoading } = useQuery({
+  const { data: lancamentos = [], isLoading: loadingLancamentos } = useQuery({
     queryKey: ['lancamentos_financeiros', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.LancamentoFinanceiro.list('-data_emissao');
@@ -52,7 +50,7 @@ export default function Financeiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: produtos = [] } = useQuery({ // This `produtos` query is still useful for general product display/selection
+  const { data: produtos = [] } = useQuery({
     queryKey: ['produtos_financeiro', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list('nome_produto');
@@ -61,37 +59,10 @@ export default function Financeiro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: planos = [] } = useQuery({
-    queryKey: ['planos_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PlanoContas.list('codigo');
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.tipo === 'Despesa');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: grupos = [] } = useQuery({
-    queryKey: ['grupos_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.GrupoFinanceiro.list();
-      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false && g.tipo === 'Despesa');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: formasPagamento = [] } = useQuery({
-    queryKey: ['formas_financeiro', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.FormaPagamento.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const createMutation = useMutation({
     mutationFn: async (data) => {
       setShowProgressoSalvamento(true);
-      setProgressoSalvamento({ etapa: '🚀 Iniciando...', current: 10, total: 100 });
+      setProgressoSalvamento({ etapa: 'Iniciando...', current: 10, total: 100 });
 
       await new Promise(resolve => setTimeout(resolve, 300));
       
@@ -99,14 +70,11 @@ export default function Financeiro() {
       const produtosEmpresa = todosProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
       const user = await base44.auth.me();
 
-      // DETERMINAR ORIGEM
       const origem_importacao = data.origem_importacao || (data.chave_nfe ? 'XML' : 'MANUAL');
-      
-      // PREPARAR TIPO DETALHADO
       const tipo_detalhado_base = data.tipo_documento || 'COMPRA';
 
       if (data.parcelas && data.parcelas.length > 0) {
-        setProgressoSalvamento({ etapa: '💰 Criando parcelas...', current: 30, total: 100 });
+        setProgressoSalvamento({ etapa: 'Criando parcelas...', current: 30, total: 100 });
         const lancamentosCriados = [];
 
         for (let i = 0; i < data.parcelas.length; i++) {
@@ -182,7 +150,7 @@ export default function Financeiro() {
           });
 
           if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0 && i === 0) {
-            setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 60, total: 100 });
+            setProgressoSalvamento({ etapa: 'Atualizando estoque...', current: 60, total: 100 });
 
             for (const prodLanc of data.produtos_selecionados) {
               const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
@@ -220,9 +188,7 @@ export default function Financeiro() {
                   valor_unitario: prodLanc.valor_unitario,
                   valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
                   local_origem: data.fornecedor_nome,
-                  local_estoque_origem: data.local_estoque, // Added this line
-                  local_destino: data.local_estoque,
-                  local_estoque_destino: data.local_estoque,
+                  local_estoque_origem: data.local_estoque,
                   saldo_antes: produto.estoque_atual || 0,
                   saldo_depois: novoEstoque,
                   motivo_movimentacao: `Entrada via Controle Financeiro - ${origem_importacao === 'XML' ? 'Importado via XML' : 'Cadastrado manualmente'}`,
@@ -236,15 +202,15 @@ export default function Financeiro() {
           }
 
           lancamentosCriados.push(lanc);
-          setProgressoSalvamento({ etapa: `💰 Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
+          setProgressoSalvamento({ etapa: `Parcela ${i + 1}/${data.parcelas.length}`, current: 30 + (i + 1) * (40 / data.parcelas.length), total: 100 });
         }
 
-        setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
+        setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
         await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success(`✅ ${data.parcelas.length} lançamentos criados${data.dar_entrada_estoque ? ' e estoque atualizado' : ''}!`);
+        toast.success(`${data.parcelas.length} lançamentos criados${data.dar_entrada_estoque ? ' e estoque atualizado' : ''}!`);
         return lancamentosCriados[0];
       } else {
-        setProgressoSalvamento({ etapa: '💾 Salvando...', current: 50, total: 100 });
+        setProgressoSalvamento({ etapa: 'Salvando...', current: 50, total: 100 });
         const numero = await getNextNumber(empresaSelecionadaId);
 
         let valorTotal;
@@ -287,7 +253,7 @@ export default function Financeiro() {
         });
 
         if (data.dar_entrada_estoque && data.produtos_selecionados && data.produtos_selecionados.length > 0) {
-          setProgressoSalvamento({ etapa: '📦 Atualizando estoque...', current: 70, total: 100 });
+          setProgressoSalvamento({ etapa: 'Atualizando estoque...', current: 70, total: 100 });
 
           for (const prodLanc of data.produtos_selecionados) {
             const produto = produtosEmpresa.find(p => p.id === prodLanc.produto_id);
@@ -325,9 +291,7 @@ export default function Financeiro() {
                 valor_unitario: prodLanc.valor_unitario,
                 valor_total: prodLanc.quantidade * prodLanc.valor_unitario,
                 local_origem: data.fornecedor_nome,
-                local_estoque_origem: data.local_estoque, // Added this line
-                local_destino: data.local_estoque,
-                local_estoque_destino: data.local_estoque,
+                local_estoque_origem: data.local_estoque,
                 saldo_antes: produto.estoque_atual || 0,
                 saldo_depois: novoEstoque,
                 motivo_movimentacao: `Entrada via Controle Financeiro - ${origem_importacao === 'XML' ? 'Importado via XML' : 'Cadastrado manualmente'}`,
@@ -341,7 +305,7 @@ export default function Financeiro() {
         }
 
         if (data.conta_paga) {
-          setProgressoSalvamento({ etapa: '✅ Registrando baixa...', current: 85, total: 100 });
+          setProgressoSalvamento({ etapa: 'Registrando baixa...', current: 85, total: 100 });
           const allBaixas = await base44.entities.BaixaFinanceira.list();
           const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b.numero_baixa) || 0), 0);
 
@@ -361,7 +325,7 @@ export default function Financeiro() {
           });
         }
 
-        setProgressoSalvamento({ etapa: '✅ Concluído!', current: 100, total: 100 });
+        setProgressoSalvamento({ etapa: 'Concluído!', current: 100, total: 100 });
         await new Promise(resolve => setTimeout(resolve, 500));
         return lanc;
       }
@@ -369,29 +333,32 @@ export default function Financeiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-      setShowForm(false);
+      setAbaAtiva("pesquisar");
+      setEditingLancamento(null);
       setDadosXML(null);
       setShowProgressoSalvamento(false);
-      toast.success('✅ Lançamento salvo com sucesso!');
+      toast.success('Lançamento salvo com sucesso!');
     },
     onError: (error) => {
       setShowProgressoSalvamento(false);
-      toast.error('❌ Erro ao salvar: ' + error.message);
+      toast.error('Erro ao salvar: ' + error.message);
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const baixas = await base44.entities.BaixaFinanceira.list();
-      const temBaixas = baixas.some(b => b.lancamento_id === id);
-      if (temBaixas) {
-        throw new Error('❌ Possui baixas! Cancele-as primeiro.');
+      const baixaAssociada = baixas.find(b => b.lancamento_id === id);
+      
+      if (baixaAssociada) {
+        throw new Error('Não é possível excluir lançamento com baixa associada. Cancele a baixa primeiro.');
       }
+      
       return base44.entities.LancamentoFinanceiro.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      toast.success('✅ Excluído!');
+      toast.success('Lançamento excluído!');
     },
     onError: (error) => {
       toast.error(error.message);
@@ -399,233 +366,207 @@ export default function Financeiro() {
   });
 
   const cancelarBaixaMutation = useMutation({
-    mutationFn: async (lancamento) => {
-      const allBaixas = await base44.entities.BaixaFinanceira.list();
-      const baixasDoLancamento = allBaixas.filter(b => b.lancamento_id === lancamento.id);
-
-      if (baixasDoLancamento.length === 0) {
-        throw new Error('Nenhuma baixa encontrada!');
-      }
-
+    mutationFn: async (lancamentoId) => {
+      const baixas = await base44.entities.BaixaFinanceira.list();
+      const baixasDoLancamento = baixas.filter(b => b.lancamento_id === lancamentoId);
+      
       for (const baixa of baixasDoLancamento) {
         await base44.entities.BaixaFinanceira.delete(baixa.id);
       }
-
-      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
-        valor_pago: 0,
-        valor_saldo: lancamento.valor_total,
-        status: 'Pendente'
-      });
+      
+      const lanc = await base44.entities.LancamentoFinanceiro.list();
+      const lancamento = lanc.find(l => l.id === lancamentoId);
+      
+      if (lancamento) {
+        await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
+          status: 'Pendente',
+          valor_pago: 0,
+          valor_saldo: lancamento.valor_total
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-      toast.success('✅ Baixa(s) cancelada(s)!');
+      toast.success('Baixa cancelada!');
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error('Erro ao cancelar baixa: ' + error.message);
     }
   });
 
   const handleSubmit = async (data) => {
-    await createMutation.mutateAsync(data);
+    if (editingLancamento) {
+      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, data);
+      queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+      setEditingLancamento(null);
+      setAbaAtiva("pesquisar");
+      toast.success('Lançamento atualizado!');
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('⚠️ EXCLUIR LANÇAMENTO?')) {
+    if (window.confirm('Deseja realmente excluir este lançamento?')) {
       deleteMutation.mutate(id);
     }
   };
 
-  const handleBaixa = (item) => {
-    setItemBaixa(item);
-    setShowBaixa(true);
+  const handleBaixa = (lancamento) => {
+    setBaixaLancamento(lancamento);
   };
 
   const handleCancelarBaixa = (lancamento) => {
-    if (window.confirm('⚠️ CANCELAR BAIXAS?')) {
-      cancelarBaixaMutation.mutate(lancamento);
+    if (window.confirm('Deseja cancelar a baixa deste lançamento?')) {
+      cancelarBaixaMutation.mutate(lancamento.id);
     }
   };
 
-  const handleImportarXMLSuccess = (dados) => {
-    // AGORA: Apenas preencher o formulário com os dados importados
-    setDadosXML(dados);
-    setShowImportarXML(false);
-    setShowForm(true);
-    toast.success('✅ Dados importados! Complete e salve o lançamento.');
+  const handleImportarXMLSuccess = (dadosImportados) => {
+    setDadosXML(dadosImportados);
+    setShowImportXML(false);
+    setAbaAtiva("cadastrar");
   };
 
-  const lancamentosPagar = lancamentos.filter(l => l.tipo === 'Pagar');
-  const lancamentosReceber = lancamentos.filter(l => l.tipo === 'Receber');
+  const handleNovoCadastro = () => {
+    setEditingLancamento(null);
+    setDadosXML(null);
+    setAbaAtiva("cadastrar");
+  };
 
-  const estatisticas = useMemo(() => {
-    const contasPagar = lancamentosPagar.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado');
-    const contasReceber = lancamentosReceber.filter(l => l.status !== 'Pago' && l.status !== 'Cancelado');
-    const vencidos = lancamentos.filter(l => new Date(l.data_vencimento) < new Date() && l.status === 'Pendente');
+  const handleCancelarCadastro = () => {
+    setEditingLancamento(null);
+    setDadosXML(null);
+    setAbaAtiva("pesquisar");
+  };
 
-    return {
-      totalPagar: contasPagar.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
-      totalReceber: contasReceber.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
-      totalVencidos: vencidos.reduce((sum, l) => sum + (l.valor_saldo || 0), 0),
-      qtdVencidos: vencidos.length,
-      qtdPagar: contasPagar.length,
-      qtdReceber: contasReceber.length
-    };
-  }, [lancamentos, lancamentosPagar, lancamentosReceber]);
-
-  const cartoes = [
-    {
-      id: 'pagar',
-      label: 'Contas a Pagar',
-      valor: estatisticas.totalPagar,
-      sublabel: `${estatisticas.qtdPagar} título(s)`,
-      icon: TrendingDown,
-      cor: 'red',
-      tipo: 'moeda'
-    },
-    {
-      id: 'receber',
-      label: 'Contas a Receber',
-      valor: estatisticas.totalReceber,
-      sublabel: `${estatisticas.qtdReceber} título(s)`,
-      icon: TrendingUp,
-      cor: 'emerald',
-      tipo: 'moeda'
-    },
-    {
-      id: 'vencidos',
-      label: 'Títulos Vencidos',
-      valor: estatisticas.totalVencidos,
-      sublabel: `⚠️ ${estatisticas.qtdVencidos} título(s)`,
-      icon: AlertCircle,
-      cor: 'amber',
-      tipo: 'moeda'
-    }
-  ];
-
-  const progressPercentage = progressoSalvamento.total > 0 ? Math.round((progressoSalvamento.current / progressoSalvamento.total) * 100) : 0;
+  const lancamentosPagar = useMemo(() => lancamentos.filter(l => l.tipo === 'Pagar'), [lancamentos]);
+  const lancamentosReceber = useMemo(() => lancamentos.filter(l => l.tipo === 'Receber'), [lancamentos]);
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
-      {!showForm && !showBaixa && (
-        <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Controle Financeiro</h1>
-              <p className="text-xs text-slate-600">Contas a pagar e receber</p>
-            </div>
-          </div>
+    <div className="p-4 bg-slate-50 min-h-screen">
+      <div className="mb-3">
+        <h1 className="text-xl font-bold text-slate-800">Controle Financeiro</h1>
+        <p className="text-xs text-slate-600">Gestão de contas a pagar e receber</p>
+      </div>
 
-          <CartoesResumo cartoes={cartoes} />
+      <Card className="border border-slate-300">
+        <CardContent className="p-0">
+          <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
+            <TabsList className="w-full justify-start rounded-none border-b bg-slate-100 h-10">
+              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Cadastrar
+              </TabsTrigger>
+              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Pesquisar
+              </TabsTrigger>
+              <TabsTrigger value="importar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+                Importar de XML
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setShowImportarXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileText className="w-3.5 h-3.5" />
-              Importação NF-e (xml)
-            </Button>
-            <Button onClick={() => { setDadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
-              <Plus className="w-3.5 h-3.5" />
-              Novo
-            </Button>
-          </div>
-        </>
-      )}
+            <TabsContent value="cadastrar" className="p-4 m-0">
+              <FormularioCompraFinanceiro
+                onSubmit={handleSubmit}
+                onCancel={handleCancelarCadastro}
+                initialData={editingLancamento || dadosXML}
+                fornecedores={fornecedores}
+                produtos={produtos}
+              />
+            </TabsContent>
 
-      {showForm && (
-        <FormularioCompraFinanceiro
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setDadosXML(null); }}
-          initialData={dadosXML}
-          fornecedores={fornecedores}
-          produtos={produtos}
-          planos={planos}
-          grupos={grupos}
-          formasPagamento={formasPagamento}
-        />
-      )}
+            <TabsContent value="pesquisar" className="p-4 m-0">
+              <div className="space-y-3">
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={handleNovoCadastro}>
+                    Novo Lançamento
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowImportXML(true)}>
+                    Importar XML
+                  </Button>
+                </div>
 
-      {showBaixa && (
-        <BaixaFinanceira
-          lancamento={itemBaixa}
-          onClose={() => { setShowBaixa(false); setItemBaixa(null); }}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-            setShowBaixa(false);
-            setItemBaixa(null);
-          }}
-        />
-      )}
+                <Tabs value={tipoAtivo} onValueChange={setTipoAtivo}>
+                  <TabsList className="w-full justify-start border-b bg-slate-50 h-9 rounded-none">
+                    <TabsTrigger value="pagar" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                      Contas a Pagar ({lancamentosPagar.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="receber" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                      Contas a Receber ({lancamentosReceber.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="pagar" className="m-0 mt-3">
+                    <TabelaFinanceiro
+                      lancamentos={lancamentosPagar}
+                      tipo="Pagar"
+                      onEdit={(lanc) => { setEditingLancamento(lanc); setAbaAtiva("cadastrar"); }}
+                      onDelete={handleDelete}
+                      onBaixa={handleBaixa}
+                      onCancelarBaixa={handleCancelarBaixa}
+                      isLoading={loadingLancamentos}
+                      fornecedores={fornecedores}
+                      produtos={produtos}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="receber" className="m-0 mt-3">
+                    <TabelaFinanceiro
+                      lancamentos={lancamentosReceber}
+                      tipo="Receber"
+                      onEdit={(lanc) => { setEditingLancamento(lanc); setAbaAtiva("cadastrar"); }}
+                      onDelete={handleDelete}
+                      onBaixa={handleBaixa}
+                      onCancelarBaixa={handleCancelarBaixa}
+                      isLoading={loadingLancamentos}
+                      fornecedores={fornecedores}
+                      produtos={produtos}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="importar" className="p-4 m-0">
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-600 mb-4">Importar dados de XML (NF-e)</p>
+                <Button onClick={() => setShowImportXML(true)}>
+                  Selecionar Arquivo XML
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <BaixaFinanceira
+        lancamento={baixaLancamento}
+        onClose={() => setBaixaLancamento(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+          setBaixaLancamento(null);
+        }}
+      />
 
       <ImportarNFeFinanceiro
-        open={showImportarXML}
-        onClose={() => setShowImportarXML(false)}
+        open={showImportXML}
+        onClose={() => setShowImportXML(false)}
         onSuccess={handleImportarXMLSuccess}
         fornecedores={fornecedores}
         produtos={produtos}
       />
 
-      <Dialog open={showProgressoSalvamento} onOpenChange={() => { }}>
+      <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-              Salvando Lançamento
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {progressoSalvamento.etapa}
-            </DialogDescription>
+            <DialogTitle className="text-sm">Salvando Lançamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Progress value={progressPercentage} className="h-2" />
-              <p className="text-center text-sm font-semibold text-emerald-600">{progressPercentage}%</p>
-            </div>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{progressoSalvamento.etapa}</p>
+            <Progress value={progressoSalvamento.current} className="w-full" />
           </div>
         </DialogContent>
       </Dialog>
-
-      {!showForm && !showBaixa && (
-        <Tabs value={tipoAba} onValueChange={setTipoAba}>
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-8">
-            <TabsTrigger value="pagar" className="gap-1 text-xs h-7">
-              <TrendingDown className="w-3.5 h-3.5" />
-              A Pagar ({lancamentosPagar.length})
-            </TabsTrigger>
-            <TabsTrigger value="receber" className="gap-1 text-xs h-7">
-              <TrendingUp className="w-3.5 h-3.5" />
-              A Receber ({lancamentosReceber.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pagar" className="mt-2">
-            <TabelaFinanceiro
-              lancamentos={lancamentosPagar}
-              tipo="Pagar"
-              onEdit={() => { }}
-              onDelete={handleDelete}
-              onBaixa={handleBaixa}
-              onCancelarBaixa={handleCancelarBaixa}
-              isLoading={isLoading}
-              fornecedores={fornecedores}
-              produtos={produtos}
-            />
-          </TabsContent>
-
-          <TabsContent value="receber" className="mt-2">
-            <TabelaFinanceiro
-              lancamentos={lancamentosReceber}
-              tipo="Receber"
-              onEdit={() => { }}
-              onDelete={handleDelete}
-              onBaixa={handleBaixa}
-              onCancelarBaixa={handleCancelarBaixa}
-              isLoading={isLoading}
-              fornecedores={fornecedores}
-              produtos={produtos}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
     </div>
   );
 }
