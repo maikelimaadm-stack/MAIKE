@@ -1,13 +1,11 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, X, ChevronRight, ChevronDown, ArrowUpAZ } from "lucide-react";
+import { Palette, Menu, Settings, Users, Save, RotateCcw, Plus, GripVertical, Edit2, Trash2, Check, ChevronRight, ChevronDown, ArrowUpAZ } from "lucide-react";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -29,7 +27,7 @@ const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
   { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
     id: "financeiro",
     title: "Financeiro",
@@ -92,18 +90,15 @@ export default function ConfiguracoesGerais() {
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
   });
 
-  const [expandedMenus, setExpandedMenus] = useState({}); // New state for expanding/collapsing menus
+  const [expandedMenus, setExpandedMenus] = useState({});
   const [showAddMenuItem, setShowAddMenuItem] = useState(false);
   const [showAddSubmenu, setShowAddSubmenu] = useState(false);
-  const [showAddSubSubmenu, setShowAddSubSubmenu] = useState(false); // New state for sub-submenu dialog
   const [showEditMenuItem, setShowEditMenuItem] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [parentMenuForSubmenu, setParentMenuForSubmenu] = useState(null);
-  const [parentSubmenuForSubSubmenu, setParentSubmenuForSubSubmenu] = useState(null); // New state for sub-submenu parent
 
   const [newMenuItem, setNewMenuItem] = useState({ title: "", url: "", icon: "Home" });
   const [newSubmenuItem, setNewSubmenuItem] = useState({ title: "", url: "" });
-  const [newSubSubmenuItem, setNewSubSubmenuItem] = useState({ title: "", url: "" }); // New state for new sub-submenu item
 
   const saveMenu = (newMenu) => {
     setMenuItems(newMenu);
@@ -122,7 +117,6 @@ export default function ConfiguracoesGerais() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    // Salvar SEM ordenar alfabeticamente - respeita ordem manual
     saveMenu(items);
   };
 
@@ -139,7 +133,6 @@ export default function ConfiguracoesGerais() {
       icon: newMenuItem.icon,
     };
 
-    // Adiciona no final, SEM ordenar alfabeticamente
     saveMenu([...menuItems, newItem]);
     setNewMenuItem({ title: "", url: "", icon: "Home" });
     setShowAddMenuItem(false);
@@ -157,7 +150,6 @@ export default function ConfiguracoesGerais() {
         : item
     );
 
-    // Salvar SEM ordenar - mantém ordem atual
     saveMenu(updatedMenu);
     setShowEditMenuItem(false);
     setEditingItem(null);
@@ -186,38 +178,6 @@ export default function ConfiguracoesGerais() {
     setNewSubmenuItem({ title: "", url: "" });
     setParentMenuForSubmenu(null);
     setShowAddSubmenu(false);
-  };
-
-  const handleAddSubSubmenuItem = () => { // New function for sub-submenu
-    if (!newSubSubmenuItem.title || !newSubSubmenuItem.url || !parentMenuForSubmenu || !parentSubmenuForSubSubmenu) {
-      toast.error('Preencha todos os campos!');
-      return;
-    }
-
-    const updatedMenu = menuItems.map(item => {
-      if (item.id === parentMenuForSubmenu) {
-        const updatedSubmenu = (item.submenu || []).map(sub => {
-          if (sub.id === parentSubmenuForSubSubmenu) {
-            const newSubSubmenu = [
-              ...(sub.submenu || []),
-              { id: `subsubmenu-${Date.now()}`, title: newSubSubmenuItem.title, url: newSubSubmenuItem.url }
-            ];
-
-            return { ...sub, submenu: newSubSubmenu };
-          }
-          return sub;
-        });
-
-        return { ...item, submenu: updatedSubmenu };
-      }
-      return item;
-    });
-
-    saveMenu(updatedMenu);
-    setNewSubSubmenuItem({ title: "", url: "" });
-    setParentMenuForSubmenu(null);
-    setParentSubmenuForSubSubmenu(null);
-    setShowAddSubSubmenu(false);
   };
 
   const handleOrdenarAlfabeticamente = () => {
@@ -258,29 +218,6 @@ export default function ConfiguracoesGerais() {
     }
   };
 
-  const handleDeleteSubSubmenuItem = (menuId, submenuId, subSubmenuId) => { // New function for deleting sub-submenu
-    if (window.confirm('Deseja excluir este sub-subitem?')) {
-      const updatedMenu = menuItems.map(item => {
-        if (item.id === menuId) {
-          return {
-            ...item,
-            submenu: item.submenu.map(sub => {
-              if (sub.id === submenuId) {
-                return {
-                  ...sub,
-                  submenu: (sub.submenu || []).filter(subsub => subsub.id !== subSubmenuId)
-                };
-              }
-              return sub;
-            })
-          };
-        }
-        return item;
-      });
-      saveMenu(updatedMenu);
-    }
-  };
-
   const handleResetMenu = () => {
     if (window.confirm('⚠️ Resetar menu? Todas personalizações serão perdidas.')) {
       saveMenu(DEFAULT_MENU);
@@ -298,64 +235,62 @@ export default function ConfiguracoesGerais() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Configurações Gerais</h1>
-        <p className="text-xs text-slate-600">Personalize menus, aparência e parâmetros</p>
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      <div className="bg-white border-b border-slate-200 -m-6 mb-6 p-6">
+        <h1 className="text-2xl font-bold text-slate-900">Configurações Gerais</h1>
+        <p className="text-sm text-slate-600 mt-1">Personalize menus, aparência e parâmetros do sistema</p>
       </div>
 
       <Tabs defaultValue="menus" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4 h-8">
-          <TabsTrigger value="menus" className="gap-1.5 text-xs h-7">
-            <Menu className="w-3 h-3" />
+        <TabsList className="grid w-full max-w-3xl grid-cols-4 bg-white border border-slate-200">
+          <TabsTrigger value="menus" className="gap-2 text-sm">
+            <Menu className="w-4 h-4" />
             Menus
           </TabsTrigger>
-          <TabsTrigger value="identidade" className="gap-1.5 text-xs h-7">
-            <Palette className="w-3 h-3" />
+          <TabsTrigger value="identidade" className="gap-2 text-sm">
+            <Palette className="w-4 h-4" />
             Identidade
           </TabsTrigger>
-          <TabsTrigger value="parametros" className="gap-1.5 text-xs h-7">
-            <Settings className="w-3 h-3" />
+          <TabsTrigger value="parametros" className="gap-2 text-sm">
+            <Settings className="w-4 h-4" />
             Parâmetros
           </TabsTrigger>
-          <TabsTrigger value="usuarios" className="gap-1.5 text-xs h-7">
-            <Users className="w-3 h-3" />
+          <TabsTrigger value="usuarios" className="gap-2 text-sm">
+            <Users className="w-4 h-4" />
             Usuários
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="menus" className="space-y-3 mt-3">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Editor de Menus (com Submenus Aninhados)</CardTitle>
-              <CardDescription className="text-xs">
-                Arraste para ordenar manualmente ou use o botão para ordenar alfabeticamente
+        {/* ABA MENUS */}
+        <TabsContent value="menus" className="space-y-4 mt-6">
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-emerald-50 border-b">
+              <CardTitle className="text-lg">Editor de Menus</CardTitle>
+              <CardDescription className="text-sm">
+                Arraste para reordenar ou use os botões de ação
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-6 space-y-4">
               <div className="flex gap-2 flex-wrap">
-                <Button onClick={() => setShowAddMenuItem(true)} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="w-3 h-3" />
+                <Button onClick={() => setShowAddMenuItem(true)} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  <Plus className="w-4 h-4" />
                   Novo Menu Principal
                 </Button>
-                <Button onClick={() => setShowAddSubmenu(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                  <Plus className="w-3 h-3" />
-                  Novo Submenu (Nível 1)
+                <Button onClick={() => setShowAddSubmenu(true)} variant="outline" size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Novo Submenu
                 </Button>
-                <Button onClick={() => setShowAddSubSubmenu(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                  <Plus className="w-3 h-3" />
-                  Novo Sub-Submenu (Nível 2)
-                </Button>
-                <Button onClick={handleOrdenarAlfabeticamente} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                  <ArrowUpAZ className="w-3 h-3" />
+                <Button onClick={handleOrdenarAlfabeticamente} variant="outline" size="sm" className="gap-2">
+                  <ArrowUpAZ className="w-4 h-4" />
                   Ordenar A-Z
                 </Button>
-                <Button onClick={handleResetMenu} variant="outline" size="sm" className="h-8 text-xs">
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Resetar
+                <Button onClick={handleResetMenu} variant="outline" size="sm" className="gap-2">
+                  <RotateCcw className="w-4 h-4" />
+                  Resetar Padrão
                 </Button>
-                <Button onClick={handleReloadPage} variant="outline" size="sm" className="h-8 text-xs ml-auto">
-                  Recarregar
+                <Button onClick={handleReloadPage} variant="outline" size="sm" className="gap-2 ml-auto">
+                  <Save className="w-4 h-4" />
+                  Recarregar Página
                 </Button>
               </div>
 
@@ -369,115 +304,76 @@ export default function ConfiguracoesGerais() {
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              className="bg-white border rounded p-2.5 space-y-1.5 shadow-sm"
+                              className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <div {...provided.dragHandleProps}>
-                                  <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-move" />
+                                  <GripVertical className="w-5 h-5 text-slate-400 cursor-move hover:text-slate-600" />
                                 </div>
-                                {item.submenu && ( // Toggle for main menu item with submenu
+                                
+                                {item.submenu && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => toggleMenu(item.id)}
-                                    className="h-6 w-6"
+                                    className="h-8 w-8"
                                   >
                                     {expandedMenus[item.id] ? (
-                                      <ChevronDown className="w-3 h-3" />
+                                      <ChevronDown className="w-4 h-4" />
                                     ) : (
-                                      <ChevronRight className="w-3 h-3" />
+                                      <ChevronRight className="w-4 h-4" />
                                     )}
                                   </Button>
                                 )}
+                                
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-xs">{item.title}</div>
-                                  {item.url && <div className="text-[10px] text-slate-500">URL: {item.url}</div>}
+                                  <div className="font-semibold text-sm text-slate-900">{item.title}</div>
+                                  {item.url && <div className="text-xs text-slate-500">Página: {item.url}</div>}
                                   {item.submenu && (
-                                    <div className="text-[10px] text-slate-500">
-                                      {item.submenu.length} subitem(ns)
+                                    <div className="text-xs text-emerald-600 font-medium mt-0.5">
+                                      {item.submenu.length} subitem{item.submenu.length !== 1 ? 's' : ''}
                                     </div>
                                   )}
                                 </div>
+                                
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openEditDialog(item)}
-                                  className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-50"
                                   title="Editar"
                                 >
-                                  <Edit2 className="w-3 h-3" />
+                                  <Edit2 className="w-4 h-4" />
                                 </Button>
+                                
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleDeleteMenuItem(item.id)}
-                                  className="h-7 w-7 text-red-600 hover:bg-red-50"
+                                  className="h-8 w-8 text-red-600 hover:bg-red-50"
                                   title="Excluir"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
 
-                              {/* SUBMENU NÍVEL 1 */}
+                              {/* SUBMENU */}
                               {item.submenu && item.submenu.length > 0 && expandedMenus[item.id] && (
-                                <div className="ml-6 space-y-1 border-l-2 border-slate-200 pl-2">
+                                <div className="ml-12 mt-3 space-y-2 border-l-2 border-emerald-200 pl-4">
                                   {item.submenu.map((sub) => (
-                                    <div key={sub.id}>
-                                      <div className="flex items-center justify-between py-1 bg-slate-50 px-2 rounded">
-                                        {sub.submenu && ( // Toggle for submenu item with sub-submenu
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => toggleMenu(sub.id)}
-                                            className="h-5 w-5"
-                                          >
-                                            {expandedMenus[sub.id] ? (
-                                              <ChevronDown className="w-3 h-3" />
-                                            ) : (
-                                              <ChevronRight className="w-3 h-3" />
-                                            )}
-                                          </Button>
-                                        )}
-                                        <div className="flex-1 min-w-0 ml-1">
-                                          <div className="text-xs font-medium">{sub.title}</div>
-                                          {sub.url && <div className="text-[10px] text-slate-500">URL: {sub.url}</div>}
-                                          {sub.submenu && (
-                                            <div className="text-[10px] text-slate-500">
-                                              {sub.submenu.length} sub-subitem(ns)
-                                            </div>
-                                          )}
-                                        </div>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleDeleteSubmenuItem(item.id, sub.id)}
-                                          className="h-6 w-6 text-red-600 hover:bg-red-50"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                    <div key={sub.id} className="flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-slate-900">{sub.title}</div>
+                                        {sub.url && <div className="text-xs text-slate-500">Página: {sub.url}</div>}
                                       </div>
-
-                                      {/* SUBMENU NÍVEL 2 (Sub-Submenu) */}
-                                      {sub.submenu && sub.submenu.length > 0 && expandedMenus[sub.id] && (
-                                        <div className="ml-6 space-y-1 border-l-2 border-emerald-200 pl-2 mt-1">
-                                          {sub.submenu.map((subsub) => (
-                                            <div key={subsub.id} className="flex items-center justify-between py-1 bg-emerald-50 px-2 rounded">
-                                              <div className="flex-1 min-w-0">
-                                                <div className="text-xs font-medium">{subsub.title}</div>
-                                                {subsub.url && <div className="text-[10px] text-slate-500">URL: {subsub.url}</div>}
-                                              </div>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDeleteSubSubmenuItem(item.id, sub.id, subsub.id)}
-                                                className="h-6 w-6 text-red-600 hover:bg-red-50"
-                                              >
-                                                <Trash2 className="w-3 h-3" />
-                                              </Button>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDeleteSubmenuItem(item.id, sub.id)}
+                                        className="h-7 w-7 text-red-600 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
                                     </div>
                                   ))}
                                 </div>
@@ -495,227 +391,224 @@ export default function ConfiguracoesGerais() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="identidade" className="space-y-3 mt-3">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Identidade Visual</CardTitle>
-              <CardDescription className="text-xs">
-                Configure logo, cores e tema
+        {/* ABA IDENTIDADE */}
+        <TabsContent value="identidade" className="space-y-4 mt-6">
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-purple-50 border-b">
+              <CardTitle className="text-lg">Identidade Visual</CardTitle>
+              <CardDescription className="text-sm">
+                Configure logo, cores e tema do sistema
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Logo do Sistema</Label>
-                <Input type="file" accept="image/*" className="h-8 text-xs" />
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Logo do Sistema</Label>
+                <Input type="file" accept="image/*" className="cursor-pointer" />
+                <p className="text-xs text-slate-500">Formato recomendado: PNG transparente, 200x50px</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Cor Principal</Label>
-                  <Input type="color" defaultValue="#10b981" className="h-8" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Cor Principal</Label>
+                  <div className="flex gap-3">
+                    <Input type="color" defaultValue="#10b981" className="w-16 h-10" />
+                    <Input defaultValue="#10b981" className="flex-1" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Cor Secundária</Label>
-                  <Input type="color" defaultValue="#3b82f6" className="h-8" />
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Cor Secundária</Label>
+                  <div className="flex gap-3">
+                    <Input type="color" defaultValue="#3b82f6" className="w-16 h-10" />
+                    <Input defaultValue="#3b82f6" className="flex-1" />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-xs">Modo Escuro</Label>
-                  <p className="text-[10px] text-slate-500">Ativar tema escuro</p>
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="space-y-1">
+                  <Label className="text-sm font-semibold">Modo Escuro</Label>
+                  <p className="text-xs text-slate-500">Ativar tema escuro no sistema</p>
                 </div>
                 <Switch />
               </div>
 
-              <Button size="sm" className="h-8 gap-1 text-xs">
-                <Save className="w-3 h-3" />
-                Salvar
-              </Button>
+              <div className="pt-4 border-t">
+                <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="parametros" className="space-y-3 mt-3">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Parâmetros Gerais</CardTitle>
-              <CardDescription className="text-xs">
-                Configurações globais
+        {/* ABA PARÂMETROS */}
+        <TabsContent value="parametros" className="space-y-4 mt-6">
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b">
+              <CardTitle className="text-lg">Parâmetros do Sistema</CardTitle>
+              <CardDescription className="text-sm">
+                Configurações gerais e preferências
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Nome da Empresa</Label>
-                <Input placeholder="Minha Empresa" className="h-8 text-xs" />
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Nome da Empresa</Label>
+                <Input placeholder="Digite o nome da empresa" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Fuso Horário</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Fuso Horário</Label>
                   <Select defaultValue="america-sp">
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="america-sp" className="text-xs">América/São Paulo</SelectItem>
-                      <SelectItem value="america-manaus" className="text-xs">América/Manaus</SelectItem>
+                      <SelectItem value="america-sp">América/São Paulo (GMT-3)</SelectItem>
+                      <SelectItem value="america-manaus">América/Manaus (GMT-4)</SelectItem>
+                      <SelectItem value="america-cuiaba">América/Cuiabá (GMT-4)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Idioma</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Idioma</Label>
                   <Select defaultValue="pt-br">
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pt-br" className="text-xs">Português (BR)</SelectItem>
-                      <SelectItem value="en" className="text-xs">English</SelectItem>
+                      <SelectItem value="pt-br">Português (BR)</SelectItem>
+                      <SelectItem value="en">English (US)</SelectItem>
+                      <SelectItem value="es">Español</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <Button size="sm" className="h-8 gap-1 text-xs">
-                <Save className="w-3 h-3" />
-                Salvar
-              </Button>
+              <div className="pt-4 border-t">
+                <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  <Save className="w-4 h-4" />
+                  Salvar Parâmetros
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="usuarios" className="space-y-3 mt-3">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Usuários e Permissões</CardTitle>
-              <CardDescription className="text-xs">
-                Gerencie acessos
+        {/* ABA USUÁRIOS */}
+        <TabsContent value="usuarios" className="space-y-4 mt-6">
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-amber-50 border-b">
+              <CardTitle className="text-lg">Gestão de Usuários</CardTitle>
+              <CardDescription className="text-sm">
+                Controle de acessos e permissões
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-slate-500">
-                Configure na aba <strong>Usuários</strong> do menu.
-              </p>
+            <CardContent className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-slate-700">
+                  Para gerenciar usuários e permissões, acesse a página <Link to={createPageUrl("Usuarios")} className="font-semibold text-blue-600 hover:underline">Usuários</Link> no menu principal.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* DIALOG: ADICIONAR MENU PRINCIPAL */}
+      {/* DIALOG: NOVO MENU PRINCIPAL */}
       <Dialog open={showAddMenuItem} onOpenChange={setShowAddMenuItem}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-sm">Novo Menu Principal</DialogTitle>
-            <DialogDescription className="text-xs">Crie um novo item no menu</DialogDescription>
+            <DialogTitle className="text-lg">Novo Menu Principal</DialogTitle>
+            <DialogDescription>Adicione um novo item ao menu de navegação</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Título *</Label>
-              <Input value={newMenuItem.title} onChange={(e) => setNewMenuItem({ ...newMenuItem, title: e.target.value })} placeholder="Ex: Relatórios" className="h-8 text-xs" />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Título do Menu *</Label>
+              <Input 
+                value={newMenuItem.title} 
+                onChange={(e) => setNewMenuItem({ ...newMenuItem, title: e.target.value })} 
+                placeholder="Ex: Relatórios" 
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Página (URL) *</Label>
-              <Input value={newMenuItem.url} onChange={(e) => setNewMenuItem({ ...newMenuItem, url: e.target.value })} placeholder="Ex: Relatorios" className="h-8 text-xs" />
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Página (URL) *</Label>
+              <Input 
+                value={newMenuItem.url} 
+                onChange={(e) => setNewMenuItem({ ...newMenuItem, url: e.target.value })} 
+                placeholder="Ex: Relatorios" 
+              />
+              <p className="text-xs text-slate-500">Nome da página sem espaços</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Ícone</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Ícone</Label>
               <Select value={newMenuItem.icon} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, icon: v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {ICONS_DISPONIVEIS.map(iconName => (
-                    <SelectItem key={iconName} value={iconName} className="text-xs">{iconName}</SelectItem>
+                    <SelectItem key={iconName} value={iconName}>{iconName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddMenuItem(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button onClick={handleAddMenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowAddMenuItem(false)}>Cancelar</Button>
+              <Button onClick={handleAddMenuItem} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Menu
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: ADICIONAR SUBMENU NÍVEL 1 */}
+      {/* DIALOG: NOVO SUBMENU */}
       <Dialog open={showAddSubmenu} onOpenChange={setShowAddSubmenu}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-sm">Novo Submenu (Nível 1)</DialogTitle>
-            <DialogDescription className="text-xs">Adicione submenu a um menu principal</DialogDescription>
+            <DialogTitle className="text-lg">Novo Submenu</DialogTitle>
+            <DialogDescription>Adicione um item dentro de um menu existente</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Menu Principal</Label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Menu Principal *</Label>
               <Select value={parentMenuForSubmenu || ''} onValueChange={setParentMenuForSubmenu}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o menu principal" />
+                </SelectTrigger>
                 <SelectContent>
                   {menuItems.map(item => (
-                    <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
+                    <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Título *</Label>
-              <Input value={newSubmenuItem.title} onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, title: e.target.value })} placeholder="Ex: Plano de Contas" className="h-8 text-xs" />
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Título do Submenu *</Label>
+              <Input 
+                value={newSubmenuItem.title} 
+                onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, title: e.target.value })} 
+                placeholder="Ex: Plano de Contas" 
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Página (URL) *</Label>
-              <Input value={newSubmenuItem.url} onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, url: e.target.value })} placeholder="Ex: PlanoContas" className="h-8 text-xs" />
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Página (URL) *</Label>
+              <Input 
+                value={newSubmenuItem.url} 
+                onChange={(e) => setNewSubmenuItem({ ...newSubmenuItem, url: e.target.value })} 
+                placeholder="Ex: PlanoContas" 
+              />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddSubmenu(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button onClick={handleAddSubmenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOG: ADICIONAR SUB-SUBMENU NÍVEL 2 */}
-      <Dialog open={showAddSubSubmenu} onOpenChange={setShowAddSubSubmenu}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Novo Sub-Submenu (Nível 2)</DialogTitle>
-            <DialogDescription className="text-xs">Adicione sub-submenu a um submenu existente</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Menu Principal</Label>
-              <Select value={parentMenuForSubmenu || ''} onValueChange={(v) => { setParentMenuForSubmenu(v); setParentSubmenuForSubSubmenu(null); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {menuItems.filter(m => m.submenu && m.submenu.length > 0).map(item => (
-                    <SelectItem key={item.id} value={item.id} className="text-xs">{item.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {parentMenuForSubmenu && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Submenu (Nível 1)</Label>
-                <Select value={parentSubmenuForSubSubmenu || ''} onValueChange={setParentSubmenuForSubSubmenu}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {menuItems.find(m => m.id === parentMenuForSubmenu)?.submenu?.map(sub => (
-                      <SelectItem key={sub.id} value={sub.id} className="text-xs">{sub.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Título *</Label>
-              <Input value={newSubSubmenuItem.title} onChange={(e) => setNewSubSubmenuItem({ ...newSubSubmenuItem, title: e.target.value })} placeholder="Ex: Cadastro de Contas" className="h-8 text-xs" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Página (URL) *</Label>
-              <Input value={newSubSubmenuItem.url} onChange={(e) => setNewSubSubmenuItem({ ...newSubSubmenuItem, url: e.target.value })} placeholder="Ex: CadastroContas" className="h-8 text-xs" />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddSubSubmenu(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
-              <Button onClick={handleAddSubSubmenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Adicionar</Button>
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowAddSubmenu(false)}>Cancelar</Button>
+              <Button onClick={handleAddSubmenuItem} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Submenu
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -723,38 +616,47 @@ export default function ConfiguracoesGerais() {
 
       {/* DIALOG: EDITAR MENU */}
       <Dialog open={showEditMenuItem} onOpenChange={setShowEditMenuItem}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-sm">Editar Menu</DialogTitle>
-            <DialogDescription className="text-xs">Altere título, URL ou ícone</DialogDescription>
+            <DialogTitle className="text-lg">Editar Menu</DialogTitle>
+            <DialogDescription>Altere as propriedades do menu</DialogDescription>
           </DialogHeader>
           {editingItem && (
-            <div className="space-y-2.5">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Título *</Label>
-                <Input value={editingItem.title} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} className="h-8 text-xs" />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Título *</Label>
+                <Input 
+                  value={editingItem.title} 
+                  onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} 
+                />
               </div>
               {editingItem.url !== undefined && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Página (URL)</Label>
-                  <Input value={editingItem.url || ''} onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })} className="h-8 text-xs" />
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Página (URL)</Label>
+                  <Input 
+                    value={editingItem.url || ''} 
+                    onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })} 
+                  />
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Ícone</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Ícone</Label>
                 <Select value={editingItem.icon} onValueChange={(v) => setEditingItem({ ...editingItem, icon: v })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {ICONS_DISPONIVEIS.map(iconName => (
-                      <SelectItem key={iconName} value={iconName} className="text-xs">{iconName}</SelectItem>
+                      <SelectItem key={iconName} value={iconName}>{iconName}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setShowEditMenuItem(false)} size="sm" className="h-8 text-xs">Cancelar</Button>
-                <Button onClick={handleEditMenuItem} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  <Check className="w-3 h-3 mr-1" />Salvar
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowEditMenuItem(false)}>Cancelar</Button>
+                <Button onClick={handleEditMenuItem} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar Alterações
                 </Button>
               </div>
             </div>
@@ -764,3 +666,7 @@ export default function ConfiguracoesGerais() {
     </div>
   );
 }
+
+export const getEmpresaSelecionada = () => {
+  return localStorage.getItem('empresa_selecionada_id');
+};
