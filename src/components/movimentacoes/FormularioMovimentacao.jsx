@@ -11,7 +11,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { ArrowRightLeft, Save, X, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
+import DialogCadastroRapido from "../shared/DialogCadastroRapido.jsx";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '';
