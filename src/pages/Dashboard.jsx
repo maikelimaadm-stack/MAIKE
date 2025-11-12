@@ -27,7 +27,6 @@ import {
 import FormularioPesagem from "../components/pesagens/FormularioPesagem";
 import TabelaPesagens from "../components/pesagens/TabelaPesagens";
 import TicketPesagem from "../components/pesagens/TicketPesagem";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -495,14 +494,6 @@ export default function Dashboard() {
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
 
-  const cartoes = [
-    { id: 'total', label: 'Total de Pesagens', valor: totalPesagens, sublabel: 'Registros', icon: Scale, cor: 'blue', tipo: 'numero' },
-    { id: 'entrada', label: 'Entradas', valor: pesagensEntrada, sublabel: 'Recebimentos', icon: TrendingDown, cor: 'emerald', tipo: 'numero' },
-    { id: 'saida', label: 'Saídas', valor: pesagensSaida, sublabel: 'Expedições', icon: TrendingUp, cor: 'orange', tipo: 'numero' },
-    { id: 'ambos', label: 'Ambos', valor: pesagensAmbos, sublabel: 'Entrada+Saída', icon: Scale, cor: 'indigo', tipo: 'numero' },
-    { id: 'peso', label: 'Peso Total', valor: parseFloat(formatarNumero(pesoTotalLiquido).replace(/\./g, '').replace(',', '.')), sublabel: 'Kg líquidos', icon: Package, cor: 'violet', tipo: 'numero' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
@@ -513,8 +504,6 @@ export default function Dashboard() {
               <p className="text-xs text-slate-600">Controle de balança</p>
             </div>
           </div>
-
-          <CartoesResumo cartoes={cartoes} />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
