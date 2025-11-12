@@ -391,7 +391,19 @@ export default function CustosSafra() {
     return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
+  const formatarMoeda = (valor) => {
+    if (!valor && valor !== 0) return "R$ 0,00";
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
   const progressPercentage = importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0;
+
+  const totalGeralSafra = custos.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+  const custosPorFornecedor = custos.reduce((acc, c) => {
+    if (!acc[c.fornecedor_nome]) acc[c.fornecedor_nome] = 0;
+    acc[c.fornecedor_nome] += c.valor_total || 0;
+    return acc;
+  }, {});
 
   if (!safraAtiva && safras.length === 0) {
     return (
@@ -410,12 +422,6 @@ export default function CustosSafra() {
       </div>
     );
   }
-
-  const cartoes = [
-    { id: 'total', label: 'Total da Safra', valor: totalGeralSafra, sublabel: 'Valor investido', icon: DollarSign, cor: 'emerald', tipo: 'moeda' },
-    { id: 'fornecedores', label: 'Fornecedores', valor: Object.keys(custosPorFornecedor).length, sublabel: 'Ativos', icon: Users, cor: 'blue', tipo: 'numero' },
-    { id: 'lancamentos', label: 'Lançamentos', valor: custos.length, sublabel: 'Custos', icon: Package, cor: 'violet', tipo: 'numero' },
-  ];
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -446,6 +452,53 @@ export default function CustosSafra() {
                 Safra
               </Button>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-2">
+            <Card className="shadow-sm border-l-4 border-l-emerald-500">
+              <CardContent className="p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Total da Safra</p>
+                    <p className="text-lg font-bold text-emerald-700 truncate leading-tight">{formatarMoeda(totalGeralSafra)}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Valor investido</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-sm border-l-4 border-l-blue-500">
+              <CardContent className="p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Fornecedores</p>
+                    <p className="text-lg font-bold text-blue-700 truncate leading-tight">{Object.keys(custosPorFornecedor).length}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Ativos</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-l-4 border-l-violet-500">
+              <CardContent className="p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Lançamentos</p>
+                    <p className="text-lg font-bold text-violet-700 truncate leading-tight">{custos.length}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Custos</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                    <Package className="w-3.5 h-3.5 text-violet-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="flex flex-wrap gap-2">

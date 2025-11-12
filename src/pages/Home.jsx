@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -12,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import CartoesResumo from "../components/shared/CartoesResumo.jsx";
 
 const CORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -181,19 +179,10 @@ export default function Home() {
     setTipoVisualizacao('resumo');
   };
 
-  const cartoesFormatados = TIPOS_CARTAO.filter(tipo => cartoesVisiveis.includes(tipo.id)).map(tipo => {
-    const stat = estatisticas[tipo.id];
-    return {
-      id: tipo.id,
-      label: tipo.label,
-      valor: stat.valor,
-      sublabel: stat.dados?.length > 0 ? `${stat.dados.length} ${stat.dados.length === 1 ? 'item' : 'itens'}` : undefined,
-      icon: tipo.icon,
-      cor: tipo.cor,
-      tipo: tipo.id.includes('valor') || tipo.id.includes('contas') ? 'moeda' : 'numero',
-      onClick: stat.dados?.length > 0 ? () => abrirDetalhes(tipo.id) : undefined
-    };
-  });
+  const formatarMoedaCartao = (valor) => {
+    if (!valor && valor !== 0) return "R$ 0,00";
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-3">
@@ -214,7 +203,40 @@ export default function Home() {
         </div>
       </div>
 
-      <CartoesResumo cartoes={cartoesFormatados} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {TIPOS_CARTAO.filter(tipo => cartoesVisiveis.includes(tipo.id)).map(tipo => {
+          const stat = estatisticas[tipo.id];
+          const Icon = tipo.icon;
+          const valorFormatado = tipo.id.includes('valor') || tipo.id.includes('contas') 
+            ? formatarMoedaCartao(stat.valor)
+            : stat.valor;
+
+          return (
+            <Card 
+              key={tipo.id}
+              className={`shadow-sm border-l-4 border-l-${tipo.cor}-500 hover:shadow transition-shadow ${stat.dados?.length > 0 ? 'cursor-pointer' : ''}`}
+              onClick={stat.dados?.length > 0 ? () => abrirDetalhes(tipo.id) : undefined}
+            >
+              <CardContent className="p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">{tipo.label}</p>
+                    <p className={`text-lg font-bold text-${tipo.cor}-700 truncate leading-tight`}>{valorFormatado}</p>
+                    {stat.dados?.length > 0 && (
+                      <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">
+                        {stat.dados.length} {stat.dados.length === 1 ? 'item' : 'itens'}
+                      </p>
+                    )}
+                  </div>
+                  <div className={`w-8 h-8 rounded-lg bg-${tipo.cor}-50 flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-3.5 h-3.5 text-${tipo.cor}-600`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {graficosVisiveis.includes('movimentacoes_mes') && (
