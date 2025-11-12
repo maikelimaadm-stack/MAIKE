@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Save, X, FileText, Trash2, Plus, Upload, Download, Eye, Edit, Search, DollarSign, CheckCircle, AlertTriangle, AlertCircle, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ImportarXML from "../components/financeiro/ImportarXML";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -67,6 +69,7 @@ export default function Financeiro() {
   const [abaFormulario, setAbaFormulario] = useState("dados_financeiros");
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showImportXML, setShowImportXML] = useState(false);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -373,6 +376,18 @@ export default function Financeiro() {
     }
   };
 
+  const handleImportSuccess = (dadosImportados) => {
+    // Populate form with imported data
+    setFormData(prev => ({
+      ...prev,
+      ...dadosImportados,
+      origem: "Importação XML"
+    }));
+    setShowImportXML(false);
+    setAbaModulo("cadastro");
+    toast.success('✅ Dados importados! Revise e salve.');
+  };
+
   const lancamentosFiltrados = lancamentos.filter(l => {
     const searchLower = searchTerm.toLowerCase();
     return !searchTerm || 
@@ -398,10 +413,16 @@ export default function Financeiro() {
               <CardHeader className="border-b bg-slate-50">
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-lg">Lançamentos Financeiros</CardTitle>
-                  <Button size="sm" onClick={handleNovoLancamento} className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Novo Lançamento
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setShowImportXML(true)} className="border-blue-300 text-blue-700">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Importar XML
+                    </Button>
+                    <Button size="sm" onClick={handleNovoLancamento} className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Novo Lançamento
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-4">
@@ -536,6 +557,10 @@ export default function Financeiro() {
                     {editingId ? 'Editar Lançamento' : 'Novo Lançamento'}
                   </CardTitle>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setShowImportXML(true)} className="border-blue-300 text-blue-700">
+                      <Upload className="w-3 h-3 mr-1" />
+                      Importar XML
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => handleSubmit(true)}>
                       <Save className="w-3 h-3 mr-1" />
                       Salvar Rascunho
@@ -1080,7 +1105,7 @@ export default function Financeiro() {
                         <div>
                           <p className="text-xs font-semibold text-blue-900">Importar XML da NF-e</p>
                           <p className="text-xs text-blue-700 mt-1">Faça upload do arquivo XML para preencher automaticamente os dados fiscais</p>
-                          <Button size="sm" variant="outline" className="mt-2">
+                          <Button size="sm" variant="outline" className="mt-2" onClick={() => setShowImportXML(true)}>
                             <Upload className="w-3 h-3 mr-1" />
                             Selecionar XML
                           </Button>
@@ -1542,6 +1567,13 @@ export default function Financeiro() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* DIALOG IMPORTAR XML */}
+      <ImportarXML 
+        open={showImportXML} 
+        onClose={() => setShowImportXML(false)}
+        onImportSuccess={handleImportSuccess}
+      />
     </div>
   );
 }
