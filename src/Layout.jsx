@@ -130,7 +130,6 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
@@ -139,35 +138,6 @@ export default function Layout({ children, currentPageName }) {
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
-
-  // Verificar autenticação
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const usuarioLogado = localStorage.getItem('usuario_logado');
-        if (!usuarioLogado) {
-          window.location.href = '/Login';
-          return;
-        }
-        
-        const userData = JSON.parse(usuarioLogado);
-        setUser(userData);
-      } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
-        window.location.href = '/Login';
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-
-    // Não verificar auth na página de login
-    if (currentPageName === 'Login') {
-      setCheckingAuth(false);
-      return;
-    }
-
-    checkAuth();
-  }, [currentPageName]);
 
   // ATUALIZAR MENU QUANDO localStorage MUDAR
   useEffect(() => {
@@ -203,7 +173,6 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
-    enabled: !checkingAuth && currentPageName !== 'Login',
   });
 
   const { data: empresaAtual } = useQuery({
@@ -213,16 +182,16 @@ export default function Layout({ children, currentPageName }) {
       const empresa = empresas.find(e => e.id === empresaSelecionada);
       return empresa || null;
     },
-    enabled: !!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login',
+    enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login') {
+    if (!empresaSelecionada && empresas.length > 0) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas, empresaSelecionada, currentPageName]);
+  }, [empresas, empresaSelecionada]);
 
   const handleEmpresaChange = (empresaId) => {
     setEmpresaSelecionada(empresaId);
@@ -231,30 +200,39 @@ export default function Layout({ children, currentPageName }) {
   };
 
   useEffect(() => {
-    if (currentPageName !== 'Login') {
-      const fetchWeather = async () => {
-        try {
-          const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
-          );
-          const data = await response.json();
-          setWeather({
-            temperature: Math.round(data.current.temperature_2m),
-            precipitation: data.current.precipitation > 0,
-          });
-        } catch (error) {
-          console.error("Erro clima:", error);
-        }
-      };
-      fetchWeather();
-      const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [currentPageName]);
+    const loadUser = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Erro:", error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const response = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
+        );
+        const data = await response.json();
+        setWeather({
+          temperature: Math.round(data.current.temperature_2m),
+          precipitation: data.current.precipitation > 0,
+        });
+      } catch (error) {
+        console.error("Erro clima:", error);
+      }
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('usuario_logado');
-    window.location.href = '/Login';
+    base44.auth.logout();
   };
 
   const isActive = (item) => {
@@ -262,23 +240,6 @@ export default function Layout({ children, currentPageName }) {
     if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
-
-  // Se estiver na página de login, renderizar sem layout
-  if (currentPageName === 'Login') {
-    return children;
-  }
-
-  // Mostrar loading enquanto verifica auth
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
 
   const allPages = getAllPages(menuItems);
   const filteredPages = searchTerm 
