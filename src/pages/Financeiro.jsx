@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -265,36 +265,30 @@ export default function Financeiro() {
   const valorTotal = (parseFloat(formData.valor_original) || 0) + (parseFloat(formData.juros) || 0) + (parseFloat(formData.multa) || 0) - (parseFloat(formData.desconto) || 0);
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen">
+    <div className="p-4 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">FINANCEIRO</h1>
-          <p className="text-sm text-slate-600">Controle de contas a pagar e receber</p>
-        </div>
-
-        <Card className="border-slate-300 shadow-lg">
+        <Card className="border shadow-sm">
           <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-            <TabsList className="w-full justify-start bg-slate-100 border-b rounded-none h-12">
-              <TabsTrigger value="cadastrar" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+            <TabsList className="w-full justify-start bg-slate-50 border-b rounded-none h-10">
+              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
                 Cadastrar
               </TabsTrigger>
-              <TabsTrigger value="pesquisar" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
                 Pesquisar
               </TabsTrigger>
-              <TabsTrigger value="painel" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+              <TabsTrigger value="painel" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
                 Painel
               </TabsTrigger>
-              <TabsTrigger value="valores" className="px-6 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-emerald-600">
+              <TabsTrigger value="valores" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600">
                 Valores
               </TabsTrigger>
             </TabsList>
 
             {/* ABA CADASTRAR */}
-            <TabsContent value="cadastrar" className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <TabsContent value="cadastrar" className="p-4">
+              <form onSubmit={handleSubmit}>
                 {/* TIPO */}
-                <div className="bg-slate-50 p-4 rounded border">
-                  <Label className="text-sm font-semibold mb-3 block">Tipo:</Label>
+                <div className="mb-4 pb-3 border-b">
                   <RadioGroup value={formData.tipo} onValueChange={(v) => setFormData({...formData, tipo: v})} className="flex gap-6">
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="Pagar" id="pagar" />
@@ -307,12 +301,12 @@ export default function Financeiro() {
                   </RadioGroup>
                 </div>
 
-                {/* DADOS PRINCIPAIS */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">{formData.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}: *</Label>
+                {/* LINHA 1 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">{formData.tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'}:</Label>
+                  <div className="col-span-10">
                     <Select value={formData.fornecedor_id} onValueChange={(v) => setFormData({...formData, fornecedor_id: v})}>
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="h-8 text-sm">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
@@ -322,122 +316,134 @@ export default function Financeiro() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm">Nº Documento:</Label>
-                    <Input value={formData.documento} onChange={(e) => setFormData({...formData, documento: e.target.value})} placeholder="Número do documento" className="bg-white uppercase" style={{ textTransform: 'uppercase' }} />
+                {/* LINHA 2 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">CPF/CNPJ:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.cnpj || fornecedores.find(f => f.id === formData.fornecedor_id)?.cpf || ''} />
+                  </div>
+                  <Label className="col-span-2 text-right text-sm">Razão Social:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.razao_social || fornecedores.find(f => f.id === formData.fornecedor_id)?.nome || ''} />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm">Descrição: *</Label>
-                  <Input value={formData.descricao} onChange={(e) => setFormData({...formData, descricao: e.target.value})} placeholder="Descrição do lançamento" className="bg-white uppercase" style={{ textTransform: 'uppercase' }} required />
-                </div>
-
-                {/* DATAS E VALORES */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Data Emissão: *</Label>
-                    <Input type="date" value={formData.data_emissao} onChange={(e) => setFormData({...formData, data_emissao: e.target.value})} className="bg-white" required />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Data Vencimento: *</Label>
-                    <Input type="date" value={formData.data_vencimento} onChange={(e) => setFormData({...formData, data_vencimento: e.target.value})} className="bg-white" required />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Valor Original: *</Label>
-                    <Input type="number" step="0.01" value={formData.valor_original} onChange={(e) => setFormData({...formData, valor_original: e.target.value})} placeholder="0.00" className="bg-white" required />
-                  </div>
-
-                  <div className="space-y-2 bg-green-50 p-3 rounded border border-green-200">
-                    <Label className="text-xs font-semibold text-green-800">Valor Total:</Label>
-                    <div className="text-xl font-bold text-green-700">{formatarMoeda(valorTotal)}</div>
+                {/* LINHA 3 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Tipo:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm" placeholder="Outro" />
                   </div>
                 </div>
 
-                {/* AJUSTES */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Juros:</Label>
-                    <Input type="number" step="0.01" value={formData.juros} onChange={(e) => setFormData({...formData, juros: e.target.value})} placeholder="0.00" className="bg-white" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Multa:</Label>
-                    <Input type="number" step="0.01" value={formData.multa} onChange={(e) => setFormData({...formData, multa: e.target.value})} placeholder="0.00" className="bg-white" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Desconto:</Label>
-                    <Input type="number" step="0.01" value={formData.desconto} onChange={(e) => setFormData({...formData, desconto: e.target.value})} placeholder="0.00" className="bg-white" />
+                {/* LINHA 4 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Nome Fantasia:</Label>
+                  <div className="col-span-10">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.nome || ''} />
                   </div>
                 </div>
 
-                {/* CLASSIFICAÇÃO */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Plano de Contas: *</Label>
-                    <Select value={formData.plano_contas_id} onValueChange={(v) => setFormData({...formData, plano_contas_id: v})}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione" />
+                {/* LINHA 5 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Código RH:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm" />
+                  </div>
+                </div>
+
+                {/* LINHA 6 - ENDEREÇO */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Endereço:</Label>
+                  <div className="col-span-10">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.endereco || ''} />
+                  </div>
+                </div>
+
+                {/* LINHA 7 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">CEP:</Label>
+                  <div className="col-span-2">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.cep || ''} />
+                  </div>
+                  <Label className="col-span-1 text-right text-sm">Cidade:</Label>
+                  <div className="col-span-3">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.cidade || ''} />
+                  </div>
+                  <Label className="col-span-1 text-right text-sm">UF:</Label>
+                  <div className="col-span-1">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.estado || ''} />
+                  </div>
+                  <Label className="col-span-1 text-right text-sm">Código IBGE:</Label>
+                  <div className="col-span-1">
+                    <Input className="h-8 text-sm" />
+                  </div>
+                </div>
+
+                {/* LINHA 8 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Bairro:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm" />
+                  </div>
+                </div>
+
+                {/* LINHA 9 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">UF:</Label>
+                  <div className="col-span-2">
+                    <Select>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="MT" />
                       </SelectTrigger>
                       <SelectContent>
-                        {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>
-                        ))}
+                        <SelectItem value="MT">MT</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Centro de Custo:</Label>
-                    <Select value={formData.centro_custo_id} onValueChange={(v) => setFormData({...formData, centro_custo_id: v})}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Opcional" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {centros.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Forma Pagamento:</Label>
-                    <Select value={formData.forma_pagamento} onValueChange={(v) => setFormData({...formData, forma_pagamento: v})}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="PIX">PIX</SelectItem>
-                        <SelectItem value="Boleto">Boleto</SelectItem>
-                        <SelectItem value="Cartão Crédito">Cartão Crédito</SelectItem>
-                        <SelectItem value="Cartão Débito">Cartão Débito</SelectItem>
-                        <SelectItem value="Transferência">Transferência</SelectItem>
-                        <SelectItem value="Cheque">Cheque</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <Label className="col-span-2 text-right text-sm">Complemento:</Label>
+                  <div className="col-span-6">
+                    <Input className="h-8 text-sm" />
                   </div>
                 </div>
 
-                {/* OBSERVAÇÕES */}
-                <div className="space-y-2">
-                  <Label className="text-sm">Observações:</Label>
-                  <Textarea value={formData.observacoes} onChange={(e) => setFormData({...formData, observacoes: e.target.value})} placeholder="OBSERVAÇÕES ADICIONAIS..." rows={3} className="bg-white uppercase" style={{ textTransform: 'uppercase' }} />
+                {/* LINHA 10 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Referência:</Label>
+                  <div className="col-span-10">
+                    <Input className="h-8 text-sm" />
+                  </div>
+                </div>
+
+                {/* SEÇÃO CONTATOS */}
+                <div className="mt-4 mb-3 pb-2 border-b">
+                  <h3 className="text-sm font-semibold">Contatos</h3>
+                </div>
+
+                {/* LINHA 11 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Email:</Label>
+                  <div className="col-span-10">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.email || ''} />
+                  </div>
+                </div>
+
+                {/* LINHA 12 */}
+                <div className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <Label className="col-span-2 text-right text-sm">Telefone Comercial:</Label>
+                  <div className="col-span-4">
+                    <Input className="h-8 text-sm bg-slate-50" disabled value={fornecedores.find(f => f.id === formData.fornecedor_id)?.telefone || ''} />
+                  </div>
                 </div>
 
                 {/* BOTÕES */}
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={resetForm} className="gap-2">
-                    <X className="w-4 h-4" />
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={resetForm} size="sm">
                     {editingId ? 'Cancelar' : 'Limpar'}
                   </Button>
-                  <Button type="submit" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                    <Save className="w-4 h-4" />
+                  <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700">
                     {editingId ? 'Atualizar' : 'Salvar'}
                   </Button>
                 </div>
@@ -445,25 +451,25 @@ export default function Financeiro() {
             </TabsContent>
 
             {/* ABA PESQUISAR */}
-            <TabsContent value="pesquisar" className="p-6">
+            <TabsContent value="pesquisar" className="p-4">
               <div className="space-y-4">
                 {/* FILTROS */}
-                <div className="flex flex-wrap gap-3 items-end">
-                  <div className="flex-1 min-w-[300px]">
+                <div className="flex gap-3 items-end mb-4">
+                  <div className="flex-1">
                     <Label className="text-sm mb-2 block">Pesquisa Rápida:</Label>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input 
                         placeholder="Fornecedor, descrição, documento..." 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)} 
-                        className="pl-10 bg-white"
+                        className="pl-8 h-8 text-sm"
                       />
                     </div>
                   </div>
 
                   <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                    <SelectTrigger className="w-48 bg-white">
+                    <SelectTrigger className="w-48 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -475,36 +481,36 @@ export default function Financeiro() {
                 </div>
 
                 {/* TABELA */}
-                <div className="border rounded-lg overflow-hidden bg-white">
+                <div className="border rounded overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50">
-                        <TableHead className="font-semibold">Nº</TableHead>
-                        <TableHead className="font-semibold">Tipo</TableHead>
-                        <TableHead className="font-semibold">Fornecedor/Cliente</TableHead>
-                        <TableHead className="font-semibold">Descrição</TableHead>
-                        <TableHead className="font-semibold">Doc</TableHead>
-                        <TableHead className="font-semibold">Emissão</TableHead>
-                        <TableHead className="font-semibold">Vencimento</TableHead>
-                        <TableHead className="text-right font-semibold">Valor</TableHead>
-                        <TableHead className="text-right font-semibold">Pago</TableHead>
-                        <TableHead className="text-right font-semibold">Saldo</TableHead>
-                        <TableHead className="font-semibold">Status</TableHead>
-                        <TableHead className="text-center font-semibold">Ações</TableHead>
+                        <TableHead className="h-8 text-xs">Nº</TableHead>
+                        <TableHead className="h-8 text-xs">Tipo</TableHead>
+                        <TableHead className="h-8 text-xs">Fornecedor/Cliente</TableHead>
+                        <TableHead className="h-8 text-xs">Descrição</TableHead>
+                        <TableHead className="h-8 text-xs">Doc</TableHead>
+                        <TableHead className="h-8 text-xs">Emissão</TableHead>
+                        <TableHead className="h-8 text-xs">Vencimento</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Valor</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Pago</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Saldo</TableHead>
+                        <TableHead className="h-8 text-xs">Status</TableHead>
+                        <TableHead className="h-8 text-xs text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={12} className="text-center py-8 text-slate-400">
+                          <TableCell colSpan={12} className="text-center py-4 text-xs text-slate-400">
                             Carregando...
                           </TableCell>
                         </TableRow>
                       ) : lancamentosFiltrados.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={12} className="text-center py-12">
-                            <DollarSign className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                            <p className="text-slate-500">Nenhum lançamento encontrado</p>
+                          <TableCell colSpan={12} className="text-center py-8">
+                            <DollarSign className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                            <p className="text-xs text-slate-500">Nenhum lançamento encontrado</p>
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -515,40 +521,40 @@ export default function Financeiro() {
 
                           return (
                             <TableRow key={lanc.id} className="hover:bg-slate-50">
-                              <TableCell className="font-bold">{lanc.numero_lancamento}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={lanc.tipo === 'Pagar' ? 'border-red-300 text-red-700' : 'border-green-300 text-green-700'}>
+                              <TableCell className="py-2 text-xs font-semibold">{lanc.numero_lancamento}</TableCell>
+                              <TableCell className="py-2">
+                                <Badge variant="outline" className={`text-xs ${lanc.tipo === 'Pagar' ? 'border-red-300 text-red-700' : 'border-green-300 text-green-700'}`}>
                                   {lanc.tipo}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="max-w-[200px] truncate">{lanc.fornecedor_nome || '-'}</TableCell>
-                              <TableCell className="max-w-[250px] truncate">{lanc.descricao}</TableCell>
-                              <TableCell className="text-xs font-mono">{lanc.documento || '-'}</TableCell>
-                              <TableCell className="text-xs">{formatarData(lanc.data_emissao)}</TableCell>
-                              <TableCell className="text-xs">{formatarData(lanc.data_vencimento)}</TableCell>
-                              <TableCell className="text-right font-mono font-semibold">{formatarMoeda(valorOriginal)}</TableCell>
-                              <TableCell className="text-right font-mono text-blue-600">{formatarMoeda(valorPago)}</TableCell>
-                              <TableCell className="text-right font-mono font-bold text-red-600">{formatarMoeda(saldo)}</TableCell>
-                              <TableCell>
-                                <Badge className={
+                              <TableCell className="py-2 text-xs max-w-[150px] truncate">{lanc.fornecedor_nome || '-'}</TableCell>
+                              <TableCell className="py-2 text-xs max-w-[200px] truncate">{lanc.descricao}</TableCell>
+                              <TableCell className="py-2 text-xs font-mono">{lanc.documento || '-'}</TableCell>
+                              <TableCell className="py-2 text-xs">{formatarData(lanc.data_emissao)}</TableCell>
+                              <TableCell className="py-2 text-xs">{formatarData(lanc.data_vencimento)}</TableCell>
+                              <TableCell className="py-2 text-xs text-right font-mono">{formatarMoeda(valorOriginal)}</TableCell>
+                              <TableCell className="py-2 text-xs text-right font-mono text-blue-600">{formatarMoeda(valorPago)}</TableCell>
+                              <TableCell className="py-2 text-xs text-right font-mono font-semibold text-red-600">{formatarMoeda(saldo)}</TableCell>
+                              <TableCell className="py-2">
+                                <Badge className={`text-xs ${
                                   lanc.status === 'Pago' ? 'bg-green-100 text-green-800' :
                                   lanc.status === 'Vencido' ? 'bg-red-100 text-red-800' :
                                   lanc.status === 'Parcial' ? 'bg-blue-100 text-blue-800' :
                                   'bg-yellow-100 text-yellow-800'
-                                }>
+                                }`}>
                                   {lanc.status}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="py-2">
                                 <div className="flex gap-1 justify-center">
-                                  <Button variant="ghost" size="icon" onClick={() => setDetalhesAberto(lanc)} className="h-8 w-8" title="Detalhes">
-                                    <Eye className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" onClick={() => setDetalhesAberto(lanc)} className="h-6 w-6" title="Detalhes">
+                                    <Eye className="w-3 h-3" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-8 w-8 text-blue-600" title="Editar">
-                                    <Edit className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" onClick={() => handleEdit(lanc)} className="h-6 w-6 text-blue-600" title="Editar">
+                                    <Edit className="w-3 h-3" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-8 w-8 text-red-600" title="Excluir">
-                                    <Trash2 className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(lanc.id)} className="h-6 w-6 text-red-600" title="Excluir">
+                                    <Trash2 className="w-3 h-3" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -563,17 +569,15 @@ export default function Financeiro() {
             </TabsContent>
 
             {/* ABA PAINEL */}
-            <TabsContent value="painel" className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <TabsContent value="painel" className="p-4">
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 <Card className="border-red-200 bg-red-50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-red-600" />
-                      A Pagar
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-700">{formatarMoeda(totalPagar)}</div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingDown className="w-4 h-4 text-red-600" />
+                      <span className="text-xs font-semibold">A Pagar</span>
+                    </div>
+                    <div className="text-xl font-bold text-red-700">{formatarMoeda(totalPagar)}</div>
                     <p className="text-xs text-slate-600 mt-1">
                       {lancamentos.filter(l => l.tipo === 'Pagar' && l.status !== 'Pago').length} lançamento(s)
                     </p>
@@ -581,14 +585,12 @@ export default function Financeiro() {
                 </Card>
 
                 <Card className="border-green-200 bg-green-50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                      A Receber
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-700">{formatarMoeda(totalReceber)}</div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-green-600" />
+                      <span className="text-xs font-semibold">A Receber</span>
+                    </div>
+                    <div className="text-xl font-bold text-green-700">{formatarMoeda(totalReceber)}</div>
                     <p className="text-xs text-slate-600 mt-1">
                       {lancamentos.filter(l => l.tipo === 'Receber' && l.status !== 'Pago').length} lançamento(s)
                     </p>
@@ -596,114 +598,66 @@ export default function Financeiro() {
                 </Card>
 
                 <Card className="border-blue-200 bg-blue-50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
-                      Total Pago
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-700">{formatarMoeda(totalPago)}</div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-semibold">Total Pago</span>
+                    </div>
+                    <div className="text-xl font-bold text-blue-700">{formatarMoeda(totalPago)}</div>
                     <p className="text-xs text-slate-600 mt-1">
                       {lancamentos.filter(l => l.status === 'Pago').length} lançamento(s)
                     </p>
                   </CardContent>
                 </Card>
               </div>
-
-              <Card className="mt-6 border-amber-200 bg-amber-50">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-amber-600" />
-                    Vencimentos Próximos (7 dias)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {lancamentos
-                      .filter(l => {
-                        if (l.status === 'Pago') return false;
-                        const hoje = new Date();
-                        const venc = new Date(l.data_vencimento);
-                        const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-                        return diff >= 0 && diff <= 7;
-                      })
-                      .slice(0, 5)
-                      .map(l => (
-                        <div key={l.id} className="flex justify-between items-center p-3 bg-white rounded border">
-                          <div className="flex-1">
-                            <div className="font-semibold text-sm">{l.descricao}</div>
-                            <div className="text-xs text-slate-600">{l.fornecedor_nome}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-sm">{formatarMoeda(l.valor_original || 0)}</div>
-                            <div className="text-xs text-amber-700">{formatarData(l.data_vencimento)}</div>
-                          </div>
-                        </div>
-                      ))}
-                    {lancamentos.filter(l => {
-                      if (l.status === 'Pago') return false;
-                      const hoje = new Date();
-                      const venc = new Date(l.data_vencimento);
-                      const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-                      return diff >= 0 && diff <= 7;
-                    }).length === 0 && (
-                      <div className="text-center py-6 text-slate-500">
-                        <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Nenhum vencimento próximo</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
 
             {/* ABA VALORES */}
-            <TabsContent value="valores" className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TabsContent value="valores" className="p-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Por Status</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {['Pendente', 'Pago', 'Parcial', 'Vencido', 'Cancelado'].map(status => {
-                      const total = lancamentos.filter(l => l.status === status).reduce((sum, l) => sum + (l.valor_original || 0), 0);
-                      const count = lancamentos.filter(l => l.status === status).length;
-                      
-                      return (
-                        <div key={status} className="flex justify-between items-center p-3 bg-slate-50 rounded">
-                          <span className="font-medium">{status}</span>
-                          <div className="text-right">
-                            <div className="font-bold">{formatarMoeda(total)}</div>
-                            <div className="text-xs text-slate-500">{count} item(ns)</div>
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-3">Por Status</h3>
+                    <div className="space-y-2">
+                      {['Pendente', 'Pago', 'Parcial', 'Vencido', 'Cancelado'].map(status => {
+                        const total = lancamentos.filter(l => l.status === status).reduce((sum, l) => sum + (l.valor_original || 0), 0);
+                        const count = lancamentos.filter(l => l.status === status).length;
+                        
+                        return (
+                          <div key={status} className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded text-sm">
+                            <span>{status}</span>
+                            <div className="text-right">
+                              <div className="font-semibold">{formatarMoeda(total)}</div>
+                              <div className="text-xs text-slate-500">{count} item(ns)</div>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Por Forma de Pagamento</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {['Dinheiro', 'PIX', 'Boleto', 'Cartão Crédito', 'Transferência'].map(forma => {
-                      const total = lancamentos.filter(l => l.forma_pagamento === forma).reduce((sum, l) => sum + (l.valor_original || 0), 0);
-                      const count = lancamentos.filter(l => l.forma_pagamento === forma).length;
-                      
-                      if (count === 0) return null;
-                      
-                      return (
-                        <div key={forma} className="flex justify-between items-center p-3 bg-slate-50 rounded">
-                          <span className="font-medium">{forma}</span>
-                          <div className="text-right">
-                            <div className="font-bold">{formatarMoeda(total)}</div>
-                            <div className="text-xs text-slate-500">{count} item(ns)</div>
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-3">Por Forma de Pagamento</h3>
+                    <div className="space-y-2">
+                      {['Dinheiro', 'PIX', 'Boleto', 'Cartão Crédito', 'Transferência'].map(forma => {
+                        const total = lancamentos.filter(l => l.forma_pagamento === forma).reduce((sum, l) => sum + (l.valor_original || 0), 0);
+                        const count = lancamentos.filter(l => l.forma_pagamento === forma).length;
+                        
+                        if (count === 0) return null;
+                        
+                        return (
+                          <div key={forma} className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded text-sm">
+                            <span>{forma}</span>
+                            <div className="text-right">
+                              <div className="font-semibold">{formatarMoeda(total)}</div>
+                              <div className="text-xs text-slate-500">{count} item(ns)</div>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -716,13 +670,13 @@ export default function Financeiro() {
       <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Detalhes do Lançamento #{detalhesAberto?.numero_lancamento}</DialogTitle>
+            <DialogTitle className="text-sm">Detalhes do Lançamento #{detalhesAberto?.numero_lancamento}</DialogTitle>
           </DialogHeader>
           {detalhesAberto && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div><strong>Tipo:</strong> {detalhesAberto.tipo}</div>
-                <div><strong>Status:</strong> <Badge>{detalhesAberto.status}</Badge></div>
+                <div><strong>Status:</strong> <Badge className="text-xs">{detalhesAberto.status}</Badge></div>
                 <div><strong>Fornecedor/Cliente:</strong> {detalhesAberto.fornecedor_nome || '-'}</div>
                 <div><strong>Documento:</strong> {detalhesAberto.documento || '-'}</div>
                 <div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div>
@@ -731,11 +685,11 @@ export default function Financeiro() {
               </div>
 
               <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-4">
-                  <div className="space-y-2 text-sm">
+                <CardContent className="p-3">
+                  <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span>Valor Original:</span>
-                      <span className="font-bold">{formatarMoeda(detalhesAberto.valor_original || 0)}</span>
+                      <span className="font-semibold">{formatarMoeda(detalhesAberto.valor_original || 0)}</span>
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>+ Juros:</span>
@@ -749,11 +703,11 @@ export default function Financeiro() {
                       <span>- Desconto:</span>
                       <span>{formatarMoeda(detalhesAberto.desconto || 0)}</span>
                     </div>
-                    <div className="flex justify-between text-blue-600 pt-2 border-t">
+                    <div className="flex justify-between text-blue-600 pt-1 border-t">
                       <span>Valor Pago:</span>
-                      <span className="font-bold">{formatarMoeda(detalhesAberto.valor_pago || 0)}</span>
+                      <span className="font-semibold">{formatarMoeda(detalhesAberto.valor_pago || 0)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t-2">
+                    <div className="flex justify-between font-bold text-sm pt-1 border-t-2">
                       <span>Saldo:</span>
                       <span className="text-red-700">{formatarMoeda((detalhesAberto.valor_original || 0) - (detalhesAberto.valor_pago || 0))}</span>
                     </div>
@@ -762,9 +716,9 @@ export default function Financeiro() {
               </Card>
 
               {detalhesAberto.observacoes && (
-                <div className="bg-slate-50 p-4 rounded">
-                  <strong className="text-sm">Observações:</strong>
-                  <p className="text-sm mt-2 whitespace-pre-wrap">{detalhesAberto.observacoes}</p>
+                <div className="bg-slate-50 p-3 rounded">
+                  <strong className="text-xs">Observações:</strong>
+                  <p className="text-xs mt-1 whitespace-pre-wrap">{detalhesAberto.observacoes}</p>
                 </div>
               )}
             </div>
