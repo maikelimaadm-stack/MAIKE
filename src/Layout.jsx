@@ -206,7 +206,9 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
       } catch (error) {
-        console.error("Erro:", error);
+        console.error("Erro ao carregar usuário:", error);
+        // Não redireciona, apenas define usuário como null
+        setUser(null);
       }
     };
     loadUser();
