@@ -1537,7 +1537,8 @@ export default function Financeiro() {
                 </div>
               </CardContent>
             </Card>
-            </div>
+          </div>
+        </div>
           </TabsContent>
         </Tabs>
       </div>
