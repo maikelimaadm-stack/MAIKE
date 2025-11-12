@@ -139,21 +139,16 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // Se estiver na página de acesso, renderizar sem layout
-  if (currentPageName === 'Acesso') {
-    return children;
-  }
-
-  // Verificar autenticação
+  // Verificar autenticação - redirecionar se não estiver logado
   useEffect(() => {
-    // Permitir acesso à página de usuários para primeiro acesso
-    if (currentPageName === 'Usuarios') {
+    // Não verificar na página de login e de usuários (para primeiro acesso)
+    if (currentPageName === 'Login' || currentPageName === 'Usuarios') {
       return;
     }
 
     const usuarioLogado = localStorage.getItem('usuario_logado');
     if (!usuarioLogado) {
-      window.location.href = createPageUrl('Acesso');
+      window.location.href = createPageUrl('Login');
       return;
     }
 
@@ -163,7 +158,7 @@ export default function Layout({ children, currentPageName }) {
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
       localStorage.removeItem('usuario_logado');
-      window.location.href = createPageUrl('Acesso');
+      window.location.href = createPageUrl('Login');
     }
   }, [currentPageName]);
 
@@ -201,6 +196,7 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
     initialData: [],
+    enabled: currentPageName !== 'Login',
   });
 
   const { data: empresaAtual } = useQuery({
@@ -210,16 +206,16 @@ export default function Layout({ children, currentPageName }) {
       const empresa = empresas.find(e => e.id === empresaSelecionada);
       return empresa || null;
     },
-    enabled: !!empresaSelecionada && empresas.length > 0,
+    enabled: !!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login',
   });
 
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0) {
+    if (!empresaSelecionada && empresas.length > 0 && currentPageName !== 'Login') {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas, empresaSelecionada]);
+  }, [empresas, empresaSelecionada, currentPageName]);
 
   const handleEmpresaChange = (empresaId) => {
     setEmpresaSelecionada(empresaId);
@@ -228,28 +224,30 @@ export default function Layout({ children, currentPageName }) {
   };
 
   useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
-        );
-        const data = await response.json();
-        setWeather({
-          temperature: Math.round(data.current.temperature_2m),
-          precipitation: data.current.precipitation > 0,
-        });
-      } catch (error) {
-        console.error("Erro clima:", error);
-      }
-    };
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (currentPageName !== 'Login') {
+      const fetchWeather = async () => {
+        try {
+          const response = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
+          );
+          const data = await response.json();
+          setWeather({
+            temperature: Math.round(data.current.temperature_2m),
+            precipitation: data.current.precipitation > 0,
+          });
+        } catch (error) {
+          console.error("Erro clima:", error);
+        }
+      };
+      fetchWeather();
+      const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [currentPageName]);
 
   const handleLogout = () => {
     localStorage.removeItem('usuario_logado');
-    window.location.href = createPageUrl('Acesso');
+    window.location.href = createPageUrl('Login');
   };
 
   const isActive = (item) => {
@@ -257,6 +255,11 @@ export default function Layout({ children, currentPageName }) {
     if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
+
+  // Se estiver na página de login, renderizar sem layout
+  if (currentPageName === 'Login') {
+    return children;
+  }
 
   const allPages = getAllPages(menuItems);
   const filteredPages = searchTerm 
