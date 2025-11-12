@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen, Search, Eye, FileText, Package, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CartoesResumo from "../components/shared/CartoesResumo";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -56,13 +55,6 @@ export default function LivrosFiscais() {
     return { totalEntradas, totalSaidas, valorTotal };
   }, [livrosFiltrados]);
 
-  const cartoes = [
-    { id: 'total', label: 'Total de Registros', valor: livrosFiltrados.length, sublabel: 'Livros', icon: BookOpen, cor: 'blue', tipo: 'numero' },
-    { id: 'entradas', label: 'Entradas', valor: estatisticas.totalEntradas, sublabel: 'NF-e recebidas', icon: FileText, cor: 'emerald', tipo: 'numero' },
-    { id: 'saidas', label: 'Saídas', valor: estatisticas.totalSaidas, sublabel: 'NF-e emitidas', icon: FileText, cor: 'orange', tipo: 'numero' },
-    { id: 'valor', label: 'Valor Total', valor: estatisticas.valorTotal, sublabel: 'Soma notas', icon: DollarSign, cor: 'violet', tipo: 'moeda' },
-  ];
-
   return (
     <div className="p-4 md:p-6 space-y-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -72,7 +64,67 @@ export default function LivrosFiscais() {
         </div>
       </div>
 
-      <CartoesResumo cartoes={cartoes} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-2">
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Total de Registros</p>
+                <p className="text-lg font-bold text-blue-700 truncate leading-tight">{livrosFiltrados.length}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Livros</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Entradas</p>
+                <p className="text-lg font-bold text-emerald-700 truncate leading-tight">{estatisticas.totalEntradas}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">NF-e recebidas</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-orange-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Saídas</p>
+                <p className="text-lg font-bold text-orange-700 truncate leading-tight">{estatisticas.totalSaidas}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">NF-e emitidas</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-3.5 h-3.5 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-violet-500">
+          <CardContent className="p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-slate-600 mb-0.5 truncate leading-tight">Valor Total</p>
+                <p className="text-lg font-bold text-violet-700 truncate leading-tight">{formatarMoeda(estatisticas.valorTotal)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 truncate leading-tight">Soma notas</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-3.5 h-3.5 text-violet-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
