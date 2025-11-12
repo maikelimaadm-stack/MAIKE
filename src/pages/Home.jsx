@@ -27,7 +27,22 @@ const formatarMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currenc
 export default function Home() {
   const [cartoesVisiveis, setCartoesVisiveis] = useState(() => {
     const saved = localStorage.getItem('cartoes_dashboard');
-    return saved ? JSON.parse(saved) : ['produtos', 'estoque_valor', 'estoque_baixo'];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Remove invalid card IDs that no longer exist
+        const validCardIds = TIPOS_CARTAO.map(t => t.id);
+        const filtered = parsed.filter(id => validCardIds.includes(id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem('cartoes_dashboard', JSON.stringify(filtered));
+        }
+        return filtered.length > 0 ? filtered : ['produtos', 'estoque_valor', 'estoque_baixo'];
+      } catch {
+        localStorage.removeItem('cartoes_dashboard');
+        return ['produtos', 'estoque_valor', 'estoque_baixo'];
+      }
+    }
+    return ['produtos', 'estoque_valor', 'estoque_baixo'];
   });
   
   const [showConfigCartoes, setShowConfigCartoes] = useState(false);
@@ -37,7 +52,21 @@ export default function Home() {
   
   const [graficosVisiveis, setGraficosVisiveis] = useState(() => {
     const saved = localStorage.getItem('graficos_dashboard');
-    return saved ? JSON.parse(saved) : ['movimentacoes_mes', 'estoque_categoria'];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const validGraphIds = ['movimentacoes_mes', 'estoque_categoria'];
+        const filtered = parsed.filter(id => validGraphIds.includes(id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem('graficos_dashboard', JSON.stringify(filtered));
+        }
+        return filtered.length > 0 ? filtered : ['movimentacoes_mes', 'estoque_categoria'];
+      } catch {
+        localStorage.removeItem('graficos_dashboard');
+        return ['movimentacoes_mes', 'estoque_categoria'];
+      }
+    }
+    return ['movimentacoes_mes', 'estoque_categoria'];
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -170,6 +199,7 @@ export default function Home() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         {TIPOS_CARTAO.filter(tipo => cartoesVisiveis.includes(tipo.id)).map(tipo => {
           const stat = estatisticas[tipo.id];
+          if (!stat) return null;
           const Icon = tipo.icon;
           const valorFormatado = tipo.id.includes('valor') || tipo.id.includes('contas') 
             ? formatarMoedaCartao(stat.valor)
@@ -304,8 +334,8 @@ export default function Home() {
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex justify-between items-center text-sm">
-              <span>{TIPOS_CARTAO.find(t => t.id === showDetalhesCartao)?.label}</span>
-              {estatisticas[showDetalhesCartao]?.dados?.length > 0 && (
+              <span>{TIPOS_CARTAO.find(t => t.id === showDetalhesCartao)?.label || 'Detalhes'}</span>
+              {showDetalhesCartao && estatisticas[showDetalhesCartao]?.dados?.length > 0 && (
                 <Tabs value={tipoVisualizacao} onValueChange={setTipoVisualizacao} className="w-auto">
                   <TabsList className="h-7">
                     <TabsTrigger value="resumo" className="h-6 gap-1 text-xs px-2"><List className="w-3 h-3" />Resumo</TabsTrigger>
