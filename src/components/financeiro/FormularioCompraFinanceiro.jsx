@@ -11,10 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, X, Plus, Trash2 } from "lucide-react";
+import { Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 import ComboboxFornecedor from "./ComboboxFornecedor.jsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const FORMAS_PAGAMENTO_PADRAO = [
   'Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário',
@@ -39,6 +46,11 @@ const parseNumero = (str) => {
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const parseMoeda = (str) => {
+  if (!str) return 0;
+  return parseFloat(String(str).replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
 };
 
 const calcularDataProximaMes = (dataBase) => {
@@ -258,8 +270,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       const frete = parseNumero(formData.frete);
       const outras = parseNumero(formData.outras_despesas);
       const ipi = parseNumero(formData.valor_ipi || "0");
+      const descontoTotalNfe = parseNumero(formData.valor_desconto_total || "0");
 
-      return totalProdutos + frete + outras + ipi;
+      return totalProdutos + frete + outras + ipi - descontoTotalNfe;
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -267,20 +280,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const adicionarParcela = () => {
     const ultimaParcela = formData.parcelas[formData.parcelas.length - 1];
-    const proximaData = ultimaParcela ? calcularDataProximaMes(ultimaParcela.data) : formData.data_vencimento;
     const valorTotal = calcularValorTotal();
     const newNumberOfParcelas = formData.parcelas.length + 1;
     const equalParcelValue = valorTotal / newNumberOfParcelas;
 
     const updatedParcelas = Array.from({ length: newNumberOfParcelas }, (_, i) => {
       const currentParcel = formData.parcelas[i];
-      let date = currentParcel?.data || (i === 0 ? formData.data_vencimento : calcularDataProximaMes(formData.parcelas[i - 1]?.data || formData.data_vencimento));
-      if (i === newNumberOfParcelas - 1 && !ultimaParcela) {
-        date = proximaData;
-      } else if (i === newNumberOfParcelas - 1 && ultimaParcela) {
-        date = calcularDataProximaMes(formData.parcelas[i - 1]?.data || formData.data_vencimento);
+      let date = currentParcel?.data;
+      if (!date) {
+        if (i === 0) {
+          date = formData.data_vencimento;
+        } else {
+          date = calcularDataProximaMes(formData.parcelas[i - 1]?.data || formData.data_vencimento);
+        }
       }
-      return { data: date, valor: formatarNumero(equalParcelValue) };
+      return { data: date, valor: equalParcelValue.toFixed(2).replace('.', ',') };
     });
 
     setFormData(prev => ({ ...prev, parcelas: updatedParcelas }));
@@ -294,7 +308,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const newParcelas = formData.parcelas.filter((_, i) => i !== index);
     const valorTotal = calcularValorTotal();
     const equalParcelValue = valorTotal / newParcelas.length;
-    const updatedParcelas = newParcelas.map(p => ({ ...p, valor: formatarNumero(equalParcelValue) }));
+    const updatedParcelas = newParcelas.map(p => ({ ...p, valor: equalParcelValue.toFixed(2).replace('.', ',') }));
     setFormData(prev => ({ ...prev, parcelas: updatedParcelas }));
   };
 
@@ -337,7 +351,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               updated.unidade = produto.unidade_medida;
               if (produto.preco_custo && updated.quantidade) {
                 const qtd = parseNumero(updated.quantidade);
-                updated.valor_total = formatarNumero(produto.preco_custo * qtd);
+                updated.valor_total = (produto.preco_custo * qtd).toFixed(2).replace('.', ',');
               }
             }
           }
@@ -704,13 +718,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Table>
                               <TableHeader>
                                 <TableRow className="bg-slate-50">
-                                  <TableHead className="text-xs w-[180px]">Produto *</TableHead>
-                                  <TableHead className="text-xs text-right w-[70px]">Qtd *</TableHead>
+                                  <TableHead className="text-xs w-8"></TableHead>
+                                  <TableHead className="text-xs w-[160px]">Produto *</TableHead>
+                                  <TableHead className="text-xs text-right w-[80px]">Qtd *</TableHead>
                                   <TableHead className="text-xs text-right w-[90px]">Total *</TableHead>
-                                  <TableHead className="text-xs text-right w-[70px]">Desc.</TableHead>
+                                  <TableHead className="text-xs text-right w-[80px]">Desc.</TableHead>
                                   <TableHead className="text-xs text-right w-[90px]">Líquido</TableHead>
                                   <TableHead className="text-xs text-center w-[50px]">UN</TableHead>
-                                  <TableHead className="w-10"></TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -723,7 +737,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                                   return (
                                     <TableRow key={index}>
-                                      <TableCell className="w-[180px]">
+                                      <TableCell className="w-8">
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="start">
+                                            <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
+                                              <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                              Excluir
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </TableCell>
+                                      <TableCell className="w-[160px]">
                                         <Select value={produto.produto_id} onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}>
                                           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                                           <SelectContent>
@@ -733,14 +762,38 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
-                                      <TableCell className="w-[70px]">
-                                        <Input value={produto.quantidade} onChange={(e) => handleAtualizarProduto(index, 'quantidade', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" />
+                                      <TableCell className="w-[80px]">
+                                        <Input
+                                          value={produto.quantidade}
+                                          onChange={(e) => {
+                                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                                            handleAtualizarProduto(index, 'quantidade', valor);
+                                          }}
+                                          placeholder="0,00"
+                                          className="text-right h-7 text-xs"
+                                        />
                                       </TableCell>
                                       <TableCell className="w-[90px]">
-                                        <Input value={produto.valor_total} onChange={(e) => handleAtualizarProduto(index, 'valor_total', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" />
+                                        <Input
+                                          value={produto.valor_total}
+                                          onChange={(e) => {
+                                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                                            handleAtualizarProduto(index, 'valor_total', valor);
+                                          }}
+                                          placeholder="0,00"
+                                          className="text-right h-7 text-xs"
+                                        />
                                       </TableCell>
-                                      <TableCell className="w-[70px]">
-                                        <Input value={produto.desconto_item || "0,00"} onChange={(e) => handleAtualizarProduto(index, 'desconto_item', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" />
+                                      <TableCell className="w-[80px]">
+                                        <Input
+                                          value={produto.desconto_item || "0,00"}
+                                          onChange={(e) => {
+                                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                                            handleAtualizarProduto(index, 'desconto_item', valor);
+                                          }}
+                                          placeholder="0,00"
+                                          className="text-right h-7 text-xs"
+                                        />
                                       </TableCell>
                                       <TableCell className="text-right w-[90px]">
                                         <div className="font-mono font-semibold text-xs">{formatarMoeda(liquido)}</div>
@@ -749,21 +802,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                       <TableCell className="text-center w-[50px]">
                                         <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                                       </TableCell>
-                                      <TableCell className="w-10">
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoverProduto(index)} className="h-6 w-6 text-red-600">
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
-                                      </TableCell>
                                     </TableRow>
                                   );
                                 })}
                                 {formData.produtos_selecionados.length > 0 && (
                                   <TableRow className="bg-slate-100 font-semibold border-t-2">
-                                    <TableCell colSpan={2} className="text-xs">TOTAL</TableCell>
+                                    <TableCell colSpan={3} className="text-xs">TOTAL</TableCell>
                                     <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutos)}</TableCell>
-                                    <TableCell colSpan={2}></TableCell>
+                                    <TableCell colSpan={1}></TableCell>
                                   </TableRow>
                                 )}
                               </TableBody>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,7 @@ export default function ComboboxFornecedor({ fornecedores, value, onChange, clas
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput placeholder="Buscar por nome ou CNPJ/CPF..." className="h-8 text-xs" />
           <CommandList>
             <CommandEmpty className="text-xs py-6 text-center text-slate-500">
@@ -64,7 +64,7 @@ export default function ComboboxFornecedor({ fornecedores, value, onChange, clas
                     onChange(fornecedor.id);
                     setOpen(false);
                   }}
-                  className="text-xs"
+                  className="text-xs cursor-pointer"
                 >
                   <Check
                     className={cn(
