@@ -20,11 +20,11 @@ import CentrosCusto from './pages/CentrosCusto';
 import Home from './pages/Home';
 import PlanoContas from './pages/PlanoContas';
 import GruposFinanceiros from './pages/GruposFinanceiros';
-import Financeiro from './pages/Financeiro';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
 import LivrosFiscais from './pages/LivrosFiscais';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import Pesagens from './pages/Pesagens';
+import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import Layout from './Layout.jsx';
 
 
@@ -51,11 +51,11 @@ export const PAGES = {
     "Home": Home,
     "PlanoContas": PlanoContas,
     "GruposFinanceiros": GruposFinanceiros,
-    "Financeiro": Financeiro,
     "RelatorioFinanceiro": RelatorioFinanceiro,
     "LivrosFiscais": LivrosFiscais,
     "ConfiguracoesGerais": ConfiguracoesGerais,
     "Pesagens": Pesagens,
+    "LancamentoFinanceiro": LancamentoFinanceiro,
 }
 
 export const pagesConfig = {
