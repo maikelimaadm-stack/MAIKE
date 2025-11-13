@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle } from "lucide-react";
+import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -15,12 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -34,30 +29,12 @@ const formatarNumero = (numero) => {
   return num.toLocaleString('pt-BR');
 };
 
-const formatarNumeroDecimal = (numero) => {
-  if (!numero && numero !== 0) return "0,00";
-  const num = typeof numero === 'number' ? numero : parseFloat(String(numero).replace(/\./g, '').replace(',', '.'));
-  if (isNaN(num)) return "0,00";
-  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-};
-
 const formatarData = (dataString) => {
   if (!dataString) return '-';
   try {
     const date = new Date(dataString + 'T00:00:00');
     if (isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('pt-BR');
-  } catch {
-    return '-';
-  }
-};
-
-const formatarDataHora = (dataString) => {
-  if (!dataString) return '-';
-  try {
-    const date = new Date(dataString);
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleString('pt-BR');
   } catch {
     return '-';
   }
@@ -100,12 +77,28 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'fornecedor_cliente', label: 'Fornecedor/Cliente', default: true },
   { id: 'tipo_documento', label: 'Tipo Doc', default: true },
   { id: 'documento', label: 'Nº Doc', default: true },
+  { id: 'chave_nfe', label: 'Chave NF-e', default: false },
+  { id: 'serie', label: 'Série', default: false },
+  { id: 'cfop', label: 'CFOP', default: false },
   { id: 'valor_total', label: 'Vlr. Total', default: true },
   { id: 'valor_pago', label: 'Vlr. Pago', default: true },
   { id: 'saldo', label: 'Vlr. Saldo', default: true },
   { id: 'status', label: 'Status', default: true },
+  { id: 'safra', label: 'Safra', default: false },
+  { id: 'centro_custo', label: 'Centro Custo', default: false },
   { id: 'plano_contas', label: 'Plano Contas', default: false },
   { id: 'grupo', label: 'Grupo', default: false },
+  { id: 'forma_pagamento', label: 'Forma Pgto', default: false },
+  { id: 'valor_produtos', label: 'Vlr. Produtos', default: false },
+  { id: 'valor_frete', label: 'Vlr. Frete', default: false },
+  { id: 'valor_seguro', label: 'Vlr. Seguro', default: false },
+  { id: 'outras_despesas', label: 'Outras Desp.', default: false },
+  { id: 'valor_desconto', label: 'Vlr. Desc.', default: false },
+  { id: 'valor_ipi', label: 'IPI', default: false },
+  { id: 'valor_icms', label: 'ICMS', default: false },
+  { id: 'valor_pis', label: 'PIS', default: false },
+  { id: 'valor_cofins', label: 'COFINS', default: false },
+  { id: 'base_icms', label: 'Base ICMS', default: false },
 ];
 
 export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos }) {
@@ -113,6 +106,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`);
@@ -134,6 +140,21 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     setColunasVisiveis(novasColunas);
     localStorage.setItem(`colunas_tabela_financeiro_${tipo.toLowerCase()}`, JSON.stringify(novasColunas));
   };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setColunasOrdem(items);
+    localStorage.setItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`, JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -210,6 +231,79 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
 
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
+  const renderCell = (coluna, lancamento) => {
+    switch (coluna.id) {
+      case 'numero':
+        return <TableCell className="font-semibold text-xs">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
+      case 'emissao':
+        return <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_emissao)}</TableCell>;
+      case 'vencimento':
+        return <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_vencimento)}</TableCell>;
+      case 'dias':
+        return (
+          <TableCell className="text-xs">
+            {lancamento?.status === 'Pendente' && (
+              <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
+                {calcularDias(lancamento?.data_vencimento)}
+              </span>
+            )}
+          </TableCell>
+        );
+      case 'fornecedor_cliente':
+        return <TableCell className="max-w-xs truncate text-xs">{lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}</TableCell>;
+      case 'tipo_documento':
+        return <TableCell className="text-xs text-slate-600">{lancamento?.tipo_documento || '-'}</TableCell>;
+      case 'documento':
+        return <TableCell className="font-mono text-xs text-slate-600">{lancamento?.numero_documento || '-'}</TableCell>;
+      case 'chave_nfe':
+        return <TableCell className="font-mono text-[10px] text-slate-600 max-w-[120px] truncate" title={lancamento?.chave_nfe}>{lancamento?.chave_nfe || '-'}</TableCell>;
+      case 'serie':
+        return <TableCell className="text-xs text-slate-600">{lancamento?.serie_documento || '-'}</TableCell>;
+      case 'cfop':
+        return <TableCell className="text-xs font-mono text-slate-600">{lancamento?.cfop || '-'}</TableCell>;
+      case 'valor_total':
+        return <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>;
+      case 'valor_pago':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>;
+      case 'saldo':
+        return <TableCell className="text-right font-mono text-xs font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>;
+      case 'status':
+        return <TableCell><Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge></TableCell>;
+      case 'safra':
+        return <TableCell className="text-xs text-slate-600">{lancamento?.safra_nome || '-'}</TableCell>;
+      case 'centro_custo':
+        return <TableCell className="text-xs text-slate-600 max-w-xs truncate">{lancamento?.centro_custo_nome || '-'}</TableCell>;
+      case 'plano_contas':
+        return <TableCell className="text-xs max-w-xs truncate text-slate-600">{lancamento?.plano_contas_nome || '-'}</TableCell>;
+      case 'grupo':
+        return <TableCell className="text-xs text-slate-600">{lancamento?.grupo_nome || '-'}</TableCell>;
+      case 'forma_pagamento':
+        return <TableCell className="text-xs text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</TableCell>;
+      case 'valor_produtos':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_produtos || 0)}</TableCell>;
+      case 'valor_frete':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_frete || 0)}</TableCell>;
+      case 'valor_seguro':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_seguro || 0)}</TableCell>;
+      case 'outras_despesas':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</TableCell>;
+      case 'valor_desconto':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</TableCell>;
+      case 'valor_ipi':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_ipi || 0)}</TableCell>;
+      case 'valor_icms':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_icms || 0)}</TableCell>;
+      case 'valor_pis':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_pis || 0)}</TableCell>;
+      case 'valor_cofins':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_cofins || 0)}</TableCell>;
+      case 'base_icms':
+        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</TableCell>;
+      default:
+        return <TableCell className="text-xs">-</TableCell>;
+    }
+  };
+
   return (
     <>
       <Card className="shadow-sm border-slate-200">
@@ -223,23 +317,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                    <Settings className="w-3.5 h-3.5" />
-                    Colunas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel className="text-xs">Colunas</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {COLUNAS_DISPONIVEIS.map((coluna) => (
-                    <DropdownMenuCheckboxItem key={coluna.id} checked={colunasVisiveis.includes(coluna.id)} onCheckedChange={() => toggleColuna(coluna.id)} className="text-xs">
-                      {coluna.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-3.5 h-3.5" />
+                Colunas
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -248,43 +329,21 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b">
-                  {colunasVisiveis.includes('numero') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('numero')}>
-                      <div className="flex items-center">Nº {getSortIcon('numero')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('emissao') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('emissao')}>
-                      <div className="flex items-center">Emissão {getSortIcon('emissao')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('vencimento') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('vencimento')}>
-                      <div className="flex items-center">Vencimento {getSortIcon('vencimento')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('dias') && <TableHead className="text-xs">Dias</TableHead>}
-                  {colunasVisiveis.includes('fornecedor_cliente') && (
-                    <TableHead className="cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('fornecedor_cliente')}>
-                      <div className="flex items-center">{tipo === 'Pagar' ? 'Fornecedor' : 'Cliente'} {getSortIcon('fornecedor_cliente')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('tipo_documento') && <TableHead className="text-xs">Tipo Doc</TableHead>}
-                  {colunasVisiveis.includes('documento') && <TableHead className="text-xs">Nº Doc</TableHead>}
-                  {colunasVisiveis.includes('valor_total') && (
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('valor_total')}>
-                      <div className="flex items-center justify-end">Vlr. Total {getSortIcon('valor_total')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('valor_pago') && <TableHead className="text-right text-xs">Vlr. Pago</TableHead>}
-                  {colunasVisiveis.includes('saldo') && (
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 text-xs" onClick={() => handleSort('saldo')}>
-                      <div className="flex items-center justify-end">Vlr. Saldo {getSortIcon('saldo')}</div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('status') && <TableHead className="text-xs">Status</TableHead>}
-                  {colunasVisiveis.includes('plano_contas') && <TableHead className="text-xs">Plano Contas</TableHead>}
-                  {colunasVisiveis.includes('grupo') && <TableHead className="text-xs">Grupo</TableHead>}
+                  {colunasOrdenadas.map((coluna) => {
+                    const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
+                    return (
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        onClick={() => isSortable && handleSort(coluna.id)}
+                      >
+                        <div className="flex items-center">
+                          {coluna.label}
+                          {isSortable && getSortIcon(coluna.id)}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                   <TableHead className="text-xs text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -310,35 +369,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           exit={{ opacity: 0 }} 
                           className="hover:bg-slate-50 transition-colors border-b"
                         >
-                          {colunasVisiveis.includes('numero') && <TableCell className="font-semibold text-xs">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>}
-                          {colunasVisiveis.includes('emissao') && <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_emissao)}</TableCell>}
-                          {colunasVisiveis.includes('vencimento') && <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_vencimento)}</TableCell>}
-                          {colunasVisiveis.includes('dias') && (
-                            <TableCell className="text-xs">
-                              {lancamento?.status === 'Pendente' && (
-                                <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
-                                  {calcularDias(lancamento?.data_vencimento)}
-                                </span>
-                              )}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('fornecedor_cliente') && (
-                            <TableCell className="max-w-xs truncate text-xs">
-                              {lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('tipo_documento') && <TableCell className="text-xs text-slate-600">{lancamento?.tipo_documento || '-'}</TableCell>}
-                          {colunasVisiveis.includes('documento') && <TableCell className="font-mono text-xs text-slate-600">{lancamento?.numero_documento || '-'}</TableCell>}
-                          {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>}
-                          {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>}
-                          {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono text-xs font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>}
-                          {colunasVisiveis.includes('status') && (
-                            <TableCell>
-                              <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge>
-                            </TableCell>
-                          )}
-                          {colunasVisiveis.includes('plano_contas') && <TableCell className="text-xs max-w-xs truncate text-slate-600">{lancamento?.plano_contas_nome || '-'}</TableCell>}
-                          {colunasVisiveis.includes('grupo') && <TableCell className="text-xs text-slate-600">{lancamento?.grupo_nome || '-'}</TableCell>}
+                          {colunasOrdenadas.map(coluna => (
+                            <React.Fragment key={coluna.id}>
+                              {renderCell(coluna, lancamento)}
+                            </React.Fragment>
+                          ))}
                           <TableCell className="text-center">
                             <div className="flex gap-1 justify-center">
                               <Button variant="ghost" size="icon" onClick={() => abrirDetalhes(lancamento)} className="h-7 w-7" title="Ver Detalhes">
@@ -372,6 +407,75 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -111,8 +110,20 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       setTimeout(() => setMostrarCamposNFe(true), 100);
     }
 
-    // Carregar produtos de produtos_lancamento OU produtos_selecionados
-    const produtosIniciais = initialData.produtos_lancamento || initialData.produtos_selecionados || [];
+    // CORREÇÃO: Carregar produtos de produtos_lancamento OU produtos_selecionados
+    let produtosIniciais = [];
+    if (initialData.produtos_lancamento && Array.isArray(initialData.produtos_lancamento)) {
+      produtosIniciais = initialData.produtos_lancamento.map(pl => ({
+        produto_id: pl.produto_id,
+        produto_nome: pl.produto_nome,
+        quantidade: pl.quantidade || 0,
+        valor_total: pl.valor_total || 0,
+        desconto_item: pl.desconto_item || 0,
+        unidade: pl.unidade
+      }));
+    } else if (initialData.produtos_selecionados && Array.isArray(initialData.produtos_selecionados)) {
+      produtosIniciais = initialData.produtos_selecionados;
+    }
 
     return {
       ...defaults,
@@ -377,7 +388,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     }
-    // Validações para produtos - mais flexível em modo edição
+    
+    // Validações para produtos
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
         toast.error('Adicione pelo menos 1 produto!');
@@ -400,6 +412,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     }
+    
     setEtapa(2);
   };
 
@@ -910,7 +923,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               {grupos.map(g => (
                                 <SelectItem key={g.id} value={g.id} className="text-xs">{g.codigo} - {g.descricao}</SelectItem>
                               ))}
-                            ))}
                             </SelectContent>
                           </Select>
                         </div>
