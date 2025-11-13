@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Calendar, Edit2, Layers, X } from "lucide-react";
+import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Calendar, Edit2, Layers, X, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -78,6 +78,7 @@ const getBadgeStyle = (status) => {
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true },
+  { id: 'parcela', label: 'Parcela', default: false },
   { id: 'emissao', label: 'Emissão', default: true },
   { id: 'vencimento', label: 'Vencimento', default: true },
   { id: 'dias', label: 'Dias', default: true },
@@ -113,6 +114,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
+  const [produtosDialog, setProdutosDialog] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [selecionados, setSelecionados] = useState([]);
   const [parcelasDialog, setParcelasDialog] = useState(null);
@@ -433,12 +435,26 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     setParcelasDialog(lancamento);
   };
 
+  const abrirProdutos = (lancamento) => {
+    setProdutosDialog(lancamento);
+  };
+
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
   const renderCell = (coluna, lancamento) => {
     switch (coluna.id) {
       case 'numero':
         return <TableCell className="font-semibold text-xs">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
+      case 'parcela':
+        return (
+          <TableCell className="text-xs text-center">
+            {lancamento?.numero_parcela && lancamento?.total_parcelas ? (
+              <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-300 text-[10px]">
+                {lancamento.numero_parcela}/{lancamento.total_parcelas}
+              </Badge>
+            ) : '-'}
+          </TableCell>
+        );
       case 'emissao':
         return <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_emissao)}</TableCell>;
       case 'vencimento':
@@ -630,6 +646,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
                       if (!lancamento) return null;
+                      const temProdutos = lancamento.produtos_lancamento && lancamento.produtos_lancamento.length > 0;
                       
                       return (
                         <motion.tr 
@@ -657,6 +674,12 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                   <Eye className="w-3.5 h-3.5 mr-2" />
                                   Ver Detalhes
                                 </DropdownMenuItem>
+                                {temProdutos && (
+                                  <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
+                                    <Package className="w-3.5 h-3.5 mr-2" />
+                                    Ver Produtos ({lancamento.produtos_lancamento.length})
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
                                   <Edit className="w-3.5 h-3.5 mr-2" />
                                   Editar
@@ -1010,6 +1033,75 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!produtosDialog} onOpenChange={(open) => !open && setProdutosDialog(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Produtos - Lançamento #{produtosDialog?.numero_lancamento}</DialogTitle>
+          </DialogHeader>
+          {produtosDialog && (
+            <div className="space-y-3">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><strong>Fornecedor:</strong> {produtosDialog.fornecedor_nome || '-'}</div>
+                    <div><strong>Documento:</strong> {produtosDialog.numero_documento || '-'}</div>
+                    <div><strong>Data Emissão:</strong> {formatarData(produtosDialog.data_emissao)}</div>
+                    <div><strong>Total Nota:</strong> {formatarMoeda(produtosDialog.valor_total || 0)}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="border rounded overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="text-xs">Produto</TableHead>
+                      <TableHead className="text-xs text-right">Quantidade</TableHead>
+                      <TableHead className="text-xs text-center">Unidade</TableHead>
+                      <TableHead className="text-xs text-right">Vlr. Unit.</TableHead>
+                      <TableHead className="text-xs text-right">Total</TableHead>
+                      <TableHead className="text-xs text-right">Desconto</TableHead>
+                      <TableHead className="text-xs text-right">Líquido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosDialog.produtos_lancamento?.map((produto, index) => {
+                      const valorTotal = produto.valor_total || 0;
+                      const desconto = produto.desconto_item || 0;
+                      const liquido = valorTotal - desconto;
+                      
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="text-xs font-medium">{produto.produto_nome || '-'}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{produto.quantidade?.toFixed(2) || '0.00'}</TableCell>
+                          <TableCell className="text-center font-mono text-xs">{produto.unidade || '-'}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{formatarMoeda(produto.valor_unitario || 0)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{formatarMoeda(valorTotal)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(desconto)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs font-semibold text-emerald-700">{formatarMoeda(liquido)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    <TableRow className="bg-slate-100 border-t-2 font-semibold">
+                      <TableCell colSpan={4} className="text-xs">TOTAL</TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {formatarMoeda(produtosDialog.produtos_lancamento?.reduce((s, p) => s + (p.valor_total || 0), 0) || 0)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-red-600">
+                        {formatarMoeda(produtosDialog.produtos_lancamento?.reduce((s, p) => s + (p.desconto_item || 0), 0) || 0)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">
+                        {formatarMoeda(produtosDialog.produtos_lancamento?.reduce((s, p) => s + ((p.valor_total || 0) - (p.desconto_item || 0)), 0) || 0)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!detalhesAberto} onOpenChange={(open) => !open && setDetalhesAberto(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1024,6 +1116,9 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <CardContent className="grid grid-cols-2 gap-2 text-xs">
                   <div><strong>Nº:</strong> {formatarNumero(parseInt(detalhesAberto.numero_lancamento))}</div>
                   <div><strong>Tipo:</strong> {detalhesAberto.tipo}</div>
+                  {detalhesAberto.numero_parcela && detalhesAberto.total_parcelas && (
+                    <div><strong>Parcela:</strong> {detalhesAberto.numero_parcela}/{detalhesAberto.total_parcelas}</div>
+                  )}
                   <div><strong>Emissão:</strong> {formatarData(detalhesAberto.data_emissao)}</div>
                   <div><strong>Vencimento:</strong> {formatarData(detalhesAberto.data_vencimento)}</div>
                   <div><strong>Tipo Doc:</strong> {detalhesAberto.tipo_documento || '-'}</div>
@@ -1064,6 +1159,40 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 </CardContent>
               </Card>
 
+              {detalhesAberto.produtos_lancamento && detalhesAberto.produtos_lancamento.length > 0 && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-semibold">Produtos Lançados</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <div className="border rounded overflow-auto max-h-60">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50">
+                            <TableHead className="text-xs">Produto</TableHead>
+                            <TableHead className="text-xs text-right">Qtd</TableHead>
+                            <TableHead className="text-xs text-center">UN</TableHead>
+                            <TableHead className="text-xs text-right">Vlr. Unit.</TableHead>
+                            <TableHead className="text-xs text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {detalhesAberto.produtos_lancamento.map((prod, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="text-xs">{prod.produto_nome || '-'}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{prod.quantidade?.toFixed(2) || '0.00'}</TableCell>
+                              <TableCell className="text-center font-mono text-xs">{prod.unidade || '-'}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{formatarMoeda(prod.valor_unitario || 0)}</TableCell>
+                              <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda((prod.valor_total || 0) - (prod.desconto_item || 0))}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {detalhesAberto.observacoes && (
                 <Card className="shadow-sm">
                   <CardHeader className="pb-2">
@@ -1071,6 +1200,17 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs whitespace-pre-wrap bg-slate-50 p-2 rounded">{detalhesAberto.observacoes}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {detalhesAberto.observacoes_nfe && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-semibold">Observações NF-e</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs whitespace-pre-wrap bg-slate-50 p-2 rounded">{detalhesAberto.observacoes_nfe}</p>
                   </CardContent>
                 </Card>
               )}
