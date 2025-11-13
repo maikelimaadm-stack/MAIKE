@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -110,7 +111,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       setTimeout(() => setMostrarCamposNFe(true), 100);
     }
 
-    // CORREÇÃO: Carregar produtos de produtos_lancamento OU produtos_selecionados
     let produtosIniciais = [];
     if (initialData.produtos_lancamento && Array.isArray(initialData.produtos_lancamento)) {
       produtosIniciais = initialData.produtos_lancamento.map(pl => ({
@@ -248,7 +248,13 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         const desc = parseNumero(p.desconto_item || "0");
         return sum + (total - desc);
       }, 0);
-      return totalProdutos + parseNumero(formData.frete) + parseNumero(formData.outras_despesas);
+      const frete = parseNumero(formData.frete);
+      const outras = parseNumero(formData.outras_despesas);
+      
+      // CONSIDERAR IPI SE EXISTE
+      const ipi = parseNumero(formData.valor_ipi || "0");
+      
+      return totalProdutos + frete + outras + ipi;
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -546,6 +552,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const desc = parseNumero(p.desconto_item || "0");
     return sum + (total - desc);
   }, 0) : 0;
+  
+  const totalDescontos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+    return sum + parseNumero(p.desconto_item || "0");
+  }, 0) : 0;
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
@@ -770,7 +780,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Outras Despesas</Label>
+                            <Label className="text-xs">Outras Despesas (+ IPI)</Label>
                             <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                         </div>
@@ -778,9 +788,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <Card className="bg-slate-50 border-slate-300">
                           <CardContent className="p-2">
                             <div className="space-y-0.5 text-xs">
-                              <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono">{formatarMoeda(totalProdutos)}</span></div>
+                              <div className="flex justify-between">
+                                <span>Subtotal Produtos:</span>
+                                <span className="font-mono">{formatarMoeda(formData.produtos_selecionados.reduce((s, p) => s + parseNumero(p.valor_total || "0"), 0))}</span>
+                              </div>
+                              {totalDescontos > 0 && (
+                                <div className="flex justify-between text-red-600">
+                                  <span>- Desconto Itens:</span>
+                                  <span className="font-mono">{formatarMoeda(totalDescontos)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between border-t pt-0.5">
+                                <span>= Líquido:</span>
+                                <span className="font-mono font-semibold">{formatarMoeda(totalProdutos)}</span>
+                              </div>
                               <div className="flex justify-between"><span>Frete + Desp.:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.frete) + parseNumero(formData.outras_despesas))}</span></div>
-                              <div className="pt-1 border-t flex justify-between font-semibold"><span>TOTAL:</span><span>{formatarMoeda(valorTotal)}</span></div>
+                              <div className="pt-1 border-t flex justify-between font-semibold text-emerald-700"><span>TOTAL:</span><span>{formatarMoeda(valorTotal)}</span></div>
                             </div>
                           </CardContent>
                         </Card>
