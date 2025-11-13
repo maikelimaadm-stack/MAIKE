@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,7 +39,6 @@ export default function LancamentoFinanceiro() {
       const all = await base44.entities.LancamentoFinanceiro.list('-data_emissao');
       return all.filter(l => l && l.empresa_id === empresaSelecionadaId).map(l => ({
         ...l,
-        valor_saldo: l.valor_saldo ?? l.valor_total ?? 0,
         valor_pago: l.valor_pago ?? 0,
         valor_total: l.valor_total ?? 0
       }));
@@ -137,7 +137,6 @@ export default function LancamentoFinanceiro() {
             valor_cofins: data.valor_cofins || 0,
             base_calculo_icms: data.base_calculo_icms || 0,
             valor_total: valorParcela,
-            valor_saldo: valorParcela,
             valor_juros: 0,
             valor_multa: 0,
             valor_desconto: 0,
@@ -249,7 +248,6 @@ export default function LancamentoFinanceiro() {
           base_calculo_icms: data.base_calculo_icms || 0,
           valor_total: valorTotal,
           valor_pago: data.conta_paga ? (data.valor_pago_total || 0) : 0,
-          valor_saldo: data.conta_paga ? (valorTotal - (data.valor_pago_total || 0)) : valorTotal,
           valor_juros: data.lancar_produtos ? 0 : (data.valor_juros || 0),
           valor_multa: data.lancar_produtos ? 0 : (data.valor_multa || 0),
           valor_desconto: data.lancar_produtos ? 0 : (data.valor_desconto || 0),
@@ -387,8 +385,7 @@ export default function LancamentoFinanceiro() {
       if (lancamento) {
         await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
           status: 'Pendente',
-          valor_pago: 0,
-          valor_saldo: lancamento.valor_total || 0
+          valor_pago: 0
         });
       }
     },
@@ -403,10 +400,7 @@ export default function LancamentoFinanceiro() {
 
   const handleSubmit = async (data) => {
     if (editingLancamento) {
-      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, {
-        ...data,
-        valor_saldo: (data.valor_total || 0) - (data.valor_pago || 0)
-      });
+      await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, data);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
       setAbaAtiva("pesquisar");
