@@ -184,7 +184,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "",
-    telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: ""
+    telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: ""
   });
   
   const [showBuscaProduto, setShowBuscaProduto] = useState(false);
@@ -221,6 +221,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const { data: locaisEstoque = [] } = useQuery({
     queryKey: ['locais_estoque'],
     queryFn: () => base44.entities.LocalEstoque.list(),
+    initialData: [],
+  });
+
+  const { data: cidades = [] } = useQuery({
+    queryKey: ['cidades'],
+    queryFn: () => base44.entities.Cidade.list('nome'),
     initialData: [],
   });
 
@@ -323,8 +329,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           telefone: resultado.telefone_emitente || "",
           email: resultado.email_emitente || "",
           endereco: enderecoCompleto || "",
-          cidade: resultado.cidade_emitente || "",
           estado: resultado.estado_emitente || "",
+          cidade: resultado.cidade_emitente || "",
           cep: resultado.cep_emitente || ""
         });
         setEtapa(2);
@@ -377,6 +383,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       toast.error('CPF obrigatório!');
       return;
     }
+    if (!novoFornecedor.estado) {
+      toast.error('Estado obrigatório!');
+      return;
+    }
+    if (!novoFornecedor.cidade) {
+      toast.error('Cidade obrigatória!');
+      return;
+    }
 
     createFornecedorMutation.mutate({
       tipo_pessoa: novoFornecedor.tipo_pessoa,
@@ -387,8 +401,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       telefone: novoFornecedor.telefone,
       email: novoFornecedor.email?.toLowerCase(),
       endereco: novoFornecedor.endereco?.toUpperCase(),
-      cidade: novoFornecedor.cidade?.toUpperCase(),
       estado: novoFornecedor.estado,
+      cidade: novoFornecedor.cidade?.toUpperCase(),
       cep: novoFornecedor.cep?.replace(/\D/g, '')
     });
   };
@@ -600,7 +614,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setItensSelecionados([]);
     setItemEditando(null);
     setLocalEstoque("");
-    setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
+    setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: "" });
     setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
     setShowBuscaProduto(false);
     setShowNovoProduto(false);
@@ -618,6 +632,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
 
+  const cidadesFiltradas = cidades.filter(c => c.estado === novoFornecedor.estado);
+
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !processando) { onClose(); resetar(); } }}>
@@ -628,13 +644,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {etapa === 1 && (
             <div className="space-y-2">
-              <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center hover:border-slate-400 transition-colors">
-                <p className="text-xs text-slate-600 mb-2">Selecione o arquivo XML da NF-e</p>
+              <div className="border-2 border-dashed border-slate-300 rounded p-3 text-center hover:border-slate-400 transition-colors">
+                <p className="text-xs text-slate-600 mb-1.5">Selecione o arquivo XML da NF-e</p>
                 <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto h-8 text-xs" />
                 {processando && (
-                  <div className="mt-3">
+                  <div className="mt-2">
                     <Loader2 className="w-4 h-4 animate-spin mx-auto text-emerald-600" />
-                    <p className="text-xs text-slate-600 mt-2">Processando...</p>
+                    <p className="text-xs text-slate-600 mt-1.5">Processando...</p>
                   </div>
                 )}
               </div>
@@ -666,14 +682,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </Card>
 
               <Card className="shadow-sm border-slate-200">
-                <CardHeader className="pb-1.5 px-2 pt-1.5">
+                <CardHeader className="pb-1 px-2 pt-1.5">
                   <CardTitle className="text-xs font-semibold">Cadastrar Fornecedor</CardTitle>
                 </CardHeader>
-                <CardContent className="p-2 space-y-2">
+                <CardContent className="p-2 space-y-1.5">
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo de Pessoa *</Label>
                     <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
                         <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
@@ -683,54 +699,50 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
                   <div className="space-y-1">
                     <Label className="text-xs">{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
-                    <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                    <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
                       <>
                         <div className="space-y-1">
                           <Label className="text-xs">CNPJ *</Label>
-                          <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
+                          <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Inscrição Estadual</Label>
-                          <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                          <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                         </div>
                       </>
                     ) : (
                       <div className="space-y-1">
                         <Label className="text-xs">CPF *</Label>
-                        <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-8 text-xs" />
+                        <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-7 text-xs" />
                       </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <div className="space-y-1">
                       <Label className="text-xs">Telefone</Label>
-                      <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-8 text-xs" />
+                      <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-7 text-xs" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">E-mail</Label>
-                      <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-8 text-xs" />
+                      <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-7 text-xs" />
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <Label className="text-xs">Endereço</Label>
-                    <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                    <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     <div className="space-y-1">
-                      <Label className="text-xs">Cidade</Label>
-                      <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Estado</Label>
-                      <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+                      <Label className="text-xs">Estado *</Label>
+                      <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v, cidade: "" })}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
                         <SelectContent>
                           {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
                             <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
@@ -739,14 +751,29 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       </Select>
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-xs">Cidade *</Label>
+                      <Select value={novoFornecedor.cidade} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, cidade: v })} disabled={!novoFornecedor.estado}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={novoFornecedor.estado ? "Selecione" : "Escolha UF"} /></SelectTrigger>
+                        <SelectContent>
+                          {cidadesFiltradas.length === 0 ? (
+                            <SelectItem value="_none" disabled className="text-xs">Nenhuma cidade</SelectItem>
+                          ) : (
+                            cidadesFiltradas.map(c => (
+                              <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-xs">CEP</Label>
-                      <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-8 text-xs" />
+                      <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-7 text-xs" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-2 pt-2 border-t">
+              <div className="flex justify-between gap-2 pt-1.5 border-t">
                 <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
                   {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar e Continuar'}
@@ -758,7 +785,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           {etapa === 3 && dadosNFe && (
             <div className="space-y-2">
               <Card className="bg-blue-50 border-blue-300 shadow-sm">
-                <CardContent className="p-2 text-xs">
+                <CardContent className="p-1.5 text-xs">
                   <div className="grid grid-cols-4 gap-2">
                     <div><strong>NF-e:</strong> {dadosNFe.numero}/{dadosNFe.serie}</div>
                     <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
@@ -770,7 +797,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-xs">Produtos ({itensNFe.length})</h3>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-6 text-xs">
                     {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'}
                   </Button>
@@ -806,7 +833,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                           <Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} />
                         </TableCell>
                         <TableCell>
-                          <div className={`w-3 h-3 rounded-full ${item.status === 'associado' ? 'bg-emerald-600' : 'bg-orange-400'}`} />
+                          <div className={`w-2.5 h-2.5 rounded-full ${item.status === 'associado' ? 'bg-emerald-600' : 'bg-orange-400'}`} />
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="font-medium">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
@@ -846,7 +873,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </div>
 
               <Card className="bg-emerald-50 border-emerald-300">
-                <CardContent className="p-2 text-xs space-y-0.5">
+                <CardContent className="p-1.5 text-xs space-y-0.5">
                   <div className="font-semibold text-emerald-900">💰 Cálculo Final - Valor a Pagar</div>
                   <div className="flex justify-between">
                     <span>Produtos (bruto) - XML:</span>
@@ -894,7 +921,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </Card>
 
               <Card className="bg-slate-50 border-slate-200">
-                <CardHeader className="py-1.5 px-2">
+                <CardHeader className="py-1 px-2">
                   <CardTitle className="text-xs font-semibold">Local de Estoque</CardTitle>
                 </CardHeader>
                 <CardContent className="p-2">
@@ -913,7 +940,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-2 pt-2 border-t">
+              <div className="flex justify-between gap-2 pt-1.5 border-t">
                 <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button onClick={handleConfirmarImportacao} className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={itensSelecionados.length === 0 || !localEstoque}>
                   Importar ({itensSelecionados.length})
@@ -936,7 +963,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             </DialogTitle>
           </DialogHeader>
           
-          <div className="relative mb-2">
+          <div className="relative mb-1.5">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
             <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-8 h-8 text-xs" />
           </div>
