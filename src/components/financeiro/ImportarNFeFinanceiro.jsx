@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -157,7 +158,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: ""
   });
   
-  const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   const [showBuscaProduto, setShowBuscaProduto] = useState(false);
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
@@ -204,7 +204,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     onSuccess: (newFornecedor) => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores_financeiro'] });
       setFornecedorSelecionado(newFornecedor);
-      setShowNovoFornecedor(false);
       toast.success('Fornecedor cadastrado!');
       setEtapa(3);
     },
@@ -404,12 +403,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   };
 
   const handleCadastrarUnidade = () => {
-    if (!novaUnidade.sigla) {
-      toast.error('Sigla obrigatória!');
-      return;
-    }
-    if (!novaUnidade.nome) {
-      toast.error('Nome obrigatório!');
+    if (!novaUnidade.sigla || !novaUnidade.nome) {
+      toast.error('Preencha todos os campos!');
       return;
     }
     createUnidadeMutation.mutate({ sigla: novaUnidade.sigla.toUpperCase(), nome: novaUnidade.nome.toUpperCase() });
@@ -520,9 +515,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     }
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
-    const totalProdutos = itensParaImportar.reduce((sum, i) => sum + (i.valor_total - (i.desconto_item || 0)), 0);
-    const frete = dadosNFe.valor_frete || 0;
-    const outrasDespesas = dadosNFe.valor_outras_despesas || 0;
 
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
@@ -547,8 +539,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       valor_pis: dadosNFe.valor_pis,
       valor_cofins: dadosNFe.valor_cofins,
       base_calculo_icms: dadosNFe.base_calculo_icms,
-      frete: String(frete.toFixed(2)).replace('.', ','),
-      outras_despesas: String(outrasDespesas.toFixed(2)).replace('.', ','),
+      frete: String((dadosNFe.valor_frete || 0).toFixed(2)).replace('.', ','),
+      outras_despesas: String((dadosNFe.valor_outras_despesas || 0).toFixed(2)).replace('.', ','),
       local_estoque: localEstoque,
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
@@ -576,7 +568,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setLocalEstoque("");
     setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: "" });
     setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
-    setShowNovoFornecedor(false);
     setShowBuscaProduto(false);
     setShowNovoProduto(false);
     setBuscaProduto("");
@@ -608,7 +599,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto h-8 text-xs" />
                 {processando && (
                   <div className="mt-3">
-                    <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin mx-auto" />
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto text-emerald-600" />
                     <p className="text-xs text-slate-600 mt-2">Processando...</p>
                   </div>
                 )}
@@ -633,19 +624,21 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </CardHeader>
                 <CardContent className="p-2 space-y-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Tipo *</Label>
+                    <Label className="text-xs">Tipo de Pessoa *</Label>
                     <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Jurídica" className="text-xs">Jurídica</SelectItem>
-                        <SelectItem value="Física" className="text-xs">Física</SelectItem>
+                        <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
+                        <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="space-y-1">
-                    <Label className="text-xs">Nome *</Label>
+                    <Label className="text-xs">{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
                     <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
                       <>
@@ -654,7 +647,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                           <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Insc. Est.</Label>
+                          <Label className="text-xs">Inscrição Estadual</Label>
                           <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                         </div>
                       </>
@@ -665,13 +658,51 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       </div>
                     )}
                   </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Telefone</Label>
+                      <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">E-mail</Label>
+                      <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-8 text-xs" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Endereço</Label>
+                    <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Cidade</Label>
+                      <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Estado</Label>
+                      <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+                        <SelectContent>
+                          {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                            <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">CEP</Label>
+                      <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-8 text-xs" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
               <div className="flex justify-between gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
-                  {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+                  {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar e Continuar'}
                 </Button>
               </div>
             </div>
@@ -759,7 +790,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 <CardContent className="p-2">
                   <Select value={localEstoque} onValueChange={setLocalEstoque}>
                     <SelectTrigger className="h-8 text-xs bg-white">
-                      <SelectValue placeholder="Selecione" />
+                      <SelectValue placeholder="Selecione o local" />
                     </SelectTrigger>
                     <SelectContent>
                       {locaisEstoque.map(l => (
@@ -802,7 +833,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             <Table>
               <TableHeader className="sticky top-0 bg-slate-50">
                 <TableRow>
+                  <TableHead className="text-xs">Código</TableHead>
                   <TableHead className="text-xs">Nome</TableHead>
+                  <TableHead className="text-xs">Categoria</TableHead>
                   <TableHead className="text-xs">UN</TableHead>
                   <TableHead className="text-xs">Ação</TableHead>
                 </TableRow>
@@ -810,12 +843,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               <TableBody>
                 {produtosFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-6 text-slate-500 text-xs">Nenhum produto</TableCell>
+                    <TableCell colSpan={5} className="text-center py-6 text-slate-500 text-xs">Nenhum produto</TableCell>
                   </TableRow>
                 ) : (
                   produtosFiltrados.map(p => (
                     <TableRow key={p.id}>
+                      <TableCell className="text-xs font-mono">{p.codigo_interno || '-'}</TableCell>
                       <TableCell className="text-xs">{p.nome_produto}</TableCell>
+                      <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
                       <TableCell className="text-xs">{p.unidade_medida}</TableCell>
                       <TableCell>
                         <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-emerald-600 h-6 text-xs">Selecionar</Button>
@@ -830,23 +865,31 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       </Dialog>
 
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm">Cadastrar Produto</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label className="text-xs">Nome *</Label>
-              <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
+              <Label className="text-xs">Nome do Produto *</Label>
+              <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME DO PRODUTO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Código</Label>
+                <Label className="text-xs">Código Interno</Label>
                 <Input value={novoProduto.codigo_interno} onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} placeholder="CÓDIGO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Unidade *</Label>
+                <Label className="text-xs">Código de Barras</Label>
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} placeholder="7891234567890" className="h-8 text-xs" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Unidade de Medida *</Label>
                 <div className="flex gap-1">
                   <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}>
                     <SelectTrigger className="h-8 text-xs">
@@ -854,7 +897,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     </SelectTrigger>
                     <SelectContent>
                       {unidadesMedida.map(u => (
-                        <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla}</SelectItem>
+                        <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla} - {u.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -863,12 +906,41 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   </Button>
                 </div>
               </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Categoria</Label>
+                <div className="flex gap-1">
+                  <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({...novoProduto, categoria: v})}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorias.map(c => (
+                        <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-8 w-8">
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({...novoProduto, descricao: e.target.value})} placeholder="DESCRIÇÃO DO PRODUTO..." className="text-xs uppercase min-h-16" style={{ textTransform: 'uppercase' }} rows={2} />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Preço de Custo</Label>
+              <Input value={novoProduto.preco_custo} onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} placeholder="0,00" className="h-8 text-xs" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createProdutoMutation.isPending}>
-                {createProdutoMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {createProdutoMutation.isPending ? 'Salvando...' : 'Salvar e Associar'}
               </Button>
             </div>
           </div>
@@ -894,6 +966,31 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               <Button variant="outline" onClick={() => setShowNovaUnidade(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button onClick={handleCadastrarUnidade} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createUnidadeMutation.isPending}>
                 {createUnidadeMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Categoria</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input value={novaCategoria.nome} onChange={(e) => setNovaCategoria({...novaCategoria, nome: e.target.value})} placeholder="NOME DA CATEGORIA" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={novaCategoria.descricao} onChange={(e) => setNovaCategoria({...novaCategoria, descricao: e.target.value})} placeholder="DESCRIÇÃO..." className="text-xs uppercase min-h-16" style={{ textTransform: 'uppercase' }} rows={2} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowNovaCategoria(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarCategoria} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createCategoriaMutation.isPending}>
+                {createCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>

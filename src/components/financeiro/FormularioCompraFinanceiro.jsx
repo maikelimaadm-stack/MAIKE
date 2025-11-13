@@ -213,7 +213,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     if (formData.data_emissao && !formData.data_vencimento && !initialData) {
       setFormData(prev => ({ ...prev, data_vencimento: prev.data_emissao }));
     }
-  }, [formData.data_emissao]);
+  }, [formData.data_emissao, initialData]);
 
   useEffect(() => {
     if (formData.parcelar && formData.parcelas.length === 0 && formData.data_vencimento) {
@@ -254,7 +254,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       } else if (i === newNumberOfParcelas - 1 && ultimaParcela) {
         date = calcularDataProximaMes(formData.parcelas[i-1]?.data || formData.data_vencimento);
       }
-
       return { data: date, valor: formatarNumero(equalParcelValue) };
     });
     
@@ -539,7 +538,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         <Card className="shadow-sm border-slate-200 bg-white">
           <CardHeader className="bg-slate-50 border-b border-slate-200 py-2">
             <CardTitle className="text-sm font-semibold text-slate-900">
-              Novo Lançamento - Etapa {etapa} de 2
+              {initialData ? 'Editar Lançamento' : 'Novo Lançamento'} - Etapa {etapa} de 2
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3">
@@ -584,7 +583,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
 
                       {formData.tipo_documento === 'NF-e' && (
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                        <div className="grid grid-cols-3 gap-2 pt-1 border-t">
                           <div className="space-y-1">
                             <Label className="text-xs">Número *</Label>
                             <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
@@ -600,8 +599,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       )}
 
+                      {formData.tipo_documento === 'NFC-e' && (
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Número *</Label>
+                            <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Série</Label>
+                            <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-8 text-xs" />
+                          </div>
+                        </div>
+                      )}
+
                       {formData.tipo_documento === 'Boleto' && (
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t">
                           <div className="space-y-1">
                             <Label className="text-xs">Nº Boleto *</Label>
                             <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
@@ -614,7 +626,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       )}
 
                       {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
-                        <div className="space-y-1 pt-2 border-t">
+                        <div className="space-y-1 pt-1 border-t">
                           <Label className="text-xs">Número *</Label>
                           <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-8 text-xs" />
                         </div>
@@ -817,6 +829,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
+                            <Label className="text-xs">Outras Desp.</Label>
+                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Desc. Total</Label>
+                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1">
                             <Label className="text-xs">IPI</Label>
                             <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
@@ -827,6 +847,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           <div className="space-y-1">
                             <Label className="text-xs">PIS</Label>
                             <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">COFINS</Label>
+                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Base ICMS</Label>
+                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -918,15 +946,40 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
 
                       {!formData.parcelar && !formData.conta_paga && (
-                        <div className="space-y-1">
-                          <Label className="text-xs">Vencimento *</Label>
-                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-8 text-xs" />
-                        </div>
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Vencimento *</Label>
+                            <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-8 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Forma de Pagamento</Label>
+                            <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                  <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
                       )}
 
                       {formData.parcelar && (
                         <Card className="bg-slate-50 border-slate-300">
                           <CardContent className="p-2 space-y-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Forma de Pagamento</Label>
+                              <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                                <SelectContent>
+                                  {FORMAS_PAGAMENTO_PADRAO.map(forma => (
+                                    <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
                             <div className="flex justify-between items-center">
                               <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
                               <Button type="button" size="sm" onClick={adicionarParcela} variant="outline" className="h-6 gap-1 text-xs">
@@ -934,6 +987,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 Adicionar
                               </Button>
                             </div>
+
                             <div className="border rounded max-h-48 overflow-auto bg-white">
                               <Table>
                                 <TableHeader>
@@ -964,6 +1018,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 </TableBody>
                               </Table>
                             </div>
+
                             <div className={`text-xs p-1.5 rounded ${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 text-red-700' : 'bg-slate-50'}`}>
                               <div className="flex justify-between">
                                 <span>Total Parcelas:</span>
