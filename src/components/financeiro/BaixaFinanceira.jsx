@@ -77,7 +77,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     forma_pagamento_id: "",
     numero_comprovante: "",
     observacoes: "",
-    anexos: []
+    anexos: [],
+    proxima_previsao: "" // Added new field for partial payment prediction
   });
 
   const [editandoBaixa, setEditandoBaixa] = useState(null);
@@ -142,10 +143,17 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
         novoStatus = 'Pago Parcial';
       }
 
-      await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+      const updateData = {
         valor_pago: totalPago,
         status: novoStatus
-      });
+      };
+
+      // Se baixa parcial e tem próxima previsão, atualizar vencimento
+      if (saldoRestante > 0.01 && data.proxima_previsao) {
+        updateData.data_vencimento = data.proxima_previsao;
+      }
+
+      await base44.entities.LancamentoFinanceiro.update(lancamento.id, updateData);
 
       return baixaCriada;
     },
@@ -161,7 +169,8 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
         forma_pagamento_id: "",
         numero_comprovante: "",
         observacoes: "",
-        anexos: []
+        anexos: [],
+        proxima_previsao: "" // Reset proxima_previsao
       });
       toast.success('Baixa registrada com sucesso!');
     },
@@ -175,9 +184,9 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       await base44.entities.BaixaFinanceira.update(id, {
         data_baixa: data.data_baixa,
         valor_baixa: parseMoeda(data.valor_baixa),
-        valor_juros: parseMoeda(data.valor_juros),
-        valor_multa: parseMoeda(data.valor_multa),
-        valor_desconto: parseMoeda(data.valor_desconto),
+        valor_juros: parseMoeda(data.valor_juros || 0),
+        valor_multa: parseMoeda(data.valor_multa || 0),
+        valor_desconto: parseMoeda(data.valor_desconto || 0),
         forma_pagamento_id: data.forma_pagamento_id || undefined,
         forma_pagamento_nome: data.forma_pagamento_id,
         numero_comprovante: data.numero_comprovante?.toUpperCase() || undefined,
@@ -191,7 +200,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       const saldoRestante = (lancamento.valor_total || 0) - totalPago;
       
       let novoStatus = 'Pendente';
-      if (saldoRestante <= 0.01) {
+      if (saldoRestante <= 0.01 && totalPago > 0) {
         novoStatus = 'Pago';
       } else if (totalPago > 0) {
         novoStatus = 'Pago Parcial';
@@ -264,7 +273,17 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       return;
     }
 
-    if (window.confirm(`Confirma a baixa de ${formatarMoeda(valorBaixa)} para este lançamento?`)) {
+    // Verificar se é baixa parcial
+    const saldoAposBaixa = saldoDisponivel - valorBaixa;
+    const eBaixaParcial = saldoAposBaixa > 0.01;
+
+    // Se for baixa parcial e não tem próxima previsão, perguntar
+    if (eBaixaParcial && !formData.proxima_previsao) {
+      toast.error('Por favor, informe a próxima previsão de pagamento para baixa parcial!');
+      return;
+    }
+
+    if (window.confirm(`Confirma a baixa de ${formatarMoeda(valorBaixa)} para este lançamento?${eBaixaParcial ? `\n\nRestará um saldo de ${formatarMoeda(saldoAposBaixa)} e a data de vencimento do lançamento será atualizada para ${new Date(formData.proxima_previsao).toLocaleDateString('pt-BR')}.` : ''}`)) {
       baixaMutation.mutate(formData);
     }
   };
@@ -358,6 +377,11 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
   const totalBaixa = parseMoeda(formData.valor_baixa) + parseMoeda(formData.valor_juros) + parseMoeda(formData.valor_multa) - parseMoeda(formData.valor_desconto);
   const totalBaixaEdit = editandoBaixa ? parseMoeda(editandoBaixa.valor_baixa) + parseMoeda(editandoBaixa.valor_juros) + parseMoeda(editandoBaixa.valor_multa) - parseMoeda(editandoBaixa.valor_desconto) : 0;
+
+  // Calcular se a baixa atual será parcial
+  const valorBaixaAtual = parseMoeda(formData.valor_baixa);
+  const saldoAposBaixaAtual = saldoInicial - valorBaixaAtual;
+  const isBaixaParcial = saldoAposBaixaAtual > 0.01 && valorBaixaAtual > 0;
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -564,6 +588,25 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                 <Input value={formData.valor_desconto} onChange={(e) => setFormData({ ...formData, valor_desconto: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
               </div>
             </div>
+
+            {isBaixaParcial && (
+              <div className="space-y-1 bg-orange-50 border border-orange-200 rounded p-2">
+                <Label className="text-xs font-semibold text-orange-800 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Baixa Parcial - Próxima Previsão de Pagamento *
+                </Label>
+                <Input 
+                  type="date" 
+                  value={formData.proxima_previsao} 
+                  onChange={(e) => setFormData({ ...formData, proxima_previsao: e.target.value })} 
+                  required 
+                  className="h-8 text-xs bg-white" 
+                />
+                <p className="text-[10px] text-orange-700">
+                  Restará um saldo de <strong>{formatarMoeda(saldoAposBaixaAtual)}</strong>
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="text-xs">Comprovante</Label>
