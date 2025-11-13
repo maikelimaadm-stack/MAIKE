@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +48,6 @@ const formatarMoeda = (valor) => {
 
 const parseMoeda = (str) => {
   if (!str) return 0;
-  // Remove "R$", dots (thousands), and replaces comma with dot for decimals
   return parseFloat(String(str).replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
 };
 
@@ -65,6 +63,8 @@ const formatarDataHora = (dataString) => {
 };
 
 export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
+  if (!lancamento) return null;
+  
   const saldoInicial = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
   
   const [formData, setFormData] = useState({
@@ -222,13 +222,12 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       const saldoRestante = (lancamento.valor_total || 0) - totalPago;
       
       let novoStatus = 'Pendente';
-      if (saldoRestante <= 0.01 && totalPago > 0) { // If remaining is almost zero and some payment was made, it's paid
+      if (saldoRestante <= 0.01 && totalPago > 0) {
         novoStatus = 'Pago';
       } else if (totalPago > 0) {
         novoStatus = 'Pago Parcial';
       }
 
-      // If all baixas are deleted and totalPago is 0, revert to 'Pendente'
       if (totalPago === 0) {
         novoStatus = 'Pendente';
       }
@@ -371,19 +370,18 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
-          {/* Informações do Lançamento */}
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div>
-                  <strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento))}
+                  <strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento || 0))}
                 </div>
                 <div>
                   <strong>Tipo:</strong> {lancamento.tipo}
                 </div>
                 <div>
-                  <strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total)}
+                  <strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total || 0)}
                 </div>
                 <div>
                   <strong>Vlr. Saldo:</strong> <span className="text-red-700 font-bold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span>
@@ -392,7 +390,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </AlertDescription>
           </Alert>
 
-          {/* Histórico de Baixas */}
           {baixasAnteriores.length > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Histórico de Baixas</Label>
@@ -434,7 +431,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Formulário de Edição de Baixa */}
           {editandoBaixa && (
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader className="py-2 px-3">
@@ -554,7 +550,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </Card>
           )}
 
-          {/* Formulário de Nova Baixa */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
