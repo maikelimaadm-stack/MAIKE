@@ -252,10 +252,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   });
 
   const [showNovaUnidade, setShowNovaUnidade] = useState(false);
-  const [novaUnidade, setNovaUnidade] = useState({ sigla: "", nome: "" });
+  const [novaUnidade, setNovaUnidade({ sigla: "", nome: "" });
   
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
-  const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "" });
+  const [novaCategoria, setNovaCategoria({ nome: "", descricao: "" });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -772,40 +772,22 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !processando) { onClose(); resetar(); } }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <FileText className="w-4 h-4 text-emerald-600" />
-              Importar NF-e (XML) - Etapa {etapa} de 3
+            <DialogTitle className="text-sm font-semibold text-slate-900">
+              Importar NF-e - Etapa {etapa} de 3
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              Os dados serão importados para o formulário de lançamento
-            </DialogDescription>
           </DialogHeader>
 
           {/* ETAPA 1: UPLOAD */}
           {etapa === 1 && (
-            <div className="space-y-3">
-              <Alert className="py-2">
-                <AlertCircle className="h-3 w-3" />
-                <AlertDescription className="text-xs">
-                  Selecione o arquivo XML da NF-e (modelo 55)
-                </AlertDescription>
-              </Alert>
-
-              <div className="border-2 border-dashed rounded p-6 text-center hover:border-emerald-400 transition-colors">
-                <Upload className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-                <p className="text-xs text-slate-600 mb-3">Selecione o arquivo XML</p>
-                <Input
-                  type="file"
-                  accept=".xml"
-                  onChange={handleUploadXML}
-                  disabled={processando}
-                  className="max-w-md mx-auto h-8 text-xs"
-                />
+            <div className="space-y-2">
+              <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center hover:border-slate-400 transition-colors">
+                <p className="text-xs text-slate-600 mb-2">Selecione o arquivo XML da NF-e</p>
+                <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto h-8 text-xs" />
                 {processando && (
-                  <div className="mt-4">
-                    <Loader2 className="w-4 h-4 animate-spin mx-auto text-blue-600" />
+                  <div className="mt-3">
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin mx-auto" />
                     <p className="text-xs text-slate-600 mt-2">Processando...</p>
                   </div>
                 )}
@@ -815,9 +797,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {/* ETAPA 2: FORNECEDOR */}
           {etapa === 2 && dadosNFe && (
-            <div className="space-y-3">
-              <Card className="bg-blue-50 border-blue-200 shadow-sm">
-                <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div className="space-y-2">
+              <Card className="bg-slate-50 border-slate-200 shadow-sm">
+                <CardContent className="p-2 grid grid-cols-4 gap-2 text-xs">
                   <div><strong>Número:</strong> {dadosNFe.numero}</div>
                   <div><strong>Série:</strong> {dadosNFe.serie}</div>
                   <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
@@ -825,87 +807,49 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </CardContent>
               </Card>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="font-semibold text-xs">Cadastrar Fornecedor</h3>
                 
                 <div className="space-y-2">
-                  <Label className="text-xs">Tipo de Pessoa *</Label>
-                  <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
-                      <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">{novoFornecedor.tipo_pessoa === 'Jurídica' ? 'Razão Social' : 'Nome Completo'} *</Label>
-                  <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label className="text-xs">CNPJ *</Label>
-                        <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo *</Label>
+                    <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Jurídica" className="text-xs">Jurídica</SelectItem>
+                        <SelectItem value="Física" className="text-xs">Física</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nome *</Label>
+                    <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
+                      <>
+                        <div className="space-y-1">
+                          <Label className="text-xs">CNPJ *</Label>
+                          <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Insc. Estadual</Label>
+                          <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-1">
+                        <Label className="text-xs">CPF *</Label>
+                        <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-8 text-xs" />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Inscrição Estadual</Label>
-                        <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label className="text-xs">CPF *</Label>
-                      <Input value={novoFornecedor.cpf} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cpf: e.target.value })} placeholder="000.000.000-00" className="h-8 text-xs" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs">Telefone</Label>
-                    <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-8 text-xs" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">E-mail</Label>
-                    <Input type="email" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} placeholder="email@exemplo.com" className="h-8 text-xs" />
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs">Endereço</Label>
-                  <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs">Cidade</Label>
-                    <Input value={novoFornecedor.cidade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cidade: e.target.value })} placeholder="CIDADE" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Estado</Label>
-                    <Combobox
-                      options={estadosOptions}
-                      value={novoFornecedor.estado}
-                      onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v })}
-                      placeholder="UF"
-                      searchPlaceholder="Buscar estado..."
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">CEP</Label>
-                    <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-8 text-xs" />
-                  </div>
-                </div>
-
-                <div className="flex justify-between gap-2 pt-3 border-t">
-                  <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-8 text-xs">Voltar</Button>
-                  <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={createFornecedorMutation.isPending}>
-                    {createFornecedorMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Salvando...</> : 'Cadastrar e Continuar'}
+                <div className="flex justify-between gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
+                  <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
+                    {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar'}
                   </Button>
                 </div>
               </div>
@@ -914,184 +858,81 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {/* ETAPA 3: PRODUTOS */}
           {etapa === 3 && dadosNFe && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-xs">Produtos ({itensNFe.length})</h3>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-7 gap-1 text-xs">
-                    <CheckSquare className="w-3 h-3" />
+                  <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-6 text-xs">
                     {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'}
                   </Button>
                   {itensSelecionados.length > 0 && itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length > 0 && (
-                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-7 gap-1 text-xs" disabled={showCadastroEmMassa}>
-                      {showCadastroEmMassa ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3" />}
-                      Cadastrar ({itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})
+                    <Button size="sm" onClick={handleCadastrarProdutosEmMassa} className="bg-emerald-600 hover:bg-emerald-700 h-6 text-xs" disabled={showCadastroEmMassa}>
+                      {showCadastroEmMassa ? 'Cadastrando...' : `Cadastrar (${itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index)).length})`}
                     </Button>
                   )}
                 </div>
               </div>
               
-              <div className="overflow-auto max-h-96 border rounded">
+              <div className="overflow-auto max-h-80 border rounded">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-white z-10">
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox 
-                          checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0}
-                          onCheckedChange={handleSelecionarTodos}
-                        />
+                  <TableHeader className="sticky top-0 bg-slate-50 z-10">
+                    <TableRow className="border-b">
+                      <TableHead className="w-10 text-xs">
+                        <Checkbox checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0} onCheckedChange={handleSelecionarTodos} />
                       </TableHead>
-                      <TableHead className="w-16">Status</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Qtd</TableHead>
-                      <TableHead className="text-right">Un.</TableHead>
-                      <TableHead className="text-right">Vlr Total</TableHead>
-                      <TableHead className="text-right">Desc.</TableHead>
-                      <TableHead className="text-right">Líquido</TableHead>
-                      <TableHead className="text-center w-32">Ações</TableHead>
+                      <TableHead className="w-12 text-xs">Status</TableHead>
+                      <TableHead className="text-xs">Produto</TableHead>
+                      <TableHead className="text-right text-xs">Qtd</TableHead>
+                      <TableHead className="text-right text-xs">Total</TableHead>
+                      <TableHead className="text-center w-24 text-xs">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {itensNFe.map((item) => {
-                      const valorLiquido = item.valor_total - (item.desconto_item || 0);
-                      const valorUnitario = item.quantidade > 0 ? (valorLiquido / item.quantidade) : 0;
                       const isEditing = itemEditando?.index === item.index;
-                      
                       return (
-                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-50 bg-slate-50' : ''}>
+                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
                           <TableCell>
-                            <Checkbox 
-                              checked={itensSelecionados.includes(item.index)}
-                              onCheckedChange={() => handleToggleSelecao(item.index)}
-                            />
+                            <Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} />
                           </TableCell>
                           <TableCell>
                             {item.status === 'associado' ? (
-                              <CheckCircle className="w-5 h-5 text-green-600" />
+                              <div className="w-4 h-4 rounded-full bg-emerald-600" />
                             ) : (
-                              <AlertCircle className="w-5 h-5 text-orange-600" />
+                              <div className="w-4 h-4 rounded-full bg-orange-400" />
                             )}
                           </TableCell>
                           <TableCell className="text-xs">
-                            <div className="font-semibold">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
-                            <div className="text-slate-500 text-xs">{item.descricao}</div>
-                            <div className="text-slate-400 text-xs font-mono">Cód: {item.codigo}</div>
+                            <div className="font-medium">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
+                            <div className="text-slate-500 text-[10px]">{item.descricao}</div>
                           </TableCell>
                           <TableCell className="text-right">
                             {isEditing ? (
-                              <Input 
-                                type="number" 
-                                value={itemEditando.quantidade} 
-                                onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value) || 0})} 
-                                className="h-7 w-20 text-xs text-right"
-                                step="0.01"
-                              />
+                              <Input type="number" value={itemEditando.quantidade} onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value) || 0})} className="h-6 w-16 text-xs text-right" step="0.01" />
                             ) : (
-                              <span className="font-mono text-xs">{item.quantidade.toFixed(2).replace('.', ',')}</span>
+                              <span className="font-mono text-xs">{item.quantidade.toFixed(2)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
                             {isEditing ? (
-                              <Input 
-                                value={itemEditando.unidade} 
-                                onChange={(e) => setItemEditando({...itemEditando, unidade: e.target.value.toUpperCase()})} 
-                                className="h-7 w-16 text-xs text-center uppercase"
-                                maxLength={4}
-                              />
-                            ) : (
-                              <span className="font-mono text-xs">{item.unidade}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <Input 
-                                type="number" 
-                                value={itemEditando.valor_total} 
-                                onChange={(e) => setItemEditando({...itemEditando, valor_total: parseFloat(e.target.value) || 0})} 
-                                className="h-7 w-24 text-xs text-right"
-                                step="0.01"
-                              />
+                              <Input type="number" value={itemEditando.valor_total} onChange={(e) => setItemEditando({...itemEditando, valor_total: parseFloat(e.target.value) || 0})} className="h-6 w-20 text-xs text-right" step="0.01" />
                             ) : (
                               <span className="font-mono text-xs">{formatarMoeda(item.valor_total)}</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <Input 
-                                type="number" 
-                                value={itemEditando.desconto_item || 0} 
-                                onChange={(e) => setItemEditando({...itemEditando, desconto_item: parseFloat(e.target.value) || 0})} 
-                                className="h-7 w-20 text-xs text-right"
-                                step="0.01"
-                              />
-                            ) : (
-                              <span className="font-mono text-xs text-red-600">{formatarMoeda(item.desconto_item || 0)}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="font-mono font-bold text-green-700 text-xs">
-                              {formatarMoeda(valorLiquido)}
-                            </div>
-                            <div className="text-[10px] text-slate-500">
-                              Un: {formatarMoeda(valorUnitario)}
-                            </div>
-                          </TableCell>
                           <TableCell>
-                            <div className="flex gap-1 justify-center flex-wrap">
-                              {isEditing ? (
-                                <>
-                                  <Button size="sm" variant="ghost" onClick={handleSalvarEdicao} className="h-6 w-6 p-0 text-green-600" title="Salvar">
-                                    <Save className="w-3 h-3" />
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={handleCancelarEdicao} className="h-6 w-6 p-0 text-red-600" title="Cancelar">
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleEditarItem(item)} 
-                                    className="h-6 w-6 p-0 text-blue-600" 
-                                    title="Editar valores"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </Button>
-                                  
-                                  {item.status === 'pendente' && (
-                                    <Button 
-                                      size="sm" 
-                                      variant="ghost" 
-                                      onClick={() => handleAbrirCadastroProduto(item)} 
-                                      className="h-6 w-6 p-0 text-emerald-600" 
-                                      title="Cadastrar este produto"
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                  
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} 
-                                    className="h-6 w-6 p-0 text-purple-600" 
-                                    title="Trocar produto"
-                                  >
-                                    <RefreshCw className="w-3 h-3" />
-                                  </Button>
-                                  
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleRemoverItem(item.index)} 
-                                    className="h-6 w-6 p-0 text-red-600" 
-                                    title="Remover do lançamento"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </>
+                            <div className="flex gap-0.5 justify-center">
+                              {item.status === 'pendente' && (
+                                <Button size="sm" variant="ghost" onClick={() => handleAbrirCadastroProduto(item)} className="h-6 w-6 p-0 text-emerald-600" title="Cadastrar">
+                                  <Plus className="w-3 h-3" />
+                                </Button>
                               )}
+                              <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-slate-600" title="Trocar">
+                                <Search className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="h-6 w-6 p-0 text-red-600" title="Remover">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1102,57 +943,26 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </div>
 
               {/* RESUMO DOS VALORES */}
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-3">
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between font-semibold text-slate-700">
-                      <span>💰 RESUMO FINANCEIRO DA NF-e</span>
-                    </div>
-                    <div className="border-t pt-1.5 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Subtotal Produtos (bruto):</span>
-                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0))}</span>
-                      </div>
-                      <div className="flex justify-between text-red-600">
-                        <span>(-) Descontos nos Produtos:</span>
-                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0))}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-blue-700 border-t pt-1">
-                        <span>= Subtotal Produtos (líquido):</span>
-                        <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span>
-                      </div>
-                      <div className="flex justify-between text-amber-700">
-                        <span>(+) Frete:</span>
-                        <span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span>
-                      </div>
-                      <div className="flex justify-between text-amber-700">
-                        <span>(+) Outras Despesas:</span>
-                        <span className="font-mono">{formatarMoeda(dadosNFe.valor_outras_despesas || 0)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-emerald-700 text-base border-t-2 border-emerald-300 pt-1.5 mt-1">
-                        <span>= VALOR TOTAL A PAGAR:</span>
-                        <span className="font-mono">{formatarMoeda(
-                          itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) +
-                          (dadosNFe.valor_frete || 0) +
-                          (dadosNFe.valor_outras_despesas || 0)
-                        )}</span>
-                      </div>
-                    </div>
-                  </div>
+              <Card className="bg-slate-50 border-slate-200">
+                <CardContent className="p-2 text-xs space-y-1">
+                  <div className="font-semibold">Resumo Financeiro</div>
+                  <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span></div>
+                  <div className="flex justify-between"><span>Frete:</span><span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span></div>
+                  <div className="flex justify-between font-semibold border-t pt-1"><span>TOTAL:</span><span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
                 </CardContent>
               </Card>
 
               {/* LOCAL DE ESTOQUE */}
-              <Card className="bg-amber-50 border-amber-200">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-sm">📦 Local de Destino do Estoque</CardTitle>
+              <Card className="bg-slate-50 border-slate-200">
+                <CardHeader className="py-1.5 px-2">
+                  <CardTitle className="text-xs font-semibold">Local de Estoque</CardTitle>
                 </CardHeader>
-                <CardContent className="p-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Onde os produtos serão armazenados? *</Label>
+                <CardContent className="p-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Onde armazenar? *</Label>
                     <Select value={localEstoque} onValueChange={setLocalEstoque}>
-                      <SelectTrigger className="h-9 text-xs bg-white">
-                        <SelectValue placeholder="Selecione o local de estoque" />
+                      <SelectTrigger className="h-8 text-xs bg-white">
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         {locaisEstoque.map(l => (
@@ -1160,20 +970,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-amber-700">⚠️ Este campo é obrigatório para dar entrada no estoque</p>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-2 pt-3 border-t">
-                <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-8 text-xs">Voltar</Button>
+              <div className="flex justify-between gap-2 pt-2 border-t">
+                <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button 
                   onClick={handleConfirmarImportacao} 
-                  className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs"
+                  className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
                   disabled={itensSelecionados.length === 0 || !localEstoque}
                 >
-                  <CheckCircle className="w-3 h-3" />
-                  Importar para Formulário ({itensSelecionados.length})
+                  Importar ({itensSelecionados.length})
                 </Button>
               </div>
             </div>
@@ -1183,50 +991,45 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
       {/* DIALOG: BUSCAR PRODUTO */}
       <Dialog open={showBuscaProduto} onOpenChange={setShowBuscaProduto}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-sm flex justify-between items-center">
-              <span>Associar Produto Existente</span>
-              <Button onClick={() => { setShowBuscaProduto(false); setShowNovoProduto(true); }} size="sm" className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-3 h-3" />
-                Novo Produto
+              <span>Associar Produto</span>
+              <Button onClick={() => { setShowBuscaProduto(false); setShowNovoProduto(true); }} size="sm" className="h-6 text-xs bg-emerald-600">
+                <Plus className="w-3 h-3 mr-1" />
+                Novo
               </Button>
             </DialogTitle>
           </DialogHeader>
           
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input placeholder="Buscar por nome ou código..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-10 h-8 text-xs" />
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-8 h-8 text-xs" />
           </div>
 
           <div className="flex-1 overflow-auto">
             <Table>
-              <TableHeader className="sticky top-0 bg-white">
+              <TableHeader className="sticky top-0 bg-slate-50">
                 <TableRow>
-                  <TableHead className="text-xs">Código</TableHead>
                   <TableHead className="text-xs">Nome</TableHead>
                   <TableHead className="text-xs">Categoria</TableHead>
-                  <TableHead className="text-xs">Unidade</TableHead>
+                  <TableHead className="text-xs">UN</TableHead>
                   <TableHead className="text-xs">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {produtosFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 text-xs">Nenhum produto encontrado</TableCell>
+                    <TableCell colSpan={4} className="text-center py-6 text-slate-500 text-xs">Nenhum produto</TableCell>
                   </TableRow>
                 ) : (
                   produtosFiltrados.map(p => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{p.codigo_interno || '-'}</TableCell>
                       <TableCell className="text-xs">{p.nome_produto}</TableCell>
                       <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
                       <TableCell className="text-xs">{p.unidade_medida}</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-green-600 h-7 text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Selecionar
-                        </Button>
+                        <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-emerald-600 h-6 text-xs">Selecionar</Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1237,153 +1040,47 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: NOVO PRODUTO - MELHORADO */}
+      {/* DIALOG: NOVO PRODUTO */}
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-sm">Cadastrar Novo Produto</DialogTitle>
-            <DialogDescription className="text-xs">
-              Preencha os dados do produto para associá-lo à NF-e
-            </DialogDescription>
+            <DialogTitle className="text-sm">Cadastrar Produto</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nome do Produto *</Label>
-              <Input 
-                value={novoProduto.nome_produto} 
-                onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} 
-                placeholder="NOME DO PRODUTO" 
-                className="h-9 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-                autoFocus
-              />
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Código Interno</Label>
-                <Input 
-                  value={novoProduto.codigo_interno} 
-                  onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} 
-                  placeholder="CÓDIGO" 
-                  className="h-9 text-xs uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Código</Label>
+                <Input value={novoProduto.codigo_interno} onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} placeholder="CÓDIGO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Código de Barras</Label>
-                <Input 
-                  value={novoProduto.codigo_barras} 
-                  onChange={(e) => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} 
-                  placeholder="7891234567890" 
-                  className="h-9 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Unidade de Medida *</Label>
-                <div className="flex gap-1.5">
-                  <Select 
-                    value={novoProduto.unidade_medida} 
-                    onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="Selecione" />
+              <div className="space-y-1">
+                <Label className="text-xs">Unidade *</Label>
+                <div className="flex gap-1">
+                  <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="UN" />
                     </SelectTrigger>
                     <SelectContent>
                       {unidadesMedida.map(u => (
-                        <SelectItem key={u.id} value={u.sigla} className="text-xs">
-                          {u.sigla} - {u.nome}
-                        </SelectItem>
+                        <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => setShowNovaUnidade(true)} 
-                    className="h-9 w-9"
-                    title="Cadastrar nova unidade"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Categoria</Label>
-                <div className="flex gap-1.5">
-                  <Select 
-                    value={novoProduto.categoria} 
-                    onValueChange={(v) => setNovoProduto({...novoProduto, categoria: v})}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categorias.map(c => (
-                        <SelectItem key={c.id} value={c.nome} className="text-xs">
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => setShowNovaCategoria(true)} 
-                    className="h-9 w-9"
-                    title="Cadastrar nova categoria"
-                  >
-                    <Plus className="w-4 h-4" />
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-8 w-8">
+                    <Plus className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Descrição</Label>
-              <Textarea 
-                value={novoProduto.descricao} 
-                onChange={(e) => setNovoProduto({...novoProduto, descricao: e.target.value})} 
-                placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..." 
-                className="text-xs uppercase min-h-20"
-                style={{ textTransform: 'uppercase' }}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Preço de Custo</Label>
-              <Input 
-                type="text" 
-                value={String(novoProduto.preco_custo).replace('.', ',')} 
-                onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} 
-                placeholder="0,00" 
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleCadastrarProduto} 
-                size="sm" 
-                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
-                disabled={createProdutoMutation.isPending}
-              >
-                {createProdutoMutation.isPending ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
-                ) : (
-                  <><Save className="w-3 h-3" />Salvar e Associar</>
-                )}
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createProdutoMutation.isPending}>
+                {createProdutoMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>

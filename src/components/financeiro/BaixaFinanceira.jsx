@@ -362,36 +362,34 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-200 bg-white">
-        <CardHeader className="bg-slate-50 border-b border-slate-200">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 py-2">
           <CardTitle className="text-sm font-semibold text-slate-900">
-            Baixas do Lançamento #{lancamento.numero_lancamento}
+            Baixas - Lançamento #{lancamento.numero_lancamento}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          <Alert className="border-slate-300">
-            <AlertCircle className="h-4 w-4" />
+        <CardContent className="p-3 space-y-3">
+          <Alert className="border-slate-300 py-2">
+            <AlertCircle className="h-3.5 w-3.5" />
             <AlertDescription>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div className="grid grid-cols-4 gap-2 text-xs">
                 <div><strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento || 0))}</div>
                 <div><strong>Tipo:</strong> {lancamento.tipo}</div>
-                <div><strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total || 0)}</div>
-                <div><strong>Vlr. Saldo:</strong> <span className="font-semibold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span></div>
+                <div><strong>Total:</strong> {formatarMoeda(lancamento.valor_total || 0)}</div>
+                <div><strong>Saldo:</strong> <span className="font-semibold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span></div>
               </div>
             </AlertDescription>
           </Alert>
 
           {baixasAnteriores.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Histórico de Baixas</Label>
-              <div className="border rounded overflow-auto max-h-60">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Histórico</Label>
+              <div className="border rounded overflow-auto max-h-48">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-slate-50">
                       <TableHead className="text-xs">Data</TableHead>
                       <TableHead className="text-xs text-right">Valor</TableHead>
                       <TableHead className="text-xs">Forma</TableHead>
-                      <TableHead className="text-xs">Usuário</TableHead>
-                      <TableHead className="text-xs">Editado</TableHead>
                       <TableHead className="text-xs text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -401,14 +399,12 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                         <TableCell className="text-xs">{new Date(b.data_baixa).toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell className="text-xs font-semibold text-right">{formatarMoeda(b.valor_baixa)}</TableCell>
                         <TableCell className="text-xs">{b.forma_pagamento_nome || '-'}</TableCell>
-                        <TableCell className="text-xs">{b.usuario_responsavel}</TableCell>
-                        <TableCell className="text-xs">{formatarDataHora(b.updated_date)}</TableCell>
                         <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button size="sm" variant="ghost" onClick={() => handleEditarBaixa(b)} className="h-7 w-7 p-0 text-blue-600">
+                          <div className="flex gap-0.5 justify-center">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditarBaixa(b)} className="h-6 w-6 p-0 text-slate-600">
                               <Edit className="w-3 h-3" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleExcluirBaixa(b.id)} className="h-7 w-7 p-0 text-red-600">
+                            <Button size="sm" variant="ghost" onClick={() => handleExcluirBaixa(b.id)} className="h-6 w-6 p-0 text-red-600">
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
@@ -423,22 +419,19 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
           {editandoBaixa && (
             <Card className="bg-slate-50 border-slate-300">
-              <CardHeader className="py-2 px-3">
+              <CardHeader className="py-1.5 px-2">
                 <CardTitle className="text-xs font-semibold">Editar Baixa</CardTitle>
               </CardHeader>
-              <CardContent className="p-3 space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Data da Baixa *</Label>
-                    <Input type="date" value={editandoBaixa.data_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, data_baixa: e.target.value })} required className="h-9 text-xs" />
+              <CardContent className="p-2 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Data *</Label>
+                    <Input type="date" value={editandoBaixa.data_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, data_baixa: e.target.value })} required className="h-8 text-xs" />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Forma de Pagamento</Label>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Forma Pgto</Label>
                     <Select value={editandoBaixa.forma_pagamento_id} onValueChange={(v) => setEditandoBaixa({ ...editandoBaixa, forma_pagamento_id: v })}>
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
                         {FORMAS_PAGAMENTO_PADRAO.map(forma => (
                           <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
@@ -447,40 +440,36 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                     </Select>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Valor da Baixa *</Label>
-                    <Input value={editandoBaixa.valor_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="h-9 text-xs font-bold" />
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valor *</Label>
+                    <Input value={editandoBaixa.valor_baixa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="h-8 text-xs" />
                   </div>
-
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-xs">Juros</Label>
-                    <Input value={editandoBaixa.valor_juros} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_juros: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
+                    <Input value={editandoBaixa.valor_juros} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_juros: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
                   </div>
-
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-xs">Multa</Label>
-                    <Input value={editandoBaixa.valor_multa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_multa: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
+                    <Input value={editandoBaixa.valor_multa} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_multa: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Desconto</Label>
-                    <Input value={editandoBaixa.valor_desconto} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_desconto: e.target.value })} placeholder="R$ 0,00" className="h-9 text-xs" />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Desc.</Label>
+                    <Input value={editandoBaixa.valor_desconto} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, valor_desconto: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Número do Comprovante</Label>
-                  <Input value={editandoBaixa.numero_comprovante} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, numero_comprovante: e.target.value })} placeholder="NÚMERO" className="h-9 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                <div className="space-y-1">
+                  <Label className="text-xs">Comprovante</Label>
+                  <Input value={editandoBaixa.numero_comprovante} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, numero_comprovante: e.target.value })} placeholder="NÚMERO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-xs">Observações</Label>
-                  <Textarea value={editandoBaixa.observacoes} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={3} />
+                  <Textarea value={editandoBaixa.observacoes} onChange={(e) => setEditandoBaixa({ ...editandoBaixa, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={2} />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-xs flex items-center gap-2">
                     <Paperclip className="w-3 h-3" />
                     Anexar Documentos
@@ -490,14 +479,14 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                     onChange={(e) => handleUploadAnexo(e, 'editar')}
                     disabled={uploadingFile}
                     accept=".pdf,.jpg,.jpeg,.png"
-                    className="h-9 text-xs"
+                    className="h-8 text-xs"
                   />
                   
                   {editandoBaixa.anexos?.length > 0 && (
                     <div className="space-y-1">
                       {editandoBaixa.anexos.map((anexo, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
-                          <div className="flex items-center gap-2">
+                        <div key={index} className="flex items-center justify-between p-1.5 bg-white rounded border text-xs">
+                          <div className="flex items-center gap-1.5">
                             <FileText className="w-3 h-3 text-slate-400" />
                             <a href={anexo.url} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{anexo.nome}</a>
                             <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
@@ -507,7 +496,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleRemoverAnexo(index, 'editar')}
-                            className="h-6 w-6 text-red-600"
+                            className="h-5 w-5 text-red-600"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -526,7 +515,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                   </CardContent>
                 </Card>
 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button type="button" variant="outline" onClick={() => setEditandoBaixa(null)} className="h-7 text-xs">
                     Cancelar
                   </Button>
@@ -538,63 +527,57 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </Card>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Data da Baixa *</Label>
-                <Input type="date" value={formData.data_baixa} onChange={(e) => setFormData({ ...formData, data_baixa: e.target.value })} required />
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Data *</Label>
+                <Input type="date" value={formData.data_baixa} onChange={(e) => setFormData({ ...formData, data_baixa: e.target.value })} required className="h-8 text-xs" />
               </div>
-
-              <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Forma Pgto</Label>
                 <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                      <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Valor da Baixa *</Label>
-                <Input value={formData.valor_baixa} onChange={(e) => setFormData({ ...formData, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="font-bold text-lg" />
+            <div className="grid grid-cols-4 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Valor *</Label>
+                <Input value={formData.valor_baixa} onChange={(e) => setFormData({ ...formData, valor_baixa: e.target.value })} placeholder="R$ 0,00" required className="h-8 text-xs font-semibold" />
               </div>
-
-              <div className="space-y-2">
-                <Label>Juros</Label>
-                <Input value={formData.valor_juros} onChange={(e) => setFormData({ ...formData, valor_juros: e.target.value })} placeholder="R$ 0,00" />
+              <div className="space-y-1">
+                <Label className="text-xs">Juros</Label>
+                <Input value={formData.valor_juros} onChange={(e) => setFormData({ ...formData, valor_juros: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
               </div>
-
-              <div className="space-y-2">
-                <Label>Multa</Label>
-                <Input value={formData.valor_multa} onChange={(e) => setFormData({ ...formData, valor_multa: e.target.value })} placeholder="R$ 0,00" />
+              <div className="space-y-1">
+                <Label className="text-xs">Multa</Label>
+                <Input value={formData.valor_multa} onChange={(e) => setFormData({ ...formData, valor_multa: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
               </div>
-
-              <div className="space-y-2">
-                <Label>Desconto</Label>
-                <Input value={formData.valor_desconto} onChange={(e) => setFormData({ ...formData, valor_desconto: e.target.value })} placeholder="R$ 0,00" />
+              <div className="space-y-1">
+                <Label className="text-xs">Desc.</Label>
+                <Input value={formData.valor_desconto} onChange={(e) => setFormData({ ...formData, valor_desconto: e.target.value })} placeholder="R$ 0,00" className="h-8 text-xs" />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Número do Comprovante</Label>
-              <Input value={formData.numero_comprovante} onChange={(e) => setFormData({ ...formData, numero_comprovante: e.target.value })} placeholder="NÚMERO" className="uppercase" style={{ textTransform: 'uppercase' }} />
+            <div className="space-y-1">
+              <Label className="text-xs">Comprovante</Label>
+              <Input value={formData.numero_comprovante} onChange={(e) => setFormData({ ...formData, numero_comprovante: e.target.value })} placeholder="NÚMERO" className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
             </div>
 
-            <div className="space-y-2">
-              <Label>Observações</Label>
-              <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={2} />
             </div>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Paperclip className="w-4 h-4" />
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-2">
+                <Paperclip className="w-3 h-3" />
                 Anexar Documentos
               </Label>
               <Input
@@ -602,14 +585,14 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                 onChange={(e) => handleUploadAnexo(e, 'nova')}
                 disabled={uploadingFile}
                 accept=".pdf,.jpg,.jpeg,.png"
-                className="h-9 text-xs"
+                className="h-8 text-xs"
               />
               
               {formData.anexos.length > 0 && (
                 <div className="space-y-1">
                   {formData.anexos.map((anexo, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
-                      <div className="flex items-center gap-2">
+                    <div key={index} className="flex items-center justify-between p-1.5 bg-white rounded border text-xs">
+                      <div className="flex items-center gap-1.5">
                         <FileText className="w-3 h-3 text-slate-400" />
                         <span className="font-medium">{anexo.nome}</span>
                         <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
@@ -619,7 +602,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleRemoverAnexo(index, 'nova')}
-                        className="h-6 w-6 text-red-600"
+                        className="h-5 w-5 text-red-600"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -630,39 +613,20 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
             </div>
 
             <Card className="bg-slate-50 border-slate-300">
-              <CardContent className="p-3">
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span>Valor da Baixa:</span>
-                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_baixa))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ Juros:</span>
-                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_juros))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ Multa:</span>
-                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_multa))}</span>
-                  </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>- Desconto:</span>
-                    <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_desconto))}</span>
-                  </div>
-                  <div className="border-t pt-1 flex justify-between font-semibold">
-                    <span>TOTAL:</span>
-                    <span>{formatarMoeda(totalBaixa)}</span>
-                  </div>
+              <CardContent className="p-2">
+                <div className="space-y-0.5 text-xs">
+                  <div className="flex justify-between"><span>Valor:</span><span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_baixa))}</span></div>
+                  <div className="flex justify-between"><span>+ Juros:</span><span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_juros))}</span></div>
+                  <div className="flex justify-between"><span>+ Multa:</span><span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_multa))}</span></div>
+                  <div className="flex justify-between text-red-600"><span>- Desc.:</span><span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_desconto))}</span></div>
+                  <div className="border-t pt-1 flex justify-between font-semibold"><span>TOTAL:</span><span>{formatarMoeda(totalBaixa)}</span></div>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="h-8 text-xs">
-                Fechar
-              </Button>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={baixaMutation.isPending}>
-                Confirmar Baixa
-              </Button>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={onClose} className="h-8 text-xs">Fechar</Button>
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={baixaMutation.isPending}>Confirmar</Button>
             </div>
           </form>
         </CardContent>
