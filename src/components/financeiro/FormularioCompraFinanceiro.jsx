@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
+import ComboboxFornecedor from "./ComboboxFornecedor.jsx";
 
 const FORMAS_PAGAMENTO_PADRAO = [
   'Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário',
@@ -222,7 +223,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         valor_pago_total: formatarNumero(valorTotal)
       }));
     }
-  }, [formData.conta_paga]);
+  }, [formData.conta_paga, formData.data_emissao]); // Added formData.data_emissao to dependencies
 
   useEffect(() => {
     if (formData.data_emissao && !formData.data_vencimento && !initialData) {
@@ -254,16 +255,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return parseNumero(String(initialData.valor_total));
       }
 
-      // Se vier do XML, usar valor_desconto_total
-      const descontoTotalXML = parseNumero(formData.valor_desconto_total || "0");
-
       const frete = parseNumero(formData.frete);
       const outras = parseNumero(formData.outras_despesas);
       const ipi = parseNumero(formData.valor_ipi || "0");
 
-      // Valor produtos já considera desconto por item
-      // Desconto total da NF-e é adicional
-      return totalProdutos + frete + outras + ipi - descontoTotalXML;
+      return totalProdutos + frete + outras + ipi;
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -597,14 +593,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs">Fornecedor *</Label>
-                          <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {fornecedores.map(f => (
-                                <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <ComboboxFornecedor
+                            fornecedores={fornecedores}
+                            value={formData.fornecedor_id}
+                            onChange={(v) => handleChange('fornecedor_id', v)}
+                            className="w-full"
+                          />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Tipo Doc *</Label>

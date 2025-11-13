@@ -119,12 +119,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [selecionados, setSelecionados] = useState([]);
   const [parcelasDialog, setParcelasDialog] = useState(null);
   const [showEditarLote, setShowEditarLote] = useState(false);
-  const [showBaixaLote, setShowBaixaLote] = useState(false);
-  const [dadosBaixaLote, setDadosBaixaLote] = useState({
-    data_baixa: new Date().toISOString().split('T')[0],
-    forma_pagamento_id: "",
-    observacoes: ""
-  });
   const [edicaoLote, setEdicaoLote] = useState({
     safra_id: "",
     centro_custo_id: "",
@@ -261,58 +255,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       setEdicaoLote({ safra_id: "", centro_custo_id: "", plano_contas_id: "", grupo_id: "", observacoes: "" });
       setSelecionados([]);
       toast.success(`${selecionados.length} lançamento(s) atualizado(s)!`);
-    }
-  };
-
-  const handleBaixaEmLote = () => {
-    if (selecionados.length === 0) {
-      toast.error('Selecione ao menos um lançamento!');
-      return;
-    }
-    
-    const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
-    const comSaldo = lancamentosSelecionados.filter(l => (l.valor_total || 0) - (l.valor_pago || 0) > 0.01);
-    
-    if (comSaldo.length === 0) {
-      toast.error('Nenhum lançamento com saldo para baixar!');
-      return;
-    }
-    
-    if (comSaldo.length !== selecionados.length) {
-      toast.warning(`Apenas ${comSaldo.length} de ${selecionados.length} possuem saldo`);
-    }
-    
-    setShowBaixaLote(true);
-  };
-
-  const handleConfirmarBaixaLote = async () => {
-    if (!dadosBaixaLote.forma_pagamento_id) {
-      toast.error('Selecione a forma de pagamento!');
-      return;
-    }
-
-    const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
-    const comSaldo = lancamentosSelecionados.filter(l => (l.valor_total || 0) - (l.valor_pago || 0) > 0.01);
-
-    if (window.confirm(`Confirma a baixa integral de ${comSaldo.length} lançamento(s)?`)) {
-      for (const lanc of comSaldo) {
-        try {
-          await onBaixa(lanc, {
-            data_baixa: dadosBaixaLote.data_baixa,
-            forma_pagamento_id: dadosBaixaLote.forma_pagamento_id,
-            observacoes: dadosBaixaLote.observacoes,
-            baixa_automatica_lote: true
-          });
-        } catch (error) {
-          console.error('Erro ao baixar lançamento em lote:', error);
-          toast.error(`Falha ao baixar lançamento ${lanc.numero_lancamento}.`);
-        }
-      }
-      
-      setShowBaixaLote(false);
-      setDadosBaixaLote({ data_baixa: new Date().toISOString().split('T')[0], forma_pagamento_id: "", observacoes: "" });
-      setSelecionados([]);
-      toast.success(`${comSaldo.length} baixa(s) registrada(s)!`);
     }
   };
 
@@ -569,10 +511,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                         <Edit2 className="w-3.5 h-3.5 mr-2" />
                         Editar Lote
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleBaixaEmLote} className="text-xs">
-                        <CheckCircle className="w-3.5 h-3.5 mr-2" />
-                        Baixar Lote
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
                         <Download className="w-3.5 h-3.5 mr-2" />
                         Exportar
@@ -615,7 +553,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8"></TableHead> {/* New position for actions column header */}
+                  <TableHead className="text-xs text-center w-8"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -662,14 +600,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               onCheckedChange={() => handleToggleSelecao(lancamento.id)}
                             />
                           </TableCell>
-                          <TableCell className="text-center"> {/* New position for actions column cell */}
+                          <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-6 w-6">
                                   <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start"> {/* Changed align to start */}
+                              <DropdownMenuContent align="start">
                                 <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
                                   <Eye className="w-3.5 h-3.5 mr-2" />
                                   Ver Detalhes
@@ -726,73 +664,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={showBaixaLote} onOpenChange={setShowBaixaLote}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              Baixar {selecionados.length} Lançamento(s)
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-3">
-            <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
-              <p className="text-xs text-emerald-800">
-                💡 Todos os lançamentos selecionados com saldo serão baixados integralmente na data e forma de pagamento informadas.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Data da Baixa *</Label>
-                <Input 
-                  type="date" 
-                  value={dadosBaixaLote.data_baixa} 
-                  onChange={(e) => setDadosBaixaLote({ ...dadosBaixaLote, data_baixa: e.target.value })} 
-                  className="h-8 text-xs" 
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Forma de Pagamento *</Label>
-                <Select value={dadosBaixaLote.forma_pagamento_id} onValueChange={(v) => setDadosBaixaLote({ ...dadosBaixaLote, forma_pagamento_id: v })}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário', 'Transferência Bancária', 'Cheque', 'Outros'].map(forma => (
-                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Observações</Label>
-                <Textarea 
-                  value={dadosBaixaLote.observacoes} 
-                  onChange={(e) => setDadosBaixaLote({ ...dadosBaixaLote, observacoes: e.target.value })} 
-                  placeholder="OBSERVAÇÕES..." 
-                  className="text-xs uppercase" 
-                  style={{ textTransform: 'uppercase' }}
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowBaixaLote(false)} size="sm" className="h-7 text-xs">
-                Cancelar
-              </Button>
-              <Button onClick={handleConfirmarBaixaLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Confirmar Baixas
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
         <DialogContent className="max-w-xl">

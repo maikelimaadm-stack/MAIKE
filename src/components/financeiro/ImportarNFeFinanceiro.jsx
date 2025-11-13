@@ -557,7 +557,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       observacoes_nfe: dadosNFe.observacoes_nfe || '',
       conta_paga: dadosNFe.conta_paga || false,
       parcelar: temParcelas,
-      parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({ data: p.data, valor: String(p.valor.toFixed(2)).replace('.', ',') })) : [],
+      parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({ data: p.data, valor: String(p.valor.toFixed(2)).replace('.', ',')})) : [],
       valor_produtos: dadosNFe.valor_produtos,
       valor_frete: dadosNFe.valor_frete,
       valor_seguro: dadosNFe.valor_seguro,
@@ -886,13 +886,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     <span>TOTAL A PAGAR:</span>
                     <span className="font-mono">{formatarMoeda(dadosNFe.valor_total)}</span>
                   </div>
-                  {Math.abs(dadosNFe.valor_total - dadosNFe.valor_calculado) > 0.01 && (
-                    <div className="bg-orange-100 border border-orange-300 rounded p-1 mt-1">
-                      <p className="text-[10px] text-orange-800">
-                        ⚠️ Diferença detectada: Calculado {formatarMoeda(dadosNFe.valor_calculado)} vs XML {formatarMoeda(dadosNFe.valor_total)}
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
