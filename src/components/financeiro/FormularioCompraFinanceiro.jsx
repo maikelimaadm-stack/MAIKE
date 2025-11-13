@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -110,6 +111,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       setTimeout(() => setMostrarCamposNFe(true), 100);
     }
 
+    // Carregar produtos de produtos_lancamento OU produtos_selecionados
+    const produtosIniciais = initialData.produtos_lancamento || initialData.produtos_selecionados || [];
+
     return {
       ...defaults,
       ...initialData,
@@ -134,12 +138,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_pis: initialData.valor_pis ? formatarNumero(initialData.valor_pis) : "",
       valor_cofins: initialData.valor_cofins ? formatarNumero(initialData.valor_cofins) : "",
       base_calculo_icms: initialData.base_calculo_icms ? formatarNumero(initialData.base_calculo_icms) : "",
-      produtos_selecionados: initialData.produtos_selecionados?.map(p => ({
+      produtos_selecionados: produtosIniciais.map(p => ({
         ...p,
         quantidade: formatarNumero(p.quantidade),
         valor_total: formatarNumero(p.valor_total || 0),
         desconto_item: formatarNumero(p.desconto_item || 0)
-      })) || [],
+      })),
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
         valor: formatarNumero(p.valor || 0)
@@ -373,6 +377,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     }
+    // Validações para produtos - mais flexível em modo edição
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
         toast.error('Adicione pelo menos 1 produto!');
@@ -905,6 +910,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               {grupos.map(g => (
                                 <SelectItem key={g.id} value={g.id} className="text-xs">{g.codigo} - {g.descricao}</SelectItem>
                               ))}
+                            ))}
                             </SelectContent>
                           </Select>
                         </div>
