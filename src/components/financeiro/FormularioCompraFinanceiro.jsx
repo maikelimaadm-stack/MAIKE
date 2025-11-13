@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -324,7 +325,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Se marcar "Parcelar", desmarcar "Conta já paga"
+      if (field === 'parcelar' && value === true) {
+        updated.conta_paga = false;
+      }
+      
+      // Se marcar "Conta já paga", desmarcar "Parcelar"
+      if (field === 'conta_paga' && value === true) {
+        updated.parcelar = false;
+      }
+      
+      return updated;
+    });
   };
 
   const handleAdicionarProduto = () => {
@@ -935,51 +950,55 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <Card className="shadow-sm border-slate-200">
                       <CardHeader className="pb-1.5 px-2.5 pt-2">
                         <div className="flex justify-between items-center">
-                          <CardTitle className="text-xs font-semibold">Detalhes NF-e</CardTitle>
+                          <CardTitle className="text-xs font-semibold">Detalhes NF-e (Informativo)</CardTitle>
                           <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarCamposNFe(false)} className="h-6 text-xs">Ocultar</Button>
                         </div>
                       </CardHeader>
                       <CardContent className="p-2.5 space-y-2">
+                        <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
+                          ℹ️ Campos informativos da NF-e. O valor a pagar é calculado com base nos produtos lançados acima.
+                        </div>
+                        
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">Vlr. Produtos</Label>
-                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Vlr. Produtos (XML)</Label>
+                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Vlr. Frete</Label>
-                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Vlr. Frete (XML)</Label>
+                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Vlr. Seguro</Label>
-                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Vlr. Seguro (XML)</Label>
+                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Outras Desp.</Label>
-                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Outras Desp. (XML)</Label>
+                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Desc. Total</Label>
-                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Desc. Total (XML)</Label>
+                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">IPI</Label>
-                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">IPI (XML)</Label>
+                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">ICMS</Label>
-                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">ICMS (XML)</Label>
+                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">PIS</Label>
-                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">PIS (XML)</Label>
+                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">COFINS</Label>
-                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">COFINS (XML)</Label>
+                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Base ICMS</Label>
-                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Label className="text-xs">Base ICMS (XML)</Label>
+                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-slate-100" readOnly />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -1067,6 +1086,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </CardContent>
                   </Card>
 
+                  <Card className="bg-blue-50 border-blue-200 shadow-sm">
+                    <CardContent className="p-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-blue-900">Valor Total a Pagar:</span>
+                        <span className="font-mono font-bold text-blue-900 text-base">{formatarMoeda(valorTotal)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card className="shadow-sm border-slate-200">
                     <CardHeader className="pb-1.5 px-2.5 pt-2">
                       <CardTitle className="text-xs font-semibold">Pagamento</CardTitle>
@@ -1074,12 +1102,32 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <CardContent className="p-2.5 space-y-2">
                       <div className="space-y-1.5">
                         <div className="flex items-center space-x-2">
-                          <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                          <label htmlFor="parcelar" className="font-medium cursor-pointer text-xs">Parcelar</label>
+                          <Checkbox 
+                            checked={formData.parcelar} 
+                            onCheckedChange={(v) => handleChange('parcelar', v)} 
+                            id="parcelar"
+                            disabled={formData.conta_paga}
+                          />
+                          <label 
+                            htmlFor="parcelar" 
+                            className={`font-medium cursor-pointer text-xs ${formData.conta_paga ? 'text-slate-400' : ''}`}
+                          >
+                            Parcelar
+                          </label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Checkbox checked={formData.conta_paga} onCheckedChange={(v) => handleChange('conta_paga', v)} id="conta_paga" />
-                          <label htmlFor="conta_paga" className="font-medium cursor-pointer text-xs">Conta já paga</label>
+                          <Checkbox 
+                            checked={formData.conta_paga} 
+                            onCheckedChange={(v) => handleChange('conta_paga', v)} 
+                            id="conta_paga"
+                            disabled={formData.parcelar}
+                          />
+                          <label 
+                            htmlFor="conta_paga" 
+                            className={`font-medium cursor-pointer text-xs ${formData.parcelar ? 'text-slate-400' : ''}`}
+                          >
+                            Conta já paga
+                          </label>
                         </div>
                       </div>
 
