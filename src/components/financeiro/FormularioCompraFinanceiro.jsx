@@ -179,6 +179,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogLocal, setShowDialogLocal] = useState(false);
+  const [showDialogPlano, setShowDialogPlano] = useState(false);
+  const [showDialogGrupo, setShowDialogGrupo] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -327,12 +329,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Se marcar "Parcelar", desmarcar "Conta já paga"
       if (field === 'parcelar' && value === true) {
         updated.conta_paga = false;
       }
       
-      // Se marcar "Conta já paga", desmarcar "Parcelar"
       if (field === 'conta_paga' && value === true) {
         updated.parcelar = false;
       }
@@ -461,10 +461,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.parcelar && !formData.conta_paga && !formData.data_vencimento) {
-      toast.error('Preencha a data de vencimento!');
-      return;
-    }
     if (!formData.plano_contas_id) {
       toast.error('Selecione o plano de contas!');
       return;
@@ -473,25 +469,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       toast.error('Selecione o grupo financeiro!');
       return;
     }
-    if (formData.conta_paga) {
-      if (!formData.data_pagamento) {
-        toast.error('Preencha a data de pagamento!');
-        return;
-      }
-      if (parseNumero(formData.valor_pago_total) <= 0) {
-        toast.error('Preencha o valor pago!');
-        return;
-      }
-      if (!formData.forma_pagamento_paga_id) {
+    
+    if (formData.parcelar) {
+      if (!formData.forma_pagamento_id) {
         toast.error('Selecione a forma de pagamento!');
         return;
       }
-    }
-    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) {
-      toast.error('Adicione pelo menos 1 parcela!');
-      return;
-    }
-    if (!formData.conta_paga && formData.parcelar) {
+      if (formData.parcelas.length < 1) {
+        toast.error('Adicione pelo menos 1 parcela!');
+        return;
+      }
       const valorTotal = calcularValorTotal();
       const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
       if (Math.abs(totalParcelas - valorTotal) > 0.01) {
@@ -500,6 +487,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
       if (formData.parcelas.some(p => parseNumero(p.valor) <= 0)) {
         toast.error('Todas as parcelas devem ter valor > 0!');
+        return;
+      }
+    } else if (formData.conta_paga) {
+      if (!formData.forma_pagamento_paga_id) {
+        toast.error('Selecione a forma de pagamento!');
+        return;
+      }
+      if (!formData.data_pagamento) {
+        toast.error('Preencha a data de pagamento!');
+        return;
+      }
+      if (parseNumero(formData.valor_pago_total) <= 0) {
+        toast.error('Preencha o valor pago!');
+        return;
+      }
+    } else {
+      if (!formData.data_vencimento) {
+        toast.error('Preencha a data de vencimento!');
         return;
       }
     }
@@ -523,8 +528,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
       grupo_id: formData.grupo_id,
       grupo_nome: grupo?.descricao,
-      forma_pagamento_id: formData.forma_pagamento_id || undefined,
-      forma_pagamento_nome: formData.forma_pagamento_id || undefined,
+      forma_pagamento_id: formData.parcelar ? formData.forma_pagamento_id : (formData.conta_paga ? formData.forma_pagamento_paga_id : undefined),
+      forma_pagamento_nome: formData.parcelar ? formData.forma_pagamento_id : (formData.conta_paga ? formData.forma_pagamento_paga_id : undefined),
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_nfe: formData.tipo_documento === 'NF-e' ? formData.chave_nfe : undefined,
       serie_documento: ['NF-e', 'NFC-e'].includes(formData.tipo_documento) ? formData.serie_documento : undefined,
@@ -604,17 +609,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
         <Card className="shadow-sm border-slate-300 bg-white">
-          <CardHeader className="bg-white border-b border-slate-200 py-2 px-3">
+          <CardHeader className="bg-white border-b border-slate-200 py-1.5 px-3">
             <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData ? 'Editar Lançamento' : 'Novo Lançamento'} - Etapa {etapa}/2
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-3">
-            <form onSubmit={handleSubmit} className="space-y-2.5">
+          <CardContent className="p-2.5">
+            <form onSubmit={handleSubmit} className="space-y-2">
               {etapa === 1 && (
                 <>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5">
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Fornecedor *</Label>
                         <ComboboxFornecedor 
@@ -627,7 +632,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Tipo Documento *</Label>
                         <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
                             <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
@@ -640,64 +645,64 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Data Emissão *</Label>
-                        <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-8 text-xs" />
+                        <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-7 text-xs" />
                       </div>
                     </div>
 
                     {formData.tipo_documento === 'NF-e' && (
-                      <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-200">
+                      <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Série</Label>
-                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-8 text-xs" />
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">CFOP</Label>
-                          <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-8 text-xs" maxLength={4} />
+                          <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-7 text-xs" maxLength={4} />
                         </div>
                       </div>
                     )}
 
                     {formData.tipo_documento === 'NFC-e' && (
-                      <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
+                      <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Série</Label>
-                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-8 text-xs" />
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
                         </div>
                       </div>
                     )}
 
                     {formData.tipo_documento === 'Boleto' && (
-                      <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
+                      <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Nº Boleto *</Label>
-                          <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
+                          <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Banco</Label>
-                          <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-8 text-xs" />
+                          <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-7 text-xs" />
                         </div>
                       </div>
                     )}
 
                     {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
-                      <div className="space-y-1 pt-1.5 border-t border-slate-200">
+                      <div className="space-y-1 pt-1 border-t border-slate-200">
                         <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                        <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-8 text-xs" />
+                        <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-7 text-xs" />
                       </div>
                     )}
 
-                    <div className="space-y-1 pt-1">
+                    <div className="space-y-1">
                       <Label className="text-xs font-medium text-slate-700">Safra</Label>
                       <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
                         <SelectContent>
                           {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>)}
                         </SelectContent>
@@ -705,17 +710,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 p-2 bg-slate-50 rounded border border-slate-200">
+                  <div className="flex items-center space-x-2 p-1.5 bg-slate-50 rounded border border-slate-200">
                     <Checkbox checked={formData.lancar_produtos} onCheckedChange={(v) => handleChange('lancar_produtos', v)} id="lancar_produtos" />
                     <label htmlFor="lancar_produtos" className="font-medium cursor-pointer text-xs text-slate-700">Lançar Produtos no Estoque</label>
                   </div>
 
                   {formData.lancar_produtos && (
-                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                    <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
                       <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-xs text-slate-800">Produtos</h3>
-                        <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-7 gap-1 text-xs">
-                          <Plus className="w-3.5 h-3.5" />
+                        <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-6 gap-1 text-xs">
+                          <Plus className="w-3 h-3" />
                           Adicionar
                         </Button>
                       </div>
@@ -779,7 +784,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'quantidade', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-7 text-xs" 
+                                        className="text-right h-6 text-xs" 
                                       />
                                     </TableCell>
                                     <TableCell className="w-[90px]">
@@ -790,7 +795,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'valor_total', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-7 text-xs" 
+                                        className="text-right h-6 text-xs" 
                                       />
                                     </TableCell>
                                     <TableCell className="w-[80px]">
@@ -801,7 +806,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'desconto_item', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-7 text-xs" 
+                                        className="text-right h-6 text-xs" 
                                       />
                                     </TableCell>
                                     <TableCell className="text-right w-[90px]">
@@ -836,7 +841,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       {formData.dar_entrada_estoque && (
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Local de Estoque *</Label>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1">
                             <AutocompleteGenerico
                               items={locais}
                               value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
@@ -849,27 +854,27 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               searchFields={["nome", "descricao"]}
                               className="flex-1"
                             />
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-7 w-7">
                               <Plus className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Frete</Label>
-                          <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
+                          <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Outras Despesas</Label>
-                          <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
+                          <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
                         </div>
                       </div>
 
-                      <div className="bg-white border border-slate-300 rounded p-2">
+                      <div className="bg-white border border-slate-300 rounded p-1.5">
                         <div className="space-y-0.5 text-xs">
-                          <div className="font-semibold text-slate-800 mb-1">Valor a Pagar</div>
+                          <div className="font-semibold text-slate-800 mb-0.5">Valor a Pagar</div>
                           <div className="flex justify-between">
                             <span className="text-slate-600">Produtos (líquido):</span>
                             <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
@@ -892,7 +897,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               <span className="font-mono text-slate-700">{formatarMoeda(parseNumero(formData.valor_ipi || "0"))}</span>
                             </div>
                           )}
-                          <div className="flex justify-between font-bold border-t pt-1 mt-1 text-slate-900">
+                          <div className="flex justify-between font-bold border-t pt-0.5 mt-0.5 text-slate-900">
                             <span>TOTAL A PAGAR:</span>
                             <span className="font-mono text-base">{formatarMoeda(valorTotal)}</span>
                           </div>
@@ -902,24 +907,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   )}
 
                   {!formData.lancar_produtos && (
-                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                    <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
                       <h3 className="font-semibold text-xs text-slate-800">Valores</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Valor *</Label>
-                          <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
+                          <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Juros</Label>
-                          <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
+                          <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Multa</Label>
-                          <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
+                          <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Desconto</Label>
-                          <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
+                          <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-7 text-xs" />
                         </div>
                       </div>
                       <div className="bg-white border border-slate-300 rounded p-1.5">
@@ -932,17 +937,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   )}
 
                   {mostrarCamposNFe && (
-                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                    <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
                       <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-xs text-slate-800">Detalhes NF-e (Informativo)</h3>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarCamposNFe(false)} className="h-6 text-xs">Ocultar</Button>
                       </div>
                       
-                      <div className="bg-blue-50 border border-blue-200 rounded p-1.5 text-[10px] text-blue-800">
+                      <div className="bg-blue-50 border border-blue-200 rounded p-1 text-[10px] text-blue-800">
                         ℹ️ Campos informativos da NF-e. O valor a pagar é calculado com base nos produtos lançados acima.
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-slate-700">Vlr. Produtos (XML)</Label>
                           <Input value={formData.valor_produtos || ''} className="h-7 text-xs bg-slate-100" readOnly />
@@ -986,7 +991,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Obs. NF-e</Label>
-                        <Textarea value={formData.observacoes_nfe || ''} onChange={(e) => handleChange('observacoes_nfe', e.target.value)} className="min-h-16 bg-white text-xs" placeholder="Observações da nota..." rows={2} />
+                        <Textarea value={formData.observacoes_nfe || ''} onChange={(e) => handleChange('observacoes_nfe', e.target.value)} className="min-h-14 bg-white text-xs" placeholder="Observações da nota..." rows={2} />
                       </div>
                     </div>
                   )}
@@ -997,56 +1002,66 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </Button>
                   )}
 
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                    <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">Cancelar</Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">Próximo</Button>
+                  <div className="flex justify-end gap-2 pt-1.5 border-t border-slate-200">
+                    <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
+                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-7 text-xs">Próximo</Button>
                   </div>
                 </>
               )}
 
               {etapa === 2 && (
                 <>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Plano de Contas *</Label>
-                        <AutocompleteGenerico
-                          items={planos}
-                          value={formData.plano_contas_id}
-                          onChange={(v) => handleChange('plano_contas_id', v)}
-                          placeholder="Buscar plano..."
-                          displayField="descricao"
-                          searchFields={["codigo", "descricao"]}
-                          renderItem={(p) => (
-                            <>
-                              <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>
-                            </>
-                          )}
-                          className="w-full"
-                        />
+                        <div className="flex gap-1">
+                          <AutocompleteGenerico
+                            items={planos}
+                            value={formData.plano_contas_id}
+                            onChange={(v) => handleChange('plano_contas_id', v)}
+                            placeholder="Buscar plano..."
+                            displayField="descricao"
+                            searchFields={["codigo", "descricao"]}
+                            renderItem={(p) => (
+                              <>
+                                <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>
+                              </>
+                            )}
+                            className="flex-1"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-7 w-7">
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Grupo Financeiro *</Label>
-                        <AutocompleteGenerico
-                          items={grupos}
-                          value={formData.grupo_id}
-                          onChange={(v) => handleChange('grupo_id', v)}
-                          placeholder="Buscar grupo..."
-                          displayField="descricao"
-                          searchFields={["codigo", "descricao"]}
-                          renderItem={(g) => (
-                            <>
-                              <div className="text-xs font-medium text-slate-900">{g.codigo} - {g.descricao}</div>
-                            </>
-                          )}
-                          className="w-full"
-                        />
+                        <div className="flex gap-1">
+                          <AutocompleteGenerico
+                            items={grupos}
+                            value={formData.grupo_id}
+                            onChange={(v) => handleChange('grupo_id', v)}
+                            placeholder="Buscar grupo..."
+                            displayField="descricao"
+                            searchFields={["codigo", "descricao"]}
+                            renderItem={(g) => (
+                              <>
+                                <div className="text-xs font-medium text-slate-900">{g.codigo} - {g.descricao}</div>
+                              </>
+                            )}
+                            className="flex-1"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-7 w-7">
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs font-medium text-slate-700">Centro de Custo</Label>
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1">
                         <AutocompleteGenerico
                           items={centros}
                           value={formData.centro_custo_id}
@@ -1056,24 +1071,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           searchFields={["nome", "codigo"]}
                           className="flex-1"
                         />
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-7 w-7">
                           <Plus className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-100 border border-slate-300 rounded p-2">
+                  <div className="bg-slate-100 border border-slate-300 rounded p-1.5">
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-semibold text-slate-800">Valor Total a Pagar:</span>
                       <span className="font-mono font-bold text-slate-900 text-base">{formatarMoeda(valorTotal)}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                  <div className="space-y-1.5 border border-slate-200 rounded p-2 bg-slate-50">
                     <h3 className="font-semibold text-xs text-slate-800">Pagamento</h3>
                     
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       <div className="flex items-center space-x-2">
                         <Checkbox 
                           checked={formData.parcelar} 
@@ -1094,32 +1109,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
                     </div>
 
-                    {!formData.parcelar && !formData.conta_paga && (
-                      <>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Vencimento *</Label>
-                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-8 text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento</Label>
-                          <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                            <SelectContent>
-                              {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </>
-                    )}
-
                     {formData.parcelar && (
-                      <div className="bg-white border border-slate-300 rounded p-2 space-y-2">
+                      <div className="bg-white border border-slate-300 rounded p-1.5 space-y-1.5">
                         <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento</Label>
+                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento *</Label>
                           <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                            <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
                               {FORMAS_PAGAMENTO_PADRAO.map(forma => (
                                 <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
@@ -1151,10 +1146,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                 <TableRow key={index}>
                                   <TableCell className="font-semibold text-xs">{index + 1}</TableCell>
                                   <TableCell>
-                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-7 text-xs" />
+                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-6 text-xs" />
                                   </TableCell>
                                   <TableCell>
-                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="text-right h-7 text-xs" />
+                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="text-right h-6 text-xs" />
                                   </TableCell>
                                   <TableCell>
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-6 w-6">
@@ -1167,7 +1162,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </Table>
                         </div>
 
-                        <div className={`p-1.5 rounded text-xs ${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 border border-slate-200'}`}>
+                        <div className={`p-1 rounded text-xs ${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex justify-between">
                             <span>Total Parcelas:</span>
                             <span className="font-semibold">{formatarMoeda(totalParcelas)}</span>
@@ -1178,21 +1173,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     )}
 
                     {formData.conta_paga && (
-                      <div className="bg-white border border-slate-300 rounded p-2 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs font-medium text-slate-700">Data Pgto *</Label>
-                            <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-8 text-xs" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs font-medium text-slate-700">Valor Pago *</Label>
-                            <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
-                          </div>
-                        </div>
+                      <div className="bg-white border border-slate-300 rounded p-1.5 space-y-1.5">
                         <div className="space-y-1">
-                          <Label className="text-xs font-medium text-slate-700">Forma Pgto *</Label>
+                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento *</Label>
                           <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
                               {FORMAS_PAGAMENTO_PADRAO.map(forma => (
                                 <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
@@ -1200,20 +1185,39 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-slate-700">Data Pgto *</Label>
+                            <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-7 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-slate-700">Valor Pago *</Label>
+                            <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-7 text-xs" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!formData.parcelar && !formData.conta_paga && (
+                      <div className="bg-white border border-slate-300 rounded p-1.5">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Vencimento *</Label>
+                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-7 text-xs" />
+                        </div>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-1">
                     <Label className="text-xs font-medium text-slate-700">Observações</Label>
-                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs min-h-14" style={{ textTransform: 'uppercase' }} rows={2} />
+                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs min-h-12" style={{ textTransform: 'uppercase' }} rows={2} />
                   </div>
 
-                  <div className="flex justify-between gap-2 pt-2 border-t border-slate-200">
-                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-8 text-xs">Voltar</Button>
+                  <div className="flex justify-between gap-2 pt-1.5 border-t border-slate-200">
+                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-7 text-xs">Voltar</Button>
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">Cancelar</Button>
-                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-8 text-xs" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
+                      <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
+                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-7 text-xs" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
                         <Save className="w-3 h-3 mr-1" />
                         Salvar
                       </Button>
@@ -1228,6 +1232,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_compra'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
       <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_compra'] }); const local = locais.find(l => l.id === id); if (local) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="plano_contas" open={showDialogPlano} onClose={() => setShowDialogPlano(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['planos_compra'] }); handleChange('plano_contas_id', id); setShowDialogPlano(false); }} />
+      <DialogCadastroRapido tipo="grupo_financeiro" open={showDialogGrupo} onClose={() => setShowDialogGrupo(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['grupos_compra'] }); handleChange('grupo_id', id); setShowDialogGrupo(false); }} />
     </>
   );
 }
