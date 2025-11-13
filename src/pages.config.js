@@ -25,6 +25,7 @@ import LivrosFiscais from './pages/LivrosFiscais';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import Pesagens from './pages/Pesagens';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
+import PopularCidades from './pages/PopularCidades';
 import Layout from './Layout.jsx';
 
 
@@ -56,6 +57,7 @@ export const PAGES = {
     "ConfiguracoesGerais": ConfiguracoesGerais,
     "Pesagens": Pesagens,
     "LancamentoFinanceiro": LancamentoFinanceiro,
+    "PopularCidades": PopularCidades,
 }
 
 export const pagesConfig = {
