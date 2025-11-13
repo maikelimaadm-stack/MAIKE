@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, FileText, Download } from "lucide-react";
+import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, FileText, Download, MoreVertical, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -110,6 +111,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [detalhesAberto, setDetalhesAberto] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [selecionados, setSelecionados] = useState([]);
+  const [parcelasDialog, setParcelasDialog] = useState(null);
   
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
@@ -207,7 +209,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       let excluidos = 0;
       for (const id of selecionados) {
         try {
-          await onDelete(id, true); // skipConfirm = true
+          await onDelete(id, true);
           excluidos++;
         } catch (error) {
           console.error('Erro:', error);
@@ -312,6 +314,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     setDetalhesAberto(lancamento);
   };
 
+  const abrirParcelas = (lancamento) => {
+    setParcelasDialog(lancamento);
+  };
+
   const fornecedorDoLancamento = (lancamento) => fornecedores?.find(f => f.id === lancamento?.fornecedor_id);
 
   const renderCell = (coluna, lancamento) => {
@@ -351,7 +357,21 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       case 'saldo':
         return <TableCell className="text-right font-mono text-xs font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>;
       case 'status':
-        return <TableCell><Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>{lancamento?.status}</Badge></TableCell>;
+        return (
+          <TableCell>
+            <div className="flex flex-col gap-1">
+              <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>
+                {lancamento?.status}
+              </Badge>
+              {lancamento?.parcelas && lancamento.parcelas.length > 0 && (
+                <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-300 text-[10px] cursor-pointer" onClick={() => abrirParcelas(lancamento)}>
+                  <Calendar className="w-2.5 h-2.5 mr-0.5" />
+                  {lancamento.parcelas.length}x
+                </Badge>
+              )}
+            </div>
+          </TableCell>
+        );
       case 'safra':
         return <TableCell className="text-xs text-slate-600">{lancamento?.safra_nome || '-'}</TableCell>;
       case 'centro_custo':
@@ -436,13 +456,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-10 text-xs">
+                  <TableHead className="w-8 text-xs">
                     <Checkbox 
                       checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-[120px]">Ações</TableHead>
+                  <TableHead className="text-xs text-center w-10"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -489,27 +509,47 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                             />
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex gap-1 justify-center">
-                              <Button variant="ghost" size="icon" onClick={() => abrirDetalhes(lancamento)} className="h-7 w-7" title="Ver Detalhes">
-                                <Eye className="w-3.5 h-3.5 text-slate-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => onEdit(lancamento)} className="h-7 w-7" title="Editar">
-                                <Edit className="w-3.5 h-3.5 text-slate-600" />
-                              </Button>
-                              {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
-                                <Button variant="ghost" size="icon" onClick={() => onBaixa(lancamento)} className="h-7 w-7" title="Dar Baixa">
-                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
-                              )}
-                              {lancamento?.status === 'Pago' && onCancelarBaixa && (
-                                <Button variant="ghost" size="icon" onClick={() => onCancelarBaixa(lancamento)} className="h-7 w-7" title="Cancelar Baixa">
-                                  <XCircle className="w-3.5 h-3.5 text-orange-600" />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" onClick={() => onDelete(lancamento.id)} className="h-7 w-7" title="Excluir">
-                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                              </Button>
-                            </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
+                                  <Eye className="w-3.5 h-3.5 mr-2" />
+                                  Ver Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
+                                  <Edit className="w-3.5 h-3.5 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                {lancamento.parcelas && lancamento.parcelas.length > 0 && (
+                                  <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
+                                    <Calendar className="w-3.5 h-3.5 mr-2" />
+                                    Ver Parcelas ({lancamento.parcelas.length})
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
+                                  <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
+                                    <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                                    Dar Baixa
+                                  </DropdownMenuItem>
+                                )}
+                                {lancamento?.status === 'Pago' && onCancelarBaixa && (
+                                  <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
+                                    <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
+                                    Cancelar Baixa
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                           {colunasOrdenadas.map(coluna => (
                             <React.Fragment key={coluna.id}>
@@ -593,6 +633,59 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!parcelasDialog} onOpenChange={(open) => !open && setParcelasDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Parcelas - Lançamento #{parcelasDialog?.numero_lancamento}</DialogTitle>
+          </DialogHeader>
+          {parcelasDialog && (
+            <div className="space-y-3">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-2">
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div>
+                    <div><strong>Pago:</strong> {formatarMoeda(parcelasDialog.valor_pago || 0)}</div>
+                    <div><strong>Saldo:</strong> {formatarMoeda((parcelasDialog.valor_total || 0) - (parcelasDialog.valor_pago || 0))}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="border rounded overflow-auto max-h-96">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="text-xs">Nº</TableHead>
+                      <TableHead className="text-xs">Vencimento</TableHead>
+                      <TableHead className="text-xs text-right">Valor</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parcelasDialog.parcelas?.map((parcela, index) => {
+                      const valorParcela = parcela.valor || 0;
+                      const isPaga = (parcelasDialog.valor_pago || 0) >= valorParcela * (index + 1);
+                      
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="font-semibold text-xs">{index + 1}</TableCell>
+                          <TableCell className="text-xs">{formatarData(parcela.data)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{formatarMoeda(valorParcela)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${isPaga ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700 border-orange-300'}`}>
+                              {isPaga ? 'Paga' : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
