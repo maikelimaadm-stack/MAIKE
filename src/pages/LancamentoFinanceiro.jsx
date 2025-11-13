@@ -542,33 +542,33 @@ export default function LancamentoFinanceiro() {
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <div className="p-6 space-y-4">
       {!showForm && ( // Conditional rendering for the main list view
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
-              <p className="text-xs text-slate-600">Contas a pagar e receber</p>
+              <h1 className="text-2xl font-bold text-slate-800">Lançamento Financeiro</h1>
+              <p className="text-sm text-slate-600">Contas a pagar e receber</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <Download className="w-3.5 h-3.5" />
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-9 gap-1.5">
+                <Download className="w-4 h-4" />
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-3.5 h-3.5" />
+              <Button onClick={handleNewLancamento} size="sm" className="h-9 gap-1.5 bg-slate-700 hover:bg-slate-800">
+                <Plus className="w-4 h-4" />
                 Novo Lançamento
               </Button>
             </div>
           </div>
 
           <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
-            <TabsList className="grid w-full max-w-md grid-cols-2 h-9">
-              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
-              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-10 bg-slate-100">
+              <TabsTrigger value="pagar">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
+              <TabsTrigger value="receber">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pagar" className="mt-2">
+            <TabsContent value="pagar" className="mt-4">
               <TabelaFinanceiro
                 lancamentos={lancamentosPagar}
                 tipo="Pagar"
@@ -587,7 +587,7 @@ export default function LancamentoFinanceiro() {
               />
             </TabsContent>
 
-            <TabsContent value="receber" className="mt-2">
+            <TabsContent value="receber" className="mt-4">
               <TabelaFinanceiro
                 lancamentos={lancamentosReceber}
                 tipo="Receber"

@@ -67,13 +67,13 @@ const calcularDias = (dataVencimento) => {
 
 const getBadgeStyle = (status) => {
   const styles = {
-    'Pendente': 'bg-slate-100 text-slate-700 border-slate-300',
-    'Pago Parcial': 'bg-blue-50 text-blue-700 border-blue-300',
-    'Pago': 'bg-slate-100 text-slate-700 border-slate-300',
-    'Vencido': 'bg-red-50 text-red-700 border-red-300',
-    'Cancelado': 'bg-slate-100 text-slate-500 border-slate-300',
+    'Pendente': 'bg-slate-100 text-slate-700',
+    'Pago Parcial': 'bg-slate-100 text-slate-700',
+    'Pago': 'bg-slate-100 text-slate-700',
+    'Vencido': 'bg-slate-100 text-slate-700',
+    'Cancelado': 'bg-slate-100 text-slate-500',
   };
-  return styles[status] || 'bg-slate-100 text-slate-700 border';
+  return styles[status] || 'bg-slate-100 text-slate-700';
 };
 
 const COLUNAS_DISPONIVEIS = [
@@ -386,24 +386,24 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const renderCell = (coluna, lancamento) => {
     switch (coluna.id) {
       case 'numero':
-        return <TableCell className="font-semibold text-xs">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
+        return <TableCell className="font-medium">{formatarNumero(parseInt(lancamento?.numero_lancamento || 0))}</TableCell>;
       case 'parcela':
         return (
-          <TableCell className="text-xs text-center">
+          <TableCell className="text-center">
             {lancamento?.numero_parcela && lancamento?.total_parcelas ? (
-              <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-300 text-[10px]">
+              <Badge variant="outline" className="bg-slate-100 text-slate-700">
                 {lancamento.numero_parcela}/{lancamento.total_parcelas}
               </Badge>
             ) : '-'}
           </TableCell>
         );
       case 'emissao':
-        return <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_emissao)}</TableCell>;
+        return <TableCell className="text-slate-600">{formatarData(lancamento?.data_emissao)}</TableCell>;
       case 'vencimento':
-        return <TableCell className="text-xs text-slate-600">{formatarData(lancamento?.data_vencimento)}</TableCell>;
+        return <TableCell className="text-slate-600">{formatarData(lancamento?.data_vencimento)}</TableCell>;
       case 'dias':
         return (
-          <TableCell className="text-xs">
+          <TableCell>
             {(lancamento?.status === 'Pendente' || lancamento?.status === 'Pago Parcial') && (
               <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
                 {calcularDias(lancamento?.data_vencimento)}
@@ -412,34 +412,34 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           </TableCell>
         );
       case 'fornecedor_cliente':
-        return <TableCell className="max-w-xs truncate text-xs">{lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}</TableCell>;
+        return <TableCell className="max-w-xs truncate">{lancamento?.fornecedor_nome || lancamento?.cliente_nome || '-'}</TableCell>;
       case 'tipo_documento':
-        return <TableCell className="text-xs text-slate-600">{lancamento?.tipo_documento || '-'}</TableCell>;
+        return <TableCell className="text-slate-600">{lancamento?.tipo_documento || '-'}</TableCell>;
       case 'documento':
-        return <TableCell className="font-mono text-xs text-slate-600">{lancamento?.numero_documento || '-'}</TableCell>;
+        return <TableCell className="font-mono text-slate-600">{lancamento?.numero_documento || '-'}</TableCell>;
       case 'chave_nfe':
-        return <TableCell className="font-mono text-[10px] text-slate-600 max-w-[120px] truncate" title={lancamento?.chave_nfe}>{lancamento?.chave_nfe || '-'}</TableCell>;
+        return <TableCell className="font-mono text-[11px] text-slate-600 max-w-[120px] truncate" title={lancamento?.chave_nfe}>{lancamento?.chave_nfe || '-'}</TableCell>;
       case 'serie':
-        return <TableCell className="text-xs text-slate-600">{lancamento?.serie_documento || '-'}</TableCell>;
+        return <TableCell className="text-slate-600">{lancamento?.serie_documento || '-'}</TableCell>;
       case 'cfop':
-        return <TableCell className="text-xs font-mono text-slate-600">{lancamento?.cfop || '-'}</TableCell>;
+        return <TableCell className="font-mono text-slate-600">{lancamento?.cfop || '-'}</TableCell>;
       case 'valor_total':
-        return <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>;
       case 'valor_pago':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>;
       case 'saldo':
-        return <TableCell className="text-right font-mono text-xs font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>;
+        return <TableCell className="text-right font-mono font-semibold text-slate-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>;
       case 'status':
         return (
           <TableCell>
             <div className="flex flex-col gap-1">
-              <Badge variant="outline" className={`${getBadgeStyle(lancamento?.status)} text-xs`}>
+              <Badge variant="outline" className={getBadgeStyle(lancamento?.status)}>
                 {lancamento?.status}
               </Badge>
               {lancamento?.parcelas && lancamento.parcelas.length > 0 && (
                 <Badge 
                   variant="outline" 
-                  className="bg-violet-50 text-violet-700 border-violet-300 text-[10px] cursor-pointer hover:bg-violet-100" 
+                  className="bg-slate-100 text-slate-700 text-[10px] cursor-pointer hover:bg-slate-200" 
                   onClick={() => abrirParcelas(lancamento)}
                 >
                   <Calendar className="w-2.5 h-2.5 mr-0.5" />
@@ -450,79 +450,79 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           </TableCell>
         );
       case 'safra':
-        return <TableCell className="text-xs text-slate-600">{lancamento?.safra_nome || '-'}</TableCell>;
+        return <TableCell className="text-slate-600">{lancamento?.safra_nome || '-'}</TableCell>;
       case 'centro_custo':
-        return <TableCell className="text-xs text-slate-600 max-w-xs truncate">{lancamento?.centro_custo_nome || '-'}</TableCell>;
+        return <TableCell className="text-slate-600 max-w-xs truncate">{lancamento?.centro_custo_nome || '-'}</TableCell>;
       case 'plano_contas':
-        return <TableCell className="text-xs max-w-xs truncate text-slate-600">{lancamento?.plano_contas_nome || '-'}</TableCell>;
+        return <TableCell className="max-w-xs truncate text-slate-600">{lancamento?.plano_contas_nome || '-'}</TableCell>;
       case 'grupo':
-        return <TableCell className="text-xs text-slate-600">{lancamento?.grupo_nome || '-'}</TableCell>;
+        return <TableCell className="text-slate-600">{lancamento?.grupo_nome || '-'}</TableCell>;
       case 'forma_pagamento':
-        return <TableCell className="text-xs text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</TableCell>;
+        return <TableCell className="text-slate-600">{lancamento?.forma_pagamento_nome || '-'}</TableCell>;
       case 'valor_produtos':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_produtos || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_produtos || 0)}</TableCell>;
       case 'valor_frete':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_frete || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_frete || 0)}</TableCell>;
       case 'valor_seguro':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_seguro || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_seguro || 0)}</TableCell>;
       case 'outras_despesas':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_outras_despesas || 0)}</TableCell>;
       case 'valor_desconto':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_desconto_total || 0)}</TableCell>;
       case 'valor_ipi':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_ipi || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_ipi || 0)}</TableCell>;
       case 'valor_icms':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_icms || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_icms || 0)}</TableCell>;
       case 'valor_pis':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_pis || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_pis || 0)}</TableCell>;
       case 'valor_cofins':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.valor_cofins || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.valor_cofins || 0)}</TableCell>;
       case 'base_icms':
-        return <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</TableCell>;
+        return <TableCell className="text-right font-mono text-slate-600">{formatarMoeda(lancamento?.base_calculo_icms || 0)}</TableCell>;
       default:
-        return <TableCell className="text-xs">-</TableCell>;
+        return <TableCell>-</TableCell>;
     }
   };
 
   return (
     <>
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-2">
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-3 px-4">
           <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-sm font-semibold text-slate-900">
+            <CardTitle className="text-base font-semibold text-slate-800">
               Contas a {tipo} ({lancamentos.length})
             </CardTitle>
             <div className="flex gap-2 items-center">
               {selecionados.length > 0 && (
-                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
-                  <span className="text-xs font-semibold text-emerald-800">
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-3 py-1.5">
+                  <span className="text-sm font-semibold text-slate-800">
                     {selecionados.length} selecionado(s)
                   </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
-                        <MoreVertical className="w-4 h-4 text-emerald-700" />
+                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                        <MoreVertical className="w-4 h-4 text-slate-700" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuLabel>Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
-                        <Edit2 className="w-3.5 h-3.5 mr-2" />
+                      <DropdownMenuItem onClick={handleEditarEmLote}>
+                        <Edit2 className="w-4 h-4 mr-2" />
                         Editar Lote
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
-                        <Download className="w-3.5 h-3.5 mr-2" />
+                      <DropdownMenuItem onClick={handleExportarSelecionados}>
+                        <Download className="w-4 h-4 mr-2" />
                         Exportar
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
-                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-red-600">
+                        <Trash2 className="w-4 h-4 mr-2" />
                         Excluir
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
-                        <X className="w-3.5 h-3.5 mr-2" />
+                      <DropdownMenuItem onClick={() => setSelecionados([])}>
+                        <X className="w-4 h-4 mr-2" />
                         Limpar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -531,11 +531,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               )}
               
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-9 w-56" />
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                <Settings className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-4 h-4" />
                 Colunas
               </Button>
             </div>
@@ -547,19 +547,19 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs">
+                  <TableHead className="w-10">
                     <Checkbox 
                       checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8"></TableHead>
+                  <TableHead className="text-center w-10">Ações</TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        className={isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}
                         onClick={() => isSortable && handleSort(coluna.id)}
                       >
                         <div className="flex items-center">
@@ -575,11 +575,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <AnimatePresence>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400">Carregando...</TableCell>
                     </TableRow>
                   ) : lancamentosOrdenados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum lançamento</TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400">Nenhum lançamento</TableCell>
                     </TableRow>
                   ) : (
                     lancamentosOrdenados.map((lancamento) => {
@@ -592,7 +592,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           initial={{ opacity: 0 }} 
                           animate={{ opacity: 1 }} 
                           exit={{ opacity: 0 }} 
-                          className="hover:bg-slate-50 transition-colors border-b"
+                          className="hover:bg-slate-50 transition-colors border-b border-slate-100"
                         >
                           <TableCell>
                             <Checkbox
@@ -603,47 +603,47 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="w-4 h-4 text-slate-600" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="start">
-                                <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
-                                  <Eye className="w-3.5 h-3.5 mr-2" />
+                                <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)}>
+                                  <Eye className="w-4 h-4 mr-2" />
                                   Ver Detalhes
                                 </DropdownMenuItem>
                                 {temProdutos && (
-                                  <DropdownMenuItem onClick={() => abrirProdutos(lancamento)} className="text-xs">
-                                    <Package className="w-3.5 h-3.5 mr-2" />
+                                  <DropdownMenuItem onClick={() => abrirProdutos(lancamento)}>
+                                    <Package className="w-4 h-4 mr-2" />
                                     Ver Produtos ({lancamento.produtos_lancamento.length})
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onClick={() => onEdit(lancamento)} className="text-xs">
-                                  <Edit className="w-3.5 h-3.5 mr-2" />
+                                <DropdownMenuItem onClick={() => onEdit(lancamento)}>
+                                  <Edit className="w-4 h-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
                                 {lancamento.parcelas && lancamento.parcelas.length > 0 && (
-                                  <DropdownMenuItem onClick={() => abrirParcelas(lancamento)} className="text-xs">
-                                    <Calendar className="w-3.5 h-3.5 mr-2" />
+                                  <DropdownMenuItem onClick={() => abrirParcelas(lancamento)}>
+                                    <Calendar className="w-4 h-4 mr-2" />
                                     Ver Parcelas ({lancamento.parcelas.length})
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
                                 {lancamento?.status !== 'Pago' && lancamento?.status !== 'Cancelado' && (
-                                  <DropdownMenuItem onClick={() => onBaixa(lancamento)} className="text-xs">
-                                    <CheckCircle className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                                  <DropdownMenuItem onClick={() => onBaixa(lancamento)}>
+                                    <CheckCircle className="w-4 h-4 mr-2 text-slate-600" />
                                     Dar Baixa
                                   </DropdownMenuItem>
                                 )}
                                 {lancamento?.status === 'Pago' && onCancelarBaixa && (
-                                  <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)} className="text-xs">
-                                    <XCircle className="w-3.5 h-3.5 mr-2 text-orange-600" />
+                                  <DropdownMenuItem onClick={() => onCancelarBaixa(lancamento)}>
+                                    <XCircle className="w-4 h-4 mr-2 text-slate-600" />
                                     Cancelar Baixa
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-xs text-red-600">
-                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                <DropdownMenuItem onClick={() => onDelete(lancamento.id)} className="text-red-600">
+                                  <Trash2 className="w-4 h-4 mr-2" />
                                   Excluir
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
