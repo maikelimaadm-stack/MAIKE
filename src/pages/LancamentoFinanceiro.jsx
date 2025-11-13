@@ -448,54 +448,46 @@ export default function LancamentoFinanceiro() {
   const lancamentosReceber = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Receber'), [lancamentos]);
 
   return (
-    <div className="p-4 bg-slate-50 min-h-screen">
-      <div className="mb-3">
-        <h1 className="text-xl font-bold text-slate-800">Lançamento Financeiro</h1>
-        <p className="text-xs text-slate-600">Gestão de contas a pagar e receber</p>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
+          <p className="text-xs text-slate-600">Gestão de contas a pagar e receber</p>
+        </div>
       </div>
 
-      <Card className="border border-slate-300">
+      <Card className="shadow-sm border-slate-200">
         <CardContent className="p-0">
           <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
-            <TabsList className="w-full justify-start rounded-none border-b bg-slate-100 h-10">
-              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
-                Cadastrar
-              </TabsTrigger>
-              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
+            <TabsList className="w-full justify-start rounded-none border-b bg-slate-50 h-9">
+              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
                 Pesquisar
               </TabsTrigger>
-              <TabsTrigger value="importar" className="data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-b-0 rounded-t">
-                Importar de XML
+              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
+                Cadastrar
+              </TabsTrigger>
+              <TabsTrigger value="importar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
+                Importar XML
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="cadastrar" className="p-4 m-0">
-              <FormularioCompraFinanceiro
-                onSubmit={handleSubmit}
-                onCancel={handleCancelarCadastro}
-                initialData={editingLancamento || dadosXML}
-                fornecedores={fornecedores}
-                produtos={produtos}
-              />
-            </TabsContent>
 
             <TabsContent value="pesquisar" className="p-4 m-0">
               <div className="space-y-3">
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={handleNovoCadastro}>
+                  <Button variant="outline" size="sm" onClick={handleNovoCadastro} className="h-8 text-xs">
                     Novo Lançamento
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setShowImportXML(true)}>
+                  <Button variant="outline" size="sm" onClick={() => setShowImportXML(true)} className="h-8 text-xs">
                     Importar XML
                   </Button>
                 </div>
 
                 <Tabs value={tipoAtivo} onValueChange={setTipoAtivo}>
-                  <TabsList className="w-full justify-start border-b bg-slate-50 h-9 rounded-none">
-                    <TabsTrigger value="pagar" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                  <TabsList className="w-full justify-start border-b bg-slate-50 h-8 rounded-none">
+                    <TabsTrigger value="pagar" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
                       Contas a Pagar ({lancamentosPagar.length})
                     </TabsTrigger>
-                    <TabsTrigger value="receber" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none">
+                    <TabsTrigger value="receber" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
                       Contas a Receber ({lancamentosReceber.length})
                     </TabsTrigger>
                   </TabsList>
@@ -531,11 +523,21 @@ export default function LancamentoFinanceiro() {
               </div>
             </TabsContent>
 
+            <TabsContent value="cadastrar" className="p-4 m-0">
+              <FormularioCompraFinanceiro
+                onSubmit={handleSubmit}
+                onCancel={handleCancelarCadastro}
+                initialData={editingLancamento || dadosXML}
+                fornecedores={fornecedores}
+                produtos={produtos}
+              />
+            </TabsContent>
+
             <TabsContent value="importar" className="p-4 m-0">
               <div className="text-center py-8">
-                <p className="text-sm text-slate-600 mb-4">Importar dados de XML (NF-e)</p>
-                <Button onClick={() => setShowImportXML(true)}>
-                  Selecionar Arquivo XML
+                <p className="text-xs text-slate-600 mb-3">Importar NF-e de arquivo XML</p>
+                <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 text-xs">
+                  Selecionar Arquivo
                 </Button>
               </div>
             </TabsContent>
@@ -543,14 +545,16 @@ export default function LancamentoFinanceiro() {
         </CardContent>
       </Card>
 
-      <BaixaFinanceira
-        lancamento={baixaLancamento}
-        onClose={() => setBaixaLancamento(null)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-          setBaixaLancamento(null);
-        }}
-      />
+      {baixaLancamento && (
+        <BaixaFinanceira
+          lancamento={baixaLancamento}
+          onClose={() => setBaixaLancamento(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+            setBaixaLancamento(null);
+          }}
+        />
+      )}
 
       <ImportarNFeFinanceiro
         open={showImportXML}
@@ -563,11 +567,11 @@ export default function LancamentoFinanceiro() {
       <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">Salvando Lançamento</DialogTitle>
+            <DialogTitle className="text-sm">Salvando...</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-slate-600">{progressoSalvamento.etapa}</p>
-            <Progress value={progressoSalvamento.current} className="w-full" />
+          <div className="space-y-2">
+            <p className="text-xs text-slate-600">{progressoSalvamento.etapa}</p>
+            <Progress value={progressoSalvamento.current} className="w-full h-1.5" />
           </div>
         </DialogContent>
       </Dialog>

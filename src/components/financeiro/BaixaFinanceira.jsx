@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -360,32 +361,21 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            Baixas do Lançamento
+      <Card className="shadow-sm border-slate-200 bg-white">
+        <CardHeader className="bg-slate-50 border-b border-slate-200">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            Baixas do Lançamento #{lancamento.numero_lancamento}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <Alert>
+        <CardContent className="p-4 space-y-4">
+          <Alert className="border-slate-300">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div>
-                  <strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento || 0))}
-                </div>
-                <div>
-                  <strong>Tipo:</strong> {lancamento.tipo}
-                </div>
-                <div>
-                  <strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total || 0)}
-                </div>
-                <div>
-                  <strong>Vlr. Saldo:</strong> <span className="text-red-700 font-bold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div><strong>Nº:</strong> {formatarNumero(parseInt(lancamento.numero_lancamento || 0))}</div>
+                <div><strong>Tipo:</strong> {lancamento.tipo}</div>
+                <div><strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total || 0)}</div>
+                <div><strong>Vlr. Saldo:</strong> <span className="font-semibold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span></div>
               </div>
             </AlertDescription>
           </Alert>
@@ -432,11 +422,11 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
           )}
 
           {editandoBaixa && (
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-slate-50 border-slate-300">
               <CardHeader className="py-2 px-3">
-                <CardTitle className="text-sm">Editar Baixa</CardTitle>
+                <CardTitle className="text-xs font-semibold">Editar Baixa</CardTitle>
               </CardHeader>
-              <CardContent className="p-3 space-y-3">
+              <CardContent className="p-3 space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Data da Baixa *</Label>
@@ -527,30 +517,28 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                   )}
                 </div>
 
-                <Card className="bg-white border-blue-300">
+                <Card className="bg-white border-slate-300">
                   <CardContent className="p-2">
-                    <div className="text-sm">
-                      <span className="text-slate-700">Total a Pagar:</span>
-                      <span className="ml-2 font-bold text-blue-700">{formatarMoeda(totalBaixaEdit)}</span>
+                    <div className="text-xs">
+                      <span>Total:</span>
+                      <span className="ml-2 font-semibold">{formatarMoeda(totalBaixaEdit)}</span>
                     </div>
                   </CardContent>
                 </Card>
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setEditandoBaixa(null)} className="h-8 text-xs">
-                    <X className="w-3 h-3 mr-1" />
+                  <Button type="button" variant="outline" onClick={() => setEditandoBaixa(null)} className="h-7 text-xs">
                     Cancelar
                   </Button>
-                  <Button onClick={handleSalvarEdicao} className="bg-blue-600 hover:bg-blue-700 h-8 text-xs" disabled={updateBaixaMutation.isPending}>
-                    <Save className="w-3 h-3 mr-1" />
-                    Salvar Edição
+                  <Button onClick={handleSalvarEdicao} className="bg-slate-700 hover:bg-slate-800 h-7 text-xs" disabled={updateBaixaMutation.isPending}>
+                    Salvar
                   </Button>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Data da Baixa *</Label>
@@ -641,40 +629,38 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
               )}
             </div>
 
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
+            <Card className="bg-slate-50 border-slate-300">
+              <CardContent className="p-3">
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
                     <span>Valor da Baixa:</span>
                     <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_baixa))}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span>+ Juros:</span>
                     <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_juros))}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span>+ Multa:</span>
                     <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_multa))}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-red-600">
+                  <div className="flex justify-between text-red-600">
                     <span>- Desconto:</span>
                     <span className="font-mono">{formatarMoeda(parseMoeda(formData.valor_desconto))}</span>
                   </div>
-                  <div className="border-t-2 border-green-400 pt-2 flex justify-between text-lg font-bold text-green-700">
-                    <span>TOTAL A PAGAR:</span>
+                  <div className="border-t pt-1 flex justify-between font-semibold">
+                    <span>TOTAL:</span>
                     <span>{formatarMoeda(totalBaixa)}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="gap-2">
-                <X className="w-4 h-4" />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={onClose} className="h-8 text-xs">
                 Fechar
               </Button>
-              <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg" disabled={baixaMutation.isPending}>
-                <Save className="w-4 h-4" />
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={baixaMutation.isPending}>
                 Confirmar Baixa
               </Button>
             </div>

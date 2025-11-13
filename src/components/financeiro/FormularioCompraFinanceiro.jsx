@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingCart, Save, X, Plus, Trash2, ChevronRight, ChevronLeft, FileText, Paperclip, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, FileText, Paperclip, Eye, EyeOff } from "lucide-react"; // Removed ShoppingCart, Save, X, ChevronRight, ChevronLeft
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
@@ -116,7 +116,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
     if (!initialData) return defaults;
 
-    // Se tem dados da NF-e, mostrar os campos
     const temDadosNFeInicial = initialData.valor_produtos || initialData.valor_frete || initialData.valor_seguro || initialData.valor_outras_despesas || initialData.valor_desconto_total || initialData.valor_ipi || initialData.valor_icms || initialData.valor_pis || initialData.valor_cofins || initialData.base_calculo_icms || initialData.observacoes_nfe;
     if (temDadosNFeInicial) {
       setTimeout(() => setMostrarCamposNFe(true), 100);
@@ -135,7 +134,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_desconto: initialData.valor_desconto ? formatarNumero(initialData.valor_desconto) : defaults.valor_desconto,
       frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : (initialData.frete ? formatarNumero(initialData.frete) : defaults.frete),
       outras_despesas: initialData.valor_outras_despesas ? formatarNumero(initialData.valor_outras_despesas) : (initialData.outras_despesas ? formatarNumero(initialData.outras_despesas) : defaults.outras_despesas),
-      valor_pago_total: initialData.valor_pago_total ? formatarNumero(initialData.valor_pago_total) : "", // Kept formatarNumero for parsing
+      valor_pago_total: initialData.valor_pago_total ? formatarNumero(initialData.valor_pago_total) : "",
       valor_produtos: initialData.valor_produtos ? formatarNumero(initialData.valor_produtos) : "",
       valor_frete: initialData.valor_frete ? formatarNumero(initialData.valor_frete) : "",
       valor_seguro: initialData.valor_seguro ? formatarNumero(initialData.valor_seguro) : "",
@@ -154,7 +153,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       })) || [],
       parcelas: initialData.parcelas?.map(p => ({
         data: p.data,
-        valor: formatarNumero(p.valor || 0) // Kept formatarNumero for parsing
+        valor: formatarNumero(p.valor || 0)
       })) || [],
       anexos: initialData.anexos || [],
       observacoes_nfe: initialData.observacoes_nfe || ""
@@ -243,7 +242,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         ]
       }));
     }
-  }, [formData.parcelar, formData.data_vencimento]); // Added data_vencimento as dependency
+  }, [formData.parcelar, formData.data_vencimento]);
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
@@ -452,7 +451,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.parcelar && !formData.conta_paga && !formData.data_vencimento) { // Updated condition
+    if (!formData.parcelar && !formData.conta_paga && !formData.data_vencimento) {
       toast.error('❌ Preencha a data de vencimento!');
       return;
     }
@@ -482,7 +481,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
     }
 
-    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) { // Changed < 2 to < 1
+    if (!formData.conta_paga && formData.parcelar && formData.parcelas.length < 1) {
       toast.error('❌ Adicione pelo menos 1 parcela!');
       return;
     }
@@ -521,8 +520,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       plano_contas_nome: plano ? `${plano.codigo} - ${plano.descricao}` : undefined,
       grupo_id: formData.grupo_id,
       grupo_nome: grupo?.descricao,
-      forma_pagamento_id: formData.forma_pagamento_id || undefined, // This field is no longer set in the UI directly, but exists in state/initialData
-      forma_pagamento_nome: formData.forma_pagamento_id || undefined, // Same as above
+      forma_pagamento_id: formData.forma_pagamento_id || undefined,
+      forma_pagamento_nome: formData.forma_pagamento_id || undefined,
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
       chave_nfe: formData.tipo_documento === 'NF-e' ? formData.chave_nfe : undefined,
       serie_documento: ['NF-e', 'NFC-e'].includes(formData.tipo_documento) ? formData.serie_documento : undefined,
@@ -543,25 +542,25 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       forma_pagamento_paga_nome: formData.conta_paga ? formData.forma_pagamento_paga_id : undefined,
       produtos_selecionados: formData.lancar_produtos ? formData.produtos_selecionados.map(p => {
         const qtd = parseNumero(p.quantidade);
-        const totalGross = parseNumero(p.valor_total); // This is the gross total from the input
+        const totalGross = parseNumero(p.valor_total);
         const desconto = parseNumero(p.desconto_item || "0");
-        const valorLiquido = totalGross - desconto; // This is the net value per item
-        const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0; // Calculated unit price based on net total
+        const valorLiquido = totalGross - desconto;
+        const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0;
 
         return {
           produto_id: p.produto_id,
           produto_nome: p.produto_nome,
           quantidade: qtd,
           unidade: p.unidade,
-          valor_unitario: valorUnitario, // Sending the calculated net unit value
+          valor_unitario: valorUnitario,
           desconto_item: desconto,
-          valor_total: totalGross // Added this line
+          valor_total: totalGross
         };
       }) : [],
       valor_original: formData.lancar_produtos ? undefined : parseNumero(formData.valor_original),
       valor_juros: formData.lancar_produtos ? undefined : parseNumero(formData.valor_juros),
       valor_multa: formData.lancar_produtos ? undefined : parseNumero(formData.valor_multa),
-      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto), // Used when lancar_produtos is false
+      valor_desconto: formData.lancar_produtos ? undefined : parseNumero(formData.valor_desconto),
       valor_produtos: formData.valor_produtos ? parseNumero(formData.valor_produtos) : undefined,
       frete: formData.lancar_produtos ? parseNumero(formData.frete) : 0,
       valor_frete: formData.valor_frete ? parseNumero(formData.valor_frete) : parseNumero(formData.frete),
@@ -609,27 +608,20 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200 py-3">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-9 h-9 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <div className="text-base">Novo Lançamento</div>
-                <div className="text-xs font-normal text-slate-600">Etapa {etapa} de 2</div>
-              </div>
+        <Card className="shadow-sm border-slate-200 bg-white">
+          <CardHeader className="bg-slate-50 border-b border-slate-200">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Novo Lançamento - Etapa {etapa} de 2
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* ETAPA 1 */}
+          <CardContent className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {etapa === 1 && (
                 <>
                   {/* CARD: DADOS BÁSICOS */}
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">Dados Básicos</CardTitle>
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold">Dados Básicos</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -754,29 +746,25 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </CardContent>
                   </Card>
 
-                  {/* CARD: TIPO DE LANÇAMENTO */}
-                  <Card className="bg-slate-50 border-slate-200">
-                    <CardContent className="p-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          checked={formData.lancar_produtos} 
-                          onCheckedChange={(v) => handleChange('lancar_produtos', v)} 
-                          id="lancar_produtos" 
-                        />
-                        <label htmlFor="lancar_produtos" className="font-semibold cursor-pointer text-sm">
-                          Lançar Produtos no Estoque
-                        </label>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* CHECKBOX: LANCAR PRODUTOS */}
+                  <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded border">
+                    <Checkbox 
+                      checked={formData.lancar_produtos} 
+                      onCheckedChange={(v) => handleChange('lancar_produtos', v)} 
+                      id="lancar_produtos" 
+                    />
+                    <label htmlFor="lancar_produtos" className="font-medium cursor-pointer text-xs">
+                      Lançar Produtos no Estoque
+                    </label>
+                  </div>
 
                   {/* CARD: PRODUTOS */}
                   {formData.lancar_produtos && (
-                    <Card className="bg-green-50 border-green-200">
-                      <CardHeader className="py-2 px-3">
+                    <Card className="shadow-sm border-slate-200">
+                      <CardHeader className="pb-2">
                         <div className="flex justify-between items-center">
-                          <CardTitle className="text-sm">Produtos</CardTitle>
-                          <Button type="button" size="sm" onClick={handleAdicionarProduto} className="h-7 gap-1 text-xs">
+                          <CardTitle className="text-xs font-semibold">Produtos</CardTitle>
+                          <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-7 gap-1 text-xs">
                             <Plus className="w-3 h-3" />
                             Adicionar
                           </Button>
@@ -871,14 +859,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         )}
 
-                        <div className="space-y-2 p-2 bg-amber-50 rounded border border-amber-200">
+                        <div className="space-y-2 p-2 bg-slate-50 rounded border">
                           <div className="flex items-center space-x-2">
                             <Checkbox 
                               checked={formData.dar_entrada_estoque} 
                               onCheckedChange={(v) => handleChange('dar_entrada_estoque', v)} 
                               id="dar_entrada_estoque" 
                             />
-                            <label htmlFor="dar_entrada_estoque" className="font-semibold cursor-pointer text-xs">
+                            <label htmlFor="dar_entrada_estoque" className="font-medium cursor-pointer text-xs">
                               Dar entrada no estoque?
                             </label>
                           </div>
@@ -912,33 +900,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         </div>
 
-                        <Card className="bg-white border-emerald-200">
-                          <CardContent className="p-3">
-                            <div className="space-y-1.5 text-xs">
-                              <div className="font-semibold text-slate-700 mb-2">💰 RESUMO FINANCEIRO</div>
+                        <Card className="bg-slate-50 border-slate-300">
+                          <CardContent className="p-2">
+                            <div className="space-y-1 text-xs">
+                              <div className="font-semibold text-slate-700 mb-1">Resumo</div>
                               <div className="flex justify-between text-slate-600">
-                                <span>Subtotal Produtos (bruto):</span>
-                                <span className="font-mono">{formatarMoeda(subtotalBruto)}</span>
-                              </div>
-                              <div className="flex justify-between text-red-600">
-                                <span>(-) Descontos nos Produtos:</span>
-                                <span className="font-mono">{formatarMoeda(totalDescontos)}</span>
-                              </div>
-                              <div className="flex justify-between text-blue-700 font-semibold border-t pt-1">
-                                <span>= Subtotal Produtos (líquido):</span>
+                                <span>Subtotal Produtos:</span>
                                 <span className="font-mono">{formatarMoeda(totalProdutos)}</span>
                               </div>
-                              <div className="flex justify-between text-amber-700">
-                                <span>(+) Frete:</span>
-                                <span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span>
+                              <div className="flex justify-between text-slate-600">
+                                <span>Frete + Despesas:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.frete) + parseNumero(formData.outras_despesas))}</span>
                               </div>
-                              <div className="flex justify-between text-amber-700">
-                                <span>(+) Outras Despesas:</span>
-                                <span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
-                              </div>
-                              <div className="pt-2 border-t-2 border-emerald-300 flex justify-between">
-                                <span className="text-sm font-bold">= VALOR TOTAL A PAGAR:</span>
-                                <span className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</span>
+                              <div className="pt-1 border-t flex justify-between">
+                                <span className="font-semibold">TOTAL:</span>
+                                <span className="font-semibold">{formatarMoeda(valorTotal)}</span>
                               </div>
                             </div>
                           </CardContent>
@@ -949,9 +925,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                   {/* CARD: VALORES MANUAIS */}
                   {!formData.lancar_produtos && (
-                    <Card className="bg-amber-50 border-amber-200">
-                      <CardHeader className="py-2 px-3">
-                        <CardTitle className="text-sm">Valores</CardTitle>
+                    <Card className="shadow-sm border-slate-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-semibold">Valores</CardTitle>
                       </CardHeader>
                       <CardContent className="p-3 space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -973,95 +949,105 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </div>
                         </div>
 
-                        <Card className="bg-white border-emerald-200">
+                        <Card className="bg-slate-50 border-slate-300">
                           <CardContent className="p-2">
-                            <div className="text-xs text-slate-600">Valor Total:</div>
-                            <div className="text-lg font-bold text-emerald-700">{formatarMoeda(valorTotal)}</div>
+                            <div className="text-xs">Valor Total:</div>
+                            <div className="text-base font-semibold">{formatarMoeda(valorTotal)}</div>
                           </CardContent>
                         </Card>
                       </CardContent>
                     </Card>
                   )}
 
-                  {/* CARD: VALORES DETALHADOS DA NF-E - SEMPRE VISÍVEL */}
-                  <Card className="bg-purple-50 border-purple-200">
-                    <CardHeader className="py-2 px-3">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-purple-600" />
-                          Valores Detalhados da NF-e (Informativo)
-                        </CardTitle>
-                        <Button 
-                          type="button"
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setMostrarCamposNFe(!mostrarCamposNFe)} 
-                          className="h-7 gap-1 text-xs"
-                        >
-                          {mostrarCamposNFe ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          {mostrarCamposNFe ? 'Ocultar' : 'Mostrar'}
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    {mostrarCamposNFe && (
+                  {/* CARD: VALORES DETALHADOS DA NF-E */}
+                  {mostrarCamposNFe && (
+                    <Card className="shadow-sm border-slate-200">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-xs font-semibold">Detalhes NF-e (Informativo)</CardTitle>
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setMostrarCamposNFe(false)} 
+                            className="h-6 text-xs"
+                          >
+                            <EyeOff className="w-3 h-3 mr-1" />
+                            Ocultar
+                          </Button>
+                        </div>
+                      </CardHeader>
                       <CardContent className="p-3 space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           <div className="space-y-1.5">
-                            <Label className="text-xs">📦 Vlr. Produtos</Label>
+                            <Label className="text-xs">Vlr. Produtos</Label>
                             <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">🚚 Vlr. Frete</Label>
+                            <Label className="text-xs">Vlr. Frete</Label>
                             <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">🛡️ Vlr. Seguro</Label>
+                            <Label className="text-xs">Vlr. Seguro</Label>
                             <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">💼 Outras Despesas</Label>
+                            <Label className="text-xs">Outras Despesas</Label>
                             <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">💸 Desconto Total</Label>
+                            <Label className="text-xs">Desconto Total</Label>
                             <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">📋 Vlr. IPI</Label>
+                            <Label className="text-xs">Vlr. IPI</Label>
                             <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">💵 Vlr. ICMS</Label>
+                            <Label className="text-xs">Vlr. ICMS</Label>
                             <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">📊 Vlr. PIS</Label>
+                            <Label className="text-xs">Vlr. PIS</Label>
                             <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">📈 Vlr. COFINS</Label>
+                            <Label className="text-xs">Vlr. COFINS</Label>
                             <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">🧮 Base Cálc. ICMS</Label>
+                            <Label className="text-xs">Base Cálc. ICMS</Label>
                             <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-9 text-xs bg-white" />
                           </div>
                         </div>
                         
-                        <div className="space-y-1.5 pt-2 border-t border-purple-300">
-                          <Label className="text-xs font-semibold">📄 Observações Completas da NF-e</Label>
+                        <div className="space-y-1.5 pt-2 border-t border-slate-300">
+                          <Label className="text-xs font-semibold">Observações Completas da NF-e</Label>
                           <Textarea 
                             value={formData.observacoes_nfe || ''} 
                             onChange={(e) => handleChange('observacoes_nfe', e.target.value)} 
-                            className="text-xs min-h-32 bg-white" 
+                            className="text-xs bg-white" 
                             placeholder="Observações extraídas da NF-e..."
                             rows={6} 
                           />
-                          <p className="text-xs text-purple-700 font-medium">✅ Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
+                          <p className="text-xs text-slate-500 font-medium">Informações extraídas da nota: vendedor, contatos, instruções, etc</p>
                         </div>
                       </CardContent>
-                    )}
-                  </Card>
+                    </Card>
+                  )}
+
+                  {!mostrarCamposNFe && (
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setMostrarCamposNFe(true)} 
+                      className="h-8 text-xs w-full"
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      Mostrar Detalhes NF-e
+                    </Button>
+                  )}
 
                   {/* CARD: ANEXOS */}
                   <Card className="bg-slate-50 border-slate-200">
@@ -1085,7 +1071,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           {formData.anexos.map((anexo, index) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
                               <div className="flex items-center gap-2">
-                                <FileText className="w-3 h-3 text-slate-400" />
                                 <span className="font-medium">{anexo.nome}</span>
                                 <span className="text-slate-500">({(anexo.tamanho / 1024).toFixed(0)} KB)</span>
                               </div>
@@ -1105,14 +1090,12 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     </CardContent>
                   </Card>
 
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-9 text-xs">
-                      <X className="w-3 h-3" />
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg h-9 text-xs">
+                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
                       Próximo
-                      <ChevronRight className="w-3 h-3" />
                     </Button>
                   </div>
                 </>
@@ -1122,9 +1105,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               {etapa === 2 && (
                 <>
                   {/* CARD: CLASSIFICAÇÃO */}
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">Classificação Financeira</CardTitle>
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold">Classificação Financeira</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1173,9 +1156,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   </Card>
 
                   {/* CARD: PAGAMENTO - ORDEM PADRONIZADA COM CAMPOS OCULTOS */}
-                  <Card className="bg-green-50 border-green-200">
-                    <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold">Condições de Pagamento</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       {/* CHECKBOXES PRIMEIRO */}
@@ -1217,7 +1200,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                       {/* PARCELAMENTO - SÓ SE MARCAR */}
                       {formData.parcelar && (
-                        <Card className="bg-white border-amber-200 mt-3">
+                        <Card className="bg-white border-slate-200 mt-3">
                           <CardContent className="p-3 space-y-3">
                             <div className="space-y-1.5">
                               <Label className="text-xs">Forma de Pagamento</Label>
@@ -1270,7 +1253,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               </Table>
                             </div>
 
-                            <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+                            <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-slate-50 border-slate-300'}`}>
                               <CardContent className="p-2">
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                   <div className="flex justify-between">
@@ -1293,7 +1276,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                       {/* CONTA PAGA - SÓ SE MARCAR */}
                       {formData.conta_paga && (
-                        <Card className="bg-white border-green-300 mt-3">
+                        <Card className="bg-white border-slate-200 mt-3">
                           <CardContent className="p-3 space-y-3">
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
@@ -1323,32 +1306,28 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   </Card>
 
                   {/* CARD: OBSERVAÇÕES */}
-                  <Card className="bg-slate-50 border-slate-200">
-                    <CardHeader className="py-2 px-3">
-                      <CardTitle className="text-sm">Observações Personalizadas</CardTitle>
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold">Observações</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
-                      <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES ADICIONAIS..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={3} />
-                      <p className="text-xs text-slate-500 mt-1">Campo para suas anotações pessoais (não confundir com observações da NF-e)</p>
+                      <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs" style={{ textTransform: 'uppercase' }} rows={2} />
                     </CardContent>
                   </Card>
 
-                  <div className="flex justify-between gap-3 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="gap-2 h-9 text-xs">
-                      <ChevronLeft className="w-3 h-3" />
+                  <div className="flex justify-between gap-2 pt-3 border-t">
+                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-8 text-xs">
                       Voltar
                     </Button>
-                    <div className="flex gap-3">
-                      <Button type="button" variant="outline" onClick={onCancel} className="gap-2 h-9 text-xs">
-                        <X className="w-3 h-3" />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">
                         Cancelar
                       </Button>
                       <Button 
                         type="submit" 
-                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg h-9 text-xs"
+                        className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
                         disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                       >
-                        <Save className="w-3 h-3" />
                         Salvar
                       </Button>
                     </div>
