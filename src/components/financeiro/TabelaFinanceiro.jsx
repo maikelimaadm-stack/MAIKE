@@ -117,6 +117,12 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [selecionados, setSelecionados] = useState([]);
   const [parcelasDialog, setParcelasDialog] = useState(null);
   const [showEditarLote, setShowEditarLote] = useState(false);
+  const [showBaixaLote, setShowBaixaLote] = useState(false);
+  const [dadosBaixaLote, setDadosBaixaLote] = useState({
+    data_baixa: new Date().toISOString().split('T')[0],
+    forma_pagamento_id: "",
+    observacoes: ""
+  });
   const [edicaoLote, setEdicaoLote] = useState({
     safra_id: "",
     centro_custo_id: "",
@@ -183,10 +189,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   };
 
   const getSortIcon = (field) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3.5 h-3.5 ml-1 opacity-30" />;
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3.5 h-3.5 ml-1" />
-      : <ArrowDown className="w-3.5 h-3.5 ml-1" />;
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
   const handleSelecionarTodos = () => {
@@ -274,7 +280,38 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       toast.warning(`Apenas ${comSaldo.length} de ${selecionados.length} possuem saldo`);
     }
     
-    toast.info('Abrindo baixa em lote...');
+    setShowBaixaLote(true);
+  };
+
+  const handleConfirmarBaixaLote = async () => {
+    if (!dadosBaixaLote.forma_pagamento_id) {
+      toast.error('Selecione a forma de pagamento!');
+      return;
+    }
+
+    const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
+    const comSaldo = lancamentosSelecionados.filter(l => (l.valor_total || 0) - (l.valor_pago || 0) > 0.01);
+
+    if (window.confirm(`Confirma a baixa de ${comSaldo.length} lançamento(s)?`)) {
+      for (const lanc of comSaldo) {
+        try {
+          await onBaixa(lanc, {
+            data_baixa: dadosBaixaLote.data_baixa,
+            forma_pagamento_id: dadosBaixaLote.forma_pagamento_id,
+            observacoes: dadosBaixaLote.observacoes,
+            baixa_automatica_lote: true
+          });
+        } catch (error) {
+          console.error('Erro ao baixar lançamento em lote:', error);
+          toast.error(`Falha ao baixar lançamento ${lanc.numero_lancamento}.`);
+        }
+      }
+      
+      setShowBaixaLote(false);
+      setDadosBaixaLote({ data_baixa: new Date().toISOString().split('T')[0], forma_pagamento_id: "", observacoes: "" });
+      setSelecionados([]);
+      toast.success(`${comSaldo.length} baixa(s) registrada(s)!`);
+    }
   };
 
   const handleExcluirEmMassa = async () => {
@@ -323,7 +360,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         (l.valor_total || 0) - (l.valor_pago || 0),
         l.status || ''
       ];
-      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
+      csvRows.push(row.join(';'));
     });
 
     const csvString = csvRows.join('\n');
@@ -581,7 +618,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       </TableHead>
                     );
                   })}
-                  <TableHead className="text-xs text-center w-8"></TableHead> {/* This is the header for the actions dropdown */}
+                  <TableHead className="text-xs text-center w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -671,6 +708,73 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         </CardContent>
       </Card>
 
+      <Dialog open={showBaixaLote} onOpenChange={setShowBaixaLote}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              Baixar {selecionados.length} Lançamento(s)
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
+              <p className="text-xs text-emerald-800">
+                💡 Todos os lançamentos selecionados com saldo serão baixados integralmente na data e forma de pagamento informadas.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Data da Baixa *</Label>
+                <Input 
+                  type="date" 
+                  value={dadosBaixaLote.data_baixa} 
+                  onChange={(e) => setDadosBaixaLote({ ...dadosBaixaLote, data_baixa: e.target.value })} 
+                  className="h-8 text-xs" 
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Forma de Pagamento *</Label>
+                <Select value={dadosBaixaLote.forma_pagamento_id} onValueChange={(v) => setDadosBaixaLote({ ...dadosBaixaLote, forma_pagamento_id: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário', 'Transferência Bancária', 'Cheque', 'Outros'].map(forma => (
+                      <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Observações</Label>
+                <Textarea 
+                  value={dadosBaixaLote.observacoes} 
+                  onChange={(e) => setDadosBaixaLote({ ...dadosBaixaLote, observacoes: e.target.value })} 
+                  placeholder="OBSERVAÇÕES..." 
+                  className="text-xs uppercase" 
+                  style={{ textTransform: 'uppercase' }}
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowBaixaLote(false)} size="sm" className="h-7 text-xs">
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmarBaixaLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
+                Confirmar Baixas
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -695,7 +799,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     <SelectValue placeholder="Manter atual" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem> {/* Changed null to "" for consistency with Select components */}
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
                     {safras?.map(s => (
                       <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>
                     ))}
@@ -845,26 +949,18 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       <Dialog open={!!parcelasDialog} onOpenChange={(open) => !open && setParcelasDialog(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-sm">Parcelas do Lançamento</DialogTitle>
+            <DialogTitle className="text-sm">Parcelas - Lançamento #{parcelasDialog?.numero_lancamento}</DialogTitle>
           </DialogHeader>
           {parcelasDialog && (
             <div className="space-y-3">
-              <Card className="shadow-sm border-emerald-200 bg-emerald-50">
-                <CardContent className="p-3">
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-3 text-xs pb-2 border-b border-emerald-200">
-                      <div><strong>Lançamento Nº:</strong> {formatarNumero(parseInt(parcelasDialog.numero_lancamento || 0))}</div>
-                      <div><strong>Tipo Doc:</strong> {parcelasDialog.tipo_documento || '-'}</div>
-                      <div><strong>Fornecedor:</strong> {parcelasDialog.fornecedor_nome || parcelasDialog.cliente_nome || '-'}</div>
-                      <div><strong>Nº Doc:</strong> {parcelasDialog.numero_documento || '-'}</div>
-                      <div><strong>Emissão:</strong> {formatarData(parcelasDialog.data_emissao)}</div>
-                      <div><strong>Total Parcelas:</strong> {parcelasDialog.parcelas?.length || 0}x</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div>
-                      <div><strong>Pago:</strong> {formatarMoeda(parcelasDialog.valor_pago || 0)}</div>
-                      <div><strong>Saldo:</strong> <span className="font-semibold">{formatarMoeda((parcelasDialog.valor_total || 0) - (parcelasDialog.valor_pago || 0))}</span></div>
-                    </div>
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><strong>Fornecedor/Cliente:</strong> {parcelasDialog.fornecedor_nome || parcelasDialog.cliente_nome || '-'}</div>
+                    <div><strong>Documento:</strong> {parcelasDialog.numero_documento || '-'}</div>
+                    <div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div>
+                    <div><strong>Pago:</strong> {formatarMoeda(parcelasDialog.valor_pago || 0)}</div>
+                    <div className="col-span-2"><strong>Saldo:</strong> {formatarMoeda((parcelasDialog.valor_total || 0) - (parcelasDialog.valor_pago || 0))}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -873,37 +969,39 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="text-xs">Parcela</TableHead>
+                      <TableHead className="text-xs">Nº</TableHead>
+                      <TableHead className="text-xs">Lançamento</TableHead>
                       <TableHead className="text-xs">Vencimento</TableHead>
                       <TableHead className="text-xs text-right">Valor</TableHead>
+                      <TableHead className="text-xs text-right">Pago</TableHead>
+                      <TableHead className="text-xs text-right">Saldo</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs">Dias</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {parcelasDialog.parcelas?.map((parcela, index) => {
                       const valorParcela = parcela.valor || 0;
-                      // This logic might need refinement based on how actual payments are tracked per parcel
-                      // For now, assuming payment up to a certain total covers initial parcels
-                      const isPaga = (parcelasDialog.valor_pago || 0) >= valorParcela * (index + 1);
-                      const dias = calcularDias(parcela.data);
+                      const valorPago = parcela.valor_pago || 0;
+                      const saldo = valorParcela - valorPago;
+                      const isPaga = saldo <= 0.01;
                       
                       return (
                         <TableRow key={index}>
                           <TableCell className="font-semibold text-xs">{index + 1}/{parcelasDialog.parcelas.length}</TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col">
+                              <span className="font-semibold">#{parcela.numero_lancamento || '-'}</span>
+                              <span className="text-[10px] text-slate-500">{parcela.tipo_documento || '-'}</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs">{formatarData(parcela.data)}</TableCell>
                           <TableCell className="text-right font-mono text-xs">{formatarMoeda(valorParcela)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs text-slate-600">{formatarMoeda(valorPago)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(saldo)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`text-xs ${isPaga ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700 border-orange-300'}`}>
                               {isPaga ? 'Paga' : 'Pendente'}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {!isPaga && (
-                              <span className={`font-medium ${dias.includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
-                                {dias}
-                              </span>
-                            )}
                           </TableCell>
                         </TableRow>
                       );

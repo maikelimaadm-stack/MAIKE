@@ -63,22 +63,39 @@ const formatarDataHora = (dataString) => {
   }
 };
 
-export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
+export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosLote }) {
   if (!lancamento) return null;
   
   const saldoInicial = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
   
-  const [formData, setFormData] = useState({
-    data_baixa: new Date().toISOString().split('T')[0],
-    valor_baixa: formatarMoeda(saldoInicial),
-    valor_juros: "R$ 0,00",
-    valor_multa: "R$ 0,00",
-    valor_desconto: "R$ 0,00",
-    forma_pagamento_id: "",
-    numero_comprovante: "",
-    observacoes: "",
-    anexos: [],
-    proxima_previsao: "" // Added new field for partial payment prediction
+  const [formData, setFormData] = useState(() => {
+    if (dadosLote) {
+      return {
+        data_baixa: dadosLote.data_baixa || new Date().toISOString().split('T')[0],
+        valor_baixa: formatarMoeda(saldoInicial),
+        valor_juros: "R$ 0,00",
+        valor_multa: "R$ 0,00",
+        valor_desconto: "R$ 0,00",
+        forma_pagamento_id: dadosLote.forma_pagamento_id || "",
+        numero_comprovante: "",
+        observacoes: dadosLote.observacoes || "",
+        anexos: [],
+        proxima_previsao: ""
+      };
+    }
+    
+    return {
+      data_baixa: new Date().toISOString().split('T')[0],
+      valor_baixa: formatarMoeda(saldoInicial),
+      valor_juros: "R$ 0,00",
+      valor_multa: "R$ 0,00",
+      valor_desconto: "R$ 0,00",
+      forma_pagamento_id: "",
+      numero_comprovante: "",
+      observacoes: "",
+      anexos: [],
+      proxima_previsao: ""
+    };
   });
 
   const [editandoBaixa, setEditandoBaixa] = useState(null);
@@ -173,6 +190,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
         proxima_previsao: "" // Reset proxima_previsao
       });
       toast.success('Baixa registrada com sucesso!');
+      if (onSuccess) onSuccess(); // Call onSuccess prop if provided
     },
     onError: (error) => {
       toast.error(error.message || 'Erro ao registrar baixa.');
@@ -283,7 +301,11 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       return;
     }
 
-    if (window.confirm(`Confirma a baixa de ${formatarMoeda(valorBaixa)} para este lançamento?${eBaixaParcial ? `\n\nRestará um saldo de ${formatarMoeda(saldoAposBaixa)} e a data de vencimento do lançamento será atualizada para ${new Date(formData.proxima_previsao).toLocaleDateString('pt-BR')}.` : ''}`)) {
+    const confirmMsg = dadosLote?.baixa_automatica_lote 
+      ? `Confirma a baixa de ${formatarMoeda(valorBaixa)}?`
+      : `Confirma a baixa de ${formatarMoeda(valorBaixa)} para este lançamento?${eBaixaParcial ? `\n\nRestará um saldo de ${formatarMoeda(saldoAposBaixa)} e a data de vencimento do lançamento será atualizada para ${new Date(formData.proxima_previsao).toLocaleDateString('pt-BR')}.` : ''}`;
+
+    if (window.confirm(confirmMsg)) {
       baixaMutation.mutate(formData);
     }
   };

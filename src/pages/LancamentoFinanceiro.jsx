@@ -27,6 +27,7 @@ export default function LancamentoFinanceiro() {
   const [showForm, setShowForm] = useState(false); // New state to control FormularioCompraFinanceiro visibility
   const [editingLancamento, setEditingLancamento] = useState(null);
   const [baixaLancamento, setBaixaLancamento] = useState(null);
+  const [dadosBaixaLote, setDadosBaixaLote] = useState(null); // New state for batch baixa
   const [showXmlImport, setShowXmlImport] = useState(false); // Renamed from showImportXML
   const [dadosXML, setDadosXML] = useState(null);
   const [showSaveProgress, setShowSaveProgress] = useState(false); // Renamed from showProgressoSalvamento
@@ -459,8 +460,9 @@ export default function LancamentoFinanceiro() {
     setShowForm(true); // Show form for editing
   };
 
-  const handleBaixa = (lancamento) => {
+  const handleBaixa = (lancamento, dadosLote = null) => {
     setBaixaLancamento(lancamento);
+    setDadosBaixaLote(dadosLote);
   };
 
   const handleCancelarBaixa = (lancamento) => {
@@ -492,12 +494,10 @@ export default function LancamentoFinanceiro() {
       try {
         await base44.entities.LancamentoFinanceiro.update(id, dadosAtualizados);
       } catch (error) {
-        console.error('Erro ao atualizar lançamento em lote:', error);
-        toast.error(`Erro ao atualizar lançamento ${id}: ${error.message || 'Erro desconhecido'}`);
+        console.error('Erro ao atualizar:', error);
       }
     }
     queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
-    toast.success('Lançamentos atualizados em lote!');
   };
 
   const lancamentosPagar = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
@@ -538,7 +538,7 @@ export default function LancamentoFinanceiro() {
                 onDelete={handleDelete}
                 onBaixa={handleBaixa}
                 onCancelarBaixa={handleCancelarBaixa}
-                isLoading={loadingLancamentos}
+                isLoading={false}
                 fornecedores={fornecedores}
                 produtos={produtos}
                 safras={safras} // New prop
@@ -557,7 +557,7 @@ export default function LancamentoFinanceiro() {
                 onDelete={handleDelete}
                 onBaixa={handleBaixa}
                 onCancelarBaixa={handleCancelarBaixa}
-                isLoading={loadingLancamentos}
+                isLoading={false}
                 fornecedores={fornecedores}
                 produtos={produtos}
                 safras={safras} // New prop
@@ -589,10 +589,12 @@ export default function LancamentoFinanceiro() {
       {baixaLancamento && (
         <BaixaFinanceira
           lancamento={baixaLancamento}
-          onClose={() => setBaixaLancamento(null)}
+          dadosLote={dadosBaixaLote}
+          onClose={() => { setBaixaLancamento(null); setDadosBaixaLote(null); }}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
             setBaixaLancamento(null);
+            setDadosBaixaLote(null);
           }}
         />
       )}
