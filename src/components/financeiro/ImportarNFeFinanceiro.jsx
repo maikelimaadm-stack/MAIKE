@@ -38,17 +38,18 @@ const extrairDadosXML = (xmlText) => {
   const dataEmissao = getValor('dhEmi')?.split('T')[0] || getValor('dEmi');
   const cfop = getValor('CFOP');
 
-  const vProd = parseFloat(getValor('vProd')) || 0;
+  // VALORES TOTAIS DA NOTA (do totalizador ICMSTot)
+  const vProd = parseFloat(getValor('vProd')) || 0;  // Valor total dos produtos (bruto)
   const vFrete = parseFloat(getValor('vFrete')) || 0;
   const vSeg = parseFloat(getValor('vSeg')) || 0;
   const vOutro = parseFloat(getValor('vOutro')) || 0;
-  const vDesc = parseFloat(getValor('vDesc')) || 0;
+  const vDesc = parseFloat(getValor('vDesc')) || 0;  // Desconto TOTAL da nota
   const vIPI = parseFloat(getValor('vIPI')) || 0;
   const vICMS = parseFloat(getValor('vICMS')) || 0;
   const vPIS = parseFloat(getValor('vPIS')) || 0;
   const vCOFINS = parseFloat(getValor('vCOFINS')) || 0;
   const vBC = parseFloat(getValor('vBC')) || 0;
-  const valorTotal = parseFloat(getValor('vNF')) || 0;
+  const valorTotal = parseFloat(getValor('vNF')) || 0;  // Valor FINAL da NF-e
 
   const cnpjEmit = getValor('CNPJ');
   const cpfEmit = getValor('CPF');
@@ -106,7 +107,8 @@ const extrairDadosXML = (xmlText) => {
   if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') contaPaga = true;
 
   const itensNFe = [];
-  let descontoTotalItens = 0;
+  let somaProdutosItens = 0;
+  let somaDescontoItens = 0;
   
   const dets = xmlDoc.getElementsByTagName('det');
   for (let i = 0; i < dets.length; i++) {
@@ -118,7 +120,9 @@ const extrairDadosXML = (xmlText) => {
     
     const vDescItem = parseFloat(getTagDet('vDesc')) || 0;
     const vProdItem = parseFloat(getTagDet('vProd')) || 0;
-    descontoTotalItens += vDescItem;
+    
+    somaProdutosItens += vProdItem;
+    somaDescontoItens += vDescItem;
     
     itensNFe.push({
       codigo: getTagDet('cProd') || '',
@@ -135,9 +139,9 @@ const extrairDadosXML = (xmlText) => {
 
   if (itensNFe.length === 0) throw new Error('NF-e sem produtos');
 
-  // CORRIGIR O CÁLCULO DO VALOR TOTAL A PAGAR
-  const subtotalProdutos = itensNFe.reduce((sum, item) => sum + (item.valor_total - item.desconto_item), 0);
-  const valorTotalAPagar = subtotalProdutos + vFrete + vSeg + vOutro + vIPI;
+  // CÁLCULO FINAL CORRETO
+  // Fórmula NF-e: vNF = vProd - vDesc + vFrete + vSeg + vOutro + vIPI
+  const valorCalculado = vProd - vDesc + vFrete + vSeg + vOutro + vIPI;
 
   return {
     modelo, numero, serie, chave, data_emissao: dataEmissao,
@@ -145,19 +149,20 @@ const extrairDadosXML = (xmlText) => {
     inscricao_estadual_emitente: inscEstadual, telefone_emitente: telefone, email_emitente: email,
     endereco_emitente: enderecoCompleto, bairro_emitente: bairro, cidade_emitente: cidade,
     estado_emitente: estado, cep_emitente: cep, cfop,
-    valor_produtos: vProd, 
+    valor_produtos: vProd,  // Valor total produtos BRUTO do XML
     valor_frete: vFrete, 
     valor_seguro: vSeg,
     valor_outras_despesas: vOutro, 
-    valor_desconto_total: vDesc,
+    valor_desconto_total: vDesc,  // Desconto TOTAL da nota
     valor_ipi: vIPI, 
     valor_icms: vICMS, 
     valor_pis: vPIS, 
     valor_cofins: vCOFINS,
     base_calculo_icms: vBC, 
-    valor_total: valorTotal,
-    valor_total_a_pagar: valorTotalAPagar, // VALOR CORRETO PARA PAGAR
-    desconto_total_itens: descontoTotalItens, // DESCONTO SOMADO DOS ITENS
+    valor_total: valorTotal,  // vNF do XML
+    valor_calculado: valorCalculado,  // Valor calculado pela fórmula
+    soma_produtos_itens: somaProdutosItens,  // Soma dos vProd dos itens
+    soma_desconto_itens: somaDescontoItens,  // Soma dos vDesc dos itens
     forma_pagamento: formaPagamento, 
     observacoes_nfe: observacoes,
     parcelas: parcelas, 
@@ -348,7 +353,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           index, codigo: item.codigo || '', descricao: item.descricao || '',
           ncm: item.ncm || '', cfop: item.cfop || '', unidade: unidadeFinal,
           quantidade: item.quantidade || 0, valor_total: item.valor_total,
-          desconto_item: item.desconto_item || 0,
+          desconto_item: item.desconto_item || 0, valor_unitario: item.valor_unitario || 0,
           produto_id: prod?.id, produto_nome: prod?.nome_produto,
           status: prod ? 'associado' : 'pendente'
         };
@@ -539,13 +544,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
     
-    // CALCULAR VALORES CORRETOS
-    const subtotalSelecionado = itensParaImportar.reduce((sum, item) => {
-      return sum + (item.valor_total - (item.desconto_item || 0));
-    }, 0);
-    
-    const valorTotalComTaxas = subtotalSelecionado + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0);
-
+    // USAR VALORES DO XML TOTALIZADOR
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
       tipo_documento: "NF-e",
@@ -563,14 +562,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       valor_frete: dadosNFe.valor_frete,
       valor_seguro: dadosNFe.valor_seguro,
       valor_outras_despesas: dadosNFe.valor_outras_despesas,
-      valor_desconto_total: dadosNFe.desconto_total_itens || dadosNFe.valor_desconto_total, // USAR DESCONTO SOMADO DOS ITENS
+      valor_desconto_total: dadosNFe.valor_desconto_total,
       valor_ipi: dadosNFe.valor_ipi,
       valor_icms: dadosNFe.valor_icms,
       valor_pis: dadosNFe.valor_pis,
       valor_cofins: dadosNFe.valor_cofins,
       base_calculo_icms: dadosNFe.base_calculo_icms,
       frete: String((dadosNFe.valor_frete || 0).toFixed(2)).replace('.', ','),
-      outras_despesas: String(((dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0)).toFixed(2)).replace('.', ','), // INCLUIR IPI
+      outras_despesas: String((dadosNFe.valor_outras_despesas || 0).toFixed(2)).replace('.', ','),
       local_estoque: localEstoque,
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
@@ -581,7 +580,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         unidade: i.unidade
       })),
       lancar_produtos: true,
-      dar_entrada_estoque: true
+      dar_entrada_estoque: true,
+      usar_valor_nfe_total: true  // FLAG PARA USAR VALOR TOTAL DA NF-e
     });
     
     onClose();
@@ -639,12 +639,25 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {etapa === 2 && dadosNFe && (
             <div className="space-y-2">
-              <Card className="bg-slate-50 border-slate-200 shadow-sm">
-                <CardContent className="p-2 grid grid-cols-4 gap-2 text-xs">
-                  <div><strong>Número:</strong> {dadosNFe.numero}</div>
-                  <div><strong>Série:</strong> {dadosNFe.serie}</div>
-                  <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
-                  <div><strong>Valor:</strong> {formatarMoeda(dadosNFe.valor_total)}</div>
+              <Card className="bg-blue-50 border-blue-300 shadow-sm">
+                <CardContent className="p-2 text-xs space-y-0.5">
+                  <div className="font-semibold text-blue-900">📊 Resumo da NF-e</div>
+                  <div className="grid grid-cols-4 gap-2 pt-1 border-t border-blue-200">
+                    <div><strong>Número:</strong> {dadosNFe.numero}</div>
+                    <div><strong>Série:</strong> {dadosNFe.serie}</div>
+                    <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
+                    <div><strong>CFOP:</strong> {dadosNFe.cfop || '-'}</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-blue-200">
+                    <div><strong>Valor Produtos (XML):</strong> <span className="font-mono">{formatarMoeda(dadosNFe.valor_produtos)}</span></div>
+                    <div><strong>Desconto Total (XML):</strong> <span className="font-mono text-red-600">{formatarMoeda(dadosNFe.valor_desconto_total)}</span></div>
+                    <div><strong>Frete + Seg + Outras:</strong> <span className="font-mono">{formatarMoeda((dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
+                    <div><strong>IPI:</strong> <span className="font-mono">{formatarMoeda(dadosNFe.valor_ipi || 0)}</span></div>
+                  </div>
+                  <div className="pt-1 border-t border-blue-200 flex justify-between font-bold text-blue-900">
+                    <span>TOTAL NF-e (vNF):</span>
+                    <span className="font-mono text-base">{formatarMoeda(dadosNFe.valor_total)}</span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -740,6 +753,17 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {etapa === 3 && dadosNFe && (
             <div className="space-y-2">
+              <Card className="bg-blue-50 border-blue-300 shadow-sm">
+                <CardContent className="p-2 text-xs">
+                  <div className="grid grid-cols-4 gap-2">
+                    <div><strong>NF-e:</strong> {dadosNFe.numero}/{dadosNFe.serie}</div>
+                    <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
+                    <div><strong>Total NF-e:</strong> <span className="font-mono font-bold text-blue-900">{formatarMoeda(dadosNFe.valor_total)}</span></div>
+                    <div><strong>Fornecedor:</strong> {fornecedorSelecionado?.nome}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-xs">Produtos ({itensNFe.length})</h3>
                 <div className="flex gap-1.5">
@@ -764,7 +788,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead className="w-10 text-xs">St</TableHead>
                       <TableHead className="text-xs">Produto</TableHead>
                       <TableHead className="text-right text-xs">Qtd</TableHead>
-                      <TableHead className="text-right text-xs">Total</TableHead>
+                      <TableHead className="text-right text-xs">Vlr Unit</TableHead>
+                      <TableHead className="text-right text-xs">Total Bruto</TableHead>
+                      <TableHead className="text-right text-xs">Desc. Item</TableHead>
+                      <TableHead className="text-right text-xs">Total Líq.</TableHead>
                       <TableHead className="text-center w-20 text-xs">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -782,7 +809,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                           <div className="text-slate-500 text-[10px]">{item.descricao}</div>
                         </TableCell>
                         <TableCell className="text-right font-mono text-xs">{item.quantidade.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatarMoeda(item.valor_unitario)}</TableCell>
                         <TableCell className="text-right font-mono text-xs">{formatarMoeda(item.valor_total)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(item.desconto_item || 0)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs font-semibold text-emerald-700">{formatarMoeda(item.valor_total - (item.desconto_item || 0))}</TableCell>
                         <TableCell>
                           <div className="flex gap-0.5 justify-center">
                             {item.status === 'pendente' && (
@@ -800,49 +830,65 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                         </TableCell>
                       </TableRow>
                     ))}
+                    <TableRow className="bg-slate-100 font-semibold border-t-2">
+                      <TableCell colSpan={5} className="text-xs">TOTAL SELECIONADO</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0))}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </div>
 
-              <Card className="bg-slate-50 border-slate-200">
+              <Card className="bg-emerald-50 border-emerald-300">
                 <CardContent className="p-2 text-xs space-y-0.5">
-                  <div className="font-semibold">Resumo Financeiro</div>
+                  <div className="font-semibold text-emerald-900">💰 Cálculo Final - Valor a Pagar</div>
                   <div className="flex justify-between">
-                    <span>Subtotal Produtos:</span>
-                    <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0))}</span>
+                    <span>Produtos (bruto):</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_produtos)}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>- Desconto Itens:</span>
-                    <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0))}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-0.5">
-                    <span>= Líquido Produtos:</span>
-                    <span className="font-mono font-semibold">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ Frete:</span>
-                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ Seguro:</span>
-                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_seguro || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ Outras Desp.:</span>
-                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_outras_despesas || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>+ IPI:</span>
-                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_ipi || 0)}</span>
-                  </div>
-                  <div className="flex justify-between font-semibold border-t pt-0.5 text-emerald-700">
+                  {dadosNFe.valor_desconto_total > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>- Desconto Total NF-e:</span>
+                      <span className="font-mono">{formatarMoeda(dadosNFe.valor_desconto_total)}</span>
+                    </div>
+                  )}
+                  {dadosNFe.valor_frete > 0 && (
+                    <div className="flex justify-between">
+                      <span>+ Frete:</span>
+                      <span className="font-mono">{formatarMoeda(dadosNFe.valor_frete)}</span>
+                    </div>
+                  )}
+                  {dadosNFe.valor_seguro > 0 && (
+                    <div className="flex justify-between">
+                      <span>+ Seguro:</span>
+                      <span className="font-mono">{formatarMoeda(dadosNFe.valor_seguro)}</span>
+                    </div>
+                  )}
+                  {dadosNFe.valor_outras_despesas > 0 && (
+                    <div className="flex justify-between">
+                      <span>+ Outras Despesas:</span>
+                      <span className="font-mono">{formatarMoeda(dadosNFe.valor_outras_despesas)}</span>
+                    </div>
+                  )}
+                  {dadosNFe.valor_ipi > 0 && (
+                    <div className="flex justify-between">
+                      <span>+ IPI:</span>
+                      <span className="font-mono">{formatarMoeda(dadosNFe.valor_ipi)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold border-t-2 border-emerald-400 pt-1 text-emerald-900 text-sm">
                     <span>TOTAL A PAGAR:</span>
-                    <span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0))}</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_total)}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-500 pt-1 border-t">
-                    <span>Valor Total NF-e (XML):</span>
-                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_total || 0)}</span>
-                  </div>
+                  {Math.abs(dadosNFe.valor_total - dadosNFe.valor_calculado) > 0.01 && (
+                    <div className="bg-orange-100 border border-orange-300 rounded p-1 mt-1">
+                      <p className="text-[10px] text-orange-800">
+                        ⚠️ Diferença detectada: Calculado {formatarMoeda(dadosNFe.valor_calculado)} vs XML {formatarMoeda(dadosNFe.valor_total)}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

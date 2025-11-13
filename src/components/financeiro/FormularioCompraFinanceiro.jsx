@@ -16,8 +16,8 @@ import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 
 const FORMAS_PAGAMENTO_PADRAO = [
-  'Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário', 
-  'Transferência Bancária', 'Cheque', 'Crédito Loja', 'Vale Alimentação', 
+  'Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto Bancário',
+  'Transferência Bancária', 'Cheque', 'Crédito Loja', 'Vale Alimentação',
   'Vale Refeição', 'Depósito Bancário', 'Outros'
 ];
 
@@ -248,13 +248,22 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         const desc = parseNumero(p.desconto_item || "0");
         return sum + (total - desc);
       }, 0);
+
+      // Se vier do XML e tiver usar_valor_nfe_total, não calcular, usar o valor_total direto
+      if (initialData?.usar_valor_nfe_total && initialData?.valor_total) {
+        return parseNumero(String(initialData.valor_total));
+      }
+
+      // Se vier do XML, usar valor_desconto_total
+      const descontoTotalXML = parseNumero(formData.valor_desconto_total || "0");
+
       const frete = parseNumero(formData.frete);
       const outras = parseNumero(formData.outras_despesas);
-      
-      // CONSIDERAR IPI SE EXISTE
       const ipi = parseNumero(formData.valor_ipi || "0");
-      
-      return totalProdutos + frete + outras + ipi;
+
+      // Valor produtos já considera desconto por item
+      // Desconto total da NF-e é adicional
+      return totalProdutos + frete + outras + ipi - descontoTotalXML;
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -269,15 +278,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
     const updatedParcelas = Array.from({ length: newNumberOfParcelas }, (_, i) => {
       const currentParcel = formData.parcelas[i];
-      let date = currentParcel?.data || (i === 0 ? formData.data_vencimento : calcularDataProximaMes(formData.parcelas[i-1]?.data || formData.data_vencimento));
+      let date = currentParcel?.data || (i === 0 ? formData.data_vencimento : calcularDataProximaMes(formData.parcelas[i - 1]?.data || formData.data_vencimento));
       if (i === newNumberOfParcelas - 1 && !ultimaParcela) {
         date = proximaData;
       } else if (i === newNumberOfParcelas - 1 && ultimaParcela) {
-        date = calcularDataProximaMes(formData.parcelas[i-1]?.data || formData.data_vencimento);
+        date = calcularDataProximaMes(formData.parcelas[i - 1]?.data || formData.data_vencimento);
       }
       return { data: date, valor: formatarNumero(equalParcelValue) };
     });
-    
+
     setFormData(prev => ({ ...prev, parcelas: updatedParcelas }));
   };
 
@@ -324,7 +333,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       produtos_selecionados: prev.produtos_selecionados.map((p, i) => {
         if (i === index) {
           const updated = { ...p, [campo]: valor };
-          
+
           if (campo === 'produto_id') {
             const produto = produtos.find(prod => prod.id === valor);
             if (produto) {
@@ -394,14 +403,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     }
-    
+
     // Validações para produtos
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
         toast.error('Adicione pelo menos 1 produto!');
         return;
       }
-      const produtosIncompletos = formData.produtos_selecionados.filter(p => 
+      const produtosIncompletos = formData.produtos_selecionados.filter(p =>
         !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
       );
       if (produtosIncompletos.length > 0) {
@@ -418,7 +427,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         return;
       }
     }
-    
+
     setEtapa(2);
   };
 
@@ -552,13 +561,20 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     const desc = parseNumero(p.desconto_item || "0");
     return sum + (total - desc);
   }, 0) : 0;
-  
+
+  const totalProdutosBruto = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+    return sum + parseNumero(p.valor_total || "0");
+  }, 0) : 0;
+
   const totalDescontos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
     return sum + parseNumero(p.desconto_item || "0");
   }, 0) : 0;
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
+
+  const descontoTotalXML = parseNumero(formData.valor_desconto_total || "0");
+
 
   return (
     <>
@@ -710,7 +726,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                   const liquido = total - desc;
                                   const qtd = parseNumero(produto.quantidade || "0");
                                   const unitario = qtd > 0 ? (liquido / qtd) : 0;
-                                  
+
                                   return (
                                     <TableRow key={index}>
                                       <TableCell className="w-[180px]">
@@ -747,6 +763,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                     </TableRow>
                                   );
                                 })}
+                                {formData.produtos_selecionados.length > 0 && (
+                                  <TableRow className="bg-slate-100 font-semibold border-t-2">
+                                    <TableCell colSpan={2} className="text-xs">TOTAL</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutos)}</TableCell>
+                                    <TableCell colSpan={2}></TableCell>
+                                  </TableRow>
+                                )}
                               </TableBody>
                             </Table>
                           </div>
@@ -780,17 +805,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                             <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Outras Despesas (+ IPI)</Label>
+                            <Label className="text-xs">Outras Despesas</Label>
                             <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                         </div>
 
-                        <Card className="bg-slate-50 border-slate-300">
+                        <Card className="bg-emerald-50 border-emerald-300">
                           <CardContent className="p-2">
                             <div className="space-y-0.5 text-xs">
                               <div className="flex justify-between">
-                                <span>Subtotal Produtos:</span>
-                                <span className="font-mono">{formatarMoeda(formData.produtos_selecionados.reduce((s, p) => s + parseNumero(p.valor_total || "0"), 0))}</span>
+                                <span>Subtotal Produtos (bruto):</span>
+                                <span className="font-mono">{formatarMoeda(totalProdutosBruto)}</span>
                               </div>
                               {totalDescontos > 0 && (
                                 <div className="flex justify-between text-red-600">
@@ -798,12 +823,32 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                   <span className="font-mono">{formatarMoeda(totalDescontos)}</span>
                                 </div>
                               )}
-                              <div className="flex justify-between border-t pt-0.5">
+                              {descontoTotalXML > 0 && (
+                                <div className="flex justify-between text-red-600">
+                                  <span>- Desconto NF-e:</span>
+                                  <span className="font-mono">{formatarMoeda(descontoTotalXML)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between border-t border-emerald-400 pt-0.5">
                                 <span>= Líquido:</span>
-                                <span className="font-mono font-semibold">{formatarMoeda(totalProdutos)}</span>
+                                <span className="font-mono font-semibold">{formatarMoeda(totalProdutos - descontoTotalXML)}</span>
                               </div>
-                              <div className="flex justify-between"><span>Frete + Desp.:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.frete) + parseNumero(formData.outras_despesas))}</span></div>
-                              <div className="pt-1 border-t flex justify-between font-semibold text-emerald-700"><span>TOTAL:</span><span>{formatarMoeda(valorTotal)}</span></div>
+                              <div className="flex justify-between"><span>+ Frete:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span></div>
+                              <div className="flex justify-between"><span>+ Outras Desp.:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span></div>
+                              {parseNumero(formData.valor_ipi || "0") > 0 && (
+                                <div className="flex justify-between"><span>+ IPI:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.valor_ipi || "0"))}</span></div>
+                              )}
+                              <div className="pt-1 border-t-2 border-emerald-500 flex justify-between font-bold text-emerald-900 text-sm">
+                                <span>TOTAL A PAGAR:</span>
+                                <span>{formatarMoeda(valorTotal)}</span>
+                              </div>
+                              {initialData?.valor_total && Math.abs(valorTotal - parseNumero(String(initialData.valor_total))) > 0.5 && (
+                                <div className="bg-orange-100 border border-orange-300 rounded p-1 mt-1">
+                                  <p className="text-[10px] text-orange-800">
+                                    ⚠️ Diferença com NF-e: {formatarMoeda(parseNumero(String(initialData.valor_total)))}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

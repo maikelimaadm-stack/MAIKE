@@ -460,9 +460,47 @@ export default function LancamentoFinanceiro() {
     setShowForm(true); // Show form for editing
   };
 
-  const handleBaixa = (lancamento, dadosLote = null) => {
-    setBaixaLancamento(lancamento);
-    setDadosBaixaLote(dadosLote);
+  const handleBaixa = async (lancamento, dadosLote = null) => {
+    if (dadosLote?.baixa_automatica_lote) {
+      // Baixa automática em lote - executar direto
+      try {
+        const user = await base44.auth.me();
+        const allBaixas = await base44.entities.BaixaFinanceira.list();
+        const maxNumBaixa = allBaixas.reduce((max, b) => Math.max(max, parseInt(b?.numero_baixa) || 0), 0);
+        
+        const saldoDisponivel = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
+        
+        await base44.entities.BaixaFinanceira.create({
+          empresa_id: empresaSelecionadaId,
+          numero_baixa: String(maxNumBaixa + 1),
+          lancamento_id: lancamento.id,
+          data_baixa: dadosLote.data_baixa,
+          valor_baixa: saldoDisponivel,
+          valor_juros: 0,
+          valor_multa: 0,
+          valor_desconto: 0,
+          forma_pagamento_id: dadosLote.forma_pagamento_id,
+          forma_pagamento_nome: dadosLote.forma_pagamento_nome, // Corrected: should be nome, not id again
+          observacoes: (dadosLote.observacoes || 'BAIXA EM LOTE').toUpperCase(),
+          usuario_responsavel: user.email
+        });
+
+        await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
+          valor_pago: lancamento.valor_total,
+          status: 'Pago'
+        });
+        queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+        toast.success('Baixa em lote aplicada com sucesso!');
+      } catch (error) {
+        console.error('Erro ao dar baixa em lote:', error);
+        toast.error('Erro ao aplicar baixa em lote: ' + (error.message || 'Erro desconhecido'));
+        throw error;
+      }
+    } else {
+      // Baixa normal - abrir dialog
+      setBaixaLancamento(lancamento);
+      setDadosBaixaLote(dadosLote);
+    }
   };
 
   const handleCancelarBaixa = (lancamento) => {
