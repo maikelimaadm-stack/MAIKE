@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,18 +38,17 @@ const extrairDadosXML = (xmlText) => {
   const dataEmissao = getValor('dhEmi')?.split('T')[0] || getValor('dEmi');
   const cfop = getValor('CFOP');
 
-  // VALORES TOTAIS DA NOTA (do totalizador ICMSTot)
-  const vProd = parseFloat(getValor('vProd')) || 0;  // Valor total dos produtos (bruto)
+  const vProd = parseFloat(getValor('vProd')) || 0;
   const vFrete = parseFloat(getValor('vFrete')) || 0;
   const vSeg = parseFloat(getValor('vSeg')) || 0;
   const vOutro = parseFloat(getValor('vOutro')) || 0;
-  const vDesc = parseFloat(getValor('vDesc')) || 0;  // Desconto TOTAL da nota
+  const vDesc = parseFloat(getValor('vDesc')) || 0;
   const vIPI = parseFloat(getValor('vIPI')) || 0;
   const vICMS = parseFloat(getValor('vICMS')) || 0;
   const vPIS = parseFloat(getValor('vPIS')) || 0;
   const vCOFINS = parseFloat(getValor('vCOFINS')) || 0;
   const vBC = parseFloat(getValor('vBC')) || 0;
-  const valorTotal = parseFloat(getValor('vNF')) || 0;  // Valor FINAL da NF-e
+  const valorTotal = parseFloat(getValor('vNF')) || 0;
 
   const cnpjEmit = getValor('CNPJ');
   const cpfEmit = getValor('CPF');
@@ -140,8 +138,6 @@ const extrairDadosXML = (xmlText) => {
 
   if (itensNFe.length === 0) throw new Error('NF-e sem produtos');
 
-  // CÁLCULO FINAL CORRETO
-  // Fórmula NF-e: vNF = vProd - vDesc + vFrete + vSeg + vOutro + vIPI
   const valorCalculado = vProd - vDesc + vFrete + vSeg + vOutro + vIPI;
 
   return {
@@ -150,20 +146,20 @@ const extrairDadosXML = (xmlText) => {
     inscricao_estadual_emitente: inscEstadual, telefone_emitente: telefone, email_emitente: email,
     endereco_emitente: enderecoCompleto, bairro_emitente: bairro, cidade_emitente: cidade,
     estado_emitente: estado, cep_emitente: cep, cfop,
-    valor_produtos: vProd,  // Valor total produtos BRUTO do XML
+    valor_produtos: vProd,
     valor_frete: vFrete, 
     valor_seguro: vSeg,
     valor_outras_despesas: vOutro, 
-    valor_desconto_total: vDesc,  // Desconto TOTAL da nota
+    valor_desconto_total: vDesc,
     valor_ipi: vIPI, 
     valor_icms: vICMS, 
     valor_pis: vPIS, 
     valor_cofins: vCOFINS,
     base_calculo_icms: vBC, 
-    valor_total: valorTotal,  // vNF do XML
-    valor_calculado: valorCalculado,  // Valor calculado pela fórmula
-    soma_produtos_itens: somaProdutosItens,  // Soma dos vProd dos itens
-    soma_desconto_itens: somaDescontoItens,  // Soma dos vDesc dos itens
+    valor_total: valorTotal,
+    valor_calculado: valorCalculado,
+    soma_produtos_itens: somaProdutosItens,
+    soma_desconto_itens: somaDescontoItens,
     forma_pagamento: formaPagamento, 
     observacoes_nfe: observacoes,
     parcelas: parcelas, 
@@ -191,6 +187,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [showNovoProduto, setShowNovoProduto] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
+  const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
   
   const [novoProduto, setNovoProduto] = useState({
     nome_produto: "", codigo_interno: "", codigo_barras: "",
@@ -202,6 +199,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
   const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "" });
+
+  const [showNovoLocal, setShowNovoLocal] = useState(false);
+  const [novoLocal, setNovoLocal] = useState({ nome: "", descricao: "" });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -226,8 +226,21 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
   const { data: cidades = [] } = useQuery({
     queryKey: ['cidades'],
-    queryFn: () => base44.entities.Cidade.list('nome'),
-    initialData: [],
+    queryFn: async () => {
+      try {
+        const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
+        const data = await response.json();
+        return data.map(c => ({
+          nome: c.nome,
+          estado: c.microrregiao.mesorregiao.UF.sigla,
+          codigo_ibge: String(c.id)
+        }));
+      } catch (error) {
+        console.error('Erro ao carregar cidades:', error);
+        return [];
+      }
+    },
+    staleTime: 24 * 60 * 60 * 1000, // Cache por 24 horas
   });
 
   const createFornecedorMutation = useMutation({
@@ -271,6 +284,21 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       setShowNovaCategoria(false);
       setNovaCategoria({ nome: "", descricao: "" });
       toast.success('Categoria cadastrada!');
+    },
+  });
+
+  const createLocalMutation = useMutation({
+    mutationFn: async (data) => {
+      const all = await base44.entities.LocalEstoque.list();
+      const maxNum = all.reduce((max, l) => Math.max(max, parseInt(l.numero_local) || 0), 0);
+      return base44.entities.LocalEstoque.create({ ...data, numero_local: String(maxNum + 1) });
+    },
+    onSuccess: (newLocal) => {
+      queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
+      setLocalEstoque(newLocal.nome);
+      setShowNovoLocal(false);
+      setNovoLocal({ nome: "", descricao: "" });
+      toast.success('Local cadastrado!');
     },
   });
 
@@ -383,14 +411,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       toast.error('CPF obrigatório!');
       return;
     }
-    if (!novoFornecedor.estado) {
-      toast.error('Estado obrigatório!');
-      return;
-    }
-    if (!novoFornecedor.cidade) {
-      toast.error('Cidade obrigatória!');
-      return;
-    }
 
     createFornecedorMutation.mutate({
       tipo_pessoa: novoFornecedor.tipo_pessoa,
@@ -459,6 +479,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       return;
     }
     createCategoriaMutation.mutate({ nome: novaCategoria.nome.toUpperCase(), descricao: novaCategoria.descricao?.toUpperCase() });
+  };
+
+  const handleCadastrarLocal = () => {
+    if (!novoLocal.nome) {
+      toast.error('Nome obrigatório!');
+      return;
+    }
+    createLocalMutation.mutate({ nome: novoLocal.nome.toUpperCase(), descricao: novoLocal.descricao?.toUpperCase() });
   };
 
   const handleCadastrarProdutosEmMassa = async () => {
@@ -558,8 +586,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     }
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
-    
-    // USAR soma_produtos_itens em vez de valor_produtos
     const valorProdutosBruto = dadosNFe.soma_produtos_itens || dadosNFe.valor_produtos || 0;
     const valorDescontoTotal = dadosNFe.valor_desconto_total || 0;
     
@@ -599,7 +625,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       })),
       lancar_produtos: true,
       dar_entrada_estoque: true,
-      usar_valor_nfe_total: true  // FLAG PARA USAR VALOR TOTAL DA NF-e
+      usar_valor_nfe_total: true
     });
     
     onClose();
@@ -624,6 +650,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setNovaUnidade({ sigla: "", nome: "" });
     setShowNovaCategoria(false);
     setNovaCategoria({ nome: "", descricao: "" });
+    setShowNovoLocal(false);
+    setNovoLocal({ nome: "", descricao: "" });
+    setShowNovoFornecedor(false);
   };
 
   const produtosFiltrados = produtos.filter(p => 
@@ -644,13 +673,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
           {etapa === 1 && (
             <div className="space-y-2">
-              <div className="border-2 border-dashed border-slate-300 rounded p-3 text-center hover:border-slate-400 transition-colors">
-                <p className="text-xs text-slate-600 mb-1.5">Selecione o arquivo XML da NF-e</p>
-                <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto h-8 text-xs" />
+              <div className="border-2 border-dashed border-slate-300 rounded p-2.5 text-center hover:border-slate-400 transition-colors">
+                <p className="text-xs text-slate-600 mb-1">Selecione o arquivo XML da NF-e</p>
+                <Input type="file" accept=".xml" onChange={handleUploadXML} disabled={processando} className="max-w-md mx-auto h-7 text-xs" />
                 {processando && (
                   <div className="mt-2">
                     <Loader2 className="w-4 h-4 animate-spin mx-auto text-emerald-600" />
-                    <p className="text-xs text-slate-600 mt-1.5">Processando...</p>
+                    <p className="text-xs text-slate-600 mt-1">Processando...</p>
                   </div>
                 )}
               </div>
@@ -658,23 +687,23 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           )}
 
           {etapa === 2 && dadosNFe && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Card className="bg-blue-50 border-blue-300 shadow-sm">
-                <CardContent className="p-2 text-xs space-y-0.5">
+                <CardContent className="p-1.5 text-xs space-y-0.5">
                   <div className="font-semibold text-blue-900">📊 Resumo da NF-e</div>
-                  <div className="grid grid-cols-4 gap-2 pt-1 border-t border-blue-200">
+                  <div className="grid grid-cols-4 gap-1.5 pt-0.5 border-t border-blue-200">
                     <div><strong>Número:</strong> {dadosNFe.numero}</div>
                     <div><strong>Série:</strong> {dadosNFe.serie}</div>
                     <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
                     <div><strong>CFOP:</strong> {dadosNFe.cfop || '-'}</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-blue-200">
+                  <div className="grid grid-cols-2 gap-1.5 pt-0.5 border-t border-blue-200">
                     <div><strong>Valor Produtos (XML):</strong> <span className="font-mono">{formatarMoeda(dadosNFe.valor_produtos)}</span></div>
                     <div><strong>Desconto Total (XML):</strong> <span className="font-mono text-red-600">{formatarMoeda(dadosNFe.valor_desconto_total)}</span></div>
                     <div><strong>Frete + Seg + Outras:</strong> <span className="font-mono">{formatarMoeda((dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
                     <div><strong>IPI:</strong> <span className="font-mono">{formatarMoeda(dadosNFe.valor_ipi || 0)}</span></div>
                   </div>
-                  <div className="pt-1 border-t border-blue-200 flex justify-between font-bold text-blue-900">
+                  <div className="pt-0.5 border-t border-blue-200 flex justify-between font-bold text-blue-900">
                     <span>TOTAL NF-e (vNF):</span>
                     <span className="font-mono text-base">{formatarMoeda(dadosNFe.valor_total)}</span>
                   </div>
@@ -682,10 +711,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               </Card>
 
               <Card className="shadow-sm border-slate-200">
-                <CardHeader className="pb-1 px-2 pt-1.5">
-                  <CardTitle className="text-xs font-semibold">Cadastrar Fornecedor</CardTitle>
+                <CardHeader className="pb-1 px-2 pt-1">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xs font-semibold">Cadastrar Fornecedor</CardTitle>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setShowNovoFornecedor(true)} className="h-6 gap-1 text-xs">
+                      <Plus className="w-3 h-3" />
+                      Novo
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent className="p-2 space-y-1.5">
+                <CardContent className="p-2 space-y-1">
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo de Pessoa *</Label>
                     <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
@@ -702,7 +737,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1">
                     {novoFornecedor.tipo_pessoa === 'Jurídica' ? (
                       <>
                         <div className="space-y-1">
@@ -722,7 +757,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Telefone</Label>
                       <Input value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} placeholder="(00) 00000-0000" className="h-7 text-xs" />
@@ -738,7 +773,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Estado *</Label>
                       <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v, cidade: "" })}>
@@ -754,12 +789,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <Label className="text-xs">Cidade *</Label>
                       <Select value={novoFornecedor.cidade} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, cidade: v })} disabled={!novoFornecedor.estado}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={novoFornecedor.estado ? "Selecione" : "Escolha UF"} /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[200px]">
                           {cidadesFiltradas.length === 0 ? (
                             <SelectItem value="_none" disabled className="text-xs">Nenhuma cidade</SelectItem>
                           ) : (
                             cidadesFiltradas.map(c => (
-                              <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
+                              <SelectItem key={c.codigo_ibge} value={c.nome} className="text-xs">{c.nome}</SelectItem>
                             ))
                           )}
                         </SelectContent>
@@ -773,7 +808,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-2 pt-1.5 border-t">
+              <div className="flex justify-between gap-2 pt-1 border-t">
                 <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
                   {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar e Continuar'}
@@ -783,10 +818,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           )}
 
           {etapa === 3 && dadosNFe && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Card className="bg-blue-50 border-blue-300 shadow-sm">
                 <CardContent className="p-1.5 text-xs">
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-1.5">
                     <div><strong>NF-e:</strong> {dadosNFe.numero}/{dadosNFe.serie}</div>
                     <div><strong>Data:</strong> {new Date(dadosNFe.data_emissao).toLocaleDateString('pt-BR')}</div>
                     <div><strong>Total NF-e:</strong> <span className="font-mono font-bold text-blue-900">{formatarMoeda(dadosNFe.valor_total)}</span></div>
@@ -925,22 +960,27 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   <CardTitle className="text-xs font-semibold">Local de Estoque</CardTitle>
                 </CardHeader>
                 <CardContent className="p-2">
-                  <AutocompleteGenerico
-                    items={locaisEstoque}
-                    value={locaisEstoque.find(l => l.nome === localEstoque)?.id || ""}
-                    onChange={(id) => {
-                      const local = locaisEstoque.find(l => l.id === id);
-                      setLocalEstoque(local?.nome || "");
-                    }}
-                    placeholder="Buscar local..."
-                    displayField="nome"
-                    searchFields={["nome", "descricao"]}
-                    className="w-full"
-                  />
+                  <div className="flex gap-1">
+                    <AutocompleteGenerico
+                      items={locaisEstoque}
+                      value={locaisEstoque.find(l => l.nome === localEstoque)?.id || ""}
+                      onChange={(id) => {
+                        const local = locaisEstoque.find(l => l.id === id);
+                        setLocalEstoque(local?.nome || "");
+                      }}
+                      placeholder="Buscar local..."
+                      displayField="nome"
+                      searchFields={["nome", "descricao"]}
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)} className="h-7 w-7">
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between gap-2 pt-1.5 border-t">
+              <div className="flex justify-between gap-2 pt-1 border-t">
                 <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-7 text-xs">Voltar</Button>
                 <Button onClick={handleConfirmarImportacao} className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={itensSelecionados.length === 0 || !localEstoque}>
                   Importar ({itensSelecionados.length})
@@ -963,9 +1003,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             </DialogTitle>
           </DialogHeader>
           
-          <div className="relative mb-1.5">
+          <div className="relative mb-2">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
-            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-8 h-8 text-xs" />
+            <Input placeholder="Buscar..." value={buscaProduto} onChange={(e) => setBuscaProduto(e.target.value)} className="pl-8 h-7 text-xs" />
           </div>
 
           <div className="flex-1 overflow-auto">
@@ -1009,29 +1049,29 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             <DialogTitle className="text-sm">Cadastrar Produto</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="space-y-1">
               <Label className="text-xs">Nome do Produto *</Label>
-              <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME DO PRODUTO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
+              <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME DO PRODUTO" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-1">
                 <Label className="text-xs">Código Interno</Label>
-                <Input value={novoProduto.codigo_interno} onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} placeholder="CÓDIGO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                <Input value={novoProduto.codigo_interno} onChange={(e) => setNovoProduto({...novoProduto, codigo_interno: e.target.value})} placeholder="CÓDIGO" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Código de Barras</Label>
-                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} placeholder="7891234567890" className="h-8 text-xs" />
+                <Input value={novoProduto.codigo_barras} onChange={(e) => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} placeholder="7891234567890" className="h-7 text-xs" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-1">
                 <Label className="text-xs">Unidade de Medida *</Label>
                 <div className="flex gap-1">
                   <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({...novoProduto, unidade_medida: v})}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-7 text-xs">
                       <SelectValue placeholder="UN" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1040,7 +1080,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-8 w-8">
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-7 w-7">
                     <Plus className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -1050,7 +1090,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 <Label className="text-xs">Categoria</Label>
                 <div className="flex gap-1">
                   <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({...novoProduto, categoria: v})}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-7 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1059,7 +1099,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-8 w-8">
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-7 w-7">
                     <Plus className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -1068,15 +1108,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
             <div className="space-y-1">
               <Label className="text-xs">Descrição</Label>
-              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({...novoProduto, descricao: e.target.value})} placeholder="DESCRIÇÃO DO PRODUTO..." className="text-xs uppercase min-h-16" style={{ textTransform: 'uppercase' }} rows={2} />
+              <Textarea value={novoProduto.descricao} onChange={(e) => setNovoProduto({...novoProduto, descricao: e.target.value})} placeholder="DESCRIÇÃO DO PRODUTO..." className="text-xs uppercase min-h-14" style={{ textTransform: 'uppercase' }} rows={2} />
             </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Preço de Custo</Label>
-              <Input value={novoProduto.preco_custo} onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} placeholder="0,00" className="h-8 text-xs" />
+              <Input value={novoProduto.preco_custo} onChange={(e) => setNovoProduto({...novoProduto, preco_custo: e.target.value})} placeholder="0,00" className="h-7 text-xs" />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-1.5 border-t">
               <Button variant="outline" onClick={() => setShowNovoProduto(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button onClick={handleCadastrarProduto} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createProdutoMutation.isPending}>
                 {createProdutoMutation.isPending ? 'Salvando...' : 'Salvar e Associar'}
@@ -1092,16 +1132,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             <DialogTitle className="text-sm">Cadastrar Unidade</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="space-y-1">
               <Label className="text-xs">Sigla *</Label>
-              <Input value={novaUnidade.sigla} onChange={(e) => setNovaUnidade({...novaUnidade, sigla: e.target.value})} placeholder="UN" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} maxLength={10} autoFocus />
+              <Input value={novaUnidade.sigla} onChange={(e) => setNovaUnidade({...novaUnidade, sigla: e.target.value})} placeholder="UN" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} maxLength={10} autoFocus />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Nome *</Label>
-              <Input value={novaUnidade.nome} onChange={(e) => setNovaUnidade({...novaUnidade, nome: e.target.value})} placeholder="UNIDADE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+              <Input value={novaUnidade.nome} onChange={(e) => setNovaUnidade({...novaUnidade, nome: e.target.value})} placeholder="UNIDADE" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-1.5 border-t">
               <Button variant="outline" onClick={() => setShowNovaUnidade(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button onClick={handleCadastrarUnidade} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createUnidadeMutation.isPending}>
                 {createUnidadeMutation.isPending ? 'Salvando...' : 'Salvar'}
@@ -1117,19 +1157,44 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             <DialogTitle className="text-sm">Cadastrar Categoria</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="space-y-1">
               <Label className="text-xs">Nome *</Label>
-              <Input value={novaCategoria.nome} onChange={(e) => setNovaCategoria({...novaCategoria, nome: e.target.value})} placeholder="NOME DA CATEGORIA" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
+              <Input value={novaCategoria.nome} onChange={(e) => setNovaCategoria({...novaCategoria, nome: e.target.value})} placeholder="NOME DA CATEGORIA" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Descrição</Label>
-              <Textarea value={novaCategoria.descricao} onChange={(e) => setNovaCategoria({...novaCategoria, descricao: e.target.value})} placeholder="DESCRIÇÃO..." className="text-xs uppercase min-h-16" style={{ textTransform: 'uppercase' }} rows={2} />
+              <Textarea value={novaCategoria.descricao} onChange={(e) => setNovaCategoria({...novaCategoria, descricao: e.target.value})} placeholder="DESCRIÇÃO..." className="text-xs uppercase min-h-14" style={{ textTransform: 'uppercase' }} rows={2} />
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-1.5 border-t">
               <Button variant="outline" onClick={() => setShowNovaCategoria(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
               <Button onClick={handleCadastrarCategoria} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createCategoriaMutation.isPending}>
                 {createCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Local de Estoque</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-1.5">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input value={novoLocal.nome} onChange={(e) => setNovoLocal({...novoLocal, nome: e.target.value})} placeholder="NOME DO LOCAL" className="h-7 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea value={novoLocal.descricao} onChange={(e) => setNovoLocal({...novoLocal, descricao: e.target.value})} placeholder="DESCRIÇÃO..." className="text-xs uppercase min-h-14" style={{ textTransform: 'uppercase' }} rows={2} />
+            </div>
+            <div className="flex justify-end gap-2 pt-1.5 border-t">
+              <Button variant="outline" onClick={() => setShowNovoLocal(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarLocal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createLocalMutation.isPending}>
+                {createLocalMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
