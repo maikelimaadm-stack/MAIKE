@@ -845,7 +845,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 <CardContent className="p-2 text-xs space-y-0.5">
                   <div className="font-semibold text-emerald-900">💰 Cálculo Final - Valor a Pagar</div>
                   <div className="flex justify-between">
-                    <span>Produtos (bruto):</span>
+                    <span>Produtos (bruto) - XML:</span>
                     <span className="font-mono">{formatarMoeda(dadosNFe.valor_produtos)}</span>
                   </div>
                   {dadosNFe.valor_desconto_total > 0 && (
@@ -854,6 +854,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <span className="font-mono">{formatarMoeda(dadosNFe.valor_desconto_total)}</span>
                     </div>
                   )}
+                  <div className="flex justify-between border-t border-emerald-300 pt-0.5">
+                    <span>= Líquido Produtos:</span>
+                    <span className="font-mono font-semibold">{formatarMoeda(dadosNFe.valor_produtos - dadosNFe.valor_desconto_total)}</span>
+                  </div>
                   {dadosNFe.valor_frete > 0 && (
                     <div className="flex justify-between">
                       <span>+ Frete:</span>
