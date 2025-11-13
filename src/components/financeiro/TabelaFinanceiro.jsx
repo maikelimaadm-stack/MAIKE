@@ -292,7 +292,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
     const comSaldo = lancamentosSelecionados.filter(l => (l.valor_total || 0) - (l.valor_pago || 0) > 0.01);
 
-    if (window.confirm(`Confirma a baixa de ${comSaldo.length} lançamento(s)?`)) {
+    if (window.confirm(`Confirma a baixa integral de ${comSaldo.length} lançamento(s)?`)) {
       for (const lanc of comSaldo) {
         try {
           await onBaixa(lanc, {
@@ -529,12 +529,53 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   return (
     <>
       <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50 border-b border-slate-200">
-          <CardTitle className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-900">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 py-2">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
               Contas a {tipo} ({lancamentos.length})
-            </span>
-            <div className="flex gap-2">
+            </CardTitle>
+            <div className="flex gap-2 items-center">
+              {selecionados.length > 0 && (
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                  <span className="text-xs font-semibold text-emerald-800">
+                    {selecionados.length} selecionado(s)
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                        <MoreVertical className="w-4 h-4 text-emerald-700" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
+                        <Edit2 className="w-3.5 h-3.5 mr-2" />
+                        Editar Lote
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBaixaEmLote} className="text-xs">
+                        <CheckCircle className="w-3.5 h-3.5 mr-2" />
+                        Baixar Lote
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
+                        <Download className="w-3.5 h-3.5 mr-2" />
+                        Exportar
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
+                        <X className="w-3.5 h-3.5 mr-2" />
+                        Limpar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+              
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
@@ -544,53 +585,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 Colunas
               </Button>
             </div>
-          </CardTitle>
-        </CardHeader>
-
-        {selecionados.length > 0 && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-800">
-                {selecionados.length} selecionado(s)
-              </span>
-              <div className="flex gap-2 items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 px-2">
-                      <MoreVertical className="w-4 h-4 text-slate-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditarEmLote} className="text-xs">
-                      <Edit2 className="w-3.5 h-3.5 mr-2" />
-                      Editar Lote
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleBaixaEmLote} className="text-xs">
-                      <CheckCircle className="w-3.5 h-3.5 mr-2" />
-                      Baixar Lote
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportarSelecionados} className="text-xs">
-                      <Download className="w-3.5 h-3.5 mr-2" />
-                      Exportar
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
-                      <Trash2 className="w-3.5 h-3.5 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
-                      <X className="w-3.5 h-3.5 mr-2" />
-                      Limpar Seleção
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
           </div>
-        )}
+        </CardHeader>
 
         <CardContent className="p-0">
           <div className="overflow-auto">
@@ -603,6 +599,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
+                  <TableHead className="text-xs text-center w-8"></TableHead> {/* New position for actions column header */}
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -618,7 +615,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       </TableHead>
                     );
                   })}
-                  <TableHead className="text-xs text-center w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -649,19 +645,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               onCheckedChange={() => handleToggleSelecao(lancamento.id)}
                             />
                           </TableCell>
-                          {colunasOrdenadas.map(coluna => (
-                            <React.Fragment key={coluna.id}>
-                              {renderCell(coluna, lancamento)}
-                            </React.Fragment>
-                          ))}
-                          <TableCell className="text-center">
+                          <TableCell className="text-center"> {/* New position for actions column cell */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-6 w-6">
                                   <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="start"> {/* Changed align to start */}
                                 <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
                                   <Eye className="w-3.5 h-3.5 mr-2" />
                                   Ver Detalhes
@@ -697,6 +688,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
+                          {colunasOrdenadas.map(coluna => (
+                            <React.Fragment key={coluna.id}>
+                              {renderCell(coluna, lancamento)}
+                            </React.Fragment>
+                          ))}
                         </motion.tr>
                       );
                     })

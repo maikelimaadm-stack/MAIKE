@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -105,6 +106,8 @@ const extrairDadosXML = (xmlText) => {
   if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') contaPaga = true;
 
   const itensNFe = [];
+  let descontoTotalItens = 0;
+  
   const dets = xmlDoc.getElementsByTagName('det');
   for (let i = 0; i < dets.length; i++) {
     const det = dets[i];
@@ -112,7 +115,11 @@ const extrairDadosXML = (xmlText) => {
       const el = det.getElementsByTagName(tag)[0];
       return el ? el.textContent : null;
     };
+    
     const vDescItem = parseFloat(getTagDet('vDesc')) || 0;
+    const vProdItem = parseFloat(getTagDet('vProd')) || 0;
+    descontoTotalItens += vDescItem;
+    
     itensNFe.push({
       codigo: getTagDet('cProd') || '',
       descricao: getTagDet('xProd') || '',
@@ -121,12 +128,16 @@ const extrairDadosXML = (xmlText) => {
       unidade: getTagDet('uCom') || 'UN',
       quantidade: parseFloat(getTagDet('qCom')) || 0,
       valor_unitario: parseFloat(getTagDet('vUnCom')) || 0,
-      valor_total: parseFloat(getTagDet('vProd')) || 0,
+      valor_total: vProdItem,
       desconto_item: vDescItem
     });
   }
 
   if (itensNFe.length === 0) throw new Error('NF-e sem produtos');
+
+  // CORRIGIR O CÁLCULO DO VALOR TOTAL A PAGAR
+  const subtotalProdutos = itensNFe.reduce((sum, item) => sum + (item.valor_total - item.desconto_item), 0);
+  const valorTotalAPagar = subtotalProdutos + vFrete + vSeg + vOutro + vIPI;
 
   return {
     modelo, numero, serie, chave, data_emissao: dataEmissao,
@@ -134,12 +145,24 @@ const extrairDadosXML = (xmlText) => {
     inscricao_estadual_emitente: inscEstadual, telefone_emitente: telefone, email_emitente: email,
     endereco_emitente: enderecoCompleto, bairro_emitente: bairro, cidade_emitente: cidade,
     estado_emitente: estado, cep_emitente: cep, cfop,
-    valor_produtos: vProd, valor_frete: vFrete, valor_seguro: vSeg,
-    valor_outras_despesas: vOutro, valor_desconto_total: vDesc,
-    valor_ipi: vIPI, valor_icms: vICMS, valor_pis: vPIS, valor_cofins: vCOFINS,
-    base_calculo_icms: vBC, valor_total: valorTotal,
-    forma_pagamento: formaPagamento, observacoes_nfe: observacoes,
-    parcelas: parcelas, conta_paga: contaPaga, itens: itensNFe
+    valor_produtos: vProd, 
+    valor_frete: vFrete, 
+    valor_seguro: vSeg,
+    valor_outras_despesas: vOutro, 
+    valor_desconto_total: vDesc,
+    valor_ipi: vIPI, 
+    valor_icms: vICMS, 
+    valor_pis: vPIS, 
+    valor_cofins: vCOFINS,
+    base_calculo_icms: vBC, 
+    valor_total: valorTotal,
+    valor_total_a_pagar: valorTotalAPagar, // VALOR CORRETO PARA PAGAR
+    desconto_total_itens: descontoTotalItens, // DESCONTO SOMADO DOS ITENS
+    forma_pagamento: formaPagamento, 
+    observacoes_nfe: observacoes,
+    parcelas: parcelas, 
+    conta_paga: contaPaga, 
+    itens: itensNFe
   };
 };
 
@@ -515,6 +538,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     }
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
+    
+    // CALCULAR VALORES CORRETOS
+    const subtotalSelecionado = itensParaImportar.reduce((sum, item) => {
+      return sum + (item.valor_total - (item.desconto_item || 0));
+    }, 0);
+    
+    const valorTotalComTaxas = subtotalSelecionado + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0);
 
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
@@ -533,14 +563,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       valor_frete: dadosNFe.valor_frete,
       valor_seguro: dadosNFe.valor_seguro,
       valor_outras_despesas: dadosNFe.valor_outras_despesas,
-      valor_desconto_total: dadosNFe.valor_desconto_total,
+      valor_desconto_total: dadosNFe.desconto_total_itens || dadosNFe.valor_desconto_total, // USAR DESCONTO SOMADO DOS ITENS
       valor_ipi: dadosNFe.valor_ipi,
       valor_icms: dadosNFe.valor_icms,
       valor_pis: dadosNFe.valor_pis,
       valor_cofins: dadosNFe.valor_cofins,
       base_calculo_icms: dadosNFe.base_calculo_icms,
       frete: String((dadosNFe.valor_frete || 0).toFixed(2)).replace('.', ','),
-      outras_despesas: String((dadosNFe.valor_outras_despesas || 0).toFixed(2)).replace('.', ','),
+      outras_despesas: String(((dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0)).toFixed(2)).replace('.', ','), // INCLUIR IPI
       local_estoque: localEstoque,
       produtos_selecionados: itensParaImportar.map(i => ({
         produto_id: i.produto_id,
@@ -776,10 +806,43 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
               <Card className="bg-slate-50 border-slate-200">
                 <CardContent className="p-2 text-xs space-y-0.5">
-                  <div className="font-semibold">Resumo</div>
-                  <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span></div>
-                  <div className="flex justify-between"><span>Frete + Desp.:</span><span className="font-mono">{formatarMoeda((dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
-                  <div className="flex justify-between font-semibold border-t pt-0.5"><span>TOTAL:</span><span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
+                  <div className="font-semibold">Resumo Financeiro</div>
+                  <div className="flex justify-between">
+                    <span>Subtotal Produtos:</span>
+                    <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + i.valor_total, 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>- Desconto Itens:</span>
+                    <span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.desconto_item || 0), 0))}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-0.5">
+                    <span>= Líquido Produtos:</span>
+                    <span className="font-mono font-semibold">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>+ Frete:</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>+ Seguro:</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_seguro || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>+ Outras Desp.:</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_outras_despesas || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>+ IPI:</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_ipi || 0)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-0.5 text-emerald-700">
+                    <span>TOTAL A PAGAR:</span>
+                    <span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_seguro || 0) + (dadosNFe.valor_outras_despesas || 0) + (dadosNFe.valor_ipi || 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-500 pt-1 border-t">
+                    <span>Valor Total NF-e (XML):</span>
+                    <span className="font-mono">{formatarMoeda(dadosNFe.valor_total || 0)}</span>
+                  </div>
                 </CardContent>
               </Card>
 
