@@ -1,23 +1,16 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { FileText, Upload, Loader2, AlertCircle, Plus, CheckCircle, RefreshCw, Search, Trash2, CheckSquare, Edit2, Save, X } from "lucide-react";
+import { Plus, Search, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-const ESTADOS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -35,9 +28,7 @@ const extrairDadosXML = (xmlText) => {
   };
 
   const modelo = getValor('mod');
-  if (modelo !== '55') {
-    throw new Error('Não é NF-e modelo 55');
-  }
+  if (modelo !== '55') throw new Error('Não é NF-e modelo 55');
 
   const numero = getValor('nNF');
   const serie = getValor('serie');
@@ -45,7 +36,6 @@ const extrairDadosXML = (xmlText) => {
   const dataEmissao = getValor('dhEmi')?.split('T')[0] || getValor('dEmi');
   const cfop = getValor('CFOP');
 
-  // VALORES TOTAIS DA NOTA
   const vProd = parseFloat(getValor('vProd')) || 0;
   const vFrete = parseFloat(getValor('vFrete')) || 0;
   const vSeg = parseFloat(getValor('vSeg')) || 0;
@@ -73,90 +63,55 @@ const extrairDadosXML = (xmlText) => {
 
   const enderecoCompleto = numero_end ? `${logradouro}, ${numero_end}` : logradouro;
 
-  // OBSERVAÇÕES COMPLETAS (SEM FILTRAR)
   const infAdic = xmlDoc.getElementsByTagName('infAdic')[0];
   let observacoes = '';
-  
   if (infAdic) {
     const infCpl = infAdic.getElementsByTagName('infCpl')[0];
-    if (infCpl) {
-      observacoes = infCpl.textContent || '';
-    }
+    if (infCpl) observacoes = infCpl.textContent || '';
   }
 
-  // EXTRAIR FORMA DE PAGAMENTO
   let tPag = getValor('tPag');
-  
   if (!tPag) {
     const pagElement = xmlDoc.getElementsByTagName('pag')[0];
     if (pagElement) {
       const detPagElement = pagElement.getElementsByTagName('detPag')[0];
-      if (detPagElement) {
-        tPag = detPagElement.getElementsByTagName('tPag')[0]?.textContent;
-      }
+      if (detPagElement) tPag = detPagElement.getElementsByTagName('tPag')[0]?.textContent;
     }
   }
   
   let formaPagamento = null;
   if (tPag) {
     const formasPag = {
-      '01': 'Dinheiro',
-      '02': 'Cheque',
-      '03': 'Cartão de Crédito',
-      '04': 'Cartão de Débito',
-      '05': 'Crédito Loja',
-      '10': 'Vale Alimentação',
-      '11': 'Vale Refeição',
-      '12': 'Vale Presente',
-      '13': 'Vale Combustível',
-      '15': 'Boleto Bancário',
-      '17': 'PIX',
-      '18': 'Transferência Bancária',
-      '19': 'Depósito Bancária',
-      '90': 'Sem Pagamento',
-      '99': 'Outros'
+      '01': 'Dinheiro', '02': 'Cheque', '03': 'Cartão de Crédito', '04': 'Cartão de Débito',
+      '05': 'Crédito Loja', '10': 'Vale Alimentação', '11': 'Vale Refeição', '12': 'Vale Presente',
+      '13': 'Vale Combustível', '15': 'Boleto Bancário', '17': 'PIX', '18': 'Transferência Bancária',
+      '19': 'Depósito Bancária', '90': 'Sem Pagamento', '99': 'Outros'
     };
     formaPagamento = formasPag[tPag] || 'Outros';
   }
 
-  // EXTRAIR PARCELAMENTO
   const parcelas = [];
   const dups = xmlDoc.getElementsByTagName('dup');
-  
   for (let i = 0; i < dups.length; i++) {
     const dup = dups[i];
     const dVenc = dup.getElementsByTagName('dVenc')[0]?.textContent;
     const vDup = parseFloat(dup.getElementsByTagName('vDup')[0]?.textContent || 0);
-    
-    if (dVenc && vDup > 0) {
-      parcelas.push({
-        data: dVenc,
-        valor: vDup
-      });
-    }
+    if (dVenc && vDup > 0) parcelas.push({ data: dVenc, valor: vDup });
   }
-  
-  // Sort parcelas by date (keeping this as it's a good practice, even if not explicitly in the outline diff)
   parcelas.sort((a, b) => new Date(a.data) - new Date(b.data));
 
-  // VERIFICAR SE ESTÁ PAGO
   let contaPaga = false;
-  if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') {
-    contaPaga = true;
-  }
+  if (parcelas.length === 0 && tPag && tPag !== '15' && tPag !== '90' && tPag !== '99') contaPaga = true;
 
   const itensNFe = [];
   const dets = xmlDoc.getElementsByTagName('det');
-  
   for (let i = 0; i < dets.length; i++) {
     const det = dets[i];
     const getTagDet = (tag) => {
       const el = det.getElementsByTagName(tag)[0];
       return el ? el.textContent : null;
     };
-
     const vDescItem = parseFloat(getTagDet('vDesc')) || 0;
-
     itensNFe.push({
       codigo: getTagDet('cProd') || '',
       descricao: getTagDet('xProd') || '',
@@ -165,49 +120,25 @@ const extrairDadosXML = (xmlText) => {
       unidade: getTagDet('uCom') || 'UN',
       quantidade: parseFloat(getTagDet('qCom')) || 0,
       valor_unitario: parseFloat(getTagDet('vUnCom')) || 0,
-      valor_total: parseFloat(getTagDet('vProd')) || 0, // This is vProd for the item
+      valor_total: parseFloat(getTagDet('vProd')) || 0,
       desconto_item: vDescItem
     });
   }
 
-  if (itensNFe.length === 0) {
-    throw new Error('NF-e sem produtos');
-  }
+  if (itensNFe.length === 0) throw new Error('NF-e sem produtos');
 
   return {
-    modelo,
-    numero,
-    serie,
-    chave,
-    data_emissao: dataEmissao,
-    cnpj_emitente: cnpjEmit,
-    cpf_emitente: cpfEmit,
-    razao_social_emitente: razaoSocial,
-    inscricao_estadual_emitente: inscEstadual,
-    telefone_emitente: telefone,
-    email_emitente: email,
-    endereco_emitente: enderecoCompleto,
-    bairro_emitente: bairro,
-    cidade_emitente: cidade,
-    estado_emitente: estado,
-    cep_emitente: cep,
-    cfop,
-    valor_produtos: vProd,
-    valor_frete: vFrete,
-    valor_seguro: vSeg,
-    valor_outras_despesas: vOutro,
-    valor_desconto_total: vDesc,
-    valor_ipi: vIPI,
-    valor_icms: vICMS,
-    valor_pis: vPIS,
-    valor_cofins: vCOFINS,
-    base_calculo_icms: vBC,
-    valor_total: valorTotal,
-    forma_pagamento: formaPagamento,
-    observacoes_nfe: observacoes,
-    parcelas: parcelas,
-    conta_paga: contaPaga,
-    itens: itensNFe
+    modelo, numero, serie, chave, data_emissao: dataEmissao,
+    cnpj_emitente: cnpjEmit, cpf_emitente: cpfEmit, razao_social_emitente: razaoSocial,
+    inscricao_estadual_emitente: inscEstadual, telefone_emitente: telefone, email_emitente: email,
+    endereco_emitente: enderecoCompleto, bairro_emitente: bairro, cidade_emitente: cidade,
+    estado_emitente: estado, cep_emitente: cep, cfop,
+    valor_produtos: vProd, valor_frete: vFrete, valor_seguro: vSeg,
+    valor_outras_despesas: vOutro, valor_desconto_total: vDesc,
+    valor_ipi: vIPI, valor_icms: vICMS, valor_pis: vPIS, valor_cofins: vCOFINS,
+    base_calculo_icms: vBC, valor_total: valorTotal,
+    forma_pagamento: formaPagamento, observacoes_nfe: observacoes,
+    parcelas: parcelas, conta_paga: contaPaga, itens: itensNFe
   };
 };
 
@@ -222,17 +153,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [localEstoque, setLocalEstoque] = useState("");
   
   const [novoFornecedor, setNovoFornecedor] = useState({
-    tipo_pessoa: "Jurídica",
-    nome: "",
-    cnpj: "",
-    cpf: "",
-    inscricao_estadual: "",
-    telefone: "",
-    email: "",
-    endereco: "",
-    cidade: "",
-    estado: "",
-    cep: ""
+    tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "",
+    telefone: "", email: "", endereco: "", cidade: "", estado: "", cep: ""
   });
   
   const [showNovoFornecedor, setShowNovoFornecedor] = useState(false);
@@ -242,20 +164,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const [showCadastroEmMassa, setShowCadastroEmMassa] = useState(false);
   
   const [novoProduto, setNovoProduto] = useState({
-    nome_produto: "",
-    codigo_interno: "",
-    codigo_barras: "",
-    unidade_medida: "UN",
-    categoria: "",
-    descricao: "",
-    preco_custo: ""
+    nome_produto: "", codigo_interno: "", codigo_barras: "",
+    unidade_medida: "UN", categoria: "", descricao: "", preco_custo: ""
   });
 
   const [showNovaUnidade, setShowNovaUnidade] = useState(false);
-  const [novaUnidade, setNovaUnidade({ sigla: "", nome: "" });
+  const [novaUnidade, setNovaUnidade] = useState({ sigla: "", nome: "" });
   
   const [showNovaCategoria, setShowNovaCategoria] = useState(false);
-  const [novaCategoria, setNovaCategoria({ nome: "", descricao: "" });
+  const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "" });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -282,17 +199,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     mutationFn: async (data) => {
       const all = await base44.entities.Fornecedor.list();
       const maxNum = all.reduce((max, f) => Math.max(max, parseInt(f.numero_cadastro) || 0), 0);
-      return base44.entities.Fornecedor.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_cadastro: String(maxNum + 1)
-      });
+      return base44.entities.Fornecedor.create({ ...data, empresa_id: empresaSelecionadaId, numero_cadastro: String(maxNum + 1) });
     },
     onSuccess: (newFornecedor) => {
       queryClient.invalidateQueries({ queryKey: ['fornecedores_financeiro'] });
       setFornecedorSelecionado(newFornecedor);
       setShowNovoFornecedor(false);
-      toast.success('✅ Fornecedor cadastrado!');
+      toast.success('Fornecedor cadastrado!');
       setEtapa(3);
     },
   });
@@ -301,17 +214,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     mutationFn: async (data) => {
       const all = await base44.entities.UnidadeMedida.list();
       const maxNum = all.reduce((max, u) => Math.max(max, parseInt(u.numero) || 0), 0);
-      return base44.entities.UnidadeMedida.create({
-        ...data,
-        numero: String(maxNum + 1)
-      });
+      return base44.entities.UnidadeMedida.create({ ...data, numero: String(maxNum + 1) });
     },
     onSuccess: (newUnidade) => {
       queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
       setNovoProduto(prev => ({ ...prev, unidade_medida: newUnidade.sigla }));
       setShowNovaUnidade(false);
       setNovaUnidade({ sigla: "", nome: "" });
-      toast.success('✅ Unidade cadastrada!');
+      toast.success('Unidade cadastrada!');
     },
   });
 
@@ -319,17 +229,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     mutationFn: async (data) => {
       const all = await base44.entities.Categoria.list();
       const maxNum = all.reduce((max, c) => Math.max(max, parseInt(c.numero_categoria) || 0), 0);
-      return base44.entities.Categoria.create({
-        ...data,
-        numero_categoria: String(maxNum + 1)
-      });
+      return base44.entities.Categoria.create({ ...data, numero_categoria: String(maxNum + 1) });
     },
     onSuccess: (newCategoria) => {
       queryClient.invalidateQueries({ queryKey: ['categorias_produtos'] });
       setNovoProduto(prev => ({ ...prev, categoria: newCategoria.nome }));
       setShowNovaCategoria(false);
       setNovaCategoria({ nome: "", descricao: "" });
-      toast.success('✅ Categoria cadastrada!');
+      toast.success('Categoria cadastrada!');
     },
   });
 
@@ -337,26 +244,19 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     mutationFn: async (data) => {
       const all = await base44.entities.Produto.list();
       const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
-      return base44.entities.Produto.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_produto: String(maxNum + 1),
-        estoque_atual: 0
-      });
+      return base44.entities.Produto.create({ ...data, empresa_id: empresaSelecionadaId, numero_produto: String(maxNum + 1), estoque_atual: 0 });
     },
     onSuccess: (newProduto) => {
       queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
       if (itemEditando) {
         setItensNFe(prev => prev.map(item => 
-          item.index === itemEditando.index 
-            ? { ...item, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' }
-            : item
+          item.index === itemEditando.index ? { ...item, produto_id: newProduto.id, produto_nome: newProduto.nome_produto, status: 'associado' } : item
         ));
         setItemEditando(null);
       }
       setShowNovoProduto(false);
       setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
-      toast.success('✅ Produto cadastrado!');
+      toast.success('Produto cadastrado!');
     },
   });
 
@@ -365,18 +265,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     if (!file) return;
 
     setProcessando(true);
-    
     try {
-      toast.info('📄 Lendo XML...');
-      
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const response = await fetch(file_url);
       const xmlText = await response.text();
-
       const resultado = extrairDadosXML(xmlText);
       
-      toast.success(`✅ ${resultado.itens.length} produto(s) encontrado(s)`);
-      
+      toast.success(`${resultado.itens.length} produto(s) encontrado(s)`);
       setDadosNFe(resultado);
       
       const documentoEmitente = resultado.cnpj_emitente || resultado.cpf_emitente;
@@ -387,13 +282,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       
       if (forn) {
         setFornecedorSelecionado(forn);
-        toast.success(`✅ Fornecedor: ${forn.nome}`);
+        toast.success(`Fornecedor: ${forn.nome}`);
         setEtapa(3);
       } else {
-        const enderecoCompleto = resultado.bairro_emitente 
-          ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}`
-          : resultado.endereco_emitente;
-
+        const enderecoCompleto = resultado.bairro_emitente ? `${resultado.endereco_emitente}, ${resultado.bairro_emitente}` : resultado.endereco_emitente;
         setNovoFornecedor({
           tipo_pessoa: resultado.cnpj_emitente ? "Jurídica" : "Física",
           nome: resultado.razao_social_emitente || "",
@@ -409,10 +301,9 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         });
         setEtapa(2);
       }
-      
     } catch (error) {
-      console.error('❌ Erro:', error);
-      toast.error(`❌ ${error.message || 'Erro ao processar XML'}`);
+      console.error('Erro:', error);
+      toast.error(error.message || 'Erro ao processar XML');
     } finally {
       setProcessando(false);
       e.target.value = '';
@@ -427,27 +318,19 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           p.codigo_barras === item.codigo ||
           p.nome_produto?.toLowerCase().includes(item.descricao?.toLowerCase())
         );
-
         const unidadeXML = item.unidade?.toUpperCase();
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === unidadeXML);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (unidadeXML || 'UN');
 
         return {
-          index,
-          codigo: item.codigo || '',
-          descricao: item.descricao || '',
-          ncm: item.ncm || '',
-          cfop: item.cfop || '',
-          unidade: unidadeFinal,
-          quantidade: item.quantidade || 0,
-          valor_total: item.valor_total, // This is vProd for the item
+          index, codigo: item.codigo || '', descricao: item.descricao || '',
+          ncm: item.ncm || '', cfop: item.cfop || '', unidade: unidadeFinal,
+          quantidade: item.quantidade || 0, valor_total: item.valor_total,
           desconto_item: item.desconto_item || 0,
-          produto_id: prod?.id,
-          produto_nome: prod?.nome_produto,
+          produto_id: prod?.id, produto_nome: prod?.nome_produto,
           status: prod ? 'associado' : 'pendente'
         };
       });
-      
       setItensNFe(itensComAssociacao);
       setItensSelecionados(itensComAssociacao.map(i => i.index));
     }
@@ -455,17 +338,15 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
   const handleCadastrarFornecedor = () => {
     if (!novoFornecedor.nome) {
-      toast.error('❌ Nome obrigatório!');
+      toast.error('Nome obrigatório!');
       return;
     }
-
     if (novoFornecedor.tipo_pessoa === 'Jurídica' && !novoFornecedor.cnpj) {
-      toast.error('❌ CNPJ obrigatório para pessoa jurídica!');
+      toast.error('CNPJ obrigatório!');
       return;
     }
-
     if (novoFornecedor.tipo_pessoa === 'Física' && !novoFornecedor.cpf) {
-      toast.error('❌ CPF obrigatório para pessoa física!');
+      toast.error('CPF obrigatório!');
       return;
     }
 
@@ -486,12 +367,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
   const handleCadastrarProduto = () => {
     if (!novoProduto.nome_produto) {
-      toast.error('❌ Nome do produto obrigatório!');
+      toast.error('Nome obrigatório!');
       return;
     }
     const precoCustoParsed = novoProduto.preco_custo ? parseFloat(String(novoProduto.preco_custo).replace(',', '.')) : 0;
     if (isNaN(precoCustoParsed)) {
-      toast.error('❌ Preço de custo inválido!');
+      toast.error('Preço inválido!');
       return;
     }
 
@@ -509,7 +390,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const handleAbrirCadastroProduto = (item) => {
     const unidadeCadastrada = unidadesMedida.find(u => u.sigla === item.unidade);
     const precoCusto = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
-    
     setNovoProduto({
       nome_produto: item.descricao || "",
       codigo_interno: item.codigo || "",
@@ -519,44 +399,34 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       descricao: "",
       preco_custo: precoCusto.toFixed(2).replace('.', ',')
     });
-    
-    setItemEditando(item); // Set itemEditando for onSuccess to work
+    setItemEditando(item);
     setShowNovoProduto(true);
   };
 
   const handleCadastrarUnidade = () => {
     if (!novaUnidade.sigla) {
-      toast.error('❌ Sigla obrigatória!');
+      toast.error('Sigla obrigatória!');
       return;
     }
     if (!novaUnidade.nome) {
-      toast.error('❌ Nome obrigatório!');
+      toast.error('Nome obrigatório!');
       return;
     }
-
-    createUnidadeMutation.mutate({
-      sigla: novaUnidade.sigla.toUpperCase(),
-      nome: novaUnidade.nome.toUpperCase()
-    });
+    createUnidadeMutation.mutate({ sigla: novaUnidade.sigla.toUpperCase(), nome: novaUnidade.nome.toUpperCase() });
   };
 
   const handleCadastrarCategoria = () => {
     if (!novaCategoria.nome) {
-      toast.error('❌ Nome obrigatório!');
+      toast.error('Nome obrigatório!');
       return;
     }
-
-    createCategoriaMutation.mutate({
-      nome: novaCategoria.nome.toUpperCase(),
-      descricao: novaCategoria.descricao?.toUpperCase()
-    });
+    createCategoriaMutation.mutate({ nome: novaCategoria.nome.toUpperCase(), descricao: novaCategoria.descricao?.toUpperCase() });
   };
 
   const handleCadastrarProdutosEmMassa = async () => {
     const pendentes = itensNFe.filter(i => i.status === 'pendente' && itensSelecionados.includes(i.index));
-    
     if (pendentes.length === 0) {
-      toast.error('❌ Nenhum produto pendente selecionado!');
+      toast.error('Nenhum produto pendente!');
       return;
     }
     
@@ -567,10 +437,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       try {
         const all = await base44.entities.Produto.list();
         const maxNum = all.reduce((max, p) => Math.max(max, parseInt(p.numero_produto) || 0), 0);
-        
         const unidadeCadastrada = unidadesMedida.find(u => u.sigla === item.unidade);
         const unidadeFinal = unidadeCadastrada ? unidadeCadastrada.sigla : (item.unidade || 'UN');
-
         const precoCusto = item.quantidade > 0 ? (item.valor_total / item.quantidade) : 0;
 
         const newProduto = await base44.entities.Produto.create({
@@ -578,10 +446,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           numero_produto: String(maxNum + 1),
           nome_produto: item.descricao.toUpperCase(),
           codigo_interno: item.codigo?.toUpperCase(),
-          codigo_barras: '', // XML doesn't provide this directly
+          codigo_barras: '',
           unidade_medida: unidadeFinal.toUpperCase(),
-          categoria: '', // XML doesn't provide this directly
-          descricao: '', // Full description not usually in XML items
+          categoria: '',
+          descricao: '',
           preco_custo: precoCusto,
           estoque_atual: 0
         });
@@ -595,64 +463,34 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         cadastrados++;
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        console.error('Erro ao cadastrar produto:', error);
+        console.error('Erro:', error);
       }
     }
 
     queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
     setShowCadastroEmMassa(false);
-    toast.success(`✅ ${cadastrados} produto(s) cadastrado(s)!`);
+    toast.success(`${cadastrados} produto(s) cadastrado(s)!`);
   };
 
   const handleTrocarProduto = (produto) => {
     setItensNFe(prev => prev.map(item => 
-      item.index === itemEditando?.index 
-        ? { ...item, produto_id: produto.id, produto_nome: produto.nome_produto, status: 'associado' }
-        : item
+      item.index === itemEditando?.index ? { ...item, produto_id: produto.id, produto_nome: produto.nome_produto, status: 'associado' } : item
     ));
-    
     setShowBuscaProduto(false);
     setItemEditando(null);
     setBuscaProduto("");
-    toast.success('✅ Produto associado!');
-  };
-
-  const handleEditarItem = (item) => {
-    setItemEditando({ ...item });
-  };
-
-  const handleSalvarEdicao = () => {
-    if (itemEditando.quantidade <= 0) {
-      toast.error('❌ Quantidade deve ser maior que zero!');
-      return;
-    }
-    if (itemEditando.valor_total <= 0) {
-      toast.error('❌ Valor total deve ser maior que zero!');
-      return;
-    }
-    
-    setItensNFe(prev => prev.map(item => 
-      item.index === itemEditando.index ? itemEditando : item
-    ));
-    setItemEditando(null);
-    toast.success('✅ Item atualizado!');
-  };
-
-  const handleCancelarEdicao = () => {
-    setItemEditando(null);
+    toast.success('Produto associado!');
   };
 
   const handleToggleSelecao = (index) => {
-    setItensSelecionados(prev => 
-      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
-    );
+    setItensSelecionados(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]);
   };
 
   const handleRemoverItem = (index) => {
-    if (window.confirm('❌ Deseja remover este item do lançamento?')) {
+    if (window.confirm('Remover item?')) {
       setItensNFe(prev => prev.filter(i => i.index !== index));
       setItensSelecionados(prev => prev.filter(i => i !== index));
-      toast.success('✅ Item removido!');
+      toast.success('Item removido!');
     }
   };
 
@@ -669,27 +507,20 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     const pendentes = itensParaImportar.filter(i => i.status === 'pendente');
     
     if (itensParaImportar.length === 0) {
-      toast.error('❌ Nenhum item selecionado!');
+      toast.error('Nenhum item selecionado!');
       return;
     }
-
     if (pendentes.length > 0) {
-      toast.error(`❌ ${pendentes.length} produto(s) sem associação!`);
+      toast.error(`${pendentes.length} produto(s) sem associação!`);
       return;
     }
-
     if (!localEstoque) {
-      toast.error('❌ Selecione o local de estoque!');
+      toast.error('Selecione o local de estoque!');
       return;
     }
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
-
-    const totalProdutos = itensParaImportar.reduce((sum, i) => {
-      const total = i.valor_total - (i.desconto_item || 0);
-      return sum + total;
-    }, 0);
-    
+    const totalProdutos = itensParaImportar.reduce((sum, i) => sum + (i.valor_total - (i.desconto_item || 0)), 0);
     const frete = dadosNFe.valor_frete || 0;
     const outrasDespesas = dadosNFe.valor_outras_despesas || 0;
 
@@ -705,10 +536,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       observacoes_nfe: dadosNFe.observacoes_nfe || '',
       conta_paga: dadosNFe.conta_paga || false,
       parcelar: temParcelas,
-      parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({
-        data: p.data,
-        valor: String(p.valor.toFixed(2)).replace('.', ',')
-      })) : [],
+      parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({ data: p.data, valor: String(p.valor.toFixed(2)).replace('.', ',') })) : [],
       valor_produtos: dadosNFe.valor_produtos,
       valor_frete: dadosNFe.valor_frete,
       valor_seguro: dadosNFe.valor_seguro,
@@ -765,21 +593,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     p.codigo_interno?.toLowerCase().includes(buscaProduto.toLowerCase())
   );
 
-  const estadosOptions = ESTADOS_BRASIL.map(uf => ({ value: uf, label: uf }));
-  const unidadesOptions = unidadesMedida.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.nome}` }));
-  const categoriasOptions = categorias.map(c => ({ value: c.nome, label: c.nome }));
-
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !processando) { onClose(); resetar(); } }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold text-slate-900">
-              Importar NF-e - Etapa {etapa} de 3
-            </DialogTitle>
+            <DialogTitle className="text-sm font-semibold text-slate-900">Importar NF-e - Etapa {etapa} de 3</DialogTitle>
           </DialogHeader>
 
-          {/* ETAPA 1: UPLOAD */}
           {etapa === 1 && (
             <div className="space-y-2">
               <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center hover:border-slate-400 transition-colors">
@@ -795,7 +616,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
             </div>
           )}
 
-          {/* ETAPA 2: FORNECEDOR */}
           {etapa === 2 && dadosNFe && (
             <div className="space-y-2">
               <Card className="bg-slate-50 border-slate-200 shadow-sm">
@@ -807,10 +627,11 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                 </CardContent>
               </Card>
 
-              <div className="space-y-2">
-                <h3 className="font-semibold text-xs">Cadastrar Fornecedor</h3>
-                
-                <div className="space-y-2">
+              <Card className="shadow-sm border-slate-200">
+                <CardHeader className="pb-1.5 px-2 pt-1.5">
+                  <CardTitle className="text-xs font-semibold">Cadastrar Fornecedor</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2 space-y-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo *</Label>
                     <Select value={novoFornecedor.tipo_pessoa} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, tipo_pessoa: v })}>
@@ -833,7 +654,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                           <Input value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className="h-8 text-xs" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Insc. Estadual</Label>
+                          <Label className="text-xs">Insc. Est.</Label>
                           <Input value={novoFornecedor.inscricao_estadual} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricao_estadual: e.target.value })} className="uppercase h-8 text-xs" style={{ textTransform: 'uppercase' }} />
                         </div>
                       </>
@@ -844,24 +665,23 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       </div>
                     )}
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="flex justify-between gap-2 pt-2 border-t">
-                  <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
-                  <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
-                    {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar'}
-                  </Button>
-                </div>
+              <div className="flex justify-between gap-2 pt-2 border-t">
+                <Button variant="outline" onClick={() => setEtapa(1)} size="sm" className="h-7 text-xs">Voltar</Button>
+                <Button onClick={handleCadastrarFornecedor} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createFornecedorMutation.isPending}>
+                  {createFornecedorMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+                </Button>
               </div>
             </div>
           )}
 
-          {/* ETAPA 3: PRODUTOS */}
           {etapa === 3 && dadosNFe && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-xs">Produtos ({itensNFe.length})</h3>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <Button size="sm" variant="outline" onClick={handleSelecionarTodos} className="h-6 text-xs">
                     {itensSelecionados.length === itensNFe.length && itensNFe.length > 0 ? 'Desmarcar' : 'Selecionar'}
                   </Button>
@@ -880,107 +700,79 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <TableHead className="w-10 text-xs">
                         <Checkbox checked={itensSelecionados.length === itensNFe.length && itensNFe.length > 0} onCheckedChange={handleSelecionarTodos} />
                       </TableHead>
-                      <TableHead className="w-12 text-xs">Status</TableHead>
+                      <TableHead className="w-10 text-xs">St</TableHead>
                       <TableHead className="text-xs">Produto</TableHead>
                       <TableHead className="text-right text-xs">Qtd</TableHead>
                       <TableHead className="text-right text-xs">Total</TableHead>
-                      <TableHead className="text-center w-24 text-xs">Ações</TableHead>
+                      <TableHead className="text-center w-20 text-xs">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {itensNFe.map((item) => {
-                      const isEditing = itemEditando?.index === item.index;
-                      return (
-                        <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
-                          <TableCell>
-                            <Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} />
-                          </TableCell>
-                          <TableCell>
-                            {item.status === 'associado' ? (
-                              <div className="w-4 h-4 rounded-full bg-emerald-600" />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-orange-400" />
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <div className="font-medium">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
-                            <div className="text-slate-500 text-[10px]">{item.descricao}</div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <Input type="number" value={itemEditando.quantidade} onChange={(e) => setItemEditando({...itemEditando, quantidade: parseFloat(e.target.value) || 0})} className="h-6 w-16 text-xs text-right" step="0.01" />
-                            ) : (
-                              <span className="font-mono text-xs">{item.quantidade.toFixed(2)}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <Input type="number" value={itemEditando.valor_total} onChange={(e) => setItemEditando({...itemEditando, valor_total: parseFloat(e.target.value) || 0})} className="h-6 w-20 text-xs text-right" step="0.01" />
-                            ) : (
-                              <span className="font-mono text-xs">{formatarMoeda(item.valor_total)}</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-0.5 justify-center">
-                              {item.status === 'pendente' && (
-                                <Button size="sm" variant="ghost" onClick={() => handleAbrirCadastroProduto(item)} className="h-6 w-6 p-0 text-emerald-600" title="Cadastrar">
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                              )}
-                              <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-slate-600" title="Trocar">
-                                <Search className="w-3 h-3" />
+                    {itensNFe.map((item) => (
+                      <TableRow key={item.index} className={!itensSelecionados.includes(item.index) ? 'opacity-40' : ''}>
+                        <TableCell>
+                          <Checkbox checked={itensSelecionados.includes(item.index)} onCheckedChange={() => handleToggleSelecao(item.index)} />
+                        </TableCell>
+                        <TableCell>
+                          <div className={`w-3 h-3 rounded-full ${item.status === 'associado' ? 'bg-emerald-600' : 'bg-orange-400'}`} />
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-medium">{item.produto_nome || <span className="text-orange-600">Não associado</span>}</div>
+                          <div className="text-slate-500 text-[10px]">{item.descricao}</div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">{item.quantidade.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatarMoeda(item.valor_total)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-0.5 justify-center">
+                            {item.status === 'pendente' && (
+                              <Button size="sm" variant="ghost" onClick={() => handleAbrirCadastroProduto(item)} className="h-6 w-6 p-0 text-emerald-600" title="Cadastrar">
+                                <Plus className="w-3 h-3" />
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="h-6 w-6 p-0 text-red-600" title="Remover">
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => { setItemEditando(item); setShowBuscaProduto(true); }} className="h-6 w-6 p-0 text-slate-600" title="Trocar">
+                              <Search className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleRemoverItem(item.index)} className="h-6 w-6 p-0 text-red-600" title="Remover">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
 
-              {/* RESUMO DOS VALORES */}
               <Card className="bg-slate-50 border-slate-200">
-                <CardContent className="p-2 text-xs space-y-1">
-                  <div className="font-semibold">Resumo Financeiro</div>
+                <CardContent className="p-2 text-xs space-y-0.5">
+                  <div className="font-semibold">Resumo</div>
                   <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono">{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0))}</span></div>
-                  <div className="flex justify-between"><span>Frete:</span><span className="font-mono">{formatarMoeda(dadosNFe.valor_frete || 0)}</span></div>
-                  <div className="flex justify-between font-semibold border-t pt-1"><span>TOTAL:</span><span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
+                  <div className="flex justify-between"><span>Frete + Desp.:</span><span className="font-mono">{formatarMoeda((dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
+                  <div className="flex justify-between font-semibold border-t pt-0.5"><span>TOTAL:</span><span>{formatarMoeda(itensNFe.filter(i => itensSelecionados.includes(i.index)).reduce((s, i) => s + (i.valor_total - (i.desconto_item || 0)), 0) + (dadosNFe.valor_frete || 0) + (dadosNFe.valor_outras_despesas || 0))}</span></div>
                 </CardContent>
               </Card>
 
-              {/* LOCAL DE ESTOQUE */}
               <Card className="bg-slate-50 border-slate-200">
                 <CardHeader className="py-1.5 px-2">
                   <CardTitle className="text-xs font-semibold">Local de Estoque</CardTitle>
                 </CardHeader>
                 <CardContent className="p-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Onde armazenar? *</Label>
-                    <Select value={localEstoque} onValueChange={setLocalEstoque}>
-                      <SelectTrigger className="h-8 text-xs bg-white">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locaisEstoque.map(l => (
-                          <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={localEstoque} onValueChange={setLocalEstoque}>
+                    <SelectTrigger className="h-8 text-xs bg-white">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locaisEstoque.map(l => (
+                        <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </CardContent>
               </Card>
 
               <div className="flex justify-between gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setEtapa(fornecedorSelecionado ? 1 : 2)} size="sm" className="h-7 text-xs">Voltar</Button>
-                <Button 
-                  onClick={handleConfirmarImportacao} 
-                  className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
-                  disabled={itensSelecionados.length === 0 || !localEstoque}
-                >
+                <Button onClick={handleConfirmarImportacao} className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={itensSelecionados.length === 0 || !localEstoque}>
                   Importar ({itensSelecionados.length})
                 </Button>
               </div>
@@ -989,7 +781,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: BUSCAR PRODUTO */}
       <Dialog open={showBuscaProduto} onOpenChange={setShowBuscaProduto}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -1012,7 +803,6 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               <TableHeader className="sticky top-0 bg-slate-50">
                 <TableRow>
                   <TableHead className="text-xs">Nome</TableHead>
-                  <TableHead className="text-xs">Categoria</TableHead>
                   <TableHead className="text-xs">UN</TableHead>
                   <TableHead className="text-xs">Ação</TableHead>
                 </TableRow>
@@ -1020,13 +810,12 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
               <TableBody>
                 {produtosFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-slate-500 text-xs">Nenhum produto</TableCell>
+                    <TableCell colSpan={3} className="text-center py-6 text-slate-500 text-xs">Nenhum produto</TableCell>
                   </TableRow>
                 ) : (
                   produtosFiltrados.map(p => (
                     <TableRow key={p.id}>
                       <TableCell className="text-xs">{p.nome_produto}</TableCell>
-                      <TableCell className="text-xs">{p.categoria || '-'}</TableCell>
                       <TableCell className="text-xs">{p.unidade_medida}</TableCell>
                       <TableCell>
                         <Button size="sm" onClick={() => handleTrocarProduto(p)} className="bg-emerald-600 h-6 text-xs">Selecionar</Button>
@@ -1040,14 +829,13 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: NOVO PRODUTO */}
       <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-sm">Cadastrar Produto</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="space-y-2">
             <div className="space-y-1">
               <Label className="text-xs">Nome *</Label>
               <Input value={novoProduto.nome_produto} onChange={(e) => setNovoProduto({...novoProduto, nome_produto: e.target.value})} placeholder="NOME" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} autoFocus />
@@ -1087,119 +875,37 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: NOVA UNIDADE */}
       <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">Cadastrar Nova Unidade de Medida</DialogTitle>
+            <DialogTitle className="text-sm">Cadastrar Unidade</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Sigla *</Label>
-              <Input 
-                value={novaUnidade.sigla} 
-                onChange={(e) => setNovaUnidade({...novaUnidade, sigla: e.target.value})} 
-                placeholder="UN" 
-                className="h-9 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-                maxLength={10}
-                autoFocus
-              />
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Sigla *</Label>
+              <Input value={novaUnidade.sigla} onChange={(e) => setNovaUnidade({...novaUnidade, sigla: e.target.value})} placeholder="UN" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} maxLength={10} autoFocus />
             </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nome *</Label>
-              <Input 
-                value={novaUnidade.nome} 
-                onChange={(e) => setNovaUnidade({...novaUnidade, nome: e.target.value})} 
-                placeholder="UNIDADE" 
-                className="h-9 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input value={novaUnidade.nome} onChange={(e) => setNovaUnidade({...novaUnidade, nome: e.target.value})} placeholder="UNIDADE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
             </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <Button variant="outline" onClick={() => setShowNovaUnidade(false)} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleCadastrarUnidade} 
-                size="sm" 
-                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
-                disabled={createUnidadeMutation.isPending}
-              >
-                {createUnidadeMutation.isPending ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
-                ) : (
-                  <><Save className="w-3 h-3" />Salvar</>
-                )}
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowNovaUnidade(false)} size="sm" className="h-7 text-xs">Cancelar</Button>
+              <Button onClick={handleCadastrarUnidade} size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" disabled={createUnidadeMutation.isPending}>
+                {createUnidadeMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: NOVA CATEGORIA */}
-      <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Cadastrar Nova Categoria</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nome *</Label>
-              <Input 
-                value={novaCategoria.nome} 
-                onChange={(e) => setNovaCategoria({...novaCategoria, nome: e.target.value})} 
-                placeholder="NOME DA CATEGORIA" 
-                className="h-9 text-xs uppercase"
-                style={{ textTransform: 'uppercase' }}
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Descrição</Label>
-              <Textarea 
-                value={novaCategoria.descricao} 
-                onChange={(e) => setNovaCategoria({...novaCategoria, descricao: e.target.value})} 
-                placeholder="DESCRIÇÃO DA CATEGORIA..." 
-                className="text-xs uppercase min-h-20"
-                style={{ textTransform: 'uppercase' }}
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <Button variant="outline" onClick={() => setShowNovaCategoria(false)} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleCadastrarCategoria} 
-                size="sm" 
-                className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1 text-xs" 
-                disabled={createCategoriaMutation.isPending}
-              >
-                {createCategoriaMutation.isPending ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" />Salvando...</>
-                ) : (
-                  <><Save className="w-3 h-3" />Salvar</>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOG: CADASTRO EM MASSA */}
       <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              Cadastrando Produtos
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              Cadastrando...
             </DialogTitle>
           </DialogHeader>
         </DialogContent>
