@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, FileText, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { toast } from "sonner";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -107,6 +109,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [sortDirection, setSortDirection] = useState("asc");
   const [detalhesAberto, setDetalhesAberto] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [selecionados, setSelecionados] = useState([]);
   
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
@@ -170,6 +173,86 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     return sortDirection === 'asc' 
       ? <ArrowUp className="w-3 h-3 ml-1" />
       : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
+
+  const handleSelecionarTodos = () => {
+    if (selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(lancamentosOrdenados.map(l => l.id));
+    }
+  };
+
+  const handleToggleSelecao = (id) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBaixaEmMassa = () => {
+    if (selecionados.length === 0) {
+      toast.error('Selecione ao menos um lançamento!');
+      return;
+    }
+    toast.info('Funcionalidade em desenvolvimento');
+  };
+
+  const handleExcluirEmMassa = async () => {
+    if (selecionados.length === 0) {
+      toast.error('Selecione ao menos um lançamento!');
+      return;
+    }
+
+    if (window.confirm(`⚠️ Confirma a exclusão de ${selecionados.length} lançamento(s)?`)) {
+      let excluidos = 0;
+      for (const id of selecionados) {
+        try {
+          await onDelete(id, true); // skipConfirm = true
+          excluidos++;
+        } catch (error) {
+          console.error('Erro:', error);
+        }
+      }
+      setSelecionados([]);
+      toast.success(`${excluidos} lançamento(s) excluído(s)!`);
+    }
+  };
+
+  const handleExportarSelecionados = () => {
+    if (selecionados.length === 0) {
+      toast.error('Selecione ao menos um lançamento!');
+      return;
+    }
+    
+    const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
+    
+    const csvRows = [];
+    const headers = ['Nº', 'Emissão', 'Vencimento', 'Fornecedor/Cliente', 'Tipo Doc', 'Nº Doc', 'Valor Total', 'Valor Pago', 'Saldo', 'Status'];
+    csvRows.push(headers.join(';'));
+
+    lancamentosSelecionados.forEach(l => {
+      const row = [
+        l.numero_lancamento || '',
+        formatarData(l.data_emissao),
+        formatarData(l.data_vencimento),
+        l.fornecedor_nome || l.cliente_nome || '',
+        l.tipo_documento || '',
+        l.numero_documento || '',
+        l.valor_total || 0,
+        l.valor_pago || 0,
+        (l.valor_total || 0) - (l.valor_pago || 0),
+        l.status || ''
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `lancamentos_selecionados_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success(`${selecionados.length} lançamento(s) exportado(s)!`);
   };
 
   const lancamentosFiltrados = lancamentos.filter((l) => {
@@ -324,11 +407,42 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
             </div>
           </CardTitle>
         </CardHeader>
+
+        {selecionados.length > 0 && (
+          <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-emerald-800">
+                {selecionados.length} lançamento(s) selecionado(s)
+              </span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleExportarSelecionados} className="h-7 gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+                  <Download className="w-3 h-3" />
+                  Exportar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExcluirEmMassa} className="h-7 gap-1 text-xs border-red-300 text-red-700 hover:bg-red-100">
+                  <Trash2 className="w-3 h-3" />
+                  Excluir
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setSelecionados([])} className="h-7 gap-1 text-xs">
+                  Limpar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <CardContent className="p-0">
           <div className="overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-10 text-xs">
+                    <Checkbox 
+                      checked={selecionados.length === lancamentosOrdenados.length && lancamentosOrdenados.length > 0}
+                      onCheckedChange={handleSelecionarTodos}
+                    />
+                  </TableHead>
+                  <TableHead className="text-xs text-center w-[120px]">Ações</TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -344,7 +458,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       </TableHead>
                     );
                   })}
-                  <TableHead className="text-xs text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -369,11 +482,12 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                           exit={{ opacity: 0 }} 
                           className="hover:bg-slate-50 transition-colors border-b"
                         >
-                          {colunasOrdenadas.map(coluna => (
-                            <React.Fragment key={coluna.id}>
-                              {renderCell(coluna, lancamento)}
-                            </React.Fragment>
-                          ))}
+                          <TableCell>
+                            <Checkbox
+                              checked={selecionados.includes(lancamento.id)}
+                              onCheckedChange={() => handleToggleSelecao(lancamento.id)}
+                            />
+                          </TableCell>
                           <TableCell className="text-center">
                             <div className="flex gap-1 justify-center">
                               <Button variant="ghost" size="icon" onClick={() => abrirDetalhes(lancamento)} className="h-7 w-7" title="Ver Detalhes">
@@ -397,6 +511,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               </Button>
                             </div>
                           </TableCell>
+                          {colunasOrdenadas.map(coluna => (
+                            <React.Fragment key={coluna.id}>
+                              {renderCell(coluna, lancamento)}
+                            </React.Fragment>
+                          ))}
                         </motion.tr>
                       );
                     })
