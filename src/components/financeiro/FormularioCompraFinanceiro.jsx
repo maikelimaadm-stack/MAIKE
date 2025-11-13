@@ -15,6 +15,7 @@ import { Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 import ComboboxFornecedor from "./ComboboxFornecedor.jsx";
+import AutocompleteGenerico from "./AutocompleteGenerico.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -256,23 +257,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const calcularValorTotal = () => {
     if (formData.lancar_produtos) {
-      const totalProdutos = formData.produtos_selecionados.reduce((sum, p) => {
+      const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
         const total = parseNumero(p.valor_total || "0");
         const desc = parseNumero(p.desconto_item || "0");
         return sum + (total - desc);
       }, 0);
 
-      // Se vier do XML e tiver usar_valor_nfe_total, não calcular, usar o valor_total direto
-      if (initialData?.usar_valor_nfe_total && initialData?.valor_total) {
-        return parseNumero(String(initialData.valor_total));
-      }
-
       const frete = parseNumero(formData.frete);
       const outras = parseNumero(formData.outras_despesas);
       const ipi = parseNumero(formData.valor_ipi || "0");
-      const descontoTotalNfe = parseNumero(formData.valor_desconto_total || "0");
 
-      return totalProdutos + frete + outras + ipi - descontoTotalNfe;
+      return totalProdutosLiquido + frete + outras + ipi;
     } else {
       return parseNumero(formData.valor_original) + parseNumero(formData.valor_juros) + parseNumero(formData.valor_multa) - parseNumero(formData.valor_desconto);
     }
@@ -566,7 +561,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     await onSubmit(data);
   };
 
-  const totalProdutos = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
+  const totalProdutosLiquido = formData.lancar_produtos ? formData.produtos_selecionados.reduce((sum, p) => {
     const total = parseNumero(p.valor_total || "0");
     const desc = parseNumero(p.desconto_item || "0");
     return sum + (total - desc);
@@ -582,8 +577,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
-
-  const descontoTotalXML = parseNumero(formData.valor_desconto_total || "0");
 
 
   return (
@@ -719,7 +712,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               <TableHeader>
                                 <TableRow className="bg-slate-50">
                                   <TableHead className="text-xs w-8"></TableHead>
-                                  <TableHead className="text-xs w-[160px]">Produto *</TableHead>
+                                  <TableHead className="text-xs w-[180px]">Produto *</TableHead>
                                   <TableHead className="text-xs text-right w-[80px]">Qtd *</TableHead>
                                   <TableHead className="text-xs text-right w-[90px]">Total *</TableHead>
                                   <TableHead className="text-xs text-right w-[80px]">Desc.</TableHead>
@@ -752,15 +745,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           </DropdownMenuContent>
                                         </DropdownMenu>
                                       </TableCell>
-                                      <TableCell className="w-[160px]">
-                                        <Select value={produto.produto_id} onValueChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}>
-                                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                          <SelectContent>
-                                            {produtos.map(p => (
-                                              <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                      <TableCell className="w-[180px]">
+                                        <AutocompleteGenerico
+                                          items={produtos}
+                                          value={produto.produto_id}
+                                          onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                                          placeholder="Buscar produto..."
+                                          displayField="nome_produto"
+                                          searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                                          renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
+                                          className="w-full"
+                                        />
                                       </TableCell>
                                       <TableCell className="w-[80px]">
                                         <Input
@@ -810,7 +805,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                     <TableCell colSpan={3} className="text-xs">TOTAL</TableCell>
                                     <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
                                     <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutos)}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutosLiquido)}</TableCell>
                                     <TableCell colSpan={1}></TableCell>
                                   </TableRow>
                                 )}
@@ -828,12 +823,18 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           <div className="space-y-1">
                             <Label className="text-xs">Local de Estoque *</Label>
                             <div className="flex gap-1">
-                              <Select value={formData.local_estoque} onValueChange={(v) => handleChange('local_estoque', v)} className="flex-1">
-                                <SelectTrigger className="h-8 text-xs bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                <SelectContent>
-                                  {locais.map(l => <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
+                              <AutocompleteGenerico
+                                items={locais}
+                                value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
+                                onChange={(id) => {
+                                  const local = locais.find(l => l.id === id);
+                                  handleChange('local_estoque', local?.nome || "");
+                                }}
+                                placeholder="Buscar local..."
+                                displayField="nome"
+                                searchFields={["nome", "descricao"]}
+                                className="flex-1"
+                              />
                               <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                                 <Plus className="w-3.5 h-3.5" />
                               </Button>
@@ -853,44 +854,33 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
 
                         <Card className="bg-emerald-50 border-emerald-300">
-                          <CardContent className="p-2">
-                            <div className="space-y-0.5 text-xs">
+                          <CardContent className="p-2 text-xs space-y-0.5">
+                            <div className="font-semibold text-emerald-900">💰 Valor a Pagar</div>
+                            <div className="flex justify-between">
+                              <span>Produtos (líquido):</span>
+                              <span className="font-mono font-semibold">{formatarMoeda(totalProdutosLiquido)}</span>
+                            </div>
+                            {parseNumero(formData.frete) > 0 && (
                               <div className="flex justify-between">
-                                <span>Subtotal Produtos (bruto):</span>
-                                <span className="font-mono">{formatarMoeda(totalProdutosBruto)}</span>
+                                <span>+ Frete:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span>
                               </div>
-                              {totalDescontos > 0 && (
-                                <div className="flex justify-between text-red-600">
-                                  <span>- Desconto Itens:</span>
-                                  <span className="font-mono">{formatarMoeda(totalDescontos)}</span>
-                                </div>
-                              )}
-                              {descontoTotalXML > 0 && (
-                                <div className="flex justify-between text-red-600">
-                                  <span>- Desconto NF-e:</span>
-                                  <span className="font-mono">{formatarMoeda(descontoTotalXML)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between border-t border-emerald-400 pt-0.5">
-                                <span>= Líquido:</span>
-                                <span className="font-mono font-semibold">{formatarMoeda(totalProdutos - descontoTotalXML)}</span>
+                            )}
+                            {parseNumero(formData.outras_despesas) > 0 && (
+                              <div className="flex justify-between">
+                                <span>+ Outras Desp.:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
                               </div>
-                              <div className="flex justify-between"><span>+ Frete:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.frete))}</span></div>
-                              <div className="flex justify-between"><span>+ Outras Desp.:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.outras_despesas))}</span></div>
-                              {parseNumero(formData.valor_ipi || "0") > 0 && (
-                                <div className="flex justify-between"><span>+ IPI:</span><span className="font-mono">{formatarMoeda(parseNumero(formData.valor_ipi || "0"))}</span></div>
-                              )}
-                              <div className="pt-1 border-t-2 border-emerald-500 flex justify-between font-bold text-emerald-900 text-sm">
-                                <span>TOTAL A PAGAR:</span>
-                                <span>{formatarMoeda(valorTotal)}</span>
+                            )}
+                            {parseNumero(formData.valor_ipi || "0") > 0 && (
+                              <div className="flex justify-between">
+                                <span>+ IPI:</span>
+                                <span className="font-mono">{formatarMoeda(parseNumero(formData.valor_ipi || "0"))}</span>
                               </div>
-                              {initialData?.valor_total && Math.abs(valorTotal - parseNumero(String(initialData.valor_total))) > 0.5 && (
-                                <div className="bg-orange-100 border border-orange-300 rounded p-1 mt-1">
-                                  <p className="text-[10px] text-orange-800">
-                                    ⚠️ Diferença com NF-e: {formatarMoeda(parseNumero(String(initialData.valor_total)))}
-                                  </p>
-                                </div>
-                              )}
+                            )}
+                            <div className="flex justify-between font-bold border-t-2 border-emerald-400 pt-1 text-emerald-900 text-sm">
+                              <span>TOTAL A PAGAR:</span>
+                              <span className="font-mono">{formatarMoeda(valorTotal)}</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -1016,39 +1006,52 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs">Plano de Contas *</Label>
-                          <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {planos.map(p => (
-                                <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <AutocompleteGenerico
+                            items={planos}
+                            value={formData.plano_contas_id}
+                            onChange={(v) => handleChange('plano_contas_id', v)}
+                            placeholder="Buscar plano..."
+                            displayField="descricao"
+                            searchFields={["codigo", "descricao"]}
+                            renderItem={(p) => (
+                              <>
+                                <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>
+                              </>
+                            )}
+                            className="w-full"
+                          />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Grupo Financeiro *</Label>
-                          <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {grupos.map(g => (
-                                <SelectItem key={g.id} value={g.id} className="text-xs">{g.codigo} - {g.descricao}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <AutocompleteGenerico
+                            items={grupos}
+                            value={formData.grupo_id}
+                            onChange={(v) => handleChange('grupo_id', v)}
+                            placeholder="Buscar grupo..."
+                            displayField="descricao"
+                            searchFields={["codigo", "descricao"]}
+                            renderItem={(g) => (
+                              <>
+                                <div className="text-xs font-medium text-slate-900">{g.codigo} - {g.descricao}</div>
+                              </>
+                            )}
+                            className="w-full"
+                          />
                         </div>
                       </div>
 
                       <div className="space-y-1">
                         <Label className="text-xs">Centro de Custo</Label>
                         <div className="flex gap-1">
-                          <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
-                            <SelectContent>
-                              {centros.map(c => (
-                                <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <AutocompleteGenerico
+                            items={centros}
+                            value={formData.centro_custo_id}
+                            onChange={(v) => handleChange('centro_custo_id', v)}
+                            placeholder="Buscar centro..."
+                            displayField="nome"
+                            searchFields={["nome", "codigo"]}
+                            className="flex-1"
+                          />
                           <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
                             <Plus className="w-3.5 h-3.5" />
                           </Button>

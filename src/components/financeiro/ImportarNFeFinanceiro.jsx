@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AutocompleteGenerico from "./AutocompleteGenerico.jsx";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -894,16 +895,18 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                   <CardTitle className="text-xs font-semibold">Local de Estoque</CardTitle>
                 </CardHeader>
                 <CardContent className="p-2">
-                  <Select value={localEstoque} onValueChange={setLocalEstoque}>
-                    <SelectTrigger className="h-8 text-xs bg-white">
-                      <SelectValue placeholder="Selecione o local" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locaisEstoque.map(l => (
-                        <SelectItem key={l.id} value={l.nome} className="text-xs">{l.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteGenerico
+                    items={locaisEstoque}
+                    value={locaisEstoque.find(l => l.nome === localEstoque)?.id || ""}
+                    onChange={(id) => {
+                      const local = locaisEstoque.find(l => l.id === id);
+                      setLocalEstoque(local?.nome || "");
+                    }}
+                    placeholder="Buscar local..."
+                    displayField="nome"
+                    searchFields={["nome", "descricao"]}
+                    className="w-full"
+                  />
                 </CardContent>
               </Card>
 
