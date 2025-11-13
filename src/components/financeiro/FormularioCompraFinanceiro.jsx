@@ -604,19 +604,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
         <Card className="shadow-sm border-slate-300 bg-white">
-          <CardHeader className="bg-white border-b border-slate-200 py-2.5 px-4">
-            <CardTitle className="text-base font-semibold text-slate-800">
+          <CardHeader className="bg-white border-b border-slate-200 py-2 px-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData ? 'Editar Lançamento' : 'Novo Lançamento'} - Etapa {etapa}/2
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="p-3">
+            <form onSubmit={handleSubmit} className="space-y-2.5">
               {etapa === 1 && (
                 <>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Fornecedor *</Label>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Fornecedor *</Label>
                         <ComboboxFornecedor 
                           fornecedores={fornecedores}
                           value={formData.fornecedor_id}
@@ -624,114 +624,114 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           className="w-full"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Tipo Documento *</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Tipo Documento *</Label>
                         <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="NF-e">NF-e</SelectItem>
-                            <SelectItem value="NFC-e">NFC-e</SelectItem>
-                            <SelectItem value="Recibo">Recibo</SelectItem>
-                            <SelectItem value="Boleto">Boleto</SelectItem>
-                            <SelectItem value="Nota Manual">Nota Manual</SelectItem>
-                            <SelectItem value="Outros">Outros</SelectItem>
+                            <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                            <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
+                            <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                            <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                            <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
+                            <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Data Emissão *</Label>
-                        <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-9" />
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Data Emissão *</Label>
+                        <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-8 text-xs" />
                       </div>
                     </div>
 
                     {formData.tipo_documento === 'NF-e' && (
-                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-slate-200">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-9" />
+                      <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Série</Label>
-                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Série</Label>
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">CFOP</Label>
-                          <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-9" maxLength={4} />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">CFOP</Label>
+                          <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-8 text-xs" maxLength={4} />
                         </div>
                       </div>
                     )}
 
                     {formData.tipo_documento === 'NFC-e' && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-9" />
+                      <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Série</Label>
-                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Série</Label>
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-8 text-xs" />
                         </div>
                       </div>
                     )}
 
                     {formData.tipo_documento === 'Boleto' && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Nº Boleto *</Label>
-                          <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-9" />
+                      <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Nº Boleto *</Label>
+                          <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Banco</Label>
-                          <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Banco</Label>
+                          <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-8 text-xs" />
                         </div>
                       </div>
                     )}
 
                     {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
-                      <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                        <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                        <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-9" />
+                      <div className="space-y-1 pt-1.5 border-t border-slate-200">
+                        <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                        <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-8 text-xs" />
                       </div>
                     )}
 
-                    <div className="space-y-1.5 pt-2">
-                      <Label className="text-sm font-medium text-slate-700">Safra</Label>
+                    <div className="space-y-1 pt-1">
+                      <Label className="text-xs font-medium text-slate-700">Safra</Label>
                       <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
                         <SelectContent>
-                          {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim}</SelectItem>)}
+                          {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded border border-slate-200">
+                  <div className="flex items-center space-x-2 p-2 bg-slate-50 rounded border border-slate-200">
                     <Checkbox checked={formData.lancar_produtos} onCheckedChange={(v) => handleChange('lancar_produtos', v)} id="lancar_produtos" />
-                    <label htmlFor="lancar_produtos" className="font-medium cursor-pointer text-sm text-slate-700">Lançar Produtos no Estoque</label>
+                    <label htmlFor="lancar_produtos" className="font-medium cursor-pointer text-xs text-slate-700">Lançar Produtos no Estoque</label>
                   </div>
 
                   {formData.lancar_produtos && (
-                    <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
                       <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-sm text-slate-800">Produtos</h3>
-                        <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-8 gap-1.5">
-                          <Plus className="w-4 h-4" />
+                        <h3 className="font-semibold text-xs text-slate-800">Produtos</h3>
+                        <Button type="button" size="sm" onClick={handleAdicionarProduto} variant="outline" className="h-7 gap-1 text-xs">
+                          <Plus className="w-3.5 h-3.5" />
                           Adicionar
                         </Button>
                       </div>
 
                       {formData.produtos_selecionados.length > 0 && (
-                        <div className="border rounded-lg overflow-auto max-h-72 bg-white">
+                        <div className="border rounded overflow-auto max-h-60 bg-white">
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-slate-50">
-                                <TableHead className="w-8"></TableHead>
-                                <TableHead className="w-[200px]">Produto *</TableHead>
-                                <TableHead className="text-right w-[90px]">Qtd *</TableHead>
-                                <TableHead className="text-right w-[100px]">Total *</TableHead>
-                                <TableHead className="text-right w-[90px]">Desc.</TableHead>
-                                <TableHead className="text-right w-[100px]">Líquido</TableHead>
-                                <TableHead className="text-center w-[60px]">UN</TableHead>
+                                <TableHead className="w-8 text-xs"></TableHead>
+                                <TableHead className="w-[180px] text-xs">Produto *</TableHead>
+                                <TableHead className="text-right w-[80px] text-xs">Qtd *</TableHead>
+                                <TableHead className="text-right w-[90px] text-xs">Total *</TableHead>
+                                <TableHead className="text-right w-[80px] text-xs">Desc.</TableHead>
+                                <TableHead className="text-right w-[90px] text-xs">Líquido</TableHead>
+                                <TableHead className="text-center w-[50px] text-xs">UN</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -747,19 +747,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                     <TableCell className="w-8">
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                                            <MoreVertical className="w-4 h-4 text-slate-600" />
+                                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start">
-                                          <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-red-600">
-                                            <Trash2 className="w-4 h-4 mr-2" />
+                                          <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
+                                            <Trash2 className="w-3.5 h-3.5 mr-2" />
                                             Excluir
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     </TableCell>
-                                    <TableCell className="w-[200px]">
+                                    <TableCell className="w-[180px]">
                                       <AutocompleteGenerico
                                         items={produtos}
                                         value={produto.produto_id}
@@ -771,7 +771,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                         className="w-full"
                                       />
                                     </TableCell>
-                                    <TableCell className="w-[90px]">
+                                    <TableCell className="w-[80px]">
                                       <Input 
                                         value={produto.quantidade} 
                                         onChange={(e) => {
@@ -779,10 +779,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'quantidade', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-8" 
+                                        className="text-right h-7 text-xs" 
                                       />
                                     </TableCell>
-                                    <TableCell className="w-[100px]">
+                                    <TableCell className="w-[90px]">
                                       <Input 
                                         value={produto.valor_total} 
                                         onChange={(e) => {
@@ -790,10 +790,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'valor_total', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-8" 
+                                        className="text-right h-7 text-xs" 
                                       />
                                     </TableCell>
-                                    <TableCell className="w-[90px]">
+                                    <TableCell className="w-[80px]">
                                       <Input 
                                         value={produto.desconto_item || "0,00"} 
                                         onChange={(e) => {
@@ -801,25 +801,25 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                           handleAtualizarProduto(index, 'desconto_item', valor);
                                         }} 
                                         placeholder="0,00" 
-                                        className="text-right h-8" 
+                                        className="text-right h-7 text-xs" 
                                       />
                                     </TableCell>
-                                    <TableCell className="text-right w-[100px]">
-                                      <div className="font-mono font-semibold">{formatarMoeda(liquido)}</div>
-                                      <div className="text-xs text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                                    <TableCell className="text-right w-[90px]">
+                                      <div className="font-mono font-semibold text-xs">{formatarMoeda(liquido)}</div>
+                                      <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
                                     </TableCell>
-                                    <TableCell className="text-center w-[60px]">
-                                      <span className="font-mono text-sm">{produto.unidade || '-'}</span>
+                                    <TableCell className="text-center w-[50px]">
+                                      <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                                     </TableCell>
                                   </TableRow>
                                 );
                               })}
                               {formData.produtos_selecionados.length > 0 && (
-                                <TableRow className="bg-slate-50 font-semibold border-t-2">
-                                  <TableCell colSpan={3}>TOTAL</TableCell>
-                                  <TableCell className="text-right font-mono">{formatarMoeda(totalProdutosBruto)}</TableCell>
-                                  <TableCell className="text-right font-mono text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
-                                  <TableCell className="text-right font-mono text-slate-800 font-bold">{formatarMoeda(totalProdutosLiquido)}</TableCell>
+                                <TableRow className="bg-slate-100 font-semibold border-t-2">
+                                  <TableCell colSpan={3} className="text-xs">TOTAL</TableCell>
+                                  <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutosLiquido)}</TableCell>
                                   <TableCell colSpan={1}></TableCell>
                                 </TableRow>
                               )}
@@ -828,15 +828,15 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         </div>
                       )}
 
-                      <div className="flex items-center space-x-2 p-3 bg-white rounded border border-slate-200">
+                      <div className="flex items-center space-x-2 p-1.5 bg-white rounded border border-slate-200">
                         <Checkbox checked={formData.dar_entrada_estoque} onCheckedChange={(v) => handleChange('dar_entrada_estoque', v)} id="dar_entrada_estoque" />
-                        <label htmlFor="dar_entrada_estoque" className="font-medium cursor-pointer text-sm text-slate-700">Dar entrada no estoque?</label>
+                        <label htmlFor="dar_entrada_estoque" className="font-medium cursor-pointer text-xs text-slate-700">Dar entrada no estoque?</label>
                       </div>
 
                       {formData.dar_entrada_estoque && (
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Local de Estoque *</Label>
-                          <div className="flex gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Local de Estoque *</Label>
+                          <div className="flex gap-1.5">
                             <AutocompleteGenerico
                               items={locais}
                               value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
@@ -849,52 +849,52 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               searchFields={["nome", "descricao"]}
                               className="flex-1"
                             />
-                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-9 w-9">
-                              <Plus className="w-4 h-4" />
+                            <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                              <Plus className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Frete</Label>
-                          <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-9" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Frete</Label>
+                          <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Outras Despesas</Label>
-                          <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Outras Despesas</Label>
+                          <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                         </div>
                       </div>
 
-                      <div className="bg-white border border-slate-300 rounded-lg p-3">
-                        <div className="space-y-1">
-                          <div className="font-semibold text-slate-800 text-sm mb-2">Valor a Pagar</div>
-                          <div className="flex justify-between text-sm">
+                      <div className="bg-white border border-slate-300 rounded p-2">
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-semibold text-slate-800 mb-1">Valor a Pagar</div>
+                          <div className="flex justify-between">
                             <span className="text-slate-600">Produtos (líquido):</span>
                             <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
                           </div>
                           {parseNumero(formData.frete) > 0 && (
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between">
                               <span className="text-slate-600">+ Frete:</span>
                               <span className="font-mono text-slate-700">{formatarMoeda(parseNumero(formData.frete))}</span>
                             </div>
                           )}
                           {parseNumero(formData.outras_despesas) > 0 && (
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between">
                               <span className="text-slate-600">+ Outras Despesas:</span>
                               <span className="font-mono text-slate-700">{formatarMoeda(parseNumero(formData.outras_despesas))}</span>
                             </div>
                           )}
                           {parseNumero(formData.valor_ipi || "0") > 0 && (
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between">
                               <span className="text-slate-600">+ IPI:</span>
                               <span className="font-mono text-slate-700">{formatarMoeda(parseNumero(formData.valor_ipi || "0"))}</span>
                             </div>
                           )}
-                          <div className="flex justify-between font-bold border-t pt-2 mt-2 text-slate-900">
+                          <div className="flex justify-between font-bold border-t pt-1 mt-1 text-slate-900">
                             <span>TOTAL A PAGAR:</span>
-                            <span className="font-mono text-lg">{formatarMoeda(valorTotal)}</span>
+                            <span className="font-mono text-base">{formatarMoeda(valorTotal)}</span>
                           </div>
                         </div>
                       </div>
@@ -902,28 +902,28 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   )}
 
                   {!formData.lancar_produtos && (
-                    <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-slate-50">
-                      <h3 className="font-semibold text-sm text-slate-800">Valores</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Valor *</Label>
-                          <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-9" />
+                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                      <h3 className="font-semibold text-xs text-slate-800">Valores</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Valor *</Label>
+                          <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Juros</Label>
-                          <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Juros</Label>
+                          <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Multa</Label>
-                          <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Multa</Label>
+                          <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Desconto</Label>
-                          <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Desconto</Label>
+                          <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                         </div>
                       </div>
-                      <div className="bg-white border border-slate-300 rounded p-2">
-                        <div className="flex justify-between text-sm">
+                      <div className="bg-white border border-slate-300 rounded p-1.5">
+                        <div className="flex justify-between text-xs">
                           <span className="text-slate-700">Total:</span>
                           <span className="font-semibold text-slate-900">{formatarMoeda(valorTotal)}</span>
                         </div>
@@ -932,84 +932,84 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                   )}
 
                   {mostrarCamposNFe && (
-                    <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
                       <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-sm text-slate-800">Detalhes NF-e (Informativo)</h3>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarCamposNFe(false)} className="h-7">Ocultar</Button>
+                        <h3 className="font-semibold text-xs text-slate-800">Detalhes NF-e (Informativo)</h3>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarCamposNFe(false)} className="h-6 text-xs">Ocultar</Button>
                       </div>
                       
-                      <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
+                      <div className="bg-blue-50 border border-blue-200 rounded p-1.5 text-[10px] text-blue-800">
                         ℹ️ Campos informativos da NF-e. O valor a pagar é calculado com base nos produtos lançados acima.
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Vlr. Produtos (XML)</Label>
-                          <Input value={formData.valor_produtos || ''} className="h-9 bg-slate-100" readOnly />
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Vlr. Produtos (XML)</Label>
+                          <Input value={formData.valor_produtos || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Vlr. Frete (XML)</Label>
-                          <Input value={formData.valor_frete || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Vlr. Frete (XML)</Label>
+                          <Input value={formData.valor_frete || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Vlr. Seguro (XML)</Label>
-                          <Input value={formData.valor_seguro || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Vlr. Seguro (XML)</Label>
+                          <Input value={formData.valor_seguro || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Outras Desp. (XML)</Label>
-                          <Input value={formData.valor_outras_despesas || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Outras Desp. (XML)</Label>
+                          <Input value={formData.valor_outras_despesas || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Desc. Total (XML)</Label>
-                          <Input value={formData.valor_desconto_total || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Desc. Total (XML)</Label>
+                          <Input value={formData.valor_desconto_total || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">IPI (XML)</Label>
-                          <Input value={formData.valor_ipi || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">IPI (XML)</Label>
+                          <Input value={formData.valor_ipi || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">ICMS (XML)</Label>
-                          <Input value={formData.valor_icms || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">ICMS (XML)</Label>
+                          <Input value={formData.valor_icms || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">PIS (XML)</Label>
-                          <Input value={formData.valor_pis || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">PIS (XML)</Label>
+                          <Input value={formData.valor_pis || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">COFINS (XML)</Label>
-                          <Input value={formData.valor_cofins || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">COFINS (XML)</Label>
+                          <Input value={formData.valor_cofins || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Base ICMS (XML)</Label>
-                          <Input value={formData.base_calculo_icms || ''} className="h-9 bg-slate-100" readOnly />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Base ICMS (XML)</Label>
+                          <Input value={formData.base_calculo_icms || ''} className="h-7 text-xs bg-slate-100" readOnly />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Obs. NF-e</Label>
-                        <Textarea value={formData.observacoes_nfe || ''} onChange={(e) => handleChange('observacoes_nfe', e.target.value)} className="min-h-24 bg-white" placeholder="Observações da nota..." rows={3} />
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Obs. NF-e</Label>
+                        <Textarea value={formData.observacoes_nfe || ''} onChange={(e) => handleChange('observacoes_nfe', e.target.value)} className="min-h-16 bg-white text-xs" placeholder="Observações da nota..." rows={2} />
                       </div>
                     </div>
                   )}
 
                   {!mostrarCamposNFe && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setMostrarCamposNFe(true)} className="h-8 w-full">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setMostrarCamposNFe(true)} className="h-7 text-xs w-full">
                       Mostrar Detalhes NF-e
                     </Button>
                   )}
 
-                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
-                    <Button type="button" variant="outline" onClick={onCancel} className="h-9">Cancelar</Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-9">Próximo</Button>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                    <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">Cancelar</Button>
+                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">Próximo</Button>
                   </div>
                 </>
               )}
 
               {etapa === 2 && (
                 <>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Plano de Contas *</Label>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Plano de Contas *</Label>
                         <AutocompleteGenerico
                           items={planos}
                           value={formData.plano_contas_id}
@@ -1019,14 +1019,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           searchFields={["codigo", "descricao"]}
                           renderItem={(p) => (
                             <>
-                              <div className="font-medium text-slate-900">{p.codigo} - {p.descricao}</div>
+                              <div className="text-xs font-medium text-slate-900">{p.codigo} - {p.descricao}</div>
                             </>
                           )}
                           className="w-full"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-slate-700">Grupo Financeiro *</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Grupo Financeiro *</Label>
                         <AutocompleteGenerico
                           items={grupos}
                           value={formData.grupo_id}
@@ -1036,7 +1036,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           searchFields={["codigo", "descricao"]}
                           renderItem={(g) => (
                             <>
-                              <div className="font-medium text-slate-900">{g.codigo} - {g.descricao}</div>
+                              <div className="text-xs font-medium text-slate-900">{g.codigo} - {g.descricao}</div>
                             </>
                           )}
                           className="w-full"
@@ -1044,9 +1044,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium text-slate-700">Centro de Custo</Label>
-                      <div className="flex gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium text-slate-700">Centro de Custo</Label>
+                      <div className="flex gap-1.5">
                         <AutocompleteGenerico
                           items={centros}
                           value={formData.centro_custo_id}
@@ -1056,24 +1056,24 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           searchFields={["nome", "codigo"]}
                           className="flex-1"
                         />
-                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-9 w-9">
-                          <Plus className="w-4 h-4" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
+                          <Plus className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-100 border border-slate-300 rounded p-3">
-                    <div className="flex justify-between items-center">
+                  <div className="bg-slate-100 border border-slate-300 rounded p-2">
+                    <div className="flex justify-between items-center text-xs">
                       <span className="font-semibold text-slate-800">Valor Total a Pagar:</span>
-                      <span className="font-mono font-bold text-slate-900 text-lg">{formatarMoeda(valorTotal)}</span>
+                      <span className="font-mono font-bold text-slate-900 text-base">{formatarMoeda(valorTotal)}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-slate-50">
-                    <h3 className="font-semibold text-sm text-slate-800">Pagamento</h3>
+                  <div className="space-y-2 border border-slate-200 rounded p-2.5 bg-slate-50">
+                    <h3 className="font-semibold text-xs text-slate-800">Pagamento</h3>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <Checkbox 
                           checked={formData.parcelar} 
@@ -1081,7 +1081,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           id="parcelar"
                           disabled={formData.conta_paga}
                         />
-                        <label htmlFor="parcelar" className={`font-medium cursor-pointer text-sm ${formData.conta_paga ? 'text-slate-400' : 'text-slate-700'}`}>Parcelar</label>
+                        <label htmlFor="parcelar" className={`font-medium cursor-pointer text-xs ${formData.conta_paga ? 'text-slate-400' : 'text-slate-700'}`}>Parcelar</label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox 
@@ -1090,23 +1090,23 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           id="conta_paga"
                           disabled={formData.parcelar}
                         />
-                        <label htmlFor="conta_paga" className={`font-medium cursor-pointer text-sm ${formData.parcelar ? 'text-slate-400' : 'text-slate-700'}`}>Conta já paga</label>
+                        <label htmlFor="conta_paga" className={`font-medium cursor-pointer text-xs ${formData.parcelar ? 'text-slate-400' : 'text-slate-700'}`}>Conta já paga</label>
                       </div>
                     </div>
 
                     {!formData.parcelar && !formData.conta_paga && (
                       <>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Vencimento *</Label>
-                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-9" />
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Vencimento *</Label>
+                          <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-8 text-xs" />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Forma de Pagamento</Label>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento</Label>
                           <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                             <SelectContent>
                               {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1115,50 +1115,50 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     )}
 
                     {formData.parcelar && (
-                      <div className="bg-white border border-slate-300 rounded-lg p-3 space-y-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Forma de Pagamento</Label>
+                      <div className="bg-white border border-slate-300 rounded p-2 space-y-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Forma de Pagamento</Label>
                           <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                             <SelectContent>
                               {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
 
                         <div className="flex justify-between items-center">
-                          <Label className="text-sm font-medium text-slate-700">Parcelas ({formData.parcelas.length})</Label>
-                          <Button type="button" size="sm" onClick={adicionarParcela} variant="outline" className="h-7 gap-1">
-                            <Plus className="w-3.5 h-3.5" />
+                          <Label className="text-xs font-medium text-slate-700">Parcelas ({formData.parcelas.length})</Label>
+                          <Button type="button" size="sm" onClick={adicionarParcela} variant="outline" className="h-6 gap-1 text-xs">
+                            <Plus className="w-3 h-3" />
                             Adicionar
                           </Button>
                         </div>
 
-                        <div className="border rounded-lg max-h-56 overflow-auto bg-white">
+                        <div className="border rounded max-h-48 overflow-auto bg-white">
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-slate-50">
-                                <TableHead className="w-12">Nº</TableHead>
-                                <TableHead>Vencimento</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                                <TableHead className="w-12"></TableHead>
+                                <TableHead className="w-10 text-xs">Nº</TableHead>
+                                <TableHead className="text-xs">Vencimento</TableHead>
+                                <TableHead className="text-right text-xs">Valor</TableHead>
+                                <TableHead className="w-10"></TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {formData.parcelas.map((parcela, index) => (
                                 <TableRow key={index}>
-                                  <TableCell className="font-semibold">{index + 1}</TableCell>
+                                  <TableCell className="font-semibold text-xs">{index + 1}</TableCell>
                                   <TableCell>
-                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-8" />
+                                    <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-7 text-xs" />
                                   </TableCell>
                                   <TableCell>
-                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="text-right h-8" />
+                                    <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="text-right h-7 text-xs" />
                                   </TableCell>
                                   <TableCell>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-7 w-7">
-                                      <Trash2 className="w-4 h-4" />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-6 w-6">
+                                      <Trash2 className="w-3 h-3" />
                                     </Button>
                                   </TableCell>
                                 </TableRow>
@@ -1167,35 +1167,35 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                           </Table>
                         </div>
 
-                        <div className={`p-2 rounded ${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 border border-slate-200'}`}>
-                          <div className="flex justify-between text-sm">
+                        <div className={`p-1.5 rounded text-xs ${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 border border-slate-200'}`}>
+                          <div className="flex justify-between">
                             <span>Total Parcelas:</span>
                             <span className="font-semibold">{formatarMoeda(totalParcelas)}</span>
                           </div>
-                          {Math.abs(totalParcelas - valorTotal) > 0.01 && <p className="text-center mt-1 text-xs">Valores diferentes!</p>}
+                          {Math.abs(totalParcelas - valorTotal) > 0.01 && <p className="text-center mt-0.5 text-[10px]">Valores diferentes!</p>}
                         </div>
                       </div>
                     )}
 
                     {formData.conta_paga && (
-                      <div className="bg-white border border-slate-300 rounded-lg p-3 space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">Data Pgto *</Label>
-                            <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-9" />
+                      <div className="bg-white border border-slate-300 rounded p-2 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-slate-700">Data Pgto *</Label>
+                            <Input type="date" value={formData.data_pagamento} onChange={(e) => handleChange('data_pagamento', e.target.value)} required className="h-8 text-xs" />
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-sm font-medium text-slate-700">Valor Pago *</Label>
-                            <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-9" />
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium text-slate-700">Valor Pago *</Label>
+                            <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-slate-700">Forma Pgto *</Label>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Forma Pgto *</Label>
                           <Select value={formData.forma_pagamento_paga_id} onValueChange={(v) => handleChange('forma_pagamento_paga_id', v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                             <SelectContent>
                               {FORMAS_PAGAMENTO_PADRAO.map(forma => (
-                                <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                                <SelectItem key={forma} value={forma} className="text-xs">{forma}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1204,17 +1204,17 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium text-slate-700">Observações</Label>
-                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Observações</Label>
+                    <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase text-xs min-h-14" style={{ textTransform: 'uppercase' }} rows={2} />
                   </div>
 
-                  <div className="flex justify-between gap-2 pt-3 border-t border-slate-200">
-                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-9">Voltar</Button>
+                  <div className="flex justify-between gap-2 pt-2 border-t border-slate-200">
+                    <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-8 text-xs">Voltar</Button>
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" onClick={onCancel} className="h-9">Cancelar</Button>
-                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-9" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
-                        <Save className="w-4 h-4 mr-1.5" />
+                      <Button type="button" variant="outline" onClick={onCancel} className="h-8 text-xs">Cancelar</Button>
+                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-8 text-xs" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
+                        <Save className="w-3 h-3 mr-1" />
                         Salvar
                       </Button>
                     </div>
