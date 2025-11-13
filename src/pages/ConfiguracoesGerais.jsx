@@ -27,7 +27,7 @@ import {
 
 const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
-  { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
+  { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
@@ -35,7 +35,7 @@ const DEFAULT_MENU = [
     title: "Financeiro",
     icon: "DollarSign",
     submenu: [
-      { id: "fin-controle", title: "Controle Financeiro", url: "Financeiro" },
+      { id: "fin-lancamento", title: "Lançamento Financeiro", url: "LancamentoFinanceiro" },
       { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
       { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
       { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },

@@ -54,7 +54,7 @@ const DEFAULT_MENU = [
     title: "Financeiro",
     icon: "DollarSign",
     submenu: [
-      { id: "fin-controle", title: "Controle Financeiro", url: "Financeiro" },
+      { id: "fin-lancamento", title: "Lançamento Financeiro", url: "LancamentoFinanceiro" },
       { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
       { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
       { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
