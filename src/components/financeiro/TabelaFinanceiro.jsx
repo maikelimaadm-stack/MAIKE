@@ -235,8 +235,8 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         bValue = b?.valor_pago || 0;
         break;
       case 'saldo':
-        aValue = a?.valor_saldo || a?.valor_total || 0;
-        bValue = b?.valor_saldo || b?.valor_total || 0;
+        aValue = (a?.valor_total || 0) - (a?.valor_pago || 0);
+        bValue = (b?.valor_total || 0) - (b?.valor_pago || 0);
         break;
       case 'status':
         aValue = (a?.status || '').toLowerCase();
@@ -468,7 +468,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               {colunasVisiveis.includes('valor_original') && <TableCell className="text-right font-mono">{formatarMoeda(lancamento?.valor_original || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_total') && <TableCell className="text-right font-mono font-semibold">{formatarMoeda(lancamento?.valor_total || 0)}</TableCell>}
                               {colunasVisiveis.includes('valor_pago') && <TableCell className="text-right font-mono text-blue-700">{formatarMoeda(lancamento?.valor_pago || 0)}</TableCell>}
-                              {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda(lancamento?.valor_saldo || lancamento?.valor_total || 0)}</TableCell>}
+                              {colunasVisiveis.includes('saldo') && <TableCell className="text-right font-mono font-bold text-red-700">{formatarMoeda((lancamento?.valor_total || 0) - (lancamento?.valor_pago || 0))}</TableCell>}
                               {colunasVisiveis.includes('status') && (
                                 <TableCell>
                                   <Badge className={getBadgeStyle(lancamento?.status)}>{lancamento?.status}</Badge>
@@ -633,7 +633,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                   <div><strong>Desconto:</strong> {formatarMoeda(detalhesAberto.valor_desconto || 0)}</div>
                   <div className="col-span-2 text-lg"><strong>Vlr. Total:</strong> <span className="text-blue-700 font-bold">{formatarMoeda(detalhesAberto.valor_total || 0)}</span></div>
                   <div className="text-blue-700"><strong>Vlr. Pago:</strong> {formatarMoeda(detalhesAberto.valor_pago || 0)}</div>
-                  <div className="text-red-700"><strong>Vlr. Saldo:</strong> {formatarMoeda(detalhesAberto.valor_saldo || detalhesAberto.valor_total || 0)}</div>
+                  <div className="text-red-700"><strong>Vlr. Saldo:</strong> {formatarMoeda((detalhesAberto.valor_total || 0) - (detalhesAberto.valor_pago || 0))}</div>
                 </CardContent>
               </Card>
 

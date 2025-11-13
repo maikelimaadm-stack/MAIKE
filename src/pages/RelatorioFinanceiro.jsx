@@ -145,7 +145,7 @@ export default function RelatorioFinanceiro() {
         grupos[chave].quantidade++;
         grupos[chave].valor_total += l.valor_total || 0;
         grupos[chave].valor_pago += l.valor_pago || 0;
-        grupos[chave].saldo += l.valor_saldo || l.valor_total || 0;
+        grupos[chave].saldo += (l.valor_total || 0) - (l.valor_pago || 0);
       });
       
       return Object.values(grupos);
@@ -180,7 +180,7 @@ export default function RelatorioFinanceiro() {
     return {
       total: lancamentosFiltrados.reduce((s, l) => s + (l.valor_total || 0), 0),
       pago: lancamentosFiltrados.reduce((s, l) => s + (l.valor_pago || 0), 0),
-      saldo: lancamentosFiltrados.reduce((s, l) => s + (l.valor_saldo || l.valor_total || 0), 0),
+      saldo: lancamentosFiltrados.reduce((s, l) => s + ((l.valor_total || 0) - (l.valor_pago || 0)), 0),
     };
   }, [lancamentosFiltrados]);
 
@@ -399,7 +399,7 @@ export default function RelatorioFinanceiro() {
                     {colunasVisiveis.includes('documento') && <TableCell className="border border-gray-300 text-xs py-1">{l.numero_documento || '-'}</TableCell>}
                     {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarMoeda(l.valor_total)}</TableCell>}
                     {colunasVisiveis.includes('valor_pago') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarMoeda(l.valor_pago || 0)}</TableCell>}
-                    {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarMoeda(l.valor_saldo || l.valor_total)}</TableCell>}
+                    {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{formatarMoeda((l.valor_total || 0) - (l.valor_pago || 0))}</TableCell>}
                     {colunasVisiveis.includes('status') && <TableCell className="border border-gray-300 text-xs py-1">{l.status}</TableCell>}
                     {colunasVisiveis.includes('centro_custo') && <TableCell className="border border-gray-300 text-xs py-1">{l.centro_custo_nome || '-'}</TableCell>}
                     {colunasVisiveis.includes('safra') && <TableCell className="border border-gray-300 text-xs py-1">{l.safra_nome || '-'}</TableCell>}

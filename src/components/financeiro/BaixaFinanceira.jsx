@@ -65,7 +65,7 @@ const formatarDataHora = (dataString) => {
 };
 
 export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
-  const saldoInicial = (lancamento.valor_saldo || lancamento.valor_total || 0);
+  const saldoInicial = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
   
   const [formData, setFormData] = useState({
     data_baixa: new Date().toISOString().split('T')[0],
@@ -143,7 +143,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
       await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
         valor_pago: totalPago,
-        valor_saldo: Math.max(0, saldoRestante),
         status: novoStatus
       });
 
@@ -199,7 +198,6 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
 
       await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
         valor_pago: totalPago,
-        valor_saldo: Math.max(0, saldoRestante),
         status: novoStatus
       });
     },
@@ -224,15 +222,19 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
       const saldoRestante = (lancamento.valor_total || 0) - totalPago;
       
       let novoStatus = 'Pendente';
-      if (saldoRestante <= 0.01 && totalPago > 0) {
+      if (saldoRestante <= 0.01 && totalPago > 0) { // If remaining is almost zero and some payment was made, it's paid
         novoStatus = 'Pago';
       } else if (totalPago > 0) {
         novoStatus = 'Pago Parcial';
       }
 
+      // If all baixas are deleted and totalPago is 0, revert to 'Pendente'
+      if (totalPago === 0) {
+        novoStatus = 'Pendente';
+      }
+
       await base44.entities.LancamentoFinanceiro.update(lancamento.id, {
         valor_pago: totalPago,
-        valor_saldo: Math.max(0, saldoRestante),
         status: novoStatus
       });
     },
@@ -250,7 +252,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
     e.preventDefault();
 
     const valorBaixa = parseMoeda(formData.valor_baixa);
-    const saldoDisponivel = lancamento.valor_saldo || lancamento.valor_total;
+    const saldoDisponivel = (lancamento.valor_total || 0) - (lancamento.valor_pago || 0);
 
     if (valorBaixa <= 0) {
       toast.error('Valor da baixa deve ser maior que zero!');
@@ -384,7 +386,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess }) {
                   <strong>Vlr. Total:</strong> {formatarMoeda(lancamento.valor_total)}
                 </div>
                 <div>
-                  <strong>Vlr. Saldo:</strong> <span className="text-red-700 font-bold">{formatarMoeda(lancamento.valor_saldo || lancamento.valor_total)}</span>
+                  <strong>Vlr. Saldo:</strong> <span className="text-red-700 font-bold">{formatarMoeda((lancamento.valor_total || 0) - (lancamento.valor_pago || 0))}</span>
                 </div>
               </div>
             </AlertDescription>
