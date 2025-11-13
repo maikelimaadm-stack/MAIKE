@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -46,7 +46,7 @@ const iconsMap = {
 
 const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
-  { id: "pesagens", title: "Pesagens", url: "Dashboard", icon: "Scale" },
+  { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
@@ -130,6 +130,8 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const isChangingEmpresa = useRef(false);
+  
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
@@ -139,34 +141,23 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // ATUALIZAR MENU QUANDO localStorage MUDAR
+  // ATUALIZAR MENU - SEM LOOP!
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('custom_menu');
       if (saved) {
-        setMenuItems(JSON.parse(saved));
+        try {
+          setMenuItems(JSON.parse(saved));
+        } catch (e) {
+          console.error('Erro ao parsear menu:', e);
+        }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     
-    // Também escutar mudanças locais (mesma aba)
-    const interval = setInterval(() => {
-      const saved = localStorage.getItem('custom_menu');
-      if (saved) {
-        const parsedMenu = JSON.parse(saved);
-        setMenuItems(prevMenu => {
-          if (JSON.stringify(prevMenu) !== JSON.stringify(parsedMenu)) {
-            return parsedMenu;
-          }
-          return prevMenu;
-        });
-      }
-    }, 500);
-
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
     };
   }, []);
 
@@ -186,18 +177,24 @@ export default function Layout({ children, currentPageName }) {
     enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
+  // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
-    if (!empresaSelecionada && empresas.length > 0) {
+    if (!empresaSelecionada && empresas.length > 0 && !isChangingEmpresa.current) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas, empresaSelecionada]);
+  }, [empresas.length]); // Apenas quando o tamanho mudar
 
   const handleEmpresaChange = (empresaId) => {
+    isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
-    window.location.reload();
+    
+    // Usar timeout para evitar loops
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   useEffect(() => {
@@ -207,7 +204,6 @@ export default function Layout({ children, currentPageName }) {
         setUser(currentUser);
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
-        // Não redireciona, apenas define usuário como null
         setUser(null);
       }
     };
