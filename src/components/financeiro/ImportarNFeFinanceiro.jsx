@@ -545,7 +545,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
 
     const temParcelas = dadosNFe.parcelas && dadosNFe.parcelas.length > 0;
     
-    // USAR VALORES DO XML TOTALIZADOR
+    // USAR soma_produtos_itens em vez de valor_produtos
+    const valorProdutosBruto = dadosNFe.soma_produtos_itens || dadosNFe.valor_produtos || 0;
+    const valorDescontoTotal = dadosNFe.valor_desconto_total || 0;
+    
     onSuccess({
       fornecedor_id: fornecedorSelecionado.id,
       tipo_documento: "NF-e",
@@ -559,16 +562,16 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       conta_paga: dadosNFe.conta_paga || false,
       parcelar: temParcelas,
       parcelas: temParcelas ? dadosNFe.parcelas.map(p => ({ data: p.data, valor: String(p.valor.toFixed(2)).replace('.', ',')})) : [],
-      valor_produtos: dadosNFe.valor_produtos,
-      valor_frete: dadosNFe.valor_frete,
-      valor_seguro: dadosNFe.valor_seguro,
-      valor_outras_despesas: dadosNFe.valor_outras_despesas,
-      valor_desconto_total: dadosNFe.valor_desconto_total,
-      valor_ipi: dadosNFe.valor_ipi,
-      valor_icms: dadosNFe.valor_icms,
-      valor_pis: dadosNFe.valor_pis,
-      valor_cofins: dadosNFe.valor_cofins,
-      base_calculo_icms: dadosNFe.base_calculo_icms,
+      valor_produtos: String(valorProdutosBruto.toFixed(2)).replace('.', ','),
+      valor_frete: String((dadosNFe.valor_frete || 0).toFixed(2)).replace('.', ','),
+      valor_seguro: String((dadosNFe.valor_seguro || 0).toFixed(2)).replace('.', ','),
+      valor_outras_despesas: String((dadosNFe.valor_outras_despesas || 0).toFixed(2)).replace('.', ','),
+      valor_desconto_total: String(valorDescontoTotal.toFixed(2)).replace('.', ','),
+      valor_ipi: String((dadosNFe.valor_ipi || 0).toFixed(2)).replace('.', ','),
+      valor_icms: String((dadosNFe.valor_icms || 0).toFixed(2)).replace('.', ','),
+      valor_pis: String((dadosNFe.valor_pis || 0).toFixed(2)).replace('.', ','),
+      valor_cofins: String((dadosNFe.valor_cofins || 0).toFixed(2)).replace('.', ','),
+      base_calculo_icms: String((dadosNFe.base_calculo_icms || 0).toFixed(2)).replace('.', ','),
       frete: String((dadosNFe.valor_frete || 0).toFixed(2)).replace('.', ','),
       outras_despesas: String((dadosNFe.valor_outras_despesas || 0).toFixed(2)).replace('.', ','),
       local_estoque: localEstoque,
