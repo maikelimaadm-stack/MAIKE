@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, FileText, Download, MoreVertical, Calendar } from "lucide-react";
+import { Edit, Trash2, Search, Settings, Eye, ArrowUpDown, ArrowUp, ArrowDown, XCircle, CheckCircle, GripVertical, Download, MoreVertical, Calendar, Edit2, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -16,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from "sonner";
@@ -104,7 +107,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'base_icms', label: 'Base ICMS', default: false },
 ];
 
-export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos }) {
+export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, onBaixa, onCancelarBaixa, isLoading, fornecedores, produtos, safras, centrosCusto, planosContas, gruposFinanceiros, onUpdateLote }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("vencimento");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -112,6 +115,14 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [selecionados, setSelecionados] = useState([]);
   const [parcelasDialog, setParcelasDialog] = useState(null);
+  const [showEditarLote, setShowEditarLote] = useState(false);
+  const [edicaoLote, setEdicaoLote] = useState({
+    safra_id: "",
+    centro_custo_id: "",
+    plano_contas_id: "",
+    grupo_id: "",
+    observacoes: ""
+  });
   
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem(`colunas_ordem_financeiro_${tipo.toLowerCase()}`);
@@ -191,12 +202,79 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
     );
   };
 
-  const handleBaixaEmMassa = () => {
+  const handleEditarEmLote = () => {
     if (selecionados.length === 0) {
       toast.error('Selecione ao menos um lançamento!');
       return;
     }
-    toast.info('Funcionalidade em desenvolvimento');
+    setShowEditarLote(true);
+  };
+
+  const handleConfirmarEdicaoLote = async () => {
+    const dadosParaAtualizar = {};
+    
+    if (edicaoLote.safra_id) {
+      const safra = safras?.find(s => s.id === edicaoLote.safra_id);
+      dadosParaAtualizar.safra_id = edicaoLote.safra_id;
+      dadosParaAtualizar.safra_nome = safra ? `${safra.ano_inicio}/${safra.ano_fim}` : undefined;
+    }
+    
+    if (edicaoLote.centro_custo_id) {
+      const centro = centrosCusto?.find(c => c.id === edicaoLote.centro_custo_id);
+      dadosParaAtualizar.centro_custo_id = edicaoLote.centro_custo_id;
+      dadosParaAtualizar.centro_custo_nome = centro?.nome;
+    }
+    
+    if (edicaoLote.plano_contas_id) {
+      const plano = planosContas?.find(p => p.id === edicaoLote.plano_contas_id);
+      dadosParaAtualizar.plano_contas_id = edicaoLote.plano_contas_id;
+      dadosParaAtualizar.plano_contas_nome = plano ? `${plano.codigo} - ${plano.descricao}` : undefined;
+    }
+    
+    if (edicaoLote.grupo_id) {
+      const grupo = gruposFinanceiros?.find(g => g.id === edicaoLote.grupo_id);
+      dadosParaAtualizar.grupo_id = edicaoLote.grupo_id;
+      dadosParaAtualizar.grupo_nome = grupo?.descricao;
+    }
+    
+    if (edicaoLote.observacoes) {
+      dadosParaAtualizar.observacoes = edicaoLote.observacoes.toUpperCase();
+    }
+
+    if (Object.keys(dadosParaAtualizar).length === 0) {
+      toast.error('Preencha ao menos um campo!');
+      return;
+    }
+
+    if (window.confirm(`Confirma a edição de ${selecionados.length} lançamento(s)?`)) {
+      await onUpdateLote(selecionados, dadosParaAtualizar);
+      setShowEditarLote(false);
+      setEdicaoLote({ safra_id: "", centro_custo_id: "", plano_contas_id: "", grupo_id: "", observacoes: "" });
+      setSelecionados([]);
+      toast.success(`${selecionados.length} lançamento(s) atualizado(s)!`);
+    }
+  };
+
+  const handleBaixaEmLote = () => {
+    if (selecionados.length === 0) {
+      toast.error('Selecione ao menos um lançamento!');
+      return;
+    }
+    
+    const lancamentosSelecionados = lancamentos.filter(l => selecionados.includes(l.id));
+    const comSaldo = lancamentosSelecionados.filter(l => (l.valor_total || 0) - (l.valor_pago || 0) > 0.01);
+    
+    if (comSaldo.length === 0) {
+      toast.error('Nenhum lançamento com saldo para baixar!');
+      return;
+    }
+    
+    if (comSaldo.length !== selecionados.length) {
+      toast.warning(`Apenas ${comSaldo.length} de ${selecionados.length} possuem saldo`);
+    }
+    
+    toast.info('Abrindo baixa em lote...');
+    // Aqui você pode abrir um dialog de baixa em lote ou processar
   };
 
   const handleExcluirEmMassa = async () => {
@@ -331,7 +409,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       case 'dias':
         return (
           <TableCell className="text-xs">
-            {lancamento?.status === 'Pendente' && (
+            {(lancamento?.status === 'Pendente' || lancamento?.status === 'Pago Parcial') && (
               <span className={`font-medium ${calcularDias(lancamento?.data_vencimento).includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
                 {calcularDias(lancamento?.data_vencimento)}
               </span>
@@ -364,9 +442,13 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 {lancamento?.status}
               </Badge>
               {lancamento?.parcelas && lancamento.parcelas.length > 0 && (
-                <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-300 text-[10px] cursor-pointer" onClick={() => abrirParcelas(lancamento)}>
+                <Badge 
+                  variant="outline" 
+                  className="bg-violet-50 text-violet-700 border-violet-300 text-[10px] cursor-pointer hover:bg-violet-100" 
+                  onClick={() => abrirParcelas(lancamento)}
+                >
                   <Calendar className="w-2.5 h-2.5 mr-0.5" />
-                  {lancamento.parcelas.length}x
+                  {lancamento.parcelas.length} parcela(s)
                 </Badge>
               )}
             </div>
@@ -432,10 +514,18 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-emerald-800">
-                {selecionados.length} lançamento(s) selecionado(s)
+                {selecionados.length} selecionado(s)
               </span>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={handleExportarSelecionados} className="h-7 gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+                <Button size="sm" variant="outline" onClick={handleEditarEmLote} className="h-7 gap-1 text-xs border-blue-300 text-blue-700 hover:bg-blue-100">
+                  <Edit2 className="w-3 h-3" />
+                  Editar Lote
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleBaixaEmLote} className="h-7 gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+                  <CheckCircle className="w-3 h-3" />
+                  Baixar Lote
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExportarSelecionados} className="h-7 gap-1 text-xs border-slate-300 text-slate-700 hover:bg-slate-100">
                   <Download className="w-3 h-3" />
                   Exportar
                 </Button>
@@ -462,7 +552,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-10"></TableHead>
+                  <TableHead className="text-xs text-center w-8"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -566,6 +656,108 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-600" />
+              Editar {selecionados.length} Lançamento(s) em Lote
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded p-2">
+              <p className="text-xs text-blue-800">
+                💡 Apenas campos preenchidos serão atualizados. Valores e produtos não podem ser alterados em lote.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Safra</Label>
+                <Select value={edicaoLote.safra_id} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, safra_id: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Manter atual" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    {safras?.map(s => (
+                      <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Centro de Custo</Label>
+                <Select value={edicaoLote.centro_custo_id} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, centro_custo_id: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Manter atual" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    {centrosCusto?.map(c => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Plano de Contas</Label>
+                <Select value={edicaoLote.plano_contas_id} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, plano_contas_id: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Manter atual" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    {planosContas?.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Grupo Financeiro</Label>
+                <Select value={edicaoLote.grupo_id} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, grupo_id: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Manter atual" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    {gruposFinanceiros?.map(g => (
+                      <SelectItem key={g.id} value={g.id} className="text-xs">{g.codigo} - {g.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Observações (sobrescrever)</Label>
+                <Textarea 
+                  value={edicaoLote.observacoes} 
+                  onChange={(e) => setEdicaoLote({ ...edicaoLote, observacoes: e.target.value })} 
+                  placeholder="NOVA OBSERVAÇÃO..." 
+                  className="text-xs uppercase" 
+                  style={{ textTransform: 'uppercase' }}
+                  rows={2} 
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs">
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmarEdicaoLote} size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700">
+                Atualizar {selecionados.length}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">

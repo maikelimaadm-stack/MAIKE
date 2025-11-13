@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { Download, Plus } from "lucide-react"; // Added icons
 
 import FormularioCompraFinanceiro from "../components/financeiro/FormularioCompraFinanceiro.jsx";
 import TabelaFinanceiro from "../components/financeiro/TabelaFinanceiro.jsx";
@@ -21,13 +22,14 @@ const getNextNumber = async (empresaId) => {
 };
 
 export default function LancamentoFinanceiro() {
-  const [abaAtiva, setAbaAtiva] = useState("pesquisar");
-  const [tipoAtivo, setTipoAtivo] = useState("pagar");
+  const [abaAtiva, setAbaAtiva] = useState("pagar"); // Changed initial state from "pesquisar" to "pagar"
+  const [tipoLancamento, setTipoLancamento] = useState("Pagar"); // New state to hold "Pagar" or "Receber" string
+  const [showForm, setShowForm] = useState(false); // New state to control FormularioCompraFinanceiro visibility
   const [editingLancamento, setEditingLancamento] = useState(null);
   const [baixaLancamento, setBaixaLancamento] = useState(null);
-  const [showImportXML, setShowImportXML] = useState(false);
+  const [showXmlImport, setShowXmlImport] = useState(false); // Renamed from showImportXML
   const [dadosXML, setDadosXML] = useState(null);
-  const [showProgressoSalvamento, setShowProgressoSalvamento] = useState(false);
+  const [showSaveProgress, setShowSaveProgress] = useState(false); // Renamed from showProgressoSalvamento
   const [progressoSalvamento, setProgressoSalvamento] = useState({ etapa: '', current: 0, total: 100 });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -64,9 +66,45 @@ export default function LancamentoFinanceiro() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: safras = [] } = useQuery({ // New query
+    queryKey: ['safras_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Safra.list('nome_safra');
+      return all.filter(s => s && s.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: centrosCusto = [] } = useQuery({ // New query
+    queryKey: ['centros_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CentroCusto.list('nome');
+      return all.filter(c => c && c.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: planosContas = [] } = useQuery({ // New query
+    queryKey: ['planos_financeiro', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PlanoContas.list('descricao');
+      return all.filter(p => p && p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: gruposFinanceiros = [] } = useQuery({ // New query
+    queryKey: ['grupos_financeiros', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoFinanceiro.list('nome');
+      return all.filter(g => g && g.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      setShowProgressoSalvamento(true);
+      setShowSaveProgress(true); // Updated state name
       setProgressoSalvamento({ etapa: 'Iniciando...', current: 10, total: 100 });
 
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -338,14 +376,14 @@ export default function LancamentoFinanceiro() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       queryClient.invalidateQueries({ queryKey: ['produtos_financeiro'] });
-      setAbaAtiva("pesquisar");
+      setShowForm(false); // Hide the form after success
       setEditingLancamento(null);
       setDadosXML(null);
-      setShowProgressoSalvamento(false);
+      setShowSaveProgress(false); // Hide progress dialog
       toast.success('Lançamento salvo com sucesso!');
     },
     onError: (error) => {
-      setShowProgressoSalvamento(false);
+      setShowSaveProgress(false); // Updated state name
       toast.error('Erro ao salvar: ' + (error.message || 'Erro desconhecido'));
     }
   });
@@ -379,8 +417,8 @@ export default function LancamentoFinanceiro() {
         await base44.entities.BaixaFinanceira.delete(baixa.id);
       }
       
-      const lanc = await base44.entities.LancamentoFinanceiro.list();
-      const lancamento = lanc.find(l => l && l.id === lancamentoId);
+      const lancamentosList = await base44.entities.LancamentoFinanceiro.list(); // Re-fetch to find specific lancamento
+      const lancamento = lancamentosList.find(l => l && l.id === lancamentoId);
       
       if (lancamento) {
         await base44.entities.LancamentoFinanceiro.update(lancamentoId, {
@@ -403,7 +441,7 @@ export default function LancamentoFinanceiro() {
       await base44.entities.LancamentoFinanceiro.update(editingLancamento.id, data);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
       setEditingLancamento(null);
-      setAbaAtiva("pesquisar");
+      setShowForm(false); // Hide the form after update
       toast.success('Lançamento atualizado!');
     } else {
       createMutation.mutate(data);
@@ -414,6 +452,11 @@ export default function LancamentoFinanceiro() {
     if (window.confirm('Deseja realmente excluir este lançamento?')) {
       deleteMutation.mutate(id);
     }
+  };
+
+  const handleEdit = (lanc) => { // New handler for TabelaFinanceiro onEdit
+    setEditingLancamento(lanc);
+    setShowForm(true); // Show form for editing
   };
 
   const handleBaixa = (lancamento) => {
@@ -428,20 +471,33 @@ export default function LancamentoFinanceiro() {
 
   const handleImportarXMLSuccess = (dadosImportados) => {
     setDadosXML(dadosImportados);
-    setShowImportXML(false);
-    setAbaAtiva("cadastrar");
+    setShowXmlImport(false); // Hide XML import dialog
+    setShowForm(true); // Show form pre-filled with XML data
   };
 
-  const handleNovoCadastro = () => {
+  const handleNewLancamento = () => { // Replaced handleNovoCadastro
     setEditingLancamento(null);
     setDadosXML(null);
-    setAbaAtiva("cadastrar");
+    setShowForm(true); // Show form for new entry
   };
 
-  const handleCancelarCadastro = () => {
+  const handleCancelForm = () => { // Replaced handleCancelarCadastro
     setEditingLancamento(null);
     setDadosXML(null);
-    setAbaAtiva("pesquisar");
+    setShowForm(false); // Hide the form
+  };
+
+  const handleUpdateLote = async (ids, dadosAtualizados) => {
+    for (const id of ids) {
+      try {
+        await base44.entities.LancamentoFinanceiro.update(id, dadosAtualizados);
+      } catch (error) {
+        console.error('Erro ao atualizar lançamento em lote:', error);
+        toast.error(`Erro ao atualizar lançamento ${id}: ${error.message || 'Erro desconhecido'}`);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['lancamentos_financeiros'] });
+    toast.success('Lançamentos atualizados em lote!');
   };
 
   const lancamentosPagar = useMemo(() => lancamentos.filter(l => l && l.tipo === 'Pagar'), [lancamentos]);
@@ -449,101 +505,86 @@ export default function LancamentoFinanceiro() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
-          <p className="text-xs text-slate-600">Gestão de contas a pagar e receber</p>
-        </div>
-      </div>
-
-      <Card className="shadow-sm border-slate-200">
-        <CardContent className="p-0">
-          <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
-            <TabsList className="w-full justify-start rounded-none border-b bg-slate-50 h-9">
-              <TabsTrigger value="pesquisar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
-                Pesquisar
-              </TabsTrigger>
-              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
-                Cadastrar
-              </TabsTrigger>
-              <TabsTrigger value="importar" className="data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
+      {!showForm && ( // Conditional rendering for the main list view
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
+              <p className="text-xs text-slate-600">Contas a pagar e receber</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <Download className="w-3.5 h-3.5" />
                 Importar XML
-              </TabsTrigger>
+              </Button>
+              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-3.5 h-3.5" />
+                Novo Lançamento
+              </Button>
+            </div>
+          </div>
+
+          <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-9">
+              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
+              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pesquisar" className="p-4 m-0">
-              <div className="space-y-3">
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={handleNovoCadastro} className="h-8 text-xs">
-                    Novo Lançamento
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setShowImportXML(true)} className="h-8 text-xs">
-                    Importar XML
-                  </Button>
-                </div>
-
-                <Tabs value={tipoAtivo} onValueChange={setTipoAtivo}>
-                  <TabsList className="w-full justify-start border-b bg-slate-50 h-8 rounded-none">
-                    <TabsTrigger value="pagar" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
-                      Contas a Pagar ({lancamentosPagar.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="receber" className="data-[state=active]:border-b-2 data-[state=active]:border-b-slate-700 rounded-none text-xs">
-                      Contas a Receber ({lancamentosReceber.length})
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="pagar" className="m-0 mt-3">
-                    <TabelaFinanceiro
-                      lancamentos={lancamentosPagar}
-                      tipo="Pagar"
-                      onEdit={(lanc) => { setEditingLancamento(lanc); setAbaAtiva("cadastrar"); }}
-                      onDelete={handleDelete}
-                      onBaixa={handleBaixa}
-                      onCancelarBaixa={handleCancelarBaixa}
-                      isLoading={loadingLancamentos}
-                      fornecedores={fornecedores}
-                      produtos={produtos}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="receber" className="m-0 mt-3">
-                    <TabelaFinanceiro
-                      lancamentos={lancamentosReceber}
-                      tipo="Receber"
-                      onEdit={(lanc) => { setEditingLancamento(lanc); setAbaAtiva("cadastrar"); }}
-                      onDelete={handleDelete}
-                      onBaixa={handleBaixa}
-                      onCancelarBaixa={handleCancelarBaixa}
-                      isLoading={loadingLancamentos}
-                      fornecedores={fornecedores}
-                      produtos={produtos}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="cadastrar" className="p-4 m-0">
-              <FormularioCompraFinanceiro
-                onSubmit={handleSubmit}
-                onCancel={handleCancelarCadastro}
-                initialData={editingLancamento || dadosXML}
+            <TabsContent value="pagar" className="mt-2">
+              <TabelaFinanceiro
+                lancamentos={lancamentosPagar}
+                tipo="Pagar"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onBaixa={handleBaixa}
+                onCancelarBaixa={handleCancelarBaixa}
+                isLoading={loadingLancamentos}
                 fornecedores={fornecedores}
                 produtos={produtos}
+                safras={safras} // New prop
+                centrosCusto={centrosCusto} // New prop
+                planosContas={planosContas} // New prop
+                gruposFinanceiros={gruposFinanceiros} // New prop
+                onUpdateLote={handleUpdateLote} // New prop
               />
             </TabsContent>
 
-            <TabsContent value="importar" className="p-4 m-0">
-              <div className="text-center py-8">
-                <p className="text-xs text-slate-600 mb-3">Importar NF-e de arquivo XML</p>
-                <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 text-xs">
-                  Selecionar Arquivo
-                </Button>
-              </div>
+            <TabsContent value="receber" className="mt-2">
+              <TabelaFinanceiro
+                lancamentos={lancamentosReceber}
+                tipo="Receber"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onBaixa={handleBaixa}
+                onCancelarBaixa={handleCancelarBaixa}
+                isLoading={loadingLancamentos}
+                fornecedores={fornecedores}
+                produtos={produtos}
+                safras={safras} // New prop
+                centrosCusto={centrosCusto} // New prop
+                planosContas={planosContas} // New prop
+                gruposFinanceiros={gruposFinanceiros} // New prop
+                onUpdateLote={handleUpdateLote} // New prop
+              />
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </>
+      )}
+
+      {showForm && ( // Conditional rendering for the form
+        <FormularioCompraFinanceiro
+          onSubmit={handleSubmit}
+          onCancel={handleCancelForm}
+          initialData={editingLancamento || dadosXML}
+          fornecedores={fornecedores}
+          produtos={produtos}
+          safras={safras} // New prop
+          centrosCusto={centrosCusto} // New prop
+          planosContas={planosContas} // New prop
+          gruposFinanceiros={gruposFinanceiros} // New prop
+          tipoLancamento={editingLancamento?.tipo || dadosXML?.tipo || tipoLancamento} // Pass type for new entries or derived from existing
+        />
+      )}
 
       {baixaLancamento && (
         <BaixaFinanceira
@@ -557,14 +598,14 @@ export default function LancamentoFinanceiro() {
       )}
 
       <ImportarNFeFinanceiro
-        open={showImportXML}
-        onClose={() => setShowImportXML(false)}
+        open={showXmlImport} // Updated state name
+        onClose={() => setShowXmlImport(false)} // Updated state name
         onSuccess={handleImportarXMLSuccess}
         fornecedores={fornecedores}
         produtos={produtos}
       />
 
-      <Dialog open={showProgressoSalvamento} onOpenChange={() => {}}>
+      <Dialog open={showSaveProgress} onOpenChange={() => {}}> {/* Updated state name */}
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Salvando...</DialogTitle>
