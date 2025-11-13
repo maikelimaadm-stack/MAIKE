@@ -183,10 +183,10 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
   };
 
   const getSortIcon = (field) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    if (sortField !== field) return <ArrowUpDown className="w-3.5 h-3.5 ml-1 opacity-30" />;
     return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 ml-1" />
-      : <ArrowDown className="w-3 h-3 ml-1" />;
+      ? <ArrowUp className="w-3.5 h-3.5 ml-1" />
+      : <ArrowDown className="w-3.5 h-3.5 ml-1" />;
   };
 
   const handleSelecionarTodos = () => {
@@ -323,7 +323,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
         (l.valor_total || 0) - (l.valor_pago || 0),
         l.status || ''
       ];
-      csvRows.push(row.join(';'));
+      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
     });
 
     const csvString = csvRows.join('\n');
@@ -566,7 +566,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       onCheckedChange={handleSelecionarTodos}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     const isSortable = ['numero', 'emissao', 'vencimento', 'fornecedor_cliente', 'valor_total', 'saldo', 'status'].includes(coluna.id);
                     return (
@@ -582,6 +581,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       </TableHead>
                     );
                   })}
+                  <TableHead className="text-xs text-center w-8"></TableHead> {/* This is the header for the actions dropdown */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -612,6 +612,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               onCheckedChange={() => handleToggleSelecao(lancamento.id)}
                             />
                           </TableCell>
+                          {colunasOrdenadas.map(coluna => (
+                            <React.Fragment key={coluna.id}>
+                              {renderCell(coluna, lancamento)}
+                            </React.Fragment>
+                          ))}
                           <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -619,7 +624,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                                   <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
+                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => abrirDetalhes(lancamento)} className="text-xs">
                                   <Eye className="w-3.5 h-3.5 mr-2" />
                                   Ver Detalhes
@@ -655,11 +660,6 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
-                          {colunasOrdenadas.map(coluna => (
-                            <React.Fragment key={coluna.id}>
-                              {renderCell(coluna, lancamento)}
-                            </React.Fragment>
-                          ))}
                         </motion.tr>
                       );
                     })
@@ -695,7 +695,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                     <SelectValue placeholder="Manter atual" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem> {/* Changed null to "" for consistency with Select components */}
                     {safras?.map(s => (
                       <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>
                     ))}
@@ -843,18 +843,28 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
       </Dialog>
 
       <Dialog open={!!parcelasDialog} onOpenChange={(open) => !open && setParcelasDialog(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-sm">Parcelas - Lançamento #{parcelasDialog?.numero_lancamento}</DialogTitle>
+            <DialogTitle className="text-sm">Parcelas do Lançamento</DialogTitle>
           </DialogHeader>
           {parcelasDialog && (
             <div className="space-y-3">
-              <Card className="shadow-sm border-slate-200">
-                <CardContent className="p-2">
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div>
-                    <div><strong>Pago:</strong> {formatarMoeda(parcelasDialog.valor_pago || 0)}</div>
-                    <div><strong>Saldo:</strong> {formatarMoeda((parcelasDialog.valor_total || 0) - (parcelasDialog.valor_pago || 0))}</div>
+              <Card className="shadow-sm border-emerald-200 bg-emerald-50">
+                <CardContent className="p-3">
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-3 text-xs pb-2 border-b border-emerald-200">
+                      <div><strong>Lançamento Nº:</strong> {formatarNumero(parseInt(parcelasDialog.numero_lancamento || 0))}</div>
+                      <div><strong>Tipo Doc:</strong> {parcelasDialog.tipo_documento || '-'}</div>
+                      <div><strong>Fornecedor:</strong> {parcelasDialog.fornecedor_nome || parcelasDialog.cliente_nome || '-'}</div>
+                      <div><strong>Nº Doc:</strong> {parcelasDialog.numero_documento || '-'}</div>
+                      <div><strong>Emissão:</strong> {formatarData(parcelasDialog.data_emissao)}</div>
+                      <div><strong>Total Parcelas:</strong> {parcelasDialog.parcelas?.length || 0}x</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div><strong>Total:</strong> {formatarMoeda(parcelasDialog.valor_total || 0)}</div>
+                      <div><strong>Pago:</strong> {formatarMoeda(parcelasDialog.valor_pago || 0)}</div>
+                      <div><strong>Saldo:</strong> <span className="font-semibold">{formatarMoeda((parcelasDialog.valor_total || 0) - (parcelasDialog.valor_pago || 0))}</span></div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -863,10 +873,11 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="text-xs">Nº</TableHead>
+                      <TableHead className="text-xs">Parcela</TableHead>
                       <TableHead className="text-xs">Vencimento</TableHead>
                       <TableHead className="text-xs text-right">Valor</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs">Dias</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -875,16 +886,24 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                       // This logic might need refinement based on how actual payments are tracked per parcel
                       // For now, assuming payment up to a certain total covers initial parcels
                       const isPaga = (parcelasDialog.valor_pago || 0) >= valorParcela * (index + 1);
+                      const dias = calcularDias(parcela.data);
                       
                       return (
                         <TableRow key={index}>
-                          <TableCell className="font-semibold text-xs">{index + 1}</TableCell>
+                          <TableCell className="font-semibold text-xs">{index + 1}/{parcelasDialog.parcelas.length}</TableCell>
                           <TableCell className="text-xs">{formatarData(parcela.data)}</TableCell>
                           <TableCell className="text-right font-mono text-xs">{formatarMoeda(valorParcela)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`text-xs ${isPaga ? 'bg-slate-100 text-slate-700' : 'bg-orange-50 text-orange-700 border-orange-300'}`}>
                               {isPaga ? 'Paga' : 'Pendente'}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {!isPaga && (
+                              <span className={`font-medium ${dias.includes('vencido') ? 'text-red-600' : 'text-slate-600'}`}>
+                                {dias}
+                              </span>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
