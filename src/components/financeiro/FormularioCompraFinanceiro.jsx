@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -66,7 +65,7 @@ const calcularDataProximaMes = (dataBase) => {
   }
 };
 
-export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos }) {
+export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores }) {
   const [etapa, setEtapa] = useState(1);
   const [mostrarCamposNFe, setMostrarCamposNFe] = useState(false);
   const [formData, setFormData] = useState(() => {
@@ -227,6 +226,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     initialData: [],
   });
 
+  const { data: produtos = [] } = useQuery({
+    queryKey: ['produtos_compra', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+    initialData: [],
+  });
+
   useEffect(() => {
     if (formData.conta_paga && !formData.data_pagamento) {
       const valorTotal = calcularValorTotal();
@@ -236,7 +245,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         valor_pago_total: formatarNumero(valorTotal)
       }));
     }
-  }, [formData.conta_paga, formData.data_emissao]); // Added formData.data_emissao to dependencies
+  }, [formData.conta_paga, formData.data_emissao]);
 
   useEffect(() => {
     if (formData.data_emissao && !formData.data_vencimento && !initialData) {
@@ -409,7 +418,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       }
     }
 
-    // Validações para produtos
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
         toast.error('Adicione pelo menos 1 produto!');
@@ -578,7 +586,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const valorTotal = calcularValorTotal();
   const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
 
-
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -600,7 +607,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs">Fornecedor *</Label>
-                          <ComboboxFornecedor
+                          <ComboboxFornecedor 
                             fornecedores={fornecedores}
                             value={formData.fornecedor_id}
                             onChange={(v) => handleChange('fornecedor_id', v)}
@@ -758,36 +765,36 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                         />
                                       </TableCell>
                                       <TableCell className="w-[80px]">
-                                        <Input
-                                          value={produto.quantidade}
+                                        <Input 
+                                          value={produto.quantidade} 
                                           onChange={(e) => {
                                             const valor = e.target.value.replace(/[^\d,]/g, '');
                                             handleAtualizarProduto(index, 'quantidade', valor);
-                                          }}
-                                          placeholder="0,00"
-                                          className="text-right h-7 text-xs"
+                                          }} 
+                                          placeholder="0,00" 
+                                          className="text-right h-7 text-xs" 
                                         />
                                       </TableCell>
                                       <TableCell className="w-[90px]">
-                                        <Input
-                                          value={produto.valor_total}
+                                        <Input 
+                                          value={produto.valor_total} 
                                           onChange={(e) => {
                                             const valor = e.target.value.replace(/[^\d,]/g, '');
                                             handleAtualizarProduto(index, 'valor_total', valor);
-                                          }}
-                                          placeholder="0,00"
-                                          className="text-right h-7 text-xs"
+                                          }} 
+                                          placeholder="0,00" 
+                                          className="text-right h-7 text-xs" 
                                         />
                                       </TableCell>
                                       <TableCell className="w-[80px]">
-                                        <Input
-                                          value={produto.desconto_item || "0,00"}
+                                        <Input 
+                                          value={produto.desconto_item || "0,00"} 
                                           onChange={(e) => {
                                             const valor = e.target.value.replace(/[^\d,]/g, '');
                                             handleAtualizarProduto(index, 'desconto_item', valor);
-                                          }}
-                                          placeholder="0,00"
-                                          className="text-right h-7 text-xs"
+                                          }} 
+                                          placeholder="0,00" 
+                                          className="text-right h-7 text-xs" 
                                         />
                                       </TableCell>
                                       <TableCell className="text-right w-[90px]">
@@ -845,11 +852,11 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Frete</Label>
-                            <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+                            <Input value={formData.frete} onChange={(e) => handleChange('frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Outras Despesas</Label>
-                            <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+                            <Input value={formData.outras_despesas} onChange={(e) => handleChange('outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                         </div>
 
@@ -897,19 +904,19 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Valor *</Label>
-                            <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required className="h-8 text-xs" />
+                            <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Juros</Label>
-                            <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+                            <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Multa</Label>
-                            <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+                            <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Desconto</Label>
-                            <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
+                            <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs" />
                           </div>
                         </div>
                         <Card className="bg-slate-50 border-slate-300">
@@ -936,43 +943,43 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Vlr. Produtos</Label>
-                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_produtos || ''} onChange={(e) => handleChange('valor_produtos', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Vlr. Frete</Label>
-                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_frete || ''} onChange={(e) => handleChange('valor_frete', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Vlr. Seguro</Label>
-                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_seguro || ''} onChange={(e) => handleChange('valor_seguro', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Outras Desp.</Label>
-                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_outras_despesas || ''} onChange={(e) => handleChange('valor_outras_despesas', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Desc. Total</Label>
-                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_desconto_total || ''} onChange={(e) => handleChange('valor_desconto_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">IPI</Label>
-                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_ipi || ''} onChange={(e) => handleChange('valor_ipi', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">ICMS</Label>
-                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_icms || ''} onChange={(e) => handleChange('valor_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">PIS</Label>
-                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_pis || ''} onChange={(e) => handleChange('valor_pis', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">COFINS</Label>
-                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.valor_cofins || ''} onChange={(e) => handleChange('valor_cofins', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Base ICMS</Label>
-                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value)} placeholder="0,00" className="h-8 text-xs bg-white" />
+                            <Input value={formData.base_calculo_icms || ''} onChange={(e) => handleChange('base_calculo_icms', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="h-8 text-xs bg-white" />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -1137,7 +1144,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                                         <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} className="h-7 text-xs" />
                                       </TableCell>
                                       <TableCell>
-                                        <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" />
+                                        <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" className="text-right h-7 text-xs" />
                                       </TableCell>
                                       <TableCell>
                                         <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 1} className="h-6 w-6">
@@ -1171,7 +1178,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs">Valor Pago *</Label>
-                                <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value)} placeholder="0,00" required className="h-8 text-xs" />
+                                <Input value={formData.valor_pago_total} onChange={(e) => handleChange('valor_pago_total', e.target.value.replace(/[^\d,]/g, ''))} placeholder="0,00" required className="h-8 text-xs" />
                               </div>
                             </div>
                             <div className="space-y-1">
