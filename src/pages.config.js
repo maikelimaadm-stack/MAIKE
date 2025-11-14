@@ -26,6 +26,7 @@ import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import Pesagens from './pages/Pesagens';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import PopularCidades from './pages/PopularCidades';
+import GerenciarCidades from './pages/GerenciarCidades';
 import Layout from './Layout.jsx';
 
 
@@ -58,6 +59,7 @@ export const PAGES = {
     "Pesagens": Pesagens,
     "LancamentoFinanceiro": LancamentoFinanceiro,
     "PopularCidades": PopularCidades,
+    "GerenciarCidades": GerenciarCidades,
 }
 
 export const pagesConfig = {
