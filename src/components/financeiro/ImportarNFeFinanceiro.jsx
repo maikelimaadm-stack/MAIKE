@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -991,8 +992,315 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         </DialogContent>
       </Dialog>
 
-      {/* Resto dos dialogs - mantidos iguais */}
-      {/* Dialog Busca Produto, Novo Produto, Nova Unidade, Nova Categoria, Novo Local, Cadastro Em Massa */}
+      <Dialog open={showBuscaProduto} onOpenChange={setShowBuscaProduto}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Buscar Produto Existente</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-2 flex-1 overflow-auto">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Input 
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                placeholder="Buscar por nome ou código..."
+                className="pl-9 h-8 text-xs"
+                autoFocus
+              />
+            </div>
+
+            <div className="border rounded overflow-auto max-h-96">
+              {produtosFiltrados.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum produto encontrado</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-slate-50 sticky top-0">
+                    <TableRow>
+                      <TableHead className="text-xs">Produto</TableHead>
+                      <TableHead className="text-xs">Código</TableHead>
+                      <TableHead className="text-xs text-center">UN</TableHead>
+                      <TableHead className="text-xs text-center">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosFiltrados.map((produto) => (
+                      <TableRow key={produto.id} className="hover:bg-slate-50">
+                        <TableCell className="text-xs font-medium">{produto.nome_produto}</TableCell>
+                        <TableCell className="text-xs font-mono text-slate-600">{produto.codigo_interno || '-'}</TableCell>
+                        <TableCell className="text-xs text-center font-mono">{produto.unidade_medida}</TableCell>
+                        <TableCell className="text-center">
+                          <Button size="sm" onClick={() => handleTrocarProduto(produto)} className="h-6 text-xs bg-emerald-600 hover:bg-emerald-700">
+                            Selecionar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setShowBuscaProduto(false); setItemEditando(null); setBuscaProduto(""); }} size="sm" className="h-7 text-xs">
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovoProduto} onOpenChange={setShowNovoProduto}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrar Novo Produto</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Nome do Produto *</Label>
+                <Input 
+                  value={novoProduto.nome_produto} 
+                  onChange={(e) => setNovoProduto({ ...novoProduto, nome_produto: e.target.value })} 
+                  className="uppercase h-7 text-xs" 
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="NOME DO PRODUTO"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Código Interno</Label>
+                <Input 
+                  value={novoProduto.codigo_interno} 
+                  onChange={(e) => setNovoProduto({ ...novoProduto, codigo_interno: e.target.value })} 
+                  className="uppercase h-7 text-xs" 
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="CÓDIGO"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Unidade de Medida *</Label>
+                <div className="flex gap-1">
+                  <Select value={novoProduto.unidade_medida} onValueChange={(v) => setNovoProduto({ ...novoProduto, unidade_medida: v })}>
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unidadesMedida.map(u => (
+                        <SelectItem key={u.id} value={u.sigla} className="text-xs">{u.sigla} - {u.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-7 w-7">
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Categoria</Label>
+                <div className="flex gap-1">
+                  <Select value={novoProduto.categoria} onValueChange={(v) => setNovoProduto({ ...novoProduto, categoria: v })}>
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorias.map(c => (
+                        <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-7 w-7">
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Código de Barras</Label>
+                <Input 
+                  value={novoProduto.codigo_barras} 
+                  onChange={(e) => setNovoProduto({ ...novoProduto, codigo_barras: e.target.value })} 
+                  placeholder="000000000000"
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Preço de Custo</Label>
+                <Input 
+                  value={novoProduto.preco_custo} 
+                  onChange={(e) => setNovoProduto({ ...novoProduto, preco_custo: e.target.value })} 
+                  placeholder="0,00"
+                  className="h-7 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea 
+                value={novoProduto.descricao} 
+                onChange={(e) => setNovoProduto({ ...novoProduto, descricao: e.target.value })} 
+                className="uppercase text-xs" 
+                style={{ textTransform: 'uppercase' }}
+                placeholder="DESCRIÇÃO..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setShowNovoProduto(false); setItemEditando(null); }} size="sm" className="h-7 text-xs">
+              Cancelar
+            </Button>
+            <Button onClick={handleCadastrarProduto} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={createProdutoMutation.isPending}>
+              {createProdutoMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Nova Unidade de Medida</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Sigla *</Label>
+              <Input 
+                value={novaUnidade.sigla} 
+                onChange={(e) => setNovaUnidade({ ...novaUnidade, sigla: e.target.value })} 
+                placeholder="UN"
+                className="uppercase h-7 text-xs"
+                style={{ textTransform: 'uppercase' }}
+                maxLength={5}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome/Descrição *</Label>
+              <Input 
+                value={novaUnidade.nome} 
+                onChange={(e) => setNovaUnidade({ ...novaUnidade, nome: e.target.value })} 
+                placeholder="UNIDADE"
+                className="uppercase h-7 text-xs"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", nome: "" }); }} size="sm" className="h-7 text-xs">
+              Cancelar
+            </Button>
+            <Button onClick={handleCadastrarUnidade} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={createUnidadeMutation.isPending}>
+              {createUnidadeMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Nova Categoria</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input 
+                value={novaCategoria.nome} 
+                onChange={(e) => setNovaCategoria({ ...novaCategoria, nome: e.target.value })} 
+                placeholder="CATEGORIA"
+                className="uppercase h-7 text-xs"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea 
+                value={novaCategoria.descricao} 
+                onChange={(e) => setNovaCategoria({ ...novaCategoria, descricao: e.target.value })} 
+                placeholder="DESCRIÇÃO..."
+                className="uppercase text-xs"
+                style={{ textTransform: 'uppercase' }}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", descricao: "" }); }} size="sm" className="h-7 text-xs">
+              Cancelar
+            </Button>
+            <Button onClick={handleCadastrarCategoria} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={createCategoriaMutation.isPending}>
+              {createCategoriaMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Novo Local de Estoque</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
+              <Input 
+                value={novoLocal.nome} 
+                onChange={(e) => setNovoLocal({ ...novoLocal, nome: e.target.value })} 
+                placeholder="GALPÃO 1"
+                className="uppercase h-7 text-xs"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
+              <Textarea 
+                value={novoLocal.descricao} 
+                onChange={(e) => setNovoLocal({ ...novoLocal, descricao: e.target.value })} 
+                placeholder="DESCRIÇÃO DO LOCAL..."
+                className="uppercase text-xs"
+                style={{ textTransform: 'uppercase' }}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "" }); }} size="sm" className="h-7 text-xs">
+              Cancelar
+            </Button>
+            <Button onClick={handleCadastrarLocal} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={createLocalMutation.isPending}>
+              {createLocalMutation.isPending ? 'Salvando...' : 'Cadastrar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCadastroEmMassa} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Cadastrando Produtos...</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
