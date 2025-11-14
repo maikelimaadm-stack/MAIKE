@@ -164,63 +164,91 @@ export default function GerenciarCidades() {
       const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
       const data = await response.json();
       
-      setProgresso({ total: data.length, processado: 0 });
+      toast.info(`${data.length} cidades obtidas do IBGE. Verificando quais já existem...`);
       
-      const cidadesExistentes = await base44.entities.Cidade.list();
-      const codigosExistentes = new Set(cidadesExistentes.map(c => c.codigo_ibge));
+      let cidadesExistentes = await base44.entities.Cidade.list();
+      let codigosExistentesSet = new Set(cidadesExistentes.map(c => c.codigo_ibge));
       
-      const cidadesParaInserir = data
-        .filter(c => !codigosExistentes.has(String(c.id)))
+      const cidadesDoIBGEFiltradasIniciais = data
+        .filter(c => !codigosExistentesSet.has(String(c.id)))
         .map(c => ({
           nome: c.nome,
           estado: c.microrregiao.mesorregiao.UF.sigla,
           codigo_ibge: String(c.id)
         }));
       
-      if (cidadesParaInserir.length === 0) {
+      if (cidadesDoIBGEFiltradasIniciais.length === 0) {
         toast.info('Todas as cidades já estão cadastradas!');
         setProcessando(false);
         setConcluido(true);
         return;
       }
 
-      toast.info(`${cidadesParaInserir.length} cidades para importar...`);
+      toast.info(`${cidadesDoIBGEFiltradasIniciais.length} novas cidades para importar...`);
+      setProgresso({ total: cidadesDoIBGEFiltradasIniciais.length, processado: 0 });
 
-      // Inserir uma por uma com retry
-      let totalImportadas = 0;
-      let erros = 0;
+      let successfullyImportedCount = 0;
+      let failedImportCount = 0;
+      const batchSize = 10;
       
-      for (let i = 0; i < cidadesParaInserir.length; i++) {
-        const cidade = cidadesParaInserir[i];
-        let tentativas = 0;
-        let sucesso = false;
+      for (let i = 0; i < cidadesDoIBGEFiltradasIniciais.length; i += batchSize) {
+        let currentBatchSegment = cidadesDoIBGEFiltradasIniciais.slice(i, i + batchSize);
+        let batchToAttempt = [...currentBatchSegment];
+
+        // Atualizar lista de existentes a cada 500 cidades para evitar duplicatas
+        if (i > 0 && i % 500 === 0) {
+          toast.info('Atualizando lista de cidades existentes para evitar duplicatas...');
+          cidadesExistentes = await base44.entities.Cidade.list();
+          codigosExistentesSet = new Set(cidadesExistentes.map(c => c.codigo_ibge));
+        }
         
-        while (tentativas < 3 && !sucesso) {
-          try {
-            await base44.entities.Cidade.create(cidade);
-            totalImportadas++;
-            sucesso = true;
-          } catch (error) {
-            tentativas++;
-            if (tentativas < 3) {
-              await new Promise(resolve => setTimeout(resolve, 500 * tentativas));
-            } else {
-              console.error(`Erro ao importar ${cidade.nome}:`, error);
-              erros++;
+        // Filtrar o batch para não tentar inserir duplicatas que já existem (mesmo que tenham sido adicionadas em um batch anterior)
+        const finalBatchForInsertion = batchToAttempt.filter(c => !codigosExistentesSet.has(c.codigo_ibge));
+        
+        // Atualiza o progresso para o tamanho original do segmento, mesmo que parte seja filtrada
+        setProgresso({ total: cidadesDoIBGEFiltradasIniciais.length, processado: i + currentBatchSegment.length });
+
+        if (finalBatchForInsertion.length === 0) {
+            // Se todas as cidades neste segmento já existem ou foram filtradas
+            await new Promise(resolve => setTimeout(resolve, 50)); // Pequeno delay
+            continue; // Pula a tentativa de inserção para este segmento
+        }
+        
+        try {
+          // Tentar inserir o batch
+          await base44.entities.Cidade.bulkCreate(finalBatchForInsertion);
+          successfullyImportedCount += finalBatchForInsertion.length;
+        } catch (batchError) {
+          console.warn(`Erro no bulkCreate para o batch (tamanho ${finalBatchForInsertion.length}), tentando inserir um por um:`, batchError);
+          
+          // Se o bulkCreate falhar, tentar inserir uma por uma
+          for (const cidade of finalBatchForInsertion) {
+            try {
+              // Verificar novamente a existência antes da inserção individual para evitar duplicatas
+              if (codigosExistentesSet.has(cidade.codigo_ibge)) {
+                successfullyImportedCount++; // Considera como importada (já existia)
+                await new Promise(resolve => setTimeout(resolve, 30));
+                continue;
+              }
+              
+              await base44.entities.Cidade.create(cidade);
+              successfullyImportedCount++;
+              await new Promise(resolve => setTimeout(resolve, 30));
+            } catch (error) {
+              console.error(`Erro ao importar ${cidade.nome} (${cidade.codigo_ibge}) individualmente:`, error);
+              failedImportCount++;
+              await new Promise(resolve => setTimeout(resolve, 30));
             }
           }
         }
         
-        setProgresso({ total: cidadesParaInserir.length, processado: i + 1 });
+        // Pausa entre batches
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Atualizar cache a cada 100 cidades
-        if ((i + 1) % 100 === 0) {
-          queryClient.invalidateQueries({ queryKey: ['cidades_gerenciar'] });
-          queryClient.invalidateQueries({ queryKey: ['cidades'] });
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          // Delay pequeno entre cada inserção
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Pausa maior a cada 1000 cidades processadas do array original
+        if ((i + batchSize) % 1000 === 0 && (successfullyImportedCount > 0 || failedImportCount > 0)) {
+          toast.info(`${successfullyImportedCount} cidades importadas com sucesso e ${failedImportCount} com falha até agora.`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
       
@@ -228,13 +256,13 @@ export default function GerenciarCidades() {
       queryClient.invalidateQueries({ queryKey: ['cidades'] });
       setConcluido(true);
       
-      if (erros > 0) {
-        toast.success(`✅ ${totalImportadas} cidades importadas! (${erros} erros)`);
+      if (failedImportCount > 0) {
+        toast.success(`✅ ${successfullyImportedCount} cidades importadas! (${failedImportCount} falharam)`);
       } else {
-        toast.success(`✅ ${totalImportadas} cidades importadas com sucesso!`);
+        toast.success(`✅ ${successfullyImportedCount} cidades importadas com sucesso!`);
       }
     } catch (error) {
-      console.error('Erro:', error);
+      console.error('Erro na importação geral:', error);
       toast.error('Erro ao importar: ' + error.message);
     } finally {
       setProcessando(false);
@@ -449,7 +477,7 @@ export default function GerenciarCidades() {
                   <span className="font-semibold text-sm">Importando...</span>
                 </div>
                 <div className="text-xs text-slate-600 mb-2">
-                  {progresso.processado} de {progresso.total} cidades importadas
+                  {progresso.processado} de {progresso.total} cidades processadas
                 </div>
                 <Progress value={progresso.total > 0 ? (progresso.processado / progresso.total) * 100 : 0} className="h-2" />
               </div>
