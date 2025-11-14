@@ -27,6 +27,10 @@ import Pesagens from './pages/Pesagens';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import PopularCidades from './pages/PopularCidades';
 import GerenciarCidades from './pages/GerenciarCidades';
+import CaixaBancos from './pages/CaixaBancos';
+import FluxoCaixa from './pages/FluxoCaixa';
+import LivroCaixa from './pages/LivroCaixa';
+import AtivosFixos from './pages/AtivosFixos';
 import Layout from './Layout.jsx';
 
 
@@ -60,6 +64,10 @@ export const PAGES = {
     "LancamentoFinanceiro": LancamentoFinanceiro,
     "PopularCidades": PopularCidades,
     "GerenciarCidades": GerenciarCidades,
+    "CaixaBancos": CaixaBancos,
+    "FluxoCaixa": FluxoCaixa,
+    "LivroCaixa": LivroCaixa,
+    "AtivosFixos": AtivosFixos,
 }
 
 export const pagesConfig = {
