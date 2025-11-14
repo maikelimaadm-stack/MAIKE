@@ -180,48 +180,59 @@ export default function GerenciarCidades() {
       if (cidadesParaInserir.length === 0) {
         toast.info('Todas as cidades já estão cadastradas!');
         setProcessando(false);
+        setConcluido(true);
         return;
       }
 
       toast.info(`${cidadesParaInserir.length} cidades para importar...`);
 
-      const batchSize = 20; // Reduced batch size
+      // Inserir uma por uma com retry
       let totalImportadas = 0;
+      let erros = 0;
       
-      for (let i = 0; i < cidadesParaInserir.length; i += batchSize) {
-        try {
-          const batch = cidadesParaInserir.slice(i, i + batchSize);
-          
-          await base44.entities.Cidade.bulkCreate(batch);
-          totalImportadas += batch.length;
-          setProgresso({ total: cidadesParaInserir.length, processado: totalImportadas });
-          
-          // Delay maior entre batches para evitar timeout
-          await new Promise(resolve => setTimeout(resolve, 200));
-        } catch (error) {
-          console.error(`Erro no batch ${i}-${i + batchSize}:`, error);
-          toast.error(`Erro ao importar batch. Tentando um por um...`);
-          
-          // Tentar inserir um por um neste batch que falhou
-          const batch = cidadesParaInserir.slice(i, i + batchSize);
-          for (const cidade of batch) {
-            try {
-              await base44.entities.Cidade.create(cidade);
-              totalImportadas++;
-              setProgresso({ total: cidadesParaInserir.length, processado: totalImportadas });
-              await new Promise(resolve => setTimeout(resolve, 50));
-            } catch (err) {
-              // If single create fails, log and continue, do not increment totalImportadas for this one
-              console.error(`Erro ao importar ${cidade.nome} (individualmente):`, err);
+      for (let i = 0; i < cidadesParaInserir.length; i++) {
+        const cidade = cidadesParaInserir[i];
+        let tentativas = 0;
+        let sucesso = false;
+        
+        while (tentativas < 3 && !sucesso) {
+          try {
+            await base44.entities.Cidade.create(cidade);
+            totalImportadas++;
+            sucesso = true;
+          } catch (error) {
+            tentativas++;
+            if (tentativas < 3) {
+              await new Promise(resolve => setTimeout(resolve, 500 * tentativas));
+            } else {
+              console.error(`Erro ao importar ${cidade.nome}:`, error);
+              erros++;
             }
           }
+        }
+        
+        setProgresso({ total: cidadesParaInserir.length, processado: i + 1 });
+        
+        // Atualizar cache a cada 100 cidades
+        if ((i + 1) % 100 === 0) {
+          queryClient.invalidateQueries({ queryKey: ['cidades_gerenciar'] });
+          queryClient.invalidateQueries({ queryKey: ['cidades'] });
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          // Delay pequeno entre cada inserção
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
       
       queryClient.invalidateQueries({ queryKey: ['cidades_gerenciar'] });
       queryClient.invalidateQueries({ queryKey: ['cidades'] });
       setConcluido(true);
-      toast.success(`✅ ${totalImportadas} cidades importadas!`);
+      
+      if (erros > 0) {
+        toast.success(`✅ ${totalImportadas} cidades importadas! (${erros} erros)`);
+      } else {
+        toast.success(`✅ ${totalImportadas} cidades importadas com sucesso!`);
+      }
     } catch (error) {
       console.error('Erro:', error);
       toast.error('Erro ao importar: ' + error.message);
