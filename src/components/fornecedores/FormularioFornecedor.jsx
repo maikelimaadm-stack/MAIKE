@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, Save, X, User, Building2, Phone, Mail, MapPin, FileText, Calendar, CreditCard, Hash } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
 // Validação de CPF
 const validarCPF = (cpf) => {
@@ -89,6 +92,17 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
     observacoes: initialData?.observacoes || ""
   });
 
+  const { data: cidades = [] } = useQuery({
+    queryKey: ['cidades'],
+    queryFn: async () => {
+      const cidadesList = await base44.entities.Cidade.list('nome');
+      return cidadesList;
+    },
+    initialData: [],
+  });
+
+  const cidadesFiltradas = cidades.filter(c => c.estado === formData.estado);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -128,6 +142,12 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
   const handleChange = (field, value) => {
     if (field === 'tipo_pessoa') {
       setTipoPessoa(value);
+    }
+    
+    if (field === 'estado') {
+      // Limpar cidade ao mudar estado
+      setFormData(prev => ({ ...prev, estado: value, cidade: "" }));
+      return;
     }
     
     if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone'].includes(field)) {
@@ -338,27 +358,44 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-orange-600" />
-                  Cidade
+                  Estado
                 </Label>
-                <Input
-                  value={formData.cidade}
-                  onChange={(e) => handleChange('cidade', e.target.value)}
-                  placeholder="Cidade"
-                  className="border-slate-300 focus:border-green-500 uppercase"
-                />
+                <Select value={formData.estado} onValueChange={(v) => handleChange('estado', v)}>
+                  <SelectTrigger className="border-slate-300 focus:border-green-500">
+                    <SelectValue placeholder="Selecione o estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-orange-600" />
-                  Estado
+                  Cidade
                 </Label>
-                <Input
-                  value={formData.estado}
-                  onChange={(e) => handleChange('estado', e.target.value)}
-                  placeholder="UF"
-                  maxLength={2}
-                  className="border-slate-300 focus:border-green-500 uppercase"
-                />
+                <Select 
+                  value={formData.cidade} 
+                  onValueChange={(v) => handleChange('cidade', v)}
+                  disabled={!formData.estado || cidadesFiltradas.length === 0}
+                >
+                  <SelectTrigger className="border-slate-300 focus:border-green-500">
+                    <SelectValue placeholder={formData.estado ? "Selecione a cidade" : "Escolha o estado primeiro"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {cidadesFiltradas.length === 0 ? (
+                      <SelectItem value="_none" disabled>
+                        {cidades.length === 0 ? 'Banco vazio - popule primeiro' : 'Nenhuma cidade neste estado'}
+                      </SelectItem>
+                    ) : (
+                      cidadesFiltradas.map(c => (
+                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">
