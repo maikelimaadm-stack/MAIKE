@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -49,13 +48,13 @@ const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
   { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "movimentacoes", title: "Movimentações Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
     id: "financeiro",
     title: "Financeiro",
     icon: "DollarSign",
     submenu: [
-      { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
+      { id: "fin-lancamento", title: "Lançamento Financeiro", url: "LancamentoFinanceiro" },
       { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
       { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
       { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
@@ -91,19 +90,19 @@ const DEFAULT_MENU = [
   },
   {
     id: "relatorios",
-    title: "Relatorios",
+    title: "Relatórios",
     icon: "FileText",
     submenu: [
-      { id: "rel-pesagens", title: "Relatorio de Pesagens", url: "RelatorioPesagens" },
-      { id: "rel-custos", title: "Relatorio de Custos Safra", url: "RelatorioCustosSafra" },
-      { id: "rel-estoque", title: "Relatorio de Estoque", url: "RelatorioEstoque" },
-      { id: "rel-entregas", title: "Historico de Entregas", url: "RelatorioHistoricoEntregas" },
-      { id: "rel-financeiro", title: "Relatorio Financeiro", url: "RelatorioFinanceiro" },
+      { id: "rel-pesagens", title: "Relatório de Pesagens", url: "RelatorioPesagens" },
+      { id: "rel-custos", title: "Relatório de Custos Safra", url: "RelatorioCustosSafra" },
+      { id: "rel-estoque", title: "Relatório de Estoque", url: "RelatorioEstoque" },
+      { id: "rel-entregas", title: "Histórico de Entregas", url: "RelatorioHistoricoEntregas" },
+      { id: "rel-financeiro", title: "Relatório Financeiro", url: "RelatorioFinanceiro" },
       { id: "rel-fornecedores", title: "Lista de Fornecedores", url: "RelatorioFornecedores" },
       { id: "rel-produtos", title: "Lista de Produtos", url: "RelatorioProdutos" },
     ],
   },
-  { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
+  { id: "usuarios", title: "Usuários", url: "Usuarios", icon: "Shield" },
 ];
 
 const getAllPages = (menuItems) => {
@@ -143,7 +142,7 @@ export default function Layout({ children, currentPageName }) {
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
   });
   
-  const [empresaSelecionada, setEmpresaSelecionada] => {
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
@@ -209,7 +208,7 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
       } catch (error) {
-        console.error("Erro ao carregar usuario:", error);
+        console.error("Erro ao carregar usuário:", error);
         setUser(null);
       }
     };
@@ -283,7 +282,7 @@ export default function Layout({ children, currentPageName }) {
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'FAZENDA PALMITAL'}
                 </h1>
-                <p className="text-xs text-slate-600">Sistema de Gestao</p>
+                <p className="text-xs text-slate-600">Sistema de Gestão</p>
               </div>
             </div>
 
@@ -311,7 +310,7 @@ export default function Layout({ children, currentPageName }) {
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-slate-500" />
                     <span className="text-xs text-slate-700 font-medium">
-                      Cuiaba - MT
+                      Cuiabá - MT
                     </span>
                   </div>
                 </>
@@ -362,7 +361,7 @@ export default function Layout({ children, currentPageName }) {
                       </span>
                     </div>
                     <span className="text-xs font-medium text-slate-700 hidden lg:block">
-                      {user?.full_name?.split(' ')[0] || 'Usuario'}
+                      {user?.full_name?.split(' ')[0] || 'Usuário'}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
@@ -379,7 +378,7 @@ export default function Layout({ children, currentPageName }) {
                   <DropdownMenuItem asChild className="text-xs">
                     <Link to={createPageUrl("ConfiguracoesGerais")}>
                       <Settings className="w-3 h-3 mr-2" />
-                      Configuracoes
+                      Configurações
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -537,7 +536,7 @@ export default function Layout({ children, currentPageName }) {
             <Input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Digite para buscar paginas..."
+              placeholder="Digite para buscar páginas..."
               className="pl-10 h-10"
               autoFocus
             />
@@ -557,7 +556,7 @@ export default function Layout({ children, currentPageName }) {
             {Object.keys(pagesByCategory).length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Nenhuma pagina encontrada</p>
+                <p className="text-sm">Nenhuma página encontrada</p>
               </div>
             ) : (
               <div className="space-y-4">
