@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Search, Edit, Trash2, Database, Loader2, X, Download, CheckCircle } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Upload, Loader2, X, Download, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -28,7 +27,8 @@ export default function GerenciarCidades() {
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [showImportar, setShowImportar] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [progresso, setProgresso] = useState({ total: 0, processado: 0 });
+  const [progresso, setProgresso] = useState({ total: 0, processado: 0, erros: 0 });
+  const [errosImportacao, setErrosImportacao] = useState([]);
   const [concluido, setConcluido] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -47,7 +47,6 @@ export default function GerenciarCidades() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      // Verificar se código IBGE já existe
       const existente = cidades.find(c => c.codigo_ibge === data.codigo_ibge);
       if (existente) {
         throw new Error('Código IBGE já cadastrado!');
@@ -68,7 +67,6 @@ export default function GerenciarCidades() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      // Verificar se código IBGE já existe em outra cidade
       const existente = cidades.find(c => c.codigo_ibge === data.codigo_ibge && c.id !== id);
       if (existente) {
         throw new Error('Código IBGE já cadastrado em outra cidade!');
@@ -154,119 +152,126 @@ export default function GerenciarCidades() {
     setFormData({ nome: "", estado: "", codigo_ibge: "" });
   };
 
-  const popularCidades = async () => {
+  const handleImportarExcel = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     setProcessando(true);
     setConcluido(false);
-    
+    setErrosImportacao([]);
+    setShowImportar(true);
+
     try {
-      toast.info('Buscando cidades do IBGE...');
+      const text = await file.text();
+      const linhas = text.split('\n').map(l => l.trim()).filter(l => l);
       
-      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
-      const data = await response.json();
-      
-      toast.info(`${data.length} cidades obtidas do IBGE. Verificando quais já existem...`);
-      
-      let cidadesExistentes = await base44.entities.Cidade.list();
-      let codigosExistentesSet = new Set(cidadesExistentes.map(c => c.codigo_ibge));
-      
-      const cidadesDoIBGEFiltradasIniciais = data
-        .filter(c => !codigosExistentesSet.has(String(c.id)))
-        .map(c => ({
-          nome: c.nome,
-          estado: c.microrregiao.mesorregiao.UF.sigla,
-          codigo_ibge: String(c.id)
-        }));
-      
-      if (cidadesDoIBGEFiltradasIniciais.length === 0) {
-        toast.info('Todas as cidades já estão cadastradas!');
-        setProcessando(false);
-        setConcluido(true);
-        return;
+      if (linhas.length === 0) {
+        throw new Error('Arquivo vazio!');
       }
 
-      toast.info(`${cidadesDoIBGEFiltradasIniciais.length} novas cidades para importar...`);
-      setProgresso({ total: cidadesDoIBGEFiltradasIniciais.length, processado: 0 });
+      const cabecalho = linhas[0].split(/[;,\t]/);
+      const dados = linhas.slice(1);
 
-      let successfullyImportedCount = 0;
-      let failedImportCount = 0;
-      const batchSize = 10;
-      
-      for (let i = 0; i < cidadesDoIBGEFiltradasIniciais.length; i += batchSize) {
-        let currentBatchSegment = cidadesDoIBGEFiltradasIniciais.slice(i, i + batchSize);
-        let batchToAttempt = [...currentBatchSegment];
+      const idxNome = cabecalho.findIndex(h => /nome|cidade/i.test(h));
+      const idxEstado = cabecalho.findIndex(h => /estado|uf/i.test(h));
+      const idxCodigo = cabecalho.findIndex(h => /codigo|ibge/i.test(h));
 
-        // Atualizar lista de existentes a cada 500 cidades para evitar duplicatas
-        if (i > 0 && i % 500 === 0) {
-          toast.info('Atualizando lista de cidades existentes para evitar duplicatas...');
-          cidadesExistentes = await base44.entities.Cidade.list();
-          codigosExistentesSet = new Set(cidadesExistentes.map(c => c.codigo_ibge));
+      if (idxNome === -1 || idxEstado === -1 || idxCodigo === -1) {
+        throw new Error('Planilha deve ter as colunas: Nome, Estado, Codigo_IBGE');
+      }
+
+      setProgresso({ total: dados.length, processado: 0, erros: 0 });
+
+      const cidadesExistentes = await base44.entities.Cidade.list();
+      const codigosExistentes = new Set(cidadesExistentes.map(c => c.codigo_ibge));
+
+      let totalImportadas = 0;
+      const erros = [];
+
+      for (let i = 0; i < dados.length; i++) {
+        const linha = dados[i];
+        const colunas = linha.split(/[;,\t]/);
+
+        const nome = colunas[idxNome]?.trim().toUpperCase();
+        const estado = colunas[idxEstado]?.trim().toUpperCase();
+        const codigo_ibge = colunas[idxCodigo]?.trim();
+
+        if (!nome || !estado || !codigo_ibge) {
+          erros.push({ linha: i + 2, erro: 'Dados incompletos', dados: { nome, estado, codigo_ibge } });
+          setProgresso(prev => ({ ...prev, processado: i + 1, erros: prev.erros + 1 }));
+          continue;
         }
-        
-        // Filtrar o batch para não tentar inserir duplicatas que já existem (mesmo que tenham sido adicionadas em um batch anterior)
-        const finalBatchForInsertion = batchToAttempt.filter(c => !codigosExistentesSet.has(c.codigo_ibge));
-        
-        // Atualiza o progresso para o tamanho original do segmento, mesmo que parte seja filtrada
-        setProgresso({ total: cidadesDoIBGEFiltradasIniciais.length, processado: i + currentBatchSegment.length });
 
-        if (finalBatchForInsertion.length === 0) {
-            // Se todas as cidades neste segmento já existem ou foram filtradas
-            await new Promise(resolve => setTimeout(resolve, 50)); // Pequeno delay
-            continue; // Pula a tentativa de inserção para este segmento
+        if (codigo_ibge.length !== 7) {
+          erros.push({ linha: i + 2, erro: 'Código IBGE deve ter 7 dígitos', dados: { nome, estado, codigo_ibge } });
+          setProgresso(prev => ({ ...prev, processado: i + 1, erros: prev.erros + 1 }));
+          continue;
         }
-        
+
+        // Ignorar se já existe
+        if (codigosExistentes.has(codigo_ibge)) {
+          setProgresso(prev => ({ ...prev, processado: i + 1 }));
+          continue;
+        }
+
         try {
-          // Tentar inserir o batch
-          await base44.entities.Cidade.bulkCreate(finalBatchForInsertion);
-          successfullyImportedCount += finalBatchForInsertion.length;
-        } catch (batchError) {
-          console.warn(`Erro no bulkCreate para o batch (tamanho ${finalBatchForInsertion.length}), tentando inserir um por um:`, batchError);
-          
-          // Se o bulkCreate falhar, tentar inserir uma por uma
-          for (const cidade of finalBatchForInsertion) {
-            try {
-              // Verificar novamente a existência antes da inserção individual para evitar duplicatas
-              if (codigosExistentesSet.has(cidade.codigo_ibge)) {
-                successfullyImportedCount++; // Considera como importada (já existia)
-                await new Promise(resolve => setTimeout(resolve, 30));
-                continue;
-              }
-              
-              await base44.entities.Cidade.create(cidade);
-              successfullyImportedCount++;
-              await new Promise(resolve => setTimeout(resolve, 30));
-            } catch (error) {
-              console.error(`Erro ao importar ${cidade.nome} (${cidade.codigo_ibge}) individualmente:`, error);
-              failedImportCount++;
-              await new Promise(resolve => setTimeout(resolve, 30));
-            }
-          }
-        }
-        
-        // Pausa entre batches
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Pausa maior a cada 1000 cidades processadas do array original
-        if ((i + batchSize) % 1000 === 0 && (successfullyImportedCount > 0 || failedImportCount > 0)) {
-          toast.info(`${successfullyImportedCount} cidades importadas com sucesso e ${failedImportCount} com falha até agora.`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await base44.entities.Cidade.create({ nome, estado, codigo_ibge });
+          codigosExistentes.add(codigo_ibge);
+          totalImportadas++;
+          setProgresso(prev => ({ ...prev, processado: i + 1 }));
+          await new Promise(resolve => setTimeout(resolve, 30));
+        } catch (error) {
+          erros.push({ linha: i + 2, erro: error.message || 'Erro ao cadastrar', dados: { nome, estado, codigo_ibge } });
+          setProgresso(prev => ({ ...prev, processado: i + 1, erros: prev.erros + 1 }));
         }
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['cidades_gerenciar'] });
       queryClient.invalidateQueries({ queryKey: ['cidades'] });
+      setErrosImportacao(erros);
       setConcluido(true);
-      
-      if (failedImportCount > 0) {
-        toast.success(`✅ ${successfullyImportedCount} cidades importadas! (${failedImportCount} falharam)`);
+
+      if (erros.length > 0) {
+        toast.success(`✅ ${totalImportadas} cidades importadas! (${erros.length} erros)`);
       } else {
-        toast.success(`✅ ${successfullyImportedCount} cidades importadas com sucesso!`);
+        toast.success(`✅ ${totalImportadas} cidades importadas com sucesso!`);
       }
     } catch (error) {
-      console.error('Erro na importação geral:', error);
-      toast.error('Erro ao importar: ' + error.message);
+      console.error('Erro:', error);
+      toast.error('Erro ao processar arquivo: ' + error.message);
+      setProcessando(false);
+      setShowImportar(false);
     } finally {
       setProcessando(false);
+      e.target.value = '';
     }
+  };
+
+  const baixarModelo = () => {
+    const csv = 'Nome;Estado;Codigo_IBGE\nCUIABÁ;MT;5103403\nVÁRZEA GRANDE;MT;5108402\nRONDONÓPOLIS;MT;5107602';
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'modelo_cidades.csv';
+    link.click();
+    toast.success('Modelo baixado!');
+  };
+
+  const baixarRelatorioErros = () => {
+    if (errosImportacao.length === 0) return;
+    
+    const linhas = ['Linha;Erro;Nome;Estado;Codigo_IBGE'];
+    errosImportacao.forEach(e => {
+      linhas.push(`${e.linha};${e.erro};${e.dados.nome || ''};${e.dados.estado || ''};${e.dados.codigo_ibge || ''}`);
+    });
+    
+    const csv = linhas.join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `erros_importacao_cidades_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success('Relatório de erros baixado!');
   };
 
   const cidadesFiltradas = cidades.filter(c => {
@@ -283,9 +288,25 @@ export default function GerenciarCidades() {
           <p className="text-sm text-slate-600">Cadastro de cidades brasileiras com código IBGE</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowImportar(true)} variant="outline" size="sm" className="h-9 gap-1.5">
-            <Database className="w-4 h-4" />
-            Importar IBGE
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleImportarExcel}
+            style={{ display: 'none' }}
+            id="upload-cidades"
+          />
+          <Button 
+            onClick={() => document.getElementById('upload-cidades').click()} 
+            variant="outline" 
+            size="sm" 
+            className="h-9 gap-1.5"
+          >
+            <Upload className="w-4 h-4" />
+            Importar Excel
+          </Button>
+          <Button onClick={baixarModelo} variant="outline" size="sm" className="h-9 gap-1.5">
+            <Download className="w-4 h-4" />
+            Baixar Modelo
           </Button>
           <Button onClick={handleNovo} size="sm" className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700">
             <Plus className="w-4 h-4" />
@@ -448,25 +469,25 @@ export default function GerenciarCidades() {
         </CardContent>
       </Card>
 
-      <Dialog open={showImportar} onOpenChange={setShowImportar}>
+      <Dialog open={showImportar} onOpenChange={(open) => !processando && setShowImportar(open)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-600" />
-              Importar Cidades do IBGE
+              <Upload className="w-4 h-4 text-emerald-600" />
+              Importar Cidades do Excel
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs">
-              <p className="font-semibold text-blue-900 mb-2">ℹ️ Sobre esta importação</p>
+              <p className="font-semibold text-blue-900 mb-2">ℹ️ Como importar</p>
               <p className="text-blue-800 mb-2">
-                Esta ferramenta irá buscar <strong>todas as 5.570+ cidades brasileiras</strong> diretamente da API oficial do IBGE 
-                e salvar no banco de dados.
+                1. Baixe o modelo de planilha<br/>
+                2. Preencha com: <strong>Nome</strong>, <strong>Estado</strong> e <strong>Codigo_IBGE</strong><br/>
+                3. Faça upload do arquivo (CSV, XLS ou XLSX)
               </p>
               <p className="text-blue-800 text-[10px]">
-                ✅ Cidades já cadastradas serão ignoradas (sem duplicação)<br/>
-                ✅ Apenas novas cidades serão importadas
+                ✅ Códigos IBGE duplicados serão ignorados automaticamente
               </p>
             </div>
 
@@ -477,45 +498,41 @@ export default function GerenciarCidades() {
                   <span className="font-semibold text-sm">Importando...</span>
                 </div>
                 <div className="text-xs text-slate-600 mb-2">
-                  {progresso.processado} de {progresso.total} cidades processadas
+                  {progresso.processado} de {progresso.total} processadas
+                  {progresso.erros > 0 && <span className="text-red-600"> • {progresso.erros} erros</span>}
                 </div>
                 <Progress value={progresso.total > 0 ? (progresso.processado / progresso.total) * 100 : 0} className="h-2" />
               </div>
             )}
 
             {concluido && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+              <div className={`border rounded p-3 ${errosImportacao.length > 0 ? 'bg-orange-50 border-orange-200' : 'bg-emerald-50 border-emerald-200'}`}>
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-emerald-600" />
-                  <div>
-                    <p className="font-semibold text-emerald-900 text-sm">Importação concluída!</p>
-                    <p className="text-xs text-emerald-800">Todas as cidades foram importadas com sucesso.</p>
+                  {errosImportacao.length > 0 ? (
+                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">{errosImportacao.length > 0 ? 'Importação concluída com erros' : 'Importação concluída!'}</p>
+                    <p className="text-xs">
+                      {progresso.total - progresso.erros} cidades importadas
+                      {errosImportacao.length > 0 && ` • ${errosImportacao.length} erros`}
+                    </p>
                   </div>
+                  {errosImportacao.length > 0 && (
+                    <Button onClick={baixarRelatorioErros} variant="outline" size="sm" className="h-7 text-xs">
+                      <Download className="w-3 h-3 mr-1" />
+                      Baixar Erros
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowImportar(false)} size="sm" className="h-8 text-xs">
+              <Button variant="outline" onClick={() => setShowImportar(false)} size="sm" className="h-8 text-xs" disabled={processando}>
                 Fechar
-              </Button>
-              <Button 
-                onClick={popularCidades} 
-                disabled={processando}
-                size="sm"
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-              >
-                {processando ? (
-                  <>
-                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                    Importando...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3 h-3 mr-1.5" />
-                    Importar do IBGE
-                  </>
-                )}
               </Button>
             </div>
           </div>
