@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, X, Plus, Trash2, MoreVertical, DollarSign } from "lucide-react";
+import { Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import DialogCadastroRapido from "./DialogCadastroRapido.jsx";
 import ComboboxFornecedor from "./ComboboxFornecedor.jsx";
@@ -66,12 +65,12 @@ const calcularDataProximaMes = (dataBase) => {
   }
 };
 
-export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores, produtos, safras, centrosCusto, planosContas, gruposFinanceiros, tipoLancamento }) {
+export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initialData, fornecedores }) {
   const [etapa, setEtapa] = useState(1);
   const [mostrarCamposNFe, setMostrarCamposNFe] = useState(false);
   const [formData, setFormData] = useState(() => {
     const defaults = {
-      tipo: tipoLancamento || "Pagar",
+      tipo: "Pagar",
       tipo_documento: "NF-e",
       fornecedor_id: "",
       data_emissao: new Date().toISOString().split('T')[0],
@@ -115,9 +114,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       valor_icms: "",
       valor_pis: "",
       valor_cofins: "",
-      base_calculo_icms: "",
-      conta_bancaria_id: "",
-      conta_bancaria_nome: ""
+      base_calculo_icms: ""
     };
 
     if (!initialData) return defaults;
@@ -176,9 +173,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         valor: formatarNumero(p.valor || 0)
       })) || [],
       anexos: initialData.anexos || [],
-      observacoes_nfe: initialData.observacoes_nfe || "",
-      conta_bancaria_id: initialData.conta_bancaria_id || "",
-      conta_bancaria_nome: initialData.conta_bancaria_nome || ""
+      observacoes_nfe: initialData.observacoes_nfe || ""
     };
   });
 
@@ -191,19 +186,56 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
+  const { data: safras = [] } = useQuery({
+    queryKey: ['safras_compra', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Safra.list();
+      return all.filter(s => s.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: centros = [] } = useQuery({
+    queryKey: ['centros_compra', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CentroCusto.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: planos = [] } = useQuery({
+    queryKey: ['planos_compra', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PlanoContas.list('codigo');
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false && p.tipo === 'Despesa' && p.aceita_lancamento !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: grupos = [] } = useQuery({
+    queryKey: ['grupos_compra', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.GrupoFinanceiro.list();
+      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.ativo !== false && g.tipo === 'Despesa');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const { data: locais = [] } = useQuery({
     queryKey: ['locais_compra'],
     queryFn: () => base44.entities.LocalEstoque.list(),
     initialData: [],
   });
 
-  const { data: contasBancarias = [] } = useQuery({
-    queryKey: ['contas_form', empresaSelecionadaId],
+  const { data: produtos = [] } = useQuery({
+    queryKey: ['produtos_compra', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ContaBancaria.list();
-      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+      const all = await base44.entities.Produto.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
+    initialData: [],
   });
 
   useEffect(() => {
@@ -426,7 +458,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     setEtapa(2);
   };
 
-  const handleSubmitFinal = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.plano_contas_id) {
@@ -435,10 +467,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     }
     if (!formData.grupo_id) {
       toast.error('Selecione o grupo financeiro!');
-      return;
-    }
-    if (!formData.conta_bancaria_id) {
-      toast.error('Selecione a conta bancária!');
       return;
     }
     
@@ -483,10 +511,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
     const safra = safras.find(s => s.id === formData.safra_id);
-    const centro = centrosCusto.find(c => c.id === formData.centro_custo_id);
-    const plano = planosContas.find(p => p.id === formData.plano_contas_id);
-    const grupo = gruposFinanceiros.find(g => g.id === formData.grupo_id);
-    const contaBancaria = contasBancarias.find(cb => cb.id === formData.conta_bancaria_id);
+    const centro = centros.find(c => c.id === formData.centro_custo_id);
+    const plano = planos.find(p => p.id === formData.plano_contas_id);
+    const grupo = grupos.find(g => g.id === formData.grupo_id);
 
     const data = {
       tipo: formData.tipo,
@@ -555,9 +582,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
       base_calculo_icms: formData.base_calculo_icms ? parseNumero(formData.base_calculo_icms) : 0,
       parcelar: !formData.conta_paga && formData.parcelar,
       parcelas: (!formData.conta_paga && formData.parcelar) ? formData.parcelas.map(p => ({ data: p.data, valor: parseNumero(p.valor) })) : undefined,
-      anexos: formData.anexos,
-      conta_bancaria_id: formData.conta_bancaria_id,
-      conta_bancaria_nome: contaBancaria ? `${contaBancaria.banco} - ${contaBancaria.agencia}/${contaBancaria.numero}` : undefined
+      anexos: formData.anexos
     };
 
     await onSubmit(data);
@@ -583,117 +608,18 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
-              </div>
-              {initialData?.id ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'} - Etapa {etapa}/2
+        <Card className="shadow-sm border-slate-300 bg-white">
+          <CardHeader className="bg-white border-b border-slate-200 py-1.5 px-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              {initialData ? 'Editar Lançamento' : 'Novo Lançamento'} - Etapa {etapa}/2
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmitFinal} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">Tipo *</Label>
-                  <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pagar" className="text-sm">Conta a Pagar</SelectItem>
-                      <SelectItem value="Receber" className="text-sm">Conta a Receber</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">Conta Bancária *</Label>
-                  <Select value={formData.conta_bancaria_id} onValueChange={(v) => {
-                    const conta = contasBancarias.find(c => c.id === v);
-                    handleChange('conta_bancaria_id', v);
-                    handleChange('conta_bancaria_nome', conta ? `${conta.banco} - ${conta.numero}` : '');
-                  }} required>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
-                    <SelectContent>
-                      {contasBancarias.map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-sm">
-                          {c.banco} - {c.agencia}/{c.numero} ({c.titular})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">Tipo Documento *</Label>
-                  <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NF-e" className="text-sm">NF-e</SelectItem>
-                      <SelectItem value="NFC-e" className="text-sm">NFC-e</SelectItem>
-                      <SelectItem value="Recibo" className="text-sm">Recibo</SelectItem>
-                      <SelectItem value="Boleto" className="text-sm">Boleto</SelectItem>
-                      <SelectItem value="Nota Manual" className="text-sm">Nota Manual</SelectItem>
-                      <SelectItem value="Outros" className="text-sm">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {formData.tipo_documento === 'NF-e' && (
-                <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Série</Label>
-                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">CFOP</Label>
-                    <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-7 text-xs" maxLength={4} />
-                  </div>
-                </div>
-              )}
-
-              {formData.tipo_documento === 'NFC-e' && (
-                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Série</Label>
-                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
-                  </div>
-                </div>
-              )}
-
-              {formData.tipo_documento === 'Boleto' && (
-                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Nº Boleto *</Label>
-                    <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-700">Banco</Label>
-                    <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-7 text-xs" />
-                  </div>
-                </div>
-              )}
-
-              {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
-                <div className="space-y-1 pt-1 border-t border-slate-200">
-                  <Label className="text-xs font-medium text-slate-700">Número *</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-7 text-xs" />
-                </div>
-              )}
-
+          <CardContent className="p-2.5">
+            <form onSubmit={handleSubmit} className="space-y-2">
               {etapa === 1 && (
                 <>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Adjusted from 3 cols */}
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5">
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Fornecedor *</Label>
                         <ComboboxFornecedor 
@@ -704,10 +630,74 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         />
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-xs font-medium text-slate-700">Tipo Documento *</Label>
+                        <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                            <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
+                            <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                            <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                            <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
+                            <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Data Emissão *</Label>
                         <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-7 text-xs" />
                       </div>
                     </div>
+
+                    {formData.tipo_documento === 'NF-e' && (
+                      <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Série</Label>
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">CFOP</Label>
+                          <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-7 text-xs" maxLength={4} />
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.tipo_documento === 'NFC-e' && (
+                      <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                          <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Série</Label>
+                          <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.tipo_documento === 'Boleto' && (
+                      <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Nº Boleto *</Label>
+                          <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium text-slate-700">Banco</Label>
+                          <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-7 text-xs" />
+                        </div>
+                      </div>
+                    )}
+
+                    {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
+                      <div className="space-y-1 pt-1 border-t border-slate-200">
+                        <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                        <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-7 text-xs" />
+                      </div>
+                    )}
 
                     <div className="space-y-1">
                       <Label className="text-xs font-medium text-slate-700">Safra</Label>
@@ -1027,7 +1017,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <Label className="text-xs font-medium text-slate-700">Plano de Contas *</Label>
                         <div className="flex gap-1">
                           <AutocompleteGenerico
-                            items={planosContas}
+                            items={planos}
                             value={formData.plano_contas_id}
                             onChange={(v) => handleChange('plano_contas_id', v)}
                             placeholder="Buscar plano..."
@@ -1049,7 +1039,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         <Label className="text-xs font-medium text-slate-700">Grupo Financeiro *</Label>
                         <div className="flex gap-1">
                           <AutocompleteGenerico
-                            items={gruposFinanceiros}
+                            items={grupos}
                             value={formData.grupo_id}
                             onChange={(v) => handleChange('grupo_id', v)}
                             placeholder="Buscar grupo..."
@@ -1073,7 +1063,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <Label className="text-xs font-medium text-slate-700">Centro de Custo</Label>
                       <div className="flex gap-1">
                         <AutocompleteGenerico
-                          items={centrosCusto}
+                          items={centros}
                           value={formData.centro_custo_id}
                           onChange={(v) => handleChange('centro_custo_id', v)}
                           placeholder="Buscar centro..."
@@ -1227,13 +1217,9 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-7 text-xs">Voltar</Button>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
-                      <Button 
-                        type="submit" 
-                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
-                        disabled={!initialData?.id && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
-                      >
-                        <Save className="w-4 h-4" />
-                        {initialData?.id ? 'Atualizar' : 'Salvar'}
+                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-7 text-xs" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
+                        <Save className="w-3 h-3 mr-1" />
+                        Salvar
                       </Button>
                     </div>
                   </div>
