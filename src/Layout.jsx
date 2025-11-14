@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -31,6 +30,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -81,14 +81,6 @@ const DEFAULT_MENU = [
       { id: "cad-categorias", title: "Categorias", url: "Categorias" },
       { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
       { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
-      {
-        id: "cad-parametros",
-        title: "Parâmetros",
-        submenu: [
-          { id: "cad-param-gerais", title: "Gerais", url: "ParametrosGerais" },
-          { id: "cad-param-financeiro", title: "Financeiro", url: "ParametrosFinanceiro" },
-        ],
-      },
     ],
   },
   {
@@ -192,14 +184,13 @@ export default function Layout({ children, currentPageName }) {
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas.length]); // Apenas quando o tamanho mudar
+  }, [empresas.length]);
 
   const handleEmpresaChange = (empresaId) => {
     isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
     
-    // Usar timeout para evitar loops
     setTimeout(() => {
       window.location.reload();
     }, 100);
@@ -525,7 +516,6 @@ export default function Layout({ children, currentPageName }) {
                         <div className="py-1">
                           {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
                             if (sub.submenu) {
-                              // Check if any sub-submenu item is active
                               const isSubActive = sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url));
                               return (
                                 <div key={sub.id} className="relative group/sub">
