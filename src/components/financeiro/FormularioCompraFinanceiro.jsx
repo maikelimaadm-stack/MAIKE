@@ -429,16 +429,16 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmitFinal = async (e) => {
     e.preventDefault();
 
+    if (!formData.conta_bancaria_id) {
+      toast.error('Selecione a conta bancária!');
+      return;
+    }
     if (!formData.plano_contas_id) {
       toast.error('Selecione o plano de contas!');
       return;
     }
     if (!formData.grupo_id) {
       toast.error('Selecione o grupo financeiro!');
-      return;
-    }
-    if (!formData.conta_bancaria_id) {
-      toast.error('Selecione a conta bancária!');
       return;
     }
     
@@ -586,7 +586,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
         <Card className="shadow-xl border-slate-200 bg-white">
           <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
             <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-white" />
               </div>
               {initialData?.id ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'} - Etapa {etapa}/2
@@ -594,14 +594,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmitFinal} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700">Tipo *</Label>
                   <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pagar" className="text-sm">Conta a Pagar</SelectItem>
-                      <SelectItem value="Receber" className="text-sm">Conta a Receber</SelectItem>
+                      <SelectItem value="Pagar">Conta a Pagar</SelectItem>
+                      <SelectItem value="Receber">Conta a Receber</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -613,10 +613,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     handleChange('conta_bancaria_id', v);
                     handleChange('conta_bancaria_nome', conta ? `${conta.banco} - ${conta.numero}` : '');
                   }} required>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
                     <SelectContent>
                       {contasBancarias.map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-sm">
+                        <SelectItem key={c.id} value={c.id}>
                           {c.banco} - {c.agencia}/{c.numero} ({c.titular})
                         </SelectItem>
                       ))}
@@ -627,16 +627,21 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700">Tipo Documento *</Label>
                   <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NF-e" className="text-sm">NF-e</SelectItem>
-                      <SelectItem value="NFC-e" className="text-sm">NFC-e</SelectItem>
-                      <SelectItem value="Recibo" className="text-sm">Recibo</SelectItem>
-                      <SelectItem value="Boleto" className="text-sm">Boleto</SelectItem>
-                      <SelectItem value="Nota Manual" className="text-sm">Nota Manual</SelectItem>
-                      <SelectItem value="Outros" className="text-sm">Outros</SelectItem>
+                      <SelectItem value="NF-e">NF-e</SelectItem>
+                      <SelectItem value="NFC-e">NFC-e</SelectItem>
+                      <SelectItem value="Recibo">Recibo</SelectItem>
+                      <SelectItem value="Boleto">Boleto</SelectItem>
+                      <SelectItem value="Nota Manual">Nota Manual</SelectItem>
+                      <SelectItem value="Outros">Outros</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">Data Emissão *</Label>
+                  <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
                 </div>
               </div>
 
@@ -693,7 +698,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               {etapa === 1 && (
                 <>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Adjusted from 3 cols */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700">Fornecedor *</Label>
                         <ComboboxFornecedor 
@@ -704,19 +709,14 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs font-medium text-slate-700">Data Emissão *</Label>
-                        <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-7 text-xs" />
+                        <Label className="text-xs font-medium text-slate-700">Safra</Label>
+                        <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                          <SelectContent>
+                            {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium text-slate-700">Safra</Label>
-                      <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-                        <SelectContent>
-                          {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
 
@@ -1229,7 +1229,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                       <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
                       <Button 
                         type="submit" 
-                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
+                        className="bg-slate-700 hover:bg-slate-800 gap-2"
                         disabled={!initialData?.id && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                       >
                         <Save className="w-4 h-4" />
