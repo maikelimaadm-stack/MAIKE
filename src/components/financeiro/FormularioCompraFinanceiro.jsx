@@ -380,10 +380,6 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   };
 
   const handleProximaEtapa = () => {
-    if (!formData.conta_bancaria_id) {
-      toast.error('Selecione a conta bancária!');
-      return;
-    }
     if (!formData.fornecedor_id) {
       toast.error('Selecione o fornecedor!');
       return;
@@ -433,6 +429,10 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
   const handleSubmitFinal = async (e) => {
     e.preventDefault();
 
+    if (!formData.conta_bancaria_id) {
+      toast.error('Selecione a conta bancária!');
+      return;
+    }
     if (!formData.plano_contas_id) {
       toast.error('Selecione o plano de contas!');
       return;
@@ -646,52 +646,52 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
               </div>
 
               {formData.tipo_documento === 'NF-e' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required />
+                <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Série</Label>
-                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Série</Label>
+                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">CFOP</Label>
-                    <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" maxLength={4} />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">CFOP</Label>
+                    <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="5102" className="h-7 text-xs" maxLength={4} />
                   </div>
                 </div>
               )}
 
               {formData.tipo_documento === 'NFC-e' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required />
+                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                    <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Série</Label>
-                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Série</Label>
+                    <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="1" className="h-7 text-xs" />
                   </div>
                 </div>
               )}
 
               {formData.tipo_documento === 'Boleto' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Nº Boleto *</Label>
-                    <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required />
+                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Nº Boleto *</Label>
+                    <Input value={formData.numero_boleto} onChange={(e) => handleChange('numero_boleto', e.target.value)} placeholder="000000" required className="h-7 text-xs" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Banco</Label>
-                    <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-700">Banco</Label>
+                    <Input value={formData.banco_boleto} onChange={(e) => handleChange('banco_boleto', e.target.value)} placeholder="Banco" className="h-7 text-xs" />
                   </div>
                 </div>
               )}
 
               {['Recibo', 'Nota Manual', 'Outros'].includes(formData.tipo_documento) && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">Número *</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required />
+                <div className="space-y-1 pt-1 border-t border-slate-200">
+                  <Label className="text-xs font-medium text-slate-700">Número *</Label>
+                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="0001" required className="h-7 text-xs" />
                 </div>
               )}
 
