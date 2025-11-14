@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -250,9 +249,9 @@ export default function CaixaBancos() {
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
           <Card className="shadow-xl border-slate-200 bg-white">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
               <CardTitle className="flex items-center gap-3 text-slate-900">
-                <div className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
                   <Wallet className="w-5 h-5 text-white" />
                 </div>
                 {editingConta ? 'Editar Conta' : 'Nova Conta Bancária'}
@@ -332,7 +331,7 @@ export default function CaixaBancos() {
                     <X className="w-4 h-4" />
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2">
+                  <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
                     <Save className="w-4 h-4" />
                     {editingConta ? 'Atualizar' : 'Salvar'}
                   </Button>
