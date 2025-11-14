@@ -791,31 +791,24 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     </div>
                     <div className="space-y-1 col-span-2">
                       <Label className="text-xs">Cidade *</Label>
-                      <Select 
-                        value={novoFornecedor.cidade} 
-                        onValueChange={(v) => {
-                          const cidadeSelecionada = cidades.find(c => c.nome === v && c.estado === novoFornecedor.estado);
+                      <AutocompleteGenerico
+                        items={cidadesFiltradas}
+                        value={cidadesFiltradas.find(c => c.nome === novoFornecedor.cidade)?.id || ""}
+                        onChange={(id) => {
+                          const cidadeSelecionada = cidades.find(c => c.id === id);
                           setNovoFornecedor({ 
                             ...novoFornecedor, 
-                            cidade: v,
+                            cidade: cidadeSelecionada?.nome || "",
                             codigo_ibge: cidadeSelecionada?.codigo_ibge || ""
                           });
-                        }} 
+                        }}
+                        placeholder={novoFornecedor.estado ? "Digite para buscar..." : "Escolha UF"}
+                        displayField="nome"
+                        searchFields={["nome", "codigo_ibge"]}
                         disabled={!novoFornecedor.estado}
-                      >
-                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={novoFornecedor.estado ? "Selecione" : "Escolha UF"} /></SelectTrigger>
-                        <SelectContent className="max-h-[200px]">
-                          {cidadesFiltradas.length === 0 ? (
-                            <SelectItem value="_none" disabled className="text-xs">
-                              {cidades.length === 0 ? 'Banco vazio' : 'Nenhuma cidade'}
-                            </SelectItem>
-                          ) : (
-                            cidadesFiltradas.map(c => (
-                              <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                        className="h-7 text-xs"
+                        emptyMessage={cidades.length === 0 ? 'Banco vazio' : 'Nenhuma cidade'}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">CEP</Label>

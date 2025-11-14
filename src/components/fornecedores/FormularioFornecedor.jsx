@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 
 // Validação de CPF
 const validarCPF = (cpf) => {
@@ -149,16 +150,6 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
       return;
     }
 
-    if (field === 'cidade') {
-      const cidadeSelecionada = cidades.find(c => c.nome === value && c.estado === formData.estado);
-      setFormData(prev => ({ 
-        ...prev, 
-        cidade: value,
-        codigo_ibge: cidadeSelecionada?.codigo_ibge || ""
-      }));
-      return;
-    }
-    
     if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone', 'codigo_ibge'].includes(field)) {
       value = value.toUpperCase();
     }
@@ -385,26 +376,25 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                   <MapPin className="w-4 h-4 text-orange-600" />
                   Cidade
                 </Label>
-                <Select 
-                  value={formData.cidade} 
-                  onValueChange={(v) => handleChange('cidade', v)}
+                <AutocompleteGenerico
+                  items={cidadesFiltradas}
+                  value={cidadesFiltradas.find(c => c.nome === formData.cidade)?.id || ""}
+                  onChange={(id) => {
+                    const cidade = cidadesFiltradas.find(c => c.id === id);
+                    if (cidade) {
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        cidade: cidade.nome,
+                        codigo_ibge: cidade.codigo_ibge
+                      }));
+                    }
+                  }}
+                  placeholder={formData.estado ? "Digite para buscar..." : "Escolha o estado primeiro"}
+                  displayField="nome"
+                  searchFields={["nome", "codigo_ibge"]}
                   disabled={!formData.estado}
-                >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder={formData.estado ? "Selecione a cidade" : "Escolha o estado primeiro"} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {cidadesFiltradas.length === 0 ? (
-                      <SelectItem value="_none" disabled>
-                        {cidades.length === 0 ? 'Banco vazio - popule primeiro' : 'Nenhuma cidade neste estado'}
-                      </SelectItem>
-                    ) : (
-                      cidadesFiltradas.map(c => (
-                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                  emptyMessage={cidades.length === 0 ? 'Banco vazio - popule primeiro' : 'Nenhuma cidade neste estado'}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">
