@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { 
-  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
-  Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
+import {
+  Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud,
+  Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home,
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +31,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -41,7 +40,7 @@ import {
 } from "@/components/ui/dialog";
 
 const iconsMap = {
-  Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
+  Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen,
   FileText, Shield, Package, Users, Settings
 };
 
@@ -61,7 +60,7 @@ const DEFAULT_MENU = [
       { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
       { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
       { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
-      { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
+      { id: "fin-livro", title: "Livro-Caixa", url: "LivroCaixa" },
     ],
   },
   {
@@ -108,7 +107,7 @@ const DEFAULT_MENU = [
 
 const getAllPages = (menuItems) => {
   const pages = [];
-  
+
   const traverse = (items, categoria = '') => {
     items.forEach(item => {
       if (item.url) {
@@ -124,7 +123,7 @@ const getAllPages = (menuItems) => {
       }
     });
   };
-  
+
   traverse(menuItems);
   return pages;
 };
@@ -137,12 +136,12 @@ export default function Layout({ children, currentPageName }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const isChangingEmpresa = useRef(false);
-  
+
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     return saved ? JSON.parse(saved) : DEFAULT_MENU;
   });
-  
+
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
@@ -161,7 +160,7 @@ export default function Layout({ children, currentPageName }) {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -196,7 +195,7 @@ export default function Layout({ children, currentPageName }) {
     isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
-    
+
     // Usar timeout para evitar loops
     setTimeout(() => {
       window.location.reload();
@@ -240,19 +239,21 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const isActive = (item) => {
-    if (item.url) return location.pathname === createPageUrl(item.url);
-    if (item.submenu) return item.submenu.some(sub => {
-      if (sub.url) return location.pathname === createPageUrl(sub.url);
-      if (sub.submenu) return sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url));
-      return false;
-    });
+  const isActiveDeep = (item) => {
+    if (item.url && location.pathname === createPageUrl(item.url)) return true;
+    if (item.submenu) {
+      return item.submenu.some(sub => {
+        if (sub.url && location.pathname === createPageUrl(sub.url)) return true;
+        if (sub.submenu) return sub.submenu.some(subsub => subsub.url && location.pathname === createPageUrl(subsub.url));
+        return false;
+      });
+    }
     return false;
   };
 
   const allPages = getAllPages(menuItems);
-  const filteredPages = searchTerm 
-    ? allPages.filter(p => 
+  const filteredPages = searchTerm
+    ? allPages.filter(p =>
         p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -271,14 +272,14 @@ export default function Layout({ children, currentPageName }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {empresaAtual?.logotipo_url ? (
-                <img 
-                  src={empresaAtual.logotipo_url} 
+                <img
+                  src={empresaAtual.logotipo_url}
                   alt={empresaAtual.apelido}
                   className="h-10 w-auto object-contain"
                 />
               ) : (
-                <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg"
                   alt="Logo"
                   className="h-10 w-auto object-contain"
                 />
@@ -407,7 +408,7 @@ export default function Layout({ children, currentPageName }) {
                   <div className="mt-4 space-y-1">
                     {menuItems.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
-                      
+
                       if (item.submenu) {
                         return (
                           <div key={item.id} className="space-y-1">
@@ -417,7 +418,7 @@ export default function Layout({ children, currentPageName }) {
                             </div>
                             <div className="ml-3 space-y-0.5">
                               {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
-                                <Link 
+                                <Link
                                   key={sub.id}
                                   to={createPageUrl(sub.url)}
                                   onClick={() => setMobileMenuOpen(false)}
@@ -436,7 +437,7 @@ export default function Layout({ children, currentPageName }) {
                       }
 
                       return (
-                        <Link 
+                        <Link
                           key={item.id}
                           to={createPageUrl(item.url)}
                           onClick={() => setMobileMenuOpen(false)}
@@ -465,17 +466,17 @@ export default function Layout({ children, currentPageName }) {
             <div className="hidden md:flex items-center gap-0.5">
               {menuItems.map((item) => {
                 const Icon = iconsMap[item.icon] || Home;
-                const active = isActive(item);
+                const active = isActiveDeep(item);
 
                 if (item.submenu) {
                   return (
                     <div key={item.id} className="relative group">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                          active 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                          active
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                             : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                       >
@@ -483,26 +484,32 @@ export default function Layout({ children, currentPageName }) {
                         {item.title}
                         <ChevronDown className="w-3 h-3 opacity-50" />
                       </Button>
-                      
+
                       <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div className="py-1">
                           {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
                             if (sub.submenu && sub.submenu.length > 0) {
                               return (
                                 <div key={sub.id} className="relative group/sub">
-                                  <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 cursor-pointer ${
-                                    location.pathname === createPageUrl(sub.url)
+                                  <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 ${
+                                    sub.url && location.pathname === createPageUrl(sub.url)
                                       ? 'bg-emerald-50 text-emerald-800 font-medium'
                                       : 'text-slate-700'
                                   }`}>
-                                    <span>{sub.title}</span>
+                                    {sub.url ? (
+                                      <Link to={createPageUrl(sub.url)} className="flex-1">
+                                        {sub.title}
+                                      </Link>
+                                    ) : (
+                                      <span className="flex-1">{sub.title}</span>
+                                    )}
                                     <ChevronRight className="w-3 h-3 opacity-50" />
                                   </div>
-                                  
+
                                   <div className="absolute left-full top-0 ml-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
                                     <div className="py-1">
                                       {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                        <Link 
+                                        <Link
                                           key={subsub.id}
                                           to={createPageUrl(subsub.url)}
                                           className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
@@ -521,7 +528,7 @@ export default function Layout({ children, currentPageName }) {
                             }
 
                             return (
-                              <Link 
+                              <Link
                                 key={sub.id}
                                 to={createPageUrl(sub.url)}
                                 className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
@@ -542,12 +549,12 @@ export default function Layout({ children, currentPageName }) {
 
                 return (
                   <Link key={item.id} to={createPageUrl(item.url)}>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                        active 
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        active
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                           : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
@@ -570,10 +577,10 @@ export default function Layout({ children, currentPageName }) {
               Buscar em todo o sistema
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
+            <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Digite para buscar paginas..."
@@ -581,8 +588,8 @@ export default function Layout({ children, currentPageName }) {
               autoFocus
             />
             {searchTerm && (
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
                 onClick={() => setSearchTerm("")}

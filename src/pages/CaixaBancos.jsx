@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Wallet, Plus, Edit, Trash2, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Wallet, Plus, Save, X, Edit, Trash2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getEmpresaSelecionada } from "@/Layout";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const formatarMoeda = (valor) => {
   if (!valor && valor !== 0) return "R$ 0,00";
@@ -88,10 +92,23 @@ export default function CaixaBancos() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (!formData.tipo || !formData.titular || !formData.banco || !formData.agencia || !formData.numero || !formData.documento_titular || !formData.saldo_inicial || !formData.data_abertura) {
+      toast.error('❌ Preencha todos os campos obrigatórios!');
+      return;
+    }
+
     const dataToSubmit = {
-      ...formData,
+      tipo: formData.tipo,
+      banco: formData.banco.toUpperCase(),
+      agencia: formData.agencia,
+      numero: formData.numero,
+      titular: formData.titular.toUpperCase(),
+      documento_titular: formData.documento_titular,
       saldo_inicial: parseFloat(formData.saldo_inicial.replace(',', '.')) || 0,
+      data_abertura: formData.data_abertura,
       limite_credito: parseFloat(formData.limite_credito.replace(',', '.')) || 0,
+      ativo: formData.ativo,
+      observacoes: formData.observacoes?.toUpperCase() || ""
     };
 
     if (editingConta) {
@@ -125,6 +142,24 @@ export default function CaixaBancos() {
     }
   };
 
+  const handleNovo = () => {
+    setEditingConta(null);
+    setFormData({
+      tipo: "Conta Corrente",
+      banco: "",
+      agencia: "",
+      numero: "",
+      titular: "",
+      documento_titular: "",
+      saldo_inicial: "",
+      data_abertura: "",
+      limite_credito: "",
+      ativo: true,
+      observacoes: ""
+    });
+    setShowForm(true);
+  };
+
   const resetForm = () => {
     setShowForm(false);
     setEditingConta(null);
@@ -147,172 +182,198 @@ export default function CaixaBancos() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Caixa & Bancos</h1>
-          <p className="text-sm text-slate-600">Gerencie contas bancárias e caixa</p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Conta
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-emerald-600" />
-            </div>
+      {!showForm && (
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div>
-              <p className="text-xs text-slate-600">Saldo Total</p>
-              <p className="text-lg font-bold text-slate-900">{formatarMoeda(saldoTotal)}</p>
+              <h1 className="text-2xl font-bold text-slate-800">Caixa & Bancos</h1>
+              <p className="text-sm text-slate-600">Gerencie contas bancárias e caixa</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-600">Contas Ativas</p>
-              <p className="text-lg font-bold text-slate-900">{contas.filter(c => c.ativo).length}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Button onClick={handleNovo} size="sm" className="h-9 gap-1.5 bg-slate-700 hover:bg-slate-800">
+              <Plus className="w-4 h-4" />
+              Nova Conta
+            </Button>
+          </div>
 
-      <AnimatePresence>
-        {showForm && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-lg border-slate-300">
-              <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b py-3">
-                <CardTitle className="text-sm font-semibold">{editingConta ? 'Editar Conta' : 'Nova Conta'}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tipo *</Label>
-                      <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Conta Corrente" className="text-xs">Conta Corrente</SelectItem>
-                          <SelectItem value="Poupança" className="text-xs">Poupança</SelectItem>
-                          <SelectItem value="Caixa" className="text-xs">Caixa</SelectItem>
-                          <SelectItem value="Aplicação" className="text-xs">Aplicação</SelectItem>
-                          <SelectItem value="Cartão de Crédito" className="text-xs">Cartão de Crédito</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Titular *</Label>
-                      <Input value={formData.titular} onChange={(e) => setFormData({ ...formData, titular: e.target.value })} className="h-8 text-xs uppercase" required />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Banco</Label>
-                      <Input value={formData.banco} onChange={(e) => setFormData({ ...formData, banco: e.target.value })} className="h-8 text-xs uppercase" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Agência</Label>
-                      <Input value={formData.agencia} onChange={(e) => setFormData({ ...formData, agencia: e.target.value })} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Número</Label>
-                      <Input value={formData.numero} onChange={(e) => setFormData({ ...formData, numero: e.target.value })} className="h-8 text-xs" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">CPF/CNPJ</Label>
-                      <Input value={formData.documento_titular} onChange={(e) => setFormData({ ...formData, documento_titular: e.target.value })} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Saldo Inicial</Label>
-                      <Input value={formData.saldo_inicial} onChange={(e) => setFormData({ ...formData, saldo_inicial: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Data Abertura</Label>
-                      <Input type="date" value={formData.data_abertura} onChange={(e) => setFormData({ ...formData, data_abertura: e.target.value })} className="h-8 text-xs" />
-                    </div>
-                  </div>
-
-                  {formData.tipo === "Cartão de Crédito" && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Limite de Crédito</Label>
-                      <Input value={formData.limite_credito} onChange={(e) => setFormData({ ...formData, limite_credito: e.target.value })} placeholder="0,00" className="h-8 text-xs" />
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Observações</Label>
-                    <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs uppercase" rows={2} />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={formData.ativo} onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })} className="rounded" />
-                    <Label className="text-xs">Conta Ativa</Label>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">Cancelar</Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar</Button>
-                  </div>
-                </form>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600">Saldo Total</p>
+                  <p className="text-lg font-bold text-slate-900">{formatarMoeda(saldoTotal)}</p>
+                </div>
               </CardContent>
             </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600">Contas Ativas</p>
+                  <p className="text-lg font-bold text-slate-900">{contas.filter(c => c.ativo).length}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card className="shadow-sm">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="text-xs">Tipo</TableHead>
-                <TableHead className="text-xs">Titular</TableHead>
-                <TableHead className="text-xs">Banco/Agência/Conta</TableHead>
-                <TableHead className="text-xs text-right">Saldo</TableHead>
-                <TableHead className="text-xs text-center">Status</TableHead>
-                <TableHead className="text-xs text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell></TableRow>
-              ) : contas.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-12 text-slate-400 text-xs">Nenhuma conta cadastrada</TableCell></TableRow>
-              ) : (
-                contas.map((conta) => (
-                  <TableRow key={conta.id} className="hover:bg-slate-50">
-                    <TableCell className="text-xs"><Badge variant="outline">{conta.tipo}</Badge></TableCell>
-                    <TableCell className="text-xs font-medium">{conta.titular}</TableCell>
-                    <TableCell className="text-xs text-slate-600">{conta.banco} {conta.agencia && `• ${conta.agencia}`} {conta.numero && `• ${conta.numero}`}</TableCell>
-                    <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(conta.saldo_atual || 0)}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={conta.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}>
-                        {conta.ativo ? 'Ativa' : 'Inativa'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex justify-center gap-1">
-                        <Button onClick={() => handleEdit(conta)} variant="ghost" size="icon" className="h-7 w-7"><Edit className="w-3.5 h-3.5" /></Button>
-                        <Button onClick={() => handleDelete(conta.id)} variant="ghost" size="icon" className="h-7 w-7 text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          <Card className="shadow-sm border-slate-200">
+            <CardContent className="p-0">
+              <div className="overflow-auto max-h-[600px]">
+                <table className="w-full">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left text-xs font-semibold text-slate-700 px-4 py-3">Tipo</th>
+                      <th className="text-left text-xs font-semibold text-slate-700 px-4 py-3">Titular</th>
+                      <th className="text-left text-xs font-semibold text-slate-700 px-4 py-3">Banco</th>
+                      <th className="text-left text-xs font-semibold text-slate-700 px-4 py-3">Agência/Conta</th>
+                      <th className="text-right text-xs font-semibold text-slate-700 px-4 py-3">Saldo</th>
+                      <th className="text-center text-xs font-semibold text-slate-700 px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-slate-400 text-xs">Carregando...</td></tr>
+                    ) : contas.length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-slate-400 text-xs">Nenhuma conta cadastrada</td></tr>
+                    ) : (
+                      contas.map((conta) => (
+                        <ContextMenu key={conta.id}>
+                          <ContextMenuTrigger asChild>
+                            <tr className="border-b border-slate-100 hover:bg-slate-50 cursor-context-menu">
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-100 text-slate-700">{conta.tipo}</span>
+                              </td>
+                              <td className="px-4 py-3 text-xs font-medium">{conta.titular}</td>
+                              <td className="px-4 py-3 text-xs text-slate-600">{conta.banco}</td>
+                              <td className="px-4 py-3 text-xs text-slate-600">{conta.agencia} / {conta.numero}</td>
+                              <td className="px-4 py-3 text-right font-mono text-xs font-semibold">{formatarMoeda(conta.saldo_atual || 0)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${conta.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                  {conta.ativo ? 'Ativa' : 'Inativa'}
+                                </span>
+                              </td>
+                            </tr>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem onClick={() => handleEdit(conta)} className="text-xs">
+                              <Edit className="w-3 h-3 mr-2" />
+                              Editar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => handleDelete(conta.id)} className="text-xs text-red-600">
+                              <Trash2 className="w-3 h-3 mr-2" />
+                              Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {showForm && (
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+          <Card className="shadow-xl border-slate-200 bg-white">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
+              <CardTitle className="flex items-center gap-3 text-slate-900">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-white" />
+                </div>
+                {editingConta ? 'Editar Conta Bancária' : 'Nova Conta Bancária'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Tipo de Conta *</Label>
+                    <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })} required>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Conta Corrente">Conta Corrente</SelectItem>
+                        <SelectItem value="Poupança">Poupança</SelectItem>
+                        <SelectItem value="Caixa">Caixa</SelectItem>
+                        <SelectItem value="Aplicação">Aplicação</SelectItem>
+                        <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Titular *</Label>
+                    <Input value={formData.titular} onChange={(e) => setFormData({ ...formData, titular: e.target.value })} className="uppercase" required />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label>Banco *</Label>
+                    <Input value={formData.banco} onChange={(e) => setFormData({ ...formData, banco: e.target.value })} className="uppercase" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Agência *</Label>
+                    <Input value={formData.agencia} onChange={(e) => setFormData({ ...formData, agencia: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Número da Conta *</Label>
+                    <Input value={formData.numero} onChange={(e) => setFormData({ ...formData, numero: e.target.value })} required />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label>CPF/CNPJ *</Label>
+                    <Input value={formData.documento_titular} onChange={(e) => setFormData({ ...formData, documento_titular: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Saldo Inicial *</Label>
+                    <Input value={formData.saldo_inicial} onChange={(e) => setFormData({ ...formData, saldo_inicial: e.target.value })} placeholder="0,00" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data Abertura *</Label>
+                    <Input type="date" value={formData.data_abertura} onChange={(e) => setFormData({ ...formData, data_abertura: e.target.value })} required />
+                  </div>
+                </div>
+
+                {formData.tipo === "Cartão de Crédito" && (
+                  <div className="space-y-2">
+                    <Label>Limite de Crédito *</Label>
+                    <Input value={formData.limite_credito} onChange={(e) => setFormData({ ...formData, limite_credito: e.target.value })} placeholder="0,00" required />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="uppercase" rows={3} />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={formData.ativo} onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })} className="rounded" />
+                  <Label>Conta Ativa</Label>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-6 border-t">
+                  <Button type="button" variant="outline" onClick={resetForm} className="gap-2">
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+                    <Save className="w-4 h-4" />
+                    {editingConta ? 'Atualizar' : 'Salvar'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }
