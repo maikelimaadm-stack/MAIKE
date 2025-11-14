@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -87,6 +86,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
     email: initialData?.email || "",
     endereco: initialData?.endereco || "",
     cidade: initialData?.cidade || "",
+    codigo_ibge: initialData?.codigo_ibge || "",
     estado: initialData?.estado || "",
     cep: initialData?.cep || "",
     observacoes: initialData?.observacoes || ""
@@ -145,12 +145,21 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
     }
     
     if (field === 'estado') {
-      // Limpar cidade ao mudar estado
-      setFormData(prev => ({ ...prev, estado: value, cidade: "" }));
+      setFormData(prev => ({ ...prev, estado: value, cidade: "", codigo_ibge: "" }));
+      return;
+    }
+
+    if (field === 'cidade') {
+      const cidadeSelecionada = cidades.find(c => c.nome === value && c.estado === formData.estado);
+      setFormData(prev => ({ 
+        ...prev, 
+        cidade: value,
+        codigo_ibge: cidadeSelecionada?.codigo_ibge || ""
+      }));
       return;
     }
     
-    if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone'].includes(field)) {
+    if (typeof value === 'string' && !['email', 'cep', 'cpf', 'cnpj', 'rg', 'inscricao_estadual', 'data_nascimento', 'telefone', 'codigo_ibge'].includes(field)) {
       value = value.toUpperCase();
     }
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -354,7 +363,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-orange-600" />
@@ -379,7 +388,7 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                 <Select 
                   value={formData.cidade} 
                   onValueChange={(v) => handleChange('cidade', v)}
-                  disabled={!formData.estado || cidadesFiltradas.length === 0}
+                  disabled={!formData.estado}
                 >
                   <SelectTrigger className="border-slate-300 focus:border-green-500">
                     <SelectValue placeholder={formData.estado ? "Selecione a cidade" : "Escolha o estado primeiro"} />
@@ -396,6 +405,18 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-medium flex items-center gap-2">
+                  <Hash className="w-4 h-4 text-orange-600" />
+                  Código IBGE
+                </Label>
+                <Input
+                  value={formData.codigo_ibge}
+                  readOnly
+                  placeholder="Automático"
+                  className="border-slate-300 bg-slate-50 text-slate-600"
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700 font-medium flex items-center gap-2">

@@ -63,6 +63,7 @@ const extrairDadosXML = (xmlText) => {
   const cidade = getValor('xMun');
   const estado = getValor('UF');
   const cep = getValor('CEP');
+  const cMun = getValor('cMun');
 
   const enderecoCompleto = numero_end ? `${logradouro}, ${numero_end}` : logradouro;
 
@@ -146,7 +147,7 @@ const extrairDadosXML = (xmlText) => {
     cnpj_emitente: cnpjEmit, cpf_emitente: cpfEmit, razao_social_emitente: razaoSocial,
     inscricao_estadual_emitente: inscEstadual, telefone_emitente: telefone, email_emitente: email,
     endereco_emitente: enderecoCompleto, bairro_emitente: bairro, cidade_emitente: cidade,
-    estado_emitente: estado, cep_emitente: cep, cfop,
+    estado_emitente: estado, cep_emitente: cep, codigo_ibge_emitente: cMun, cfop,
     valor_produtos: vProd,
     valor_frete: vFrete, 
     valor_seguro: vSeg,
@@ -181,7 +182,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   
   const [novoFornecedor, setNovoFornecedor] = useState({
     tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "",
-    telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: ""
+    telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: "", codigo_ibge: ""
   });
   
   const [showBuscaProduto, setShowBuscaProduto] = useState(false);
@@ -228,7 +229,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
   const { data: cidades = [] } = useQuery({
     queryKey: ['cidades'],
     queryFn: async () => {
-      const cidadesList = await base44.entities.Cidade.list('nome');
+      const cidadesList = await base44.entities.Cidade.list();
       return cidadesList;
     },
     initialData: [],
@@ -350,7 +351,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
           endereco: enderecoCompleto || "",
           estado: resultado.estado_emitente || "",
           cidade: resultado.cidade_emitente || "",
-          cep: resultado.cep_emitente || ""
+          cep: resultado.cep_emitente || "",
+          codigo_ibge: resultado.codigo_ibge_emitente || ""
         });
         setEtapa(2);
       }
@@ -378,8 +380,8 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
         return {
           index, codigo: item.codigo || '', descricao: item.descricao || '',
           ncm: item.ncm || '', cfop: item.cfop || '', unidade: unidadeFinal,
-          quantidade: item.quantidade || 0, valor_total: item.valor_total,
-          desconto_item: item.desconto_item || 0, valor_unitario: item.valor_unitario || 0,
+          quantidade: parseFloat(item.quantidade) || 0, valor_total: item.valor_total,
+          desconto_item: item.desconto_item || 0, valor_unitario: parseFloat(item.valor_unitario) || 0,
           produto_id: prod?.id, produto_nome: prod?.nome_produto,
           status: prod ? 'associado' : 'pendente'
         };
@@ -414,6 +416,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
       endereco: novoFornecedor.endereco?.toUpperCase(),
       estado: novoFornecedor.estado,
       cidade: novoFornecedor.cidade?.toUpperCase(),
+      codigo_ibge: novoFornecedor.codigo_ibge,
       cep: novoFornecedor.cep?.replace(/\D/g, '')
     });
   };
@@ -631,7 +634,7 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
     setItensSelecionados([]);
     setItemEditando(null);
     setLocalEstoque("");
-    setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: "" });
+    setNovoFornecedor({ tipo_pessoa: "Jurídica", nome: "", cnpj: "", cpf: "", inscricao_estadual: "", telefone: "", email: "", endereco: "", estado: "", cidade: "", cep: "", codigo_ibge: "" });
     setNovoProduto({ nome_produto: "", codigo_interno: "", codigo_barras: "", unidade_medida: "UN", categoria: "", descricao: "", preco_custo: "" });
     setShowBuscaProduto(false);
     setShowNovoProduto(false);
@@ -774,10 +777,10 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                     <Input value={novoFornecedor.endereco} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, endereco: e.target.value })} placeholder="RUA, NÚMERO, BAIRRO" className="uppercase h-7 text-xs" style={{ textTransform: 'uppercase' }} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-4 gap-1">
                     <div className="space-y-1">
                       <Label className="text-xs">Estado *</Label>
-                      <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v, cidade: "" })}>
+                      <Select value={novoFornecedor.estado} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, estado: v, cidade: "", codigo_ibge: "" })}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
                         <SelectContent>
                           {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
@@ -786,13 +789,26 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 col-span-2">
                       <Label className="text-xs">Cidade *</Label>
-                      <Select value={novoFornecedor.cidade} onValueChange={(v) => setNovoFornecedor({ ...novoFornecedor, cidade: v })} disabled={!novoFornecedor.estado || cidadesFiltradas.length === 0}>
+                      <Select 
+                        value={novoFornecedor.cidade} 
+                        onValueChange={(v) => {
+                          const cidadeSelecionada = cidades.find(c => c.nome === v && c.estado === novoFornecedor.estado);
+                          setNovoFornecedor({ 
+                            ...novoFornecedor, 
+                            cidade: v,
+                            codigo_ibge: cidadeSelecionada?.codigo_ibge || ""
+                          });
+                        }} 
+                        disabled={!novoFornecedor.estado}
+                      >
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={novoFornecedor.estado ? "Selecione" : "Escolha UF"} /></SelectTrigger>
                         <SelectContent className="max-h-[200px]">
                           {cidadesFiltradas.length === 0 ? (
-                            <SelectItem value="_none" disabled className="text-xs">Nenhuma cidade</SelectItem>
+                            <SelectItem value="_none" disabled className="text-xs">
+                              {cidades.length === 0 ? 'Banco vazio' : 'Nenhuma cidade'}
+                            </SelectItem>
                           ) : (
                             cidadesFiltradas.map(c => (
                               <SelectItem key={c.id} value={c.nome} className="text-xs">{c.nome}</SelectItem>
@@ -806,6 +822,14 @@ export default function ImportarNFeFinanceiro({ open, onClose, onSuccess, fornec
                       <Input value={novoFornecedor.cep} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cep: e.target.value })} placeholder="00000-000" className="h-7 text-xs" />
                     </div>
                   </div>
+
+                  {novoFornecedor.codigo_ibge && (
+                    <div className="bg-slate-50 border border-slate-200 rounded p-1.5">
+                      <div className="text-[10px] text-slate-600">
+                        <strong>Código IBGE:</strong> {novoFornecedor.codigo_ibge}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
