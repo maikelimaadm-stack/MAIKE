@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -182,20 +183,45 @@ export default function GerenciarCidades() {
         return;
       }
 
-      const batchSize = 50;
+      toast.info(`${cidadesParaInserir.length} cidades para importar...`);
+
+      const batchSize = 20; // Reduced batch size
+      let totalImportadas = 0;
+      
       for (let i = 0; i < cidadesParaInserir.length; i += batchSize) {
-        const batch = cidadesParaInserir.slice(i, i + batchSize);
-        
-        await base44.entities.Cidade.bulkCreate(batch);
-        setProgresso({ total: cidadesParaInserir.length, processado: i + batch.length });
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          const batch = cidadesParaInserir.slice(i, i + batchSize);
+          
+          await base44.entities.Cidade.bulkCreate(batch);
+          totalImportadas += batch.length;
+          setProgresso({ total: cidadesParaInserir.length, processado: totalImportadas });
+          
+          // Delay maior entre batches para evitar timeout
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`Erro no batch ${i}-${i + batchSize}:`, error);
+          toast.error(`Erro ao importar batch. Tentando um por um...`);
+          
+          // Tentar inserir um por um neste batch que falhou
+          const batch = cidadesParaInserir.slice(i, i + batchSize);
+          for (const cidade of batch) {
+            try {
+              await base44.entities.Cidade.create(cidade);
+              totalImportadas++;
+              setProgresso({ total: cidadesParaInserir.length, processado: totalImportadas });
+              await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (err) {
+              // If single create fails, log and continue, do not increment totalImportadas for this one
+              console.error(`Erro ao importar ${cidade.nome} (individualmente):`, err);
+            }
+          }
+        }
       }
       
       queryClient.invalidateQueries({ queryKey: ['cidades_gerenciar'] });
       queryClient.invalidateQueries({ queryKey: ['cidades'] });
       setConcluido(true);
-      toast.success(`✅ ${cidadesParaInserir.length} cidades importadas!`);
+      toast.success(`✅ ${totalImportadas} cidades importadas!`);
     } catch (error) {
       console.error('Erro:', error);
       toast.error('Erro ao importar: ' + error.message);
