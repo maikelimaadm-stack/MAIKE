@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -31,6 +30,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -81,14 +81,6 @@ const DEFAULT_MENU = [
       { id: "cad-categorias", title: "Categorias", url: "Categorias" },
       { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
       { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
-      {
-        id: "cad-parametros",
-        title: "Parâmetros",
-        submenu: [
-          { id: "cad-param-gerais", title: "Gerais", url: "ParametrosGerais" },
-          { id: "cad-param-financeiro", title: "Financeiro", url: "ParametrosFinanceiro" },
-        ],
-      },
     ],
   },
   {
@@ -244,15 +236,7 @@ export default function Layout({ children, currentPageName }) {
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
-    if (item.submenu) {
-      return item.submenu.some(sub => {
-        if (sub.url && location.pathname === createPageUrl(sub.url)) return true;
-        if (sub.submenu) {
-          return sub.submenu.some(subsub => subsub.url && location.pathname === createPageUrl(subsub.url));
-        }
-        return false;
-      });
-    }
+    if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
 
@@ -422,51 +406,20 @@ export default function Layout({ children, currentPageName }) {
                               {item.title}
                             </div>
                             <div className="ml-3 space-y-0.5">
-                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
-                                if (sub.submenu) {
-                                  return (
-                                    <div key={sub.id} className="space-y-0.5">
-                                      <div className={`flex items-center gap-2 px-2 py-1.5 text-xs font-semibold ${
-                                          sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url))
-                                              ? 'bg-emerald-100 text-emerald-800'
-                                              : 'text-slate-600'
-                                          }`}>
-                                        {sub.title}
-                                      </div>
-                                      <div className="ml-3 space-y-0.5">
-                                        {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                          <Link 
-                                            key={subsub.id}
-                                            to={createPageUrl(subsub.url)}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className={`block px-2 py-1.5 text-xs rounded ${
-                                              location.pathname === createPageUrl(subsub.url)
-                                                ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                                : 'text-slate-600 hover:bg-slate-50'
-                                            }`}
-                                          >
-                                            {subsub.title}
-                                          </Link>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <Link 
-                                    key={sub.id}
-                                    to={createPageUrl(sub.url)}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className={`block px-2 py-1.5 text-xs rounded ${
-                                      location.pathname === createPageUrl(sub.url)
-                                        ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                        : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    {sub.title}
-                                  </Link>
-                                );
-                              })}
+                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                                <Link 
+                                  key={sub.id}
+                                  to={createPageUrl(sub.url)}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={`block px-2 py-1.5 text-xs rounded ${
+                                    location.pathname === createPageUrl(sub.url)
+                                      ? 'bg-emerald-100 text-emerald-800 font-medium'
+                                      : 'text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {sub.title}
+                                </Link>
+                              ))}
                             </div>
                           </div>
                         );
@@ -523,56 +476,19 @@ export default function Layout({ children, currentPageName }) {
                       
                       <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div className="py-1">
-                          {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
-                            if (sub.submenu) {
-                              // Check if any sub-submenu item is active
-                              const isSubActive = sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url));
-                              return (
-                                <div key={sub.id} className="relative group/sub">
-                                  <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 ${
-                                    isSubActive
-                                      ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                      : 'text-slate-700'
-                                  }`}>
-                                    <span>{sub.title}</span>
-                                    <ChevronDown className="w-3 h-3 -rotate-90" />
-                                  </div>
-                                  
-                                  <div className="absolute left-full top-0 ml-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
-                                    <div className="py-1">
-                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                        <Link 
-                                          key={subsub.id}
-                                          to={createPageUrl(subsub.url)}
-                                          className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                            location.pathname === createPageUrl(subsub.url)
-                                              ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                              : 'text-slate-700'
-                                          }`}
-                                        >
-                                          {subsub.title}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            
-                            return (
-                              <Link 
-                                key={sub.id}
-                                to={createPageUrl(sub.url)}
-                                className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                  location.pathname === createPageUrl(sub.url)
-                                    ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                    : 'text-slate-700'
-                                }`}
-                              >
-                                {sub.title}
-                              </Link>
-                            );
-                          })}
+                          {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                            <Link 
+                              key={sub.id}
+                              to={createPageUrl(sub.url)}
+                              className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
+                                location.pathname === createPageUrl(sub.url)
+                                  ? 'bg-emerald-50 text-emerald-800 font-medium'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {sub.title}
+                            </Link>
+                          ))}
                         </div>
                       </div>
                     </div>
