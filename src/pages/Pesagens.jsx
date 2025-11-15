@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -479,28 +478,27 @@ export default function Pesagens() {
               <h1 className="text-xl font-bold text-slate-900">Pesagens</h1>
               <p className="text-xs text-slate-600">Controle de balança</p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Download className="w-3.5 h-3.5" />
-              Exportar
-            </Button>
-            <div>
-              <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-pesagens" />
-              <Button onClick={() => document.getElementById('import-pesagens').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
-                <Upload className="w-3.5 h-3.5" />
-                Importar
+            <div className="flex gap-2">
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <Download className="w-3.5 h-3.5" />
+                Exportar
+              </Button>
+              <div>
+                <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-pesagens" />
+                <Button onClick={() => document.getElementById('import-pesagens').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
+                  <Upload className="w-3.5 h-3.5" />
+                  Importar
+                </Button>
+              </div>
+              <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Modelo
+              </Button>
+              <Button onClick={() => { setEditingPesagem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+                <Plus className="w-3.5 h-3.5" />
+                Nova Pesagem
               </Button>
             </div>
-            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Modelo
-            </Button>
-            <Button onClick={() => { setEditingPesagem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800 ml-auto">
-              <Plus className="w-3.5 h-3.5" />
-              Nova Pesagem
-            </Button>
           </div>
         </>
       )}
