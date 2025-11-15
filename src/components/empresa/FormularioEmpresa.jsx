@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,6 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validações básicas
     if (!formData.apelido || !formData.nome) {
       toast.error('Preencha os campos obrigatórios!');
       return;
@@ -73,7 +71,6 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
       return;
     }
 
-    // Transformar tudo em maiúsculas
     const dataToSubmit = {
       ...formData,
       apelido: formData.apelido.toUpperCase(),
@@ -96,28 +93,26 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-xl border-green-200">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <Building2 className="w-5 h-5" />
+      <Card className="shadow-sm border-slate-300 bg-white">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+          <CardTitle className="text-sm font-semibold text-slate-900">
             {isEditing ? 'Editar Empresa' : 'Nova Empresa'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Logotipo */}
-            <div className="space-y-2">
-              <Label>Logotipo</Label>
+        <CardContent className="p-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Logotipo</Label>
               <div className="flex items-center gap-4">
                 {formData.logotipo_url && (
                   <img 
                     src={formData.logotipo_url} 
                     alt="Logo" 
-                    className="h-20 object-contain border rounded p-2"
+                    className="h-16 object-contain border rounded p-2"
                   />
                 )}
                 <div>
@@ -132,183 +127,192 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
                     onClick={() => document.getElementById('logo-upload').click()}
                     disabled={uploadingLogo}
+                    className="h-8 text-xs"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {uploadingLogo ? 'Enviando...' : 'Enviar Logotipo'}
+                    <Upload className="w-3.5 h-3.5 mr-2" />
+                    {uploadingLogo ? 'Enviando...' : 'Enviar'}
                   </Button>
                 </div>
               </div>
             </div>
 
-            {/* Dados Básicos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Apelido/Nome Fantasia *</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Apelido *</Label>
                 <Input
                   value={formData.apelido}
-                  onChange={(e) => handleChange('apelido', e.target.value.toUpperCase())}
+                  onChange={(e) => handleChange('apelido', e.target.value)}
                   placeholder="FAZENDA PALMITAL"
                   required
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label>Nome Completo/Razão Social *</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Nome/Razão Social *</Label>
                 <Input
                   value={formData.nome}
-                  onChange={(e) => handleChange('nome', e.target.value.toUpperCase())}
-                  placeholder="MATEUS TONARQUE BERALDO"
+                  onChange={(e) => handleChange('nome', e.target.value)}
+                  placeholder="NOME COMPLETO"
                   required
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo *</Label>
+                <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
+                    <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Tipo de Pessoa */}
-            <div className="space-y-2">
-              <Label>Tipo de Pessoa *</Label>
-              <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Física">Pessoa Física</SelectItem>
-                  <SelectItem value="Jurídica">Pessoa Jurídica</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Documentos - Pessoa Física */}
             {formData.tipo_pessoa === 'Física' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>CPF *</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">CPF *</Label>
                   <Input
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
-                    required={formData.tipo_pessoa === 'Física'}
+                    required
+                    className="h-8 text-xs"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>RG</Label>
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">RG</Label>
                   <Input
                     value={formData.rg}
                     onChange={(e) => handleChange('rg', e.target.value)}
                     placeholder="00.000.000-0"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
             )}
 
-            {/* Documentos - Pessoa Jurídica */}
             {formData.tipo_pessoa === 'Jurídica' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>CNPJ *</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">CNPJ *</Label>
                   <Input
                     value={formData.cnpj}
                     onChange={(e) => handleChange('cnpj', e.target.value)}
                     placeholder="00.000.000/0000-00"
-                    required={formData.tipo_pessoa === 'Jurídica'}
+                    required
+                    className="h-8 text-xs"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Inscrição Estadual</Label>
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Inscrição Estadual</Label>
                   <Input
                     value={formData.inscricao_estadual}
                     onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
                     placeholder="000.000.000.000"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
             )}
 
-            {/* Contato */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Telefone</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Telefone</Label>
                 <Input
                   value={formData.telefone}
                   onChange={(e) => handleChange('telefone', e.target.value)}
                   placeholder="(00) 00000-0000"
+                  className="h-8 text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>E-mail</Label>
+              <div className="col-span-2 space-y-1">
+                <Label className="text-xs">E-mail</Label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="exemplo@email.com"
+                  className="h-8 text-xs"
                 />
               </div>
             </div>
 
-            {/* Endereço */}
-            <div className="space-y-2">
-              <Label>Endereço Completo</Label>
-              <Input
-                value={formData.endereco}
-                onChange={(e) => handleChange('endereco', e.target.value.toUpperCase())}
-                placeholder="RUA, NÚMERO, BAIRRO"
-              />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-3 space-y-1">
+                <Label className="text-xs">Endereço Completo</Label>
+                <Input
+                  value={formData.endereco}
+                  onChange={(e) => handleChange('endereco', e.target.value)}
+                  placeholder="RUA, NÚMERO, BAIRRO"
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Cidade</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Cidade</Label>
                 <Input
                   value={formData.cidade}
-                  onChange={(e) => handleChange('cidade', e.target.value.toUpperCase())}
-                  placeholder="VILA BELA DA SS. TRINDADE"
+                  onChange={(e) => handleChange('cidade', e.target.value)}
+                  placeholder="CIDADE"
+                  className="h-8 text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Estado</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Estado</Label>
                 <Select value={formData.estado} onValueChange={(value) => handleChange('estado', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {ESTADOS.map(uf => (
-                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                      <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>CEP</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">CEP</Label>
                 <Input
                   value={formData.cep}
                   onChange={(e) => handleChange('cep', e.target.value)}
                   placeholder="00000-000"
+                  className="h-8 text-xs"
                 />
               </div>
             </div>
 
-            {/* Observações */}
-            <div className="space-y-2">
-              <Label>Observações</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
               <Textarea
                 value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value.toUpperCase())}
+                onChange={(e) => handleChange('observacoes', e.target.value)}
                 placeholder="OBSERVAÇÕES GERAIS..."
-                rows={3}
+                className="text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+                rows={2}
               />
             </div>
 
-            {/* Botões */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex justify-end gap-2 pt-2 border-t">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel}>
-                  <X className="w-4 h-4 mr-2" />
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-slate-700 hover:bg-slate-800">
-                <Save className="w-4 h-4 mr-2" />
+              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
