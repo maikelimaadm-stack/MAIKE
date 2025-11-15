@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, X, GripVertical } from "lucide-react";
+import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,9 +50,12 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
 ];
 
+const ITEMS_PER_PAGE = 50;
+
 export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_pesagens');
@@ -83,8 +86,6 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
   const [selectedItems, setSelectedItems] = useState([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -200,9 +201,9 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
     return 0;
   });
 
-  const totalPages = Math.ceil(sortedPesagens.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const totalPages = Math.ceil(sortedPesagens.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedPesagens = sortedPesagens.slice(startIndex, endIndex);
 
   const toggleSelectAll = () => {
@@ -430,49 +431,24 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
               </TableBody>
             </Table>
           </div>
-          
-          {sortedPesagens.length > 0 && (
-            <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-slate-200 bg-slate-50">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600">Exibindo</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-7 text-xs border border-slate-300 rounded px-2"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                </select>
-                <span className="text-xs text-slate-600">
-                  de {sortedPesagens.length} registros
-                </span>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
+              <div className="text-xs text-slate-600">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length} registros
               </div>
-              
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="h-7 px-2 text-xs"
-                >
-                  Primeira
-                </Button>
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 text-xs"
                 >
+                  <ChevronLeft className="w-3.5 h-3.5" />
                   Anterior
                 </Button>
-                <span className="text-xs text-slate-600 px-2">
+                <span className="text-xs text-slate-600">
                   Página {currentPage} de {totalPages}
                 </span>
                 <Button
@@ -480,18 +456,10 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 text-xs"
                 >
                   Próxima
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="h-7 px-2 text-xs"
-                >
-                  Última
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
