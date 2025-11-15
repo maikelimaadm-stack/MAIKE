@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -362,7 +363,7 @@ export default function MovimentacoesEstoque() {
               <Download className="w-3.5 h-3.5" />
               Exportar
             </Button>
-            <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+            <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800 ml-auto">
               <Plus className="w-3.5 h-3.5" />
               Nova Movimentação
             </Button>
