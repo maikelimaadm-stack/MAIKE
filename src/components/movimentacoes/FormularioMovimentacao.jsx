@@ -584,138 +584,123 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       </motion.div>
 
       <Dialog open={tabelaExpandida} onOpenChange={setTabelaExpandida}>
-        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="border-b pb-3">
-            <DialogTitle className="text-base font-semibold">Gerenciar Produtos ({formData.produtos_selecionados.length})</DialogTitle>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Gerenciar Produtos ({formData.produtos_selecionados.length})</DialogTitle>
           </DialogHeader>
           
-          <div className="flex-1 overflow-auto py-2">
-            <div className="space-y-3">
-              {formData.produtos_selecionados.map((produto, index) => {
-                const total = parseNumero(produto.valor_total || "0");
-                const desc = parseNumero(produto.desconto_item || "0");
-                const liquido = total - desc;
-                const qtd = parseNumero(produto.quantidade || "0");
-                const unitario = qtd > 0 ? (liquido / qtd) : 0;
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50">
+                  <TableHead className="w-8 text-xs"></TableHead>
+                  <TableHead className="text-xs min-w-[200px]">Produto *</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">Qtd *</TableHead>
+                  <TableHead className="text-right w-[110px] text-xs">Total *</TableHead>
+                  <TableHead className="text-right w-[100px] text-xs">Desc.</TableHead>
+                  <TableHead className="text-right w-[110px] text-xs">Líquido</TableHead>
+                  <TableHead className="text-center w-[60px] text-xs">UN</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {formData.produtos_selecionados.map((produto, index) => {
+                  const total = parseNumero(produto.valor_total || "0");
+                  const desc = parseNumero(produto.desconto_item || "0");
+                  const liquido = total - desc;
+                  const qtd = parseNumero(produto.quantidade || "0");
+                  const unitario = qtd > 0 ? (liquido / qtd) : 0;
 
-                return (
-                  <Card key={index} className="p-4 border-slate-300">
-                    <div className="flex items-start gap-4">
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRemoverProduto(index)}
-                        className="h-9 w-9 text-red-600 hover:bg-red-50 mt-6"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-
-                      <div className="flex-1 grid grid-cols-7 gap-3">
-                        <div className="col-span-2 space-y-1">
-                          <Label className="text-xs font-semibold">Produto *</Label>
-                          <AutocompleteGenerico
-                            items={produtos}
-                            value={produto.produto_id}
-                            onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
-                            placeholder="Buscar produto..."
-                            displayField="nome_produto"
-                            searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                            renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
-                            className="w-full h-9"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Qtd *</Label>
-                          <Input 
-                            value={produto.quantidade} 
-                            onChange={(e) => {
-                              const valor = e.target.value.replace(/[^\d,]/g, '');
-                              handleAtualizarProduto(index, 'quantidade', valor);
-                            }} 
-                            placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium" 
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Total *</Label>
-                          <Input 
-                            value={produto.valor_total} 
-                            onChange={(e) => {
-                              const valor = e.target.value.replace(/[^\d,]/g, '');
-                              handleAtualizarProduto(index, 'valor_total', valor);
-                            }} 
-                            placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium" 
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Desconto</Label>
-                          <Input 
-                            value={produto.desconto_item || "0,00"} 
-                            onChange={(e) => {
-                              const valor = e.target.value.replace(/[^\d,]/g, '');
-                              handleAtualizarProduto(index, 'desconto_item', valor);
-                            }} 
-                            placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium text-red-600" 
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Líquido</Label>
-                          <div className="h-9 flex items-center justify-end px-3 bg-emerald-50 border border-emerald-200 rounded text-sm font-bold text-emerald-700">
-                            {formatarMoeda(liquido)}
-                          </div>
-                          <div className="text-[10px] text-slate-500 text-right">Un: {formatarMoeda(unitario)}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">UN</Label>
-                          <div className="h-9 flex items-center justify-center px-3 bg-slate-50 border border-slate-200 rounded text-sm font-mono">
-                            {produto.unidade || '-'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+                  return (
+                    <TableRow key={index}>
+                      <TableCell className="w-8">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
+                              <Trash2 className="w-3.5 h-3.5 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell className="min-w-[200px]">
+                        <AutocompleteGenerico
+                          items={produtos}
+                          value={produto.produto_id}
+                          onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                          placeholder="Buscar produto..."
+                          displayField="nome_produto"
+                          searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                          renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell className="w-[100px]">
+                        <Input 
+                          value={produto.quantidade} 
+                          onChange={(e) => {
+                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                            handleAtualizarProduto(index, 'quantidade', valor);
+                          }} 
+                          placeholder="0,00" 
+                          className="text-right h-7 text-xs" 
+                        />
+                      </TableCell>
+                      <TableCell className="w-[110px]">
+                        <Input 
+                          value={produto.valor_total} 
+                          onChange={(e) => {
+                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                            handleAtualizarProduto(index, 'valor_total', valor);
+                          }} 
+                          placeholder="0,00" 
+                          className="text-right h-7 text-xs" 
+                        />
+                      </TableCell>
+                      <TableCell className="w-[100px]">
+                        <Input 
+                          value={produto.desconto_item || "0,00"} 
+                          onChange={(e) => {
+                            const valor = e.target.value.replace(/[^\d,]/g, '');
+                            handleAtualizarProduto(index, 'desconto_item', valor);
+                          }} 
+                          placeholder="0,00" 
+                          className="text-right h-7 text-xs" 
+                        />
+                      </TableCell>
+                      <TableCell className="text-right w-[110px]">
+                        <div className="font-mono font-semibold text-xs">{formatarMoeda(liquido)}</div>
+                        <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                      </TableCell>
+                      <TableCell className="text-center w-[60px]">
+                        <span className="text-xs font-mono">{produto.unidade || '-'}</span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                <TableRow className="bg-slate-100 font-semibold border-t-2">
+                  <TableCell colSpan={3} className="text-xs">TOTAL</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutosLiquido)}</TableCell>
+                  <TableCell colSpan={1}></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
 
-          <div className="border-t pt-4">
-            <Card className="bg-blue-50 border-blue-300 mb-4">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-slate-700">Total:</span>
-                    <span className="text-lg font-bold text-slate-900">{formatarMoeda(totalProdutosBruto)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-slate-700">Desconto:</span>
-                    <span className="text-lg font-bold text-red-600">{formatarMoeda(totalDescontos)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-slate-700">Líquido:</span>
-                    <span className="text-lg font-bold text-emerald-700">{formatarMoeda(totalProdutosLiquido)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-between gap-2">
-              <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-9 text-sm gap-2 bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-4 h-4" />
-                Adicionar Produto
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setTabelaExpandida(false)} size="sm" className="h-9 text-sm px-6">
-                Fechar
-              </Button>
-            </div>
+          <div className="flex justify-between gap-2 pt-3 border-t">
+            <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar Produto
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setTabelaExpandida(false)} size="sm" className="h-7 text-xs">
+              Fechar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
