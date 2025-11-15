@@ -96,7 +96,6 @@ export default function GerenciarCidades() {
         : [...prev, colunaId];
       
       localStorage.setItem('colunas_cidades', JSON.stringify(novasColunas));
-      
       return novasColunas;
     });
   };
