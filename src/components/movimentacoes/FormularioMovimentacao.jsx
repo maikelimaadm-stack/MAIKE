@@ -515,7 +515,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
-                          <TableHead className="text-xs w-8"></TableHead>
                           <TableHead className="text-xs">Produto</TableHead>
                           <TableHead className="text-xs text-right">Qtd</TableHead>
                           <TableHead className="text-xs text-right">Total</TableHead>
@@ -531,26 +530,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                           return (
                             <TableRow key={index}>
-                              <TableCell className="w-8">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start">
-                                    <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
-                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                      Excluir
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                              <TableCell className="text-xs font-semibold text-slate-700">{produto.produto_nome || 'Sem produto'}</TableCell>
-                              <TableCell className="text-xs text-right font-mono text-slate-700">{formatarNumero(produto.quantidade)}</TableCell>
-                              <TableCell className="text-xs text-right font-mono text-slate-700">{formatarMoeda(total)}</TableCell>
-                              <TableCell className="text-xs text-right font-mono text-red-600 font-semibold">{formatarMoeda(desc)}</TableCell>
-                              <TableCell className="text-xs text-right font-mono font-bold text-emerald-700">{formatarMoeda(liquido)}</TableCell>
+                              <TableCell className="text-xs font-medium">{produto.produto_nome || 'Sem produto'}</TableCell>
+                              <TableCell className="text-xs text-right">{formatarNumero(produto.quantidade)}</TableCell>
+                              <TableCell className="text-xs text-right">{formatarMoeda(total)}</TableCell>
+                              <TableCell className="text-xs text-right text-red-600">{formatarMoeda(desc)}</TableCell>
+                              <TableCell className="text-xs text-right font-semibold text-emerald-700">{formatarMoeda(liquido)}</TableCell>
                             </TableRow>
                           );
                         })}
@@ -564,16 +548,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <CardContent className="p-3">
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-700 font-semibold">Total:</span>
-                          <span className="font-bold text-slate-900">{formatarMoeda(totalProdutosBruto)}</span>
+                          <span className="text-slate-600">Total:</span>
+                          <span className="font-bold">{formatarMoeda(totalProdutosBruto)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-700 font-semibold">Desconto:</span>
+                          <span className="text-slate-600">Desconto:</span>
                           <span className="font-bold text-red-600">{formatarMoeda(totalDescontos)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-700 font-semibold">Líquido:</span>
-                          <span className="font-bold text-blue-700">{formatarMoeda(totalProdutosLiquido)}</span>
+                          <span className="text-slate-600">Líquido:</span>
+                          <span className="font-bold text-emerald-700">{formatarMoeda(totalProdutosLiquido)}</span>
                         </div>
                       </div>
                     </CardContent>
@@ -629,7 +613,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       <div className="flex-1 grid grid-cols-7 gap-3">
                         <div className="col-span-2 space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">Produto *</Label>
+                          <Label className="text-xs font-semibold">Produto *</Label>
                           <AutocompleteGenerico
                             items={produtos}
                             value={produto.produto_id}
@@ -643,7 +627,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">Qtd *</Label>
+                          <Label className="text-xs font-semibold">Qtd *</Label>
                           <Input 
                             value={produto.quantidade} 
                             onChange={(e) => {
@@ -651,12 +635,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               handleAtualizarProduto(index, 'quantidade', valor);
                             }} 
                             placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium font-mono text-slate-700" 
+                            className="text-right h-9 text-sm font-medium" 
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">Total *</Label>
+                          <Label className="text-xs font-semibold">Total *</Label>
                           <Input 
                             value={produto.valor_total} 
                             onChange={(e) => {
@@ -664,12 +648,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               handleAtualizarProduto(index, 'valor_total', valor);
                             }} 
                             placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium font-mono text-slate-700" 
+                            className="text-right h-9 text-sm font-medium" 
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">Desconto</Label>
+                          <Label className="text-xs font-semibold">Desconto</Label>
                           <Input 
                             value={produto.desconto_item || "0,00"} 
                             onChange={(e) => {
@@ -677,21 +661,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               handleAtualizarProduto(index, 'desconto_item', valor);
                             }} 
                             placeholder="0,00" 
-                            className="text-right h-9 text-sm font-medium font-mono text-red-600" 
+                            className="text-right h-9 text-sm font-medium text-red-600" 
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">Líquido</Label>
-                          <div className="h-9 flex items-center justify-end px-3 bg-blue-50 border border-blue-200 rounded text-sm font-bold font-mono text-blue-700">
+                          <Label className="text-xs font-semibold">Líquido</Label>
+                          <div className="h-9 flex items-center justify-end px-3 bg-emerald-50 border border-emerald-200 rounded text-sm font-bold text-emerald-700">
                             {formatarMoeda(liquido)}
                           </div>
-                          <div className="text-[10px] text-slate-600 text-right font-mono">Un: {formatarMoeda(unitario)}</div>
+                          <div className="text-[10px] text-slate-500 text-right">Un: {formatarMoeda(unitario)}</div>
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-slate-700">UN</Label>
-                          <div className="h-9 flex items-center justify-center px-3 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-slate-700">
+                          <Label className="text-xs font-semibold">UN</Label>
+                          <div className="h-9 flex items-center justify-center px-3 bg-slate-50 border border-slate-200 rounded text-sm font-mono">
                             {produto.unidade || '-'}
                           </div>
                         </div>
@@ -717,7 +701,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-slate-700">Líquido:</span>
-                    <span className="text-lg font-bold text-blue-700">{formatarMoeda(totalProdutosLiquido)}</span>
+                    <span className="text-lg font-bold text-emerald-700">{formatarMoeda(totalProdutosLiquido)}</span>
                   </div>
                 </div>
               </CardContent>
