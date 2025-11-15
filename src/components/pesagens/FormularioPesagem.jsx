@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Scale, Save, X, Calculator, Calendar, TrendingDown, TrendingUp, Truck, User, Package, Building2, FileText } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -86,190 +85,150 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <Scale className="w-5 h-5 text-white" />
-            </div>
+      <Card className="shadow-sm border-slate-300 bg-white">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+          <CardTitle className="text-sm font-semibold text-slate-900">
             {isEditing ? 'Editar Pesagem' : 'Nova Pesagem'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="data_pesagem" className="text-slate-700 font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  Data da Pesagem *
-                </Label>
+        <CardContent className="p-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Data da Pesagem *</Label>
                 <Input
-                  id="data_pesagem"
                   type="date"
                   value={formData.data_pesagem}
                   onChange={(e) => handleChange('data_pesagem', e.target.value)}
                   required
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="tipo_pesagem" className="text-slate-700 font-medium flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-purple-600" />
-                  Tipo de Pesagem *
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo de Pesagem *</Label>
                 <Select value={formData.tipo_pesagem} onValueChange={(value) => handleChange('tipo_pesagem', value)} required>
-                  <SelectTrigger className="border-slate-300 focus:border-green-500 focus:ring-green-500">
-                    <SelectValue placeholder="Selecione o tipo" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Entrada">Entrada</SelectItem>
-                    <SelectItem value="Saída">Saída</SelectItem>
-                    <SelectItem value="Ambos">Ambos</SelectItem>
+                    <SelectItem value="Entrada" className="text-xs">Entrada</SelectItem>
+                    <SelectItem value="Saída" className="text-xs">Saída</SelectItem>
+                    <SelectItem value="Ambos" className="text-xs">Ambos</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="placa_caminhao" className="text-slate-700 font-medium flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-orange-600" />
-                  Placa do Caminhão
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Placa do Caminhão</Label>
                 <Input
-                  id="placa_caminhao"
                   value={formData.placa_caminhao}
                   onChange={(e) => handleChange('placa_caminhao', e.target.value)}
                   placeholder="ABC-1234"
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                  className="h-8 text-xs uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="nome_motorista" className="text-slate-700 font-medium flex items-center gap-2">
-                  <User className="w-4 h-4 text-indigo-600" />
-                  Nome do Motorista
-                </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Nome do Motorista</Label>
                 <Input
-                  id="nome_motorista"
                   value={formData.nome_motorista}
                   onChange={(e) => handleChange('nome_motorista', e.target.value)}
                   placeholder="NOME COMPLETO"
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 uppercase"
+                  className="h-8 text-xs uppercase"
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="produto" className="text-slate-700 font-medium flex items-center gap-2">
-                  <Package className="w-4 h-4 text-amber-600" />
-                  Produto/Insumo
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Produto/Insumo</Label>
                 <Select value={formData.produto} onValueChange={(value) => handleChange('produto', value)}>
-                  <SelectTrigger className="border-slate-300 focus:border-green-500 focus:ring-green-500">
-                    <SelectValue placeholder="Selecione o produto" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {produtos.map(p => (
-                      <SelectItem key={p.id} value={p.nome_produto}>{p.nome_produto}</SelectItem>
+                      <SelectItem key={p.id} value={p.nome_produto} className="text-xs">{p.nome_produto}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Fornecedor/Destino</Label>
+                <Select value={formData.fornecedor_destino} onValueChange={(value) => handleChange('fornecedor_destino', value)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fornecedores.map(f => (
+                      <SelectItem key={f.id} value={f.nome} className="text-xs">{f.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fornecedor_destino" className="text-slate-700 font-medium flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-cyan-600" />
-                Fornecedor/Destino
-              </Label>
-              <Select value={formData.fornecedor_destino} onValueChange={(value) => handleChange('fornecedor_destino', value)}>
-                <SelectTrigger className="border-slate-300 focus:border-green-500 focus:ring-green-500">
-                  <SelectValue placeholder="Selecione fornecedor/destino" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fornecedores.map(f => (
-                    <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="peso_tara" className="text-slate-700 font-medium flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4 text-slate-600" />
-                  Peso Tara (kg) *
-                </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Peso Tara (kg) *</Label>
                 <Input
-                  id="peso_tara"
                   type="number"
                   step="0.01"
                   value={formData.peso_tara}
                   onChange={(e) => handleChange('peso_tara', e.target.value)}
                   placeholder="0.00"
                   required
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 text-lg font-semibold"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="peso_bruto" className="text-slate-700 font-medium flex items-center gap-2">
-                  <Scale className="w-4 h-4 text-slate-600" />
-                  Peso Bruto (kg) *
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Peso Bruto (kg) *</Label>
                 <Input
-                  id="peso_bruto"
                   type="number"
                   step="0.01"
                   value={formData.peso_bruto}
                   onChange={(e) => handleChange('peso_bruto', e.target.value)}
                   placeholder="0.00"
                   required
-                  className="border-slate-300 focus:border-green-500 focus:ring-green-500 text-lg font-semibold"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-green-600" />
-                  Peso Líquido (kg)
-                </Label>
-                <div className="h-10 px-3 rounded-lg border-2 border-green-500 bg-green-50 flex items-center">
-                  <span className="text-2xl font-bold text-green-700">
-                    {formData.peso_liquido.toFixed(2)}
-                  </span>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Peso Líquido (kg)</Label>
+                <Input
+                  value={formData.peso_liquido.toFixed(2)}
+                  readOnly
+                  className="h-8 text-xs font-semibold bg-slate-50"
+                />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="observacoes" className="text-slate-700 font-medium flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-600" />
-                Observações
-              </Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
               <Textarea
-                id="observacoes"
                 value={formData.observacoes}
                 onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="INFORMAÇÕES ADICIONAIS SOBRE A PESAGEM..."
-                className="border-slate-300 focus:border-green-500 focus:ring-green-500 min-h-20 uppercase"
+                placeholder="INFORMAÇÕES ADICIONAIS..."
+                className="text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
+                rows={2}
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-2 pt-2 border-t">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
-                <Save className="w-4 h-4" />
-                {isEditing ? 'Atualizar' : 'Salvar'} Pesagem
+              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
           </form>

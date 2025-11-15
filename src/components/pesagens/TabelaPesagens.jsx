@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Search, Scale, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { MoreVertical, Search, Scale, ArrowUpDown, ArrowUp, ArrowDown, Loader2, Edit, Printer, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,13 +17,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -70,12 +62,9 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
   
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
@@ -179,10 +168,10 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
   });
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0) {
+    if (selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(paginatedPesagens.map(p => p.id));
+      setSelectedItems(sortedPesagens.map(p => p.id));
     }
   };
 
@@ -211,7 +200,6 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
       setTimeout(() => {
         setIsDeletingBulk(false);
         setSelectedItems([]);
-        setShowBulkActions(false);
       }, 500);
     }
   };
@@ -221,13 +209,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
       const pesagem = pesagens.find(p => p.id === id);
       if (pesagem) onPrint(pesagem);
     });
-    setShowBulkActions(false);
   };
-
-  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedPesagens.length / itemsPerPage);
-  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
-  const endIndex = itemsPerPage === -1 ? sortedPesagens.length : startIndex + itemsPerPage;
-  const paginatedPesagens = sortedPesagens.slice(startIndex, endIndex);
 
   const formatarData = (dataString) => {
     if (!dataString) return '-';
@@ -240,287 +222,171 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
     }
   };
 
-  const handleItemsPerPageChange = (value) => {
-    setItemsPerPage(value === 'all' ? -1 : parseInt(value));
-    setCurrentPage(1);
-  };
-
   const deleteProgressPercentage = deleteProgress.total > 0 
     ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
     : 0;
 
+  const colunasOrdenadas = COLUNAS_DISPONIVEIS.filter(c => colunasVisiveis.includes(c.id));
+
+  const renderCell = (coluna, pesagem) => {
+    switch (coluna.id) {
+      case 'numero':
+        return <TableCell className="text-xs border-r border-slate-200">{pesagem.numero_registro || '-'}</TableCell>;
+      case 'data':
+        return <TableCell className="text-xs border-r border-slate-200">{formatarData(pesagem.data_pesagem)}</TableCell>;
+      case 'tipo':
+        return <TableCell className="text-xs border-r border-slate-200">{pesagem.tipo_pesagem}</TableCell>;
+      case 'placa':
+        return <TableCell className="text-xs uppercase border-r border-slate-200">{pesagem.placa_caminhao}</TableCell>;
+      case 'motorista':
+        return <TableCell className="text-xs border-r border-slate-200">{pesagem.nome_motorista}</TableCell>;
+      case 'produto':
+        return <TableCell className="text-xs border-r border-slate-200">{pesagem.produto}</TableCell>;
+      case 'fornecedor':
+        return <TableCell className="text-xs border-r border-slate-200">{pesagem.fornecedor_destino || '-'}</TableCell>;
+      case 'tara':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(pesagem.peso_tara)}</TableCell>;
+      case 'bruto':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(pesagem.peso_bruto)}</TableCell>;
+      case 'liquido':
+        return <TableCell className="text-right font-mono text-xs font-semibold border-r border-slate-200">{formatarNumero(pesagem.peso_liquido)}</TableCell>;
+      case 'observacoes':
+        return <TableCell className="text-xs max-w-xs truncate border-r border-slate-200">{pesagem.observacoes || '-'}</TableCell>;
+      default:
+        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+    }
+  };
+
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <Input
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-slate-300 h-8 text-xs"
-          />
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-              Colunas
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="text-xs">Colunas Visíveis</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {COLUNAS_DISPONIVEIS.map((coluna) => (
-              <DropdownMenuCheckboxItem
-                key={coluna.id}
-                checked={colunasVisiveis.includes(coluna.id)}
-                onCheckedChange={() => toggleColuna(coluna.id)}
-                className="text-xs"
-              >
-                {coluna.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Pesagens ({pesagens.length})
+            </CardTitle>
+            <div className="flex gap-2 items-center">
+              {selectedItems.length > 0 && (
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {selectedItems.length} selecionado(s)
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkPrint} className="text-xs">
+                        <Printer className="w-3.5 h-3.5 mr-2" />
+                        Imprimir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Excluir Todos
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+              </div>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                Colunas
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 hover:bg-slate-50 border-b">
-                  <TableHead className="w-10 text-xs border-r">
+                <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-8 text-xs border-r border-slate-200">
                     <Checkbox
-                      checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
+                      checked={selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  {colunasVisiveis.includes('numero') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('numero')}
-                    >
-                      <div className="flex items-center">
-                        Nº
-                        {getSortIcon('numero')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('data') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('data')}
-                    >
-                      <div className="flex items-center">
-                        Data
-                        {getSortIcon('data')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('tipo') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('tipo')}
-                    >
-                      <div className="flex items-center">
-                        Tipo
-                        {getSortIcon('tipo')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('placa') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('placa')}
-                    >
-                      <div className="flex items-center">
-                        Placa
-                        {getSortIcon('placa')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('motorista') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('motorista')}
-                    >
-                      <div className="flex items-center">
-                        Motorista
-                        {getSortIcon('motorista')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('produto') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('produto')}
-                    >
-                      <div className="flex items-center">
-                        Produto
-                        {getSortIcon('produto')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('fornecedor') && (
-                    <TableHead 
-                      className="text-xs cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('fornecedor')}
-                    >
-                      <div className="flex items-center">
-                        Fornecedor/Destino
-                        {getSortIcon('fornecedor')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('tara') && (
-                    <TableHead 
-                      className="text-xs text-right cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('tara')}
-                    >
-                      <div className="flex items-center justify-end">
-                        Tara (kg)
-                        {getSortIcon('tara')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('bruto') && (
-                    <TableHead 
-                      className="text-xs text-right cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('bruto')}
-                    >
-                      <div className="flex items-center justify-end">
-                        Bruto (kg)
-                        {getSortIcon('bruto')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('liquido') && (
-                    <TableHead 
-                      className="text-xs text-right cursor-pointer hover:bg-slate-100 border-r"
-                      onClick={() => handleSort('liquido')}
-                    >
-                      <div className="flex items-center justify-end">
-                        Líquido (kg)
-                        {getSortIcon('liquido')}
-                      </div>
-                    </TableHead>
-                  )}
-                  {colunasVisiveis.includes('observacoes') && (
-                    <TableHead className="text-xs border-r">Observações</TableHead>
-                  )}
-                  <TableHead className="text-xs w-10"></TableHead>
+                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  {colunasOrdenadas.map((coluna) => {
+                    return (
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
+                      >
+                        <div className="flex items-center">
+                          {coluna.label}
+                          {coluna.sortable && getSortIcon(coluna.id)}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i} className="animate-pulse">
-                        <TableCell className="border-r"><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
-                        {colunasVisiveis.map((col, idx) => (
-                          <TableCell key={idx} className="border-r"><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                        ))}
-                        <TableCell className="border-r"><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
-                      </TableRow>
-                    ))
-                  ) : paginatedPesagens.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 2} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <Scale className="w-12 h-12" />
-                          <p className="text-sm font-medium">Nenhum registro encontrado</p>
-                          <p className="text-xs">
-                            {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando uma nova pesagem'}
-                          </p>
-                        </div>
-                      </TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                    </TableRow>
+                  ) : sortedPesagens.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhuma pesagem</TableCell>
                     </TableRow>
                   ) : (
-                    paginatedPesagens.map((pesagem) => (
-                      <motion.tr
+                    sortedPesagens.map((pesagem) => (
+                      <motion.tr 
                         key={pesagem.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors text-xs"
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        className="hover:bg-slate-50 transition-colors border-b"
                       >
-                        <TableCell className="border-r">
+                        <TableCell className="border-r border-slate-200">
                           <Checkbox
                             checked={selectedItems.includes(pesagem.id)}
                             onCheckedChange={() => toggleSelectItem(pesagem.id)}
                           />
                         </TableCell>
-                        {colunasVisiveis.includes('numero') && (
-                          <TableCell className="border-r">
-                            {pesagem.numero_registro || '-'}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('data') && (
-                          <TableCell className="border-r">
-                            {formatarData(pesagem.data_pesagem)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('tipo') && (
-                          <TableCell className="border-r">
-                            {pesagem.tipo_pesagem}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('placa') && (
-                          <TableCell className="border-r uppercase">
-                            {pesagem.placa_caminhao}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('motorista') && (
-                          <TableCell className="border-r">{pesagem.nome_motorista}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('produto') && (
-                          <TableCell className="border-r">{pesagem.produto}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('fornecedor') && (
-                          <TableCell className="border-r">{pesagem.fornecedor_destino || '-'}</TableCell>
-                        )}
-                        {colunasVisiveis.includes('tara') && (
-                          <TableCell className="text-right font-mono border-r">
-                            {formatarNumero(pesagem.peso_tara)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('bruto') && (
-                          <TableCell className="text-right font-mono border-r">
-                            {formatarNumero(pesagem.peso_bruto)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('liquido') && (
-                          <TableCell className="text-right font-mono font-semibold border-r">
-                            {formatarNumero(pesagem.peso_liquido)}
-                          </TableCell>
-                        )}
-                        {colunasVisiveis.includes('observacoes') && (
-                          <TableCell className="max-w-xs truncate border-r">
-                            {pesagem.observacoes || '-'}
-                          </TableCell>
-                        )}
-                        <TableCell className="border-r">
+                        <TableCell className="text-center border-r border-slate-200">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreVertical className="w-4 h-4" />
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="start">
                               <DropdownMenuItem onClick={() => onEdit(pesagem)} className="text-xs">
+                                <Edit className="w-3.5 h-3.5 mr-2" />
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => onPrint(pesagem)} className="text-xs">
+                                <Printer className="w-3.5 h-3.5 mr-2" />
                                 Imprimir
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => onDelete(pesagem.id)} className="text-xs text-red-600">
+                                <Trash2 className="w-3.5 h-3.5 mr-2" />
                                 Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
+                        {colunasOrdenadas.map(coluna => (
+                          <React.Fragment key={coluna.id}>
+                            {renderCell(coluna, pesagem)}
+                          </React.Fragment>
+                        ))}
                       </motion.tr>
                     ))
                   )}
@@ -528,53 +394,6 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
               </TableBody>
             </Table>
           </div>
-
-          {!isLoading && paginatedPesagens.length > 0 && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span>Mostrar</span>
-                <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-24 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20" className="text-xs">20</SelectItem>
-                    <SelectItem value="50" className="text-xs">50</SelectItem>
-                    <SelectItem value="100" className="text-xs">100</SelectItem>
-                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span>por página</span>
-              </div>
-
-              {itemsPerPage !== -1 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronsLeft className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  
-                  <div className="flex items-center gap-2 px-3 text-xs">
-                    <span className="text-slate-700 font-medium">
-                      Pág {currentPage} de {totalPages}
-                    </span>
-                    <span className="text-slate-500">
-                      ({startIndex + 1}-{Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length})
-                    </span>
-                  </div>
-
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronsRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
