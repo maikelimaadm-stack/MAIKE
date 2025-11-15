@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -352,21 +351,20 @@ export default function MovimentacoesEstoque() {
               <h1 className="text-xl font-bold text-slate-900">Movimentação de Estoque</h1>
               <p className="text-xs text-slate-600">Entradas, saídas e ajustes</p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileText className="w-3.5 h-3.5" />
-              Importação NF-e (xml)
-            </Button>
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Download className="w-3.5 h-3.5" />
-              Exportar
-            </Button>
-            <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800 ml-auto">
-              <Plus className="w-3.5 h-3.5" />
-              Nova Movimentação
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <FileText className="w-3.5 h-3.5" />
+                Importação NF-e (xml)
+              </Button>
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <Download className="w-3.5 h-3.5" />
+                Exportar
+              </Button>
+              <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+                <Plus className="w-3.5 h-3.5" />
+                Nova Movimentação
+              </Button>
+            </div>
           </div>
         </>
       )}
