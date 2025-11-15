@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Search, Scale, ArrowUpDown, ArrowUp, ArrowDown, Loader2, Edit, Printer, Trash2 } from "lucide-react";
+import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, Edit, Printer, Trash2, X, GripVertical } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -49,6 +52,7 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_pesagens');
@@ -60,6 +64,18 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
       }
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
   });
   
   const [sortField, setSortField] = useState(null);
@@ -79,6 +95,21 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
       return novasColunas;
     });
   };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_pesagens', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -226,8 +257,6 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
     ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
     : 0;
 
-  const colunasOrdenadas = COLUNAS_DISPONIVEIS.filter(c => colunasVisiveis.includes(c.id));
-
   const renderCell = (coluna, pesagem) => {
     switch (coluna.id) {
       case 'numero':
@@ -289,6 +318,11 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                         <Trash2 className="w-3.5 h-3.5 mr-2" />
                         Excluir Todos
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
+                        <X className="w-3.5 h-3.5 mr-2" />
+                        Limpar
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -298,7 +332,8 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-3.5 h-3.5" />
                 Colunas
               </Button>
             </div>
@@ -396,6 +431,75 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
