@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, Package, Settings, AlertTriangle, CheckSquare, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, GripVertical, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -24,20 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -45,39 +32,52 @@ const formatarNumero = (numero) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'numero', label: 'Nº', default: true },
-  { id: 'nome', label: 'Nome do Produto', default: true },
-  { id: 'codigo', label: 'Código Interno', default: true },
-  { id: 'categoria', label: 'Categoria', default: true },
-  { id: 'unidade', label: 'Unidade', default: true },
-  { id: 'preco_custo', label: 'Preço Custo', default: true },
-  { id: 'preco_venda', label: 'Preço Venda', default: true },
-  { id: 'estoque', label: 'Estoque Atual', default: true },
-  { id: 'estoque_min', label: 'Estoque Mínimo', default: false },
-  { id: 'barras', label: 'Cód. Barras', default: false },
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
+  { id: 'nome', label: 'Nome do Produto', default: true, sortable: true },
+  { id: 'codigo', label: 'Código Interno', default: true, sortable: true },
+  { id: 'categoria', label: 'Categoria', default: true, sortable: true },
+  { id: 'unidade', label: 'Unidade', default: true, sortable: true },
+  { id: 'preco_custo', label: 'Preço Custo', default: true, sortable: true },
+  { id: 'preco_venda', label: 'Preço Venda', default: true, sortable: true },
+  { id: 'estoque', label: 'Estoque Atual', default: true, sortable: true },
+  { id: 'estoque_min', label: 'Estoque Mínimo', default: false, sortable: true },
+  { id: 'barras', label: 'Cód. Barras', default: false, sortable: true },
 ];
+
+const ITEMS_PER_PAGE = 50;
 
 export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('colunas_produtos');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
-        }
+    const saved = localStorage.getItem('colunas_produtos');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
       }
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_produtos');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
   
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
@@ -87,73 +87,41 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
         ? prev.filter(id => id !== colunaId)
         : [...prev, colunaId];
       
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('colunas_produtos', JSON.stringify(novasColunas));
-      }
+      localStorage.setItem('colunas_produtos', JSON.stringify(novasColunas));
       
       return novasColunas;
     });
   };
 
-  const toggleSelectAll = () => {
-    if (paginatedProdutos.length > 0 && paginatedProdutos.every(p => selectedItems.includes(p.id))) {
-      // If all currently paginated items are selected, deselect them.
-      // Also, ensure to deselect any other selected items that might not be on the current page.
-      setSelectedItems(prev => prev.filter(id => !paginatedProdutos.map(p => p.id).includes(id)));
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_produtos', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Otherwise, select all currently paginated items that are not already selected.
-      setSelectedItems(prev => {
-        const newSelected = new Set(prev);
-        paginatedProdutos.forEach(p => newSelected.add(p.id));
-        return Array.from(newSelected);
-      });
+      setSortField(field);
+      setSortDirection('asc');
     }
   };
 
-
-  const toggleSelectItem = (id) => {
-    setSelectedItems(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleBulkDelete = async () => {
-    if (!onDelete) {
-      console.error('onDelete prop is not defined');
-      return;
-    }
-
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} produto(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      const itemsToDelete = [...selectedItems]; // Create a copy to iterate
-      for (const id of itemsToDelete) {
-        try {
-          await onDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: itemsToDelete.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
-      }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-        setShowBulkActions(false);
-      }, 500);
-    }
-  };
-
-  const handleBulkPrint = () => {
-    if (!onPrint) return;
-    selectedItems.forEach(id => {
-      const produto = produtos.find(p => p.id === id);
-      if (produto) onPrint(produto);
-    });
-    setShowBulkActions(false);
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
   const filteredProdutos = produtos.filter(produto => {
@@ -167,230 +135,297 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
     );
   });
 
-  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredProdutos.length / itemsPerPage);
-  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
-  const endIndex = itemsPerPage === -1 ? filteredProdutos.length : startIndex + itemsPerPage;
-  const paginatedProdutos = filteredProdutos.slice(startIndex, endIndex);
+  const sortedProdutos = [...filteredProdutos].sort((a, b) => {
+    if (!sortField) return 0;
 
-  const handleItemsPerPageChange = (value) => {
-    setItemsPerPage(value === 'all' ? -1 : parseInt(value));
-    setCurrentPage(1);
+    let aValue, bValue;
+
+    switch (sortField) {
+      case 'numero':
+        aValue = parseInt(a.numero_produto) || 0;
+        bValue = parseInt(b.numero_produto) || 0;
+        break;
+      case 'nome':
+        aValue = a.nome_produto;
+        bValue = b.nome_produto;
+        break;
+      case 'codigo':
+        aValue = a.codigo_interno || '';
+        bValue = b.codigo_interno || '';
+        break;
+      case 'categoria':
+        aValue = a.categoria || '';
+        bValue = b.categoria || '';
+        break;
+      case 'unidade':
+        aValue = a.unidade_medida || '';
+        bValue = b.unidade_medida || '';
+        break;
+      case 'preco_custo':
+        aValue = a.preco_custo || 0;
+        bValue = b.preco_custo || 0;
+        break;
+      case 'preco_venda':
+        aValue = a.preco_venda || 0;
+        bValue = b.preco_venda || 0;
+        break;
+      case 'estoque':
+        aValue = a.estoque_atual || 0;
+        bValue = b.estoque_atual || 0;
+        break;
+      case 'estoque_min':
+        aValue = a.estoque_minimo || 0;
+        bValue = b.estoque_minimo || 0;
+        break;
+      case 'barras':
+        aValue = a.codigo_barras || '';
+        bValue = b.codigo_barras || '';
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedProdutos.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedProdutos = sortedProdutos.slice(startIndex, endIndex);
+
+  const toggleSelectAll = () => {
+    if (selectedItems.length === paginatedProdutos.length && paginatedProdutos.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(paginatedProdutos.map(p => p.id));
+    }
+  };
+
+  const toggleSelectItem = (id) => {
+    setSelectedItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} produto(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
+      setIsDeletingBulk(true);
+      setDeleteProgress({ current: 0, total: selectedItems.length });
+      
+      let deleted = 0;
+      for (const id of selectedItems) {
+        try {
+          await onDelete(id, true);
+          deleted++;
+          setDeleteProgress({ current: deleted, total: selectedItems.length });
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+        }
+      }
+      
+      setTimeout(() => {
+        setIsDeletingBulk(false);
+        setSelectedItems([]);
+      }, 500);
+    }
+  };
+
+  const handleBulkPrint = () => {
+    selectedItems.forEach(id => {
+      const produto = produtos.find(p => p.id === id);
+      if (produto) onPrint(produto);
+    });
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
     ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
     : 0;
 
+  const renderCell = (coluna, produto) => {
+    const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
+    
+    switch (coluna.id) {
+      case 'numero':
+        return <TableCell className="text-xs border-r border-slate-200">{produto.numero_produto || '-'}</TableCell>;
+      case 'nome':
+        return <TableCell className="text-xs font-semibold border-r border-slate-200">{produto.nome_produto}</TableCell>;
+      case 'codigo':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{produto.codigo_interno || '-'}</TableCell>;
+      case 'categoria':
+        return (
+          <TableCell className="border-r border-slate-200">
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-xs">
+              {produto.categoria || 'Sem categoria'}
+            </Badge>
+          </TableCell>
+        );
+      case 'unidade':
+        return <TableCell className="text-xs border-r border-slate-200">{produto.unidade_medida}</TableCell>;
+      case 'preco_custo':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">R$ {formatarNumero(produto.preco_custo || 0)}</TableCell>;
+      case 'preco_venda':
+        return <TableCell className="text-right font-mono text-xs font-semibold text-green-700 border-r border-slate-200">R$ {formatarNumero(produto.preco_venda || 0)}</TableCell>;
+      case 'estoque':
+        return (
+          <TableCell className="text-right border-r border-slate-200">
+            <div className="flex items-center justify-end gap-1">
+              {estoqueAbaixoMinimo && <AlertTriangle className="w-3 h-3 text-orange-600" />}
+              <span className={`text-xs font-bold ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
+                {formatarNumero(produto.estoque_atual || 0)}
+              </span>
+            </div>
+          </TableCell>
+        );
+      case 'estoque_min':
+        return <TableCell className="text-right text-xs border-r border-slate-200">{formatarNumero(produto.estoque_minimo || 0)}</TableCell>;
+      case 'barras':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{produto.codigo_barras || '-'}</TableCell>;
+      default:
+        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+    }
+  };
+
   return (
     <>
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle className="flex items-center gap-3 text-slate-900 text-sm">
-              Produtos ({filteredProdutos.length})
-              {selectedItems.length > 0 && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                  {selectedItems.length} selecionados
-                </Badge>
-              )}
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Produtos ({produtos.length})
             </CardTitle>
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex gap-2 items-center">
               {selectedItems.length > 0 && (
-                <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700 h-8 text-xs">
-                      <CheckSquare className="w-4 h-4" />
-                      Ações em Massa
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel className="text-xs">Ações para {selectedItems.length} itens</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem onClick={handleBulkPrint} className="text-xs">
-                      <Printer className="w-4 h-4 mr-2" />
-                      Imprimir Todos
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600 text-xs">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir Todos
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {selectedItems.length} selecionado(s)
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkPrint} className="text-xs">
+                        Imprimir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                        Excluir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
+                        Limpar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               )}
               
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-300 h-8 text-xs"
-                />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300 h-8 w-8">
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                  <DropdownMenuLabel className="text-xs">Colunas Visíveis</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {COLUNAS_DISPONIVEIS.map((coluna) => (
-                    <DropdownMenuCheckboxItem
-                      key={coluna.id}
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onCheckedChange={() => toggleColuna(coluna.id)}
-                      className="text-xs"
-                    >
-                      {coluna.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-3.5 h-3.5" />
+                Colunas
+              </Button>
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="w-12 text-xs">
+                <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-8 text-xs border-r border-slate-200">
                     <Checkbox
-                      checked={paginatedProdutos.length > 0 && paginatedProdutos.every(p => selectedItems.includes(p.id))}
-                      indeterminate={paginatedProdutos.some(p => selectedItems.includes(p.id)) && !paginatedProdutos.every(p => selectedItems.includes(p.id))}
+                      checked={selectedItems.length === paginatedProdutos.length && paginatedProdutos.length > 0}
                       onCheckedChange={toggleSelectAll}
-                      disabled={paginatedProdutos.length === 0}
                     />
                   </TableHead>
-                  {colunasVisiveis.includes('numero') && <TableHead className="font-semibold text-slate-700 text-xs">Nº</TableHead>}
-                  {colunasVisiveis.includes('nome') && <TableHead className="font-semibold text-slate-700 text-xs">Nome</TableHead>}
-                  {colunasVisiveis.includes('codigo') && <TableHead className="font-semibold text-slate-700 text-xs">Código</TableHead>}
-                  {colunasVisiveis.includes('barras') && <TableHead className="font-semibold text-slate-700 text-xs">Cód. Barras</TableHead>}
-                  {colunasVisiveis.includes('categoria') && <TableHead className="font-semibold text-slate-700 text-xs">Categoria</TableHead>}
-                  {colunasVisiveis.includes('unidade') && <TableHead className="font-semibold text-slate-700 text-xs">UN</TableHead>}
-                  {colunasVisiveis.includes('preco_custo') && <TableHead className="font-semibold text-slate-700 text-right text-xs">Custo</TableHead>}
-                  {colunasVisiveis.includes('preco_venda') && <TableHead className="font-semibold text-slate-700 text-right text-xs">Venda</TableHead>}
-                  {colunasVisiveis.includes('estoque') && <TableHead className="font-semibold text-slate-700 text-right text-xs">Estoque</TableHead>}
-                  {colunasVisiveis.includes('estoque_min') && <TableHead className="font-semibold text-slate-700 text-right text-xs">Est. Mín.</TableHead>}
+                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  {colunasOrdenadas.map((coluna) => {
+                    return (
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
+                      >
+                        <div className="flex items-center">
+                          {coluna.label}
+                          {coluna.sortable && getSortIcon(coluna.id)}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i} className="animate-pulse">
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
-                        {colunasVisiveis.map((col, idx) => (
-                          <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                        ))}
-                      </TableRow>
-                    ))
+                    <TableRow>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                    </TableRow>
                   ) : paginatedProdutos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <Package className="w-12 h-12" />
-                          <p className="text-sm font-medium">Nenhum produto encontrado</p>
-                          <p className="text-xs">
-                            {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando um novo produto'}
-                          </p>
-                        </div>
-                      </TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum produto</TableCell>
                     </TableRow>
                   ) : (
                     paginatedProdutos.map((produto) => {
                       const estoqueAbaixoMinimo = (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
                       
                       return (
-                        <ContextMenu key={produto.id}>
-                          <ContextMenuTrigger asChild>
-                            <motion.tr
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className={`border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
-                            >
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedItems.includes(produto.id)}
-                                  onCheckedChange={() => toggleSelectItem(produto.id)}
-                                />
-                              </TableCell>
-                              {colunasVisiveis.includes('numero') && (
-                                <TableCell className="font-bold text-slate-900">
-                                  {produto.numero_produto || '-'}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('nome') && (
-                                <TableCell className="font-semibold text-slate-900">
-                                  {produto.nome_produto}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('codigo') && (
-                                <TableCell className="font-mono text-slate-700">
-                                  {produto.codigo_interno || '-'}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('barras') && (
-                                <TableCell className="font-mono text-slate-700">
-                                  {produto.codigo_barras || '-'}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('categoria') && (
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-xs">
-                                    {produto.categoria || 'Sem categoria'}
-                                  </Badge>
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('unidade') && (
-                                <TableCell className="text-slate-700">{produto.unidade_medida}</TableCell>
-                              )}
-                              {colunasVisiveis.includes('preco_custo') && (
-                                <TableCell className="text-right font-mono text-slate-700">
-                                  R$ {formatarNumero(produto.preco_custo || 0)}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('preco_venda') && (
-                                <TableCell className="text-right font-mono font-semibold text-green-700">
-                                  R$ {formatarNumero(produto.preco_venda || 0)}
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('estoque') && (
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    {estoqueAbaixoMinimo && <AlertTriangle className="w-4 h-4 text-orange-600" />}
-                                    <span className={`font-bold ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
-                                      {formatarNumero(produto.estoque_atual || 0)}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                              )}
-                              {colunasVisiveis.includes('estoque_min') && (
-                                <TableCell className="text-right text-slate-700">
-                                  {formatarNumero(produto.estoque_minimo || 0)}
-                                </TableCell>
-                              )}
-                            </motion.tr>
-                          </ContextMenuTrigger>
-                          <ContextMenuContent>
-                            <ContextMenuItem onClick={() => onEdit && onEdit(produto)} className="text-xs">
-                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
-                              Editar
-                            </ContextMenuItem>
-                            <ContextMenuItem onClick={() => onPrint && onPrint(produto)} className="text-xs">
-                              <Printer className="w-4 h-4 mr-2 text-green-600" />
-                              Imprimir Ficha
-                            </ContextMenuItem>
-                            <ContextMenuItem onClick={() => onDelete && onDelete(produto.id)} className="text-xs">
-                              <Trash2 className="w-4 h-4 mr-2 text-red-600" />
-                              Excluir
-                            </ContextMenuItem>
-                          </ContextMenuContent>
-                        </ContextMenu>
+                        <motion.tr 
+                          key={produto.id}
+                          initial={{ opacity: 0 }} 
+                          animate={{ opacity: 1 }} 
+                          exit={{ opacity: 0 }} 
+                          className={`hover:bg-slate-50 transition-colors border-b ${estoqueAbaixoMinimo ? 'bg-orange-50' : ''}`}
+                        >
+                          <TableCell className="border-r border-slate-200">
+                            <Checkbox
+                              checked={selectedItems.includes(produto.id)}
+                              onCheckedChange={() => toggleSelectItem(produto.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center border-r border-slate-200">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => onEdit(produto)} className="text-xs">
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onPrint(produto)} className="text-xs">
+                                  Imprimir Ficha
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onDelete(produto.id)} className="text-xs text-red-600">
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                          {colunasOrdenadas.map(coluna => (
+                            <React.Fragment key={coluna.id}>
+                              {renderCell(coluna, produto)}
+                            </React.Fragment>
+                          ))}
+                        </motion.tr>
                       );
                     })
                   )}
@@ -399,54 +434,109 @@ export default function TabelaProdutos({ produtos = [], onEdit, onDelete, onPrin
             </Table>
           </div>
 
-          {!isLoading && filteredProdutos.length > 0 && ( // Use filteredProdutos.length here to show pagination even if current page is empty
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span>Mostrar</span>
-                <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-24 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20" className="text-xs">20</SelectItem>
-                    <SelectItem value="50" className="text-xs">50</SelectItem>
-                    <SelectItem value="100" className="text-xs">100</SelectItem>
-                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span>por página</span>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
+              <div className="text-xs text-slate-600">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedProdutos.length)} de {sortedProdutos.length} registros
               </div>
-
-              {itemsPerPage !== -1 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronsLeft className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  
-                  <div className="flex items-center gap-2 px-3 text-xs">
-                    <span className="text-slate-700 font-medium">
-                      Pág {currentPage} de {totalPages}
-                    </span>
-                    <span className="text-slate-500">
-                      ({startIndex + 1}-{Math.min(endIndex, filteredProdutos.length)} de {filteredProdutos.length})
-                    </span>
-                  </div>
-
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronsRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Anterior
+                </Button>
+                <span className="text-xs text-slate-600">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 text-xs"
+                >
+                  Próxima
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">

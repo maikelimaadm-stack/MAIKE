@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
-import { Package, Save, X, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -77,7 +75,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       setFormData({ ...formData, unidade_medida: newUnidade.sigla });
       setShowNovaUnidade(false);
       setNovaUnidade({ sigla: "", descricao: "" });
-      toast.success('Unidade cadastrada com sucesso!');
+      toast.success('Unidade cadastrada!');
     },
   });
 
@@ -96,7 +94,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       setFormData({ ...formData, categoria: newCategoria.nome });
       setShowNovaCategoria(false);
       setNovaCategoria({ nome: "", subcategoria: "", descricao: "" });
-      toast.success('Categoria cadastrada com sucesso!');
+      toast.success('Categoria cadastrada!');
     },
   });
 
@@ -115,7 +113,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       setFormData({ ...formData, local_estoque: newLocal.nome });
       setShowNovoLocal(false);
       setNovoLocal({ nome: "", descricao: "", capacidade: "" });
-      toast.success('Local de estoque cadastrado com sucesso!');
+      toast.success('Local cadastrado!');
     },
   });
 
@@ -157,41 +155,6 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     onSubmit(data);
   };
 
-  const handleSalvarUnidade = () => {
-    if (!novaUnidade.sigla || !novaUnidade.descricao) {
-      toast.error('Preencha todos os campos obrigatórios!');
-      return;
-    }
-    createUnidadeMutation.mutate({
-      sigla: novaUnidade.sigla.toUpperCase(),
-      descricao: novaUnidade.descricao.toUpperCase()
-    });
-  };
-
-  const handleSalvarCategoria = () => {
-    if (!novaCategoria.nome) {
-      toast.error('Nome da categoria é obrigatório!');
-      return;
-    }
-    createCategoriaMutation.mutate({
-      nome: novaCategoria.nome.toUpperCase(),
-      subcategoria: novaCategoria.subcategoria?.toUpperCase() || undefined,
-      descricao: novaCategoria.descricao?.toUpperCase() || undefined
-    });
-  };
-
-  const handleSalvarLocal = () => {
-    if (!novoLocal.nome) {
-      toast.error('Nome do local é obrigatório!');
-      return;
-    }
-    createLocalMutation.mutate({
-      nome: novoLocal.nome.toUpperCase(),
-      descricao: novoLocal.descricao?.toUpperCase() || undefined,
-      capacidade: novoLocal.capacidade?.toUpperCase() || undefined
-    });
-  };
-
   const categoriasOptions = categorias.map(c => ({ value: c.nome, label: c.nome }));
   const unidadesOptions = unidades.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.descricao}` }));
   const locaisOptions = locais.map(l => ({ value: l.nome, label: l.nome }));
@@ -203,174 +166,171 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
       >
-        <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
-              </div>
+        <Card className="shadow-sm border-slate-300 bg-white">
+          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
               {isEditing ? 'Editar Produto' : 'Novo Produto'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Nome do Produto *</Label>
+          <CardContent className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nome do Produto *</Label>
                   <Input
                     value={formData.nome_produto}
                     onChange={(e) => handleChange('nome_produto', e.target.value)}
                     placeholder="NOME DO PRODUTO"
                     required
-                    className="border-slate-300 focus:border-green-500 uppercase"
+                    className="h-8 text-xs uppercase"
                     style={{ textTransform: 'uppercase' }}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Código Interno *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Código Interno *</Label>
                   <Input
                     value={formData.codigo_interno}
                     onChange={(e) => handleChange('codigo_interno', e.target.value)}
                     placeholder="CÓDIGO INTERNO"
                     required
-                    className="border-slate-300 focus:border-green-500 uppercase"
+                    className="h-8 text-xs uppercase"
                     style={{ textTransform: 'uppercase' }}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Código de Barras</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Código de Barras</Label>
                   <Input
                     value={formData.codigo_barras}
                     onChange={(e) => handleChange('codigo_barras', e.target.value)}
                     placeholder="7891234567890"
-                    className="border-slate-300 focus:border-green-500"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Categoria</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Categoria</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={categoriasOptions}
                       value={formData.categoria}
                       onValueChange={(value) => handleChange('categoria', value)}
-                      placeholder="Selecione uma categoria"
-                      searchPlaceholder="Buscar categoria..."
-                      className="flex-1 border-slate-300 focus:border-green-500"
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar..."
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Unidade de Medida *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Unidade de Medida *</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={unidadesOptions}
                       value={formData.unidade_medida}
                       onValueChange={(value) => handleChange('unidade_medida', value)}
-                      placeholder="Selecione uma unidade"
-                      searchPlaceholder="Buscar unidade..."
-                      className="flex-1 border-slate-300 focus:border-green-500"
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar..."
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Local de Estoque</Label>
+                  <div className="flex gap-2">
+                    <Combobox
+                      options={locaisOptions}
+                      value={formData.local_estoque}
+                      onValueChange={(value) => handleChange('local_estoque', value)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar..."
+                      className="flex-1 h-8 text-xs"
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Descrição</Label>
-                <Textarea
-                  value={formData.descricao}
-                  onChange={(e) => handleChange('descricao', e.target.value)}
-                  placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..."
-                  className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Preço de Custo</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Preço de Custo</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.preco_custo}
                     onChange={(e) => handleChange('preco_custo', e.target.value)}
                     placeholder="0.00"
-                    className="border-slate-300 focus:border-green-500"
+                    className="h-8 text-xs"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Preço de Venda</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Preço de Venda</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.preco_venda}
                     onChange={(e) => handleChange('preco_venda', e.target.value)}
                     placeholder="0.00"
-                    className="border-slate-300 focus:border-green-500"
+                    className="h-8 text-xs"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-medium">Estoque Mínimo</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Estoque Mínimo</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.estoque_minimo}
                     onChange={(e) => handleChange('estoque_minimo', e.target.value)}
                     placeholder="0"
-                    className="border-slate-300 focus:border-green-500"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Local de Estoque</Label>
-                <div className="flex gap-2">
-                  <Combobox
-                    options={locaisOptions}
-                    value={formData.local_estoque}
-                    onValueChange={(value) => handleChange('local_estoque', value)}
-                    placeholder="Selecione um local"
-                    searchPlaceholder="Buscar local..."
-                    className="flex-1 border-slate-300 focus:border-green-500"
-                  />
-                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Descrição</Label>
+                <Textarea
+                  value={formData.descricao}
+                  onChange={(e) => handleChange('descricao', e.target.value)}
+                  placeholder="DESCRIÇÃO DETALHADA DO PRODUTO..."
+                  className="text-xs uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                  rows={2}
+                />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Observações</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Observações</Label>
                 <Textarea
                   value={formData.observacoes}
                   onChange={(e) => handleChange('observacoes', e.target.value)}
                   placeholder="OBSERVAÇÕES GERAIS..."
-                  className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                  className="text-xs uppercase"
                   style={{ textTransform: 'uppercase' }}
+                  rows={2}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
-                  <Save className="w-4 h-4" />
-                  {isEditing ? 'Atualizar' : 'Salvar'} Produto
+                <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                  {isEditing ? 'Atualizar' : 'Salvar'}
                 </Button>
               </div>
             </form>
@@ -382,36 +342,36 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Nova Unidade de Medida</DialogTitle>
-            <DialogDescription className="text-xs">Cadastre uma nova unidade para usar no produto</DialogDescription>
+            <DialogDescription className="text-xs">Cadastre uma nova unidade</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Sigla *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Sigla *</Label>
               <Input
                 value={novaUnidade.sigla}
                 onChange={(e) => setNovaUnidade({ ...novaUnidade, sigla: e.target.value })}
                 placeholder="EX: KG, UN, LT"
-                className="uppercase"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
                 maxLength={10}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Descrição *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição *</Label>
               <Input
                 value={novaUnidade.descricao}
                 onChange={(e) => setNovaUnidade({ ...novaUnidade, descricao: e.target.value })}
                 placeholder="DESCRIÇÃO DA UNIDADE"
-                className="uppercase"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }} className="h-8 text-xs">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarUnidade} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
-                Salvar Unidade
+              <Button onClick={() => createUnidadeMutation.mutate({ sigla: novaUnidade.sigla.toUpperCase(), descricao: novaUnidade.descricao.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                Salvar
               </Button>
             </div>
           </div>
@@ -422,45 +382,46 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Nova Categoria</DialogTitle>
-            <DialogDescription className="text-xs">Cadastre uma nova categoria para usar no produto</DialogDescription>
+            <DialogDescription className="text-xs">Cadastre uma nova categoria</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
               <Input
                 value={novaCategoria.nome}
                 onChange={(e) => setNovaCategoria({ ...novaCategoria, nome: e.target.value })}
                 placeholder="NOME DA CATEGORIA"
-                className="uppercase"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Subcategoria</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Subcategoria</Label>
               <Input
                 value={novaCategoria.subcategoria}
                 onChange={(e) => setNovaCategoria({ ...novaCategoria, subcategoria: e.target.value })}
                 placeholder="SUBCATEGORIA"
-                className="uppercase"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
               <Textarea
                 value={novaCategoria.descricao}
                 onChange={(e) => setNovaCategoria({ ...novaCategoria, descricao: e.target.value })}
-                placeholder="DESCRIÇÃO DA CATEGORIA"
-                className="uppercase"
+                placeholder="DESCRIÇÃO"
+                className="text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
+                rows={2}
               />
             </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }} className="h-8 text-xs">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarCategoria} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
-                Salvar Categoria
+              <Button onClick={() => createCategoriaMutation.mutate({ nome: novaCategoria.nome.toUpperCase(), subcategoria: novaCategoria.subcategoria?.toUpperCase(), descricao: novaCategoria.descricao?.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                Salvar
               </Button>
             </div>
           </div>
@@ -471,45 +432,46 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Novo Local de Estoque</DialogTitle>
-            <DialogDescription className="text-xs">Cadastre um novo local para usar no produto</DialogDescription>
+            <DialogDescription className="text-xs">Cadastre um novo local</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome *</Label>
               <Input
                 value={novoLocal.nome}
                 onChange={(e) => setNovoLocal({ ...novoLocal, nome: e.target.value })}
                 placeholder="NOME DO LOCAL"
-                className="uppercase"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Descrição</Label>
               <Textarea
                 value={novoLocal.descricao}
                 onChange={(e) => setNovoLocal({ ...novoLocal, descricao: e.target.value })}
-                placeholder="DESCRIÇÃO DO LOCAL"
-                className="uppercase"
+                placeholder="DESCRIÇÃO"
+                className="text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
+                rows={2}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Capacidade</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Capacidade</Label>
               <Input
                 value={novoLocal.capacidade}
                 onChange={(e) => setNovoLocal({ ...novoLocal, capacidade: e.target.value })}
-                placeholder="CAPACIDADE DO LOCAL"
-                className="uppercase"
+                placeholder="CAPACIDADE"
+                className="h-8 text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
               />
             </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }} className="h-8 text-xs">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarLocal} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
-                Salvar Local
+              <Button onClick={() => createLocalMutation.mutate({ nome: novoLocal.nome.toUpperCase(), descricao: novoLocal.descricao?.toUpperCase(), capacidade: novoLocal.capacidade?.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                Salvar
               </Button>
             </div>
           </div>

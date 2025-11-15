@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -450,28 +451,27 @@ export default function Produtos() {
               <h1 className="text-xl font-bold text-slate-900">Produtos</h1>
               <p className="text-xs text-slate-600">Gerenciar produtos e estoque</p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Download className="w-3.5 h-3.5" />
-              Exportar
-            </Button>
-            <div>
-              <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-produtos" />
-              <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
-                <Upload className="w-3.5 h-3.5" />
-                Importar
+            <div className="flex gap-2">
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <Download className="w-3.5 h-3.5" />
+                Exportar
+              </Button>
+              <div>
+                <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-produtos" />
+                <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
+                  <Upload className="w-3.5 h-3.5" />
+                  Importar
+                </Button>
+              </div>
+              <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Modelo
+              </Button>
+              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+                <Plus className="w-3.5 h-3.5" />
+                Novo Produto
               </Button>
             </div>
-            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Modelo
-            </Button>
-            <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
-              <Plus className="w-3.5 h-3.5" />
-              Novo Produto
-            </Button>
           </div>
         </>
       )}
