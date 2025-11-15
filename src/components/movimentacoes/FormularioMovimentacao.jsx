@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRightLeft, Save, X, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
+import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return '';
@@ -32,20 +39,26 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 const TIPOS_DETALHADOS = {
-  'Entrada': ['COMPRA', 'COMPRA À VISTA', 'COMPRA A PRAZO', 'DEVOLUÇÃO DE CLIENTE', 'DOAÇÃO RECEBIDA', 'BONIFICAÇÃO', 'PRODUÇÃO', 'IMPORTAÇÃO', 'TRANSFERÊNCIA RECEBIDA', 'ACERTO DE ESTOQUE', 'OUTROS'],
-  'Saída': ['VENDA', 'VENDA À VISTA', 'VENDA A PRAZO', 'DEVOLUÇÃO AO FORNECEDOR', 'DOAÇÃO', 'PERDA', 'QUEBRA', 'CONSUMO INTERNO', 'PRODUÇÃO', 'TRANSFERÊNCIA ENVIADA', 'ACERTO DE ESTOQUE', 'OUTROS'],
-  'Transferência': ['ENTRE LOCAIS', 'ENTRE FAZENDAS', 'ENTRE FILIAIS', 'OUTROS'],
-  'Ajuste': ['AJUSTE POSITIVO', 'AJUSTE NEGATIVO', 'INVENTÁRIO', 'CORREÇÃO', 'OUTROS']
+  'Entrada': ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Devolução de Cliente', 'Doação Recebida', 'Bonificação', 'Produção', 'Importação', 'Transferência Recebida', 'Acerto de Estoque', 'Outros'],
+  'Saída': ['Venda', 'Venda à Vista', 'Venda a Prazo', 'Devolução ao Fornecedor', 'Doação', 'Perda', 'Quebra', 'Consumo Interno', 'Produção', 'Transferência Enviada', 'Acerto de Estoque', 'Outros'],
+  'Transferência': ['Entre Locais', 'Entre Empresas', 'Entre Filiais', 'Outros'],
+  'Ajuste': ['Ajuste Positivo', 'Ajuste Negativo', 'Inventário', 'Correção', 'Outros']
 };
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
   const [formData, setFormData] = useState({
     tipo_movimentacao: initialData?.tipo_movimentacao || "",
-    tipo_detalhado: initialData?.tipo_detalhado?.toUpperCase() || "",
-    local_estoque: initialData?.local_estoque_origem?.toUpperCase() || initialData?.local_estoque_destino?.toUpperCase() || "",
-    local_destino: initialData?.local_estoque_destino?.toUpperCase() || "",
-    tipo_documento: initialData?.tipo_documento || "NOTA FISCAL",
+    tipo_detalhado: initialData?.tipo_detalhado || "",
+    local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || "",
+    local_destino: initialData?.local_estoque_destino || "",
+    empresa_destino_id: initialData?.empresa_destino_id || "",
+    tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
     numero_documento: initialData?.numero_documento || "",
     serie_documento: initialData?.serie_documento || "",
     chave_documento: initialData?.chave_documento || "",
@@ -53,10 +66,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     cfop: initialData?.cfop || "",
     natureza_operacao: initialData?.natureza_operacao || "",
     fornecedor_id: initialData?.fornecedor_id || "",
-    cliente_nome: initialData?.cliente_nome?.toUpperCase() || "",
+    cliente_nome: initialData?.cliente_nome || "",
     centro_custo_id: initialData?.centro_custo_id || "",
-    motivo_movimentacao: initialData?.motivo_movimentacao?.toUpperCase() || "",
-    observacoes: initialData?.observacoes?.toUpperCase() || ""
+    motivo_movimentacao: initialData?.motivo_movimentacao || "",
+    observacoes: initialData?.observacoes || ""
   });
 
   const [produtosLista, setProdutosLista] = useState([]);
@@ -72,6 +85,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [showDialogProduto, setShowDialogProduto] = useState(false);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const queryClient = useQueryClient();
 
   const { data: locais = [] } = useQuery({
     queryKey: ['locais_mov'],
@@ -88,12 +102,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas_mov'],
+    queryFn: () => base44.entities.Empresa.list(),
+    initialData: [],
+  });
+
+  const { data: locaisEmpresaDestino = [] } = useQuery({
+    queryKey: ['locais_empresa_destino', formData.empresa_destino_id],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+    enabled: !!formData.empresa_destino_id,
+    initialData: [],
+  });
+
   const handleChange = (field, value) => {
-    let processedValue = value;
-    if (['tipo_detalhado', 'local_estoque', 'local_destino', 'cliente_nome', 'motivo_movimentacao', 'observacoes', 'natureza_operacao'].includes(field) && typeof value === 'string') {
-      processedValue = value.toUpperCase();
-    }
-    setFormData(prev => ({ ...prev, [field]: processedValue }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAdicionarProduto = () => {
@@ -132,6 +155,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     toast.success('Produto adicionado!');
   };
 
+  const handleEditarProduto = (index) => {
+    const produto = produtosLista[index];
+    setProdutoAtual({
+      produto_id: produto.produto_id,
+      quantidade: formatarNumero(produto.quantidade),
+      valor_unitario: formatarNumero(produto.valor_unitario),
+      desconto: formatarNumero(produto.desconto)
+    });
+    handleRemoverProduto(produto.produto_id);
+  };
+
   const handleRemoverProduto = (produto_id) => {
     setProdutosLista(produtosLista.filter(p => p.produto_id !== produto_id));
   };
@@ -144,13 +178,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    if (formData.tipo_movimentacao === 'Entrada' && !formData.local_estoque) {
-      toast.error('Defina o local de estoque de destino!');
-      return;
-    }
-
-    if (formData.tipo_movimentacao === 'Saída' && !formData.local_estoque) {
-      toast.error('Defina o local de estoque de origem!');
+    if ((formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Saída') && !formData.local_estoque) {
+      toast.error('Defina o local de estoque!');
       return;
     }
 
@@ -159,26 +188,34 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
+    if (formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas' && !formData.empresa_destino_id) {
+      toast.error('Selecione a empresa de destino!');
+      return;
+    }
+
     const centro = centros.find(c => c.id === formData.centro_custo_id);
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
+    const empresaDestino = empresas.find(e => e.id === formData.empresa_destino_id);
 
     const dadosComuns = {
       tipo_movimentacao: formData.tipo_movimentacao,
       tipo_detalhado: formData.tipo_detalhado,
       local_estoque_origem: formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? formData.local_estoque : undefined,
       local_estoque_destino: formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' ? (formData.tipo_movimentacao === 'Transferência' ? formData.local_destino : formData.local_estoque) : undefined,
+      empresa_destino_id: formData.tipo_detalhado === 'Entre Empresas' ? formData.empresa_destino_id : undefined,
+      empresa_destino_nome: empresaDestino?.nome,
       tipo_documento: formData.tipo_documento || undefined,
-      numero_documento: formData.numero_documento?.toUpperCase() || undefined,
-      serie_documento: formData.serie_documento?.toUpperCase() || undefined,
+      numero_documento: formData.numero_documento || undefined,
+      serie_documento: formData.serie_documento || undefined,
       chave_documento: formData.chave_documento || undefined,
       data_documento: formData.data_documento || undefined,
       cfop: formData.cfop || undefined,
-      natureza_operacao: formData.natureza_operacao?.toUpperCase() || undefined,
+      natureza_operacao: formData.natureza_operacao || undefined,
       fornecedor_id: formData.fornecedor_id || undefined,
-      fornecedor_nome: fornecedor?.nome?.toUpperCase(),
-      cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
+      fornecedor_nome: fornecedor?.nome,
+      cliente_nome: formData.cliente_nome || undefined,
       centro_custo_id: formData.centro_custo_id || undefined,
-      centro_custo_nome: centro?.nome?.toUpperCase(),
+      centro_custo_nome: centro?.nome,
       motivo_movimentacao: formData.motivo_movimentacao,
       observacoes: formData.observacoes || undefined,
       data_movimentacao: new Date().toISOString(),
@@ -188,16 +225,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     onSubmit({ ...dadosComuns, produtos: produtosLista });
   };
 
-  const produtosOptions = produtos.map(p => ({ value: p.id, label: p.nome_produto }));
-  const fornecedoresOptions = fornecedores.map(f => ({ value: f.id, label: f.nome }));
-  const locaisOptions = locais.map(l => ({ value: l.nome, label: l.nome }));
-  const centrosOptions = centros.map(c => ({ value: c.id, label: c.nome }));
-
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
-  const mostrarFornecedor = formData.tipo_movimentacao === 'Entrada' && ['COMPRA', 'COMPRA À VISTA', 'COMPRA A PRAZO', 'IMPORTAÇÃO'].some(t => formData.tipo_detalhado.includes(t));
-  const mostrarCliente = formData.tipo_movimentacao === 'Saída' && ['VENDA', 'VENDA À VISTA', 'VENDA A PRAZO'].some(t => formData.tipo_detalhado.includes(t));
-  const mostrarDadosNFe = ['COMPRA', 'VENDA', 'IMPORTAÇÃO'].some(t => formData.tipo_detalhado.includes(t));
+  const mostrarFornecedor = formData.tipo_movimentacao === 'Entrada';
+  const mostrarCliente = formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some(t => formData.tipo_detalhado.includes(t));
+  const mostrarDadosNFe = (formData.tipo_movimentacao === 'Entrada' && ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Importação'].some(t => formData.tipo_detalhado.includes(t))) || 
+                          (formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some(t => formData.tipo_detalhado.includes(t)));
   const mostrarLocalDestino = formData.tipo_movimentacao === 'Transferência';
+  const mostrarEmpresaDestino = formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas';
 
   const valorTotalGeral = produtosLista.reduce((acc, p) => acc + p.valor_total, 0);
   const descontoTotal = produtosLista.reduce((acc, p) => acc + p.desconto, 0);
@@ -247,13 +281,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 <div className="space-y-1">
                   <Label className="text-xs">Centro de Custo</Label>
                   <div className="flex gap-2">
-                    <Combobox
-                      options={centrosOptions}
+                    <AutocompleteGenerico
+                      items={centros}
                       value={formData.centro_custo_id}
-                      onValueChange={(v) => handleChange('centro_custo_id', v)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar centro..."
-                      className="flex-1 h-8 text-xs"
+                      onChange={(v) => handleChange('centro_custo_id', v)}
+                      placeholder="Selecione o centro de custo"
+                      displayField="nome"
+                      searchFields={["nome", "codigo"]}
+                      className="flex-1"
                     />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
@@ -270,13 +305,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                      'Local Estoque Origem *'}
                   </Label>
                   <div className="flex gap-2">
-                    <Combobox
-                      options={locaisOptions}
+                    <AutocompleteGenerico
+                      items={locais}
                       value={formData.local_estoque}
-                      onValueChange={(v) => handleChange('local_estoque', v)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar local..."
-                      className="flex-1 h-8 text-xs"
+                      onChange={(v) => handleChange('local_estoque', v)}
+                      placeholder="Selecione o local"
+                      displayField="nome"
+                      searchFields={["nome", "descricao"]}
+                      className="flex-1"
                     />
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
@@ -284,17 +320,18 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 </div>
 
-                {mostrarLocalDestino && (
+                {mostrarLocalDestino && !mostrarEmpresaDestino && (
                   <div className="space-y-1">
                     <Label className="text-xs">Local Estoque Destino *</Label>
                     <div className="flex gap-2">
-                      <Combobox
-                        options={locaisOptions}
+                      <AutocompleteGenerico
+                        items={locais}
                         value={formData.local_destino}
-                        onValueChange={(v) => handleChange('local_destino', v)}
-                        placeholder="Selecione"
-                        searchPlaceholder="Buscar local..."
-                        className="flex-1 h-8 text-xs"
+                        onChange={(v) => handleChange('local_destino', v)}
+                        placeholder="Selecione o local"
+                        displayField="nome"
+                        searchFields={["nome", "descricao"]}
+                        className="flex-1"
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                         <Plus className="w-3.5 h-3.5" />
@@ -303,16 +340,52 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 )}
 
+                {mostrarEmpresaDestino && (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Empresa Destino *</Label>
+                      <AutocompleteGenerico
+                        items={empresas}
+                        value={formData.empresa_destino_id}
+                        onChange={(v) => { handleChange('empresa_destino_id', v); handleChange('local_destino', ''); }}
+                        placeholder="Selecione a empresa"
+                        displayField="apelido"
+                        searchFields={["apelido", "nome"]}
+                        renderSubtext={(item) => item.nome}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Local na Empresa Destino *</Label>
+                      <div className="flex gap-2">
+                        <AutocompleteGenerico
+                          items={locaisEmpresaDestino}
+                          value={formData.local_destino}
+                          onChange={(v) => handleChange('local_destino', v)}
+                          placeholder="Selecione o local"
+                          displayField="nome"
+                          searchFields={["nome", "descricao"]}
+                          className="flex-1"
+                        />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {mostrarFornecedor && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Fornecedor</Label>
-                    <Combobox
-                      options={fornecedoresOptions}
+                    <Label className="text-xs">Fornecedor *</Label>
+                    <AutocompleteGenerico
+                      items={fornecedores}
                       value={formData.fornecedor_id}
-                      onValueChange={(v) => handleChange('fornecedor_id', v)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar fornecedor..."
-                      className="h-8 text-xs"
+                      onChange={(v) => handleChange('fornecedor_id', v)}
+                      placeholder="Selecione o fornecedor"
+                      displayField="nome"
+                      searchFields={["nome", "cpf", "cnpj"]}
+                      renderSubtext={(item) => item.cpf || item.cnpj}
                     />
                   </div>
                 )}
@@ -320,7 +393,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 {mostrarCliente && (
                   <div className="space-y-1">
                     <Label className="text-xs">Cliente/Destinatário</Label>
-                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="Nome do Cliente" className="h-8 text-xs" />
                   </div>
                 )}
               </div>
@@ -335,23 +408,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="NOTA FISCAL" className="text-xs">Nota Fiscal</SelectItem>
-                          <SelectItem value="NF-E" className="text-xs">NF-e</SelectItem>
-                          <SelectItem value="NFC-E" className="text-xs">NFC-e</SelectItem>
-                          <SelectItem value="RECIBO" className="text-xs">Recibo</SelectItem>
-                          <SelectItem value="OUTROS" className="text-xs">Outros</SelectItem>
+                          <SelectItem value="Nota Fiscal" className="text-xs">Nota Fiscal</SelectItem>
+                          <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                          <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
+                          <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                          <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">Nº Documento</Label>
-                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs" />
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">Série</Label>
-                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="001" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="001" className="h-8 text-xs" />
                     </div>
                   </div>
 
@@ -368,7 +441,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                     <div className="space-y-1">
                       <Label className="text-xs">Natureza da Operação</Label>
-                      <Input value={formData.natureza_operacao} onChange={(e) => handleChange('natureza_operacao', e.target.value)} placeholder="COMPRA PARA COMERCIALIZAÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                      <Input value={formData.natureza_operacao} onChange={(e) => handleChange('natureza_operacao', e.target.value)} placeholder="Compra para Comercialização" className="h-8 text-xs" />
                     </div>
                   </div>
 
@@ -381,107 +454,164 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               <div className="space-y-1">
                 <Label className="text-xs">Motivo da Movimentação *</Label>
-                <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="DESCREVA O MOTIVO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} required />
+                <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o Motivo" className="h-8 text-xs" required />
               </div>
 
               <div className="border-t pt-4">
-                <Label className="text-xs font-semibold">Adicionar Produtos *</Label>
-                <div className="grid grid-cols-12 gap-2 mt-2">
-                  <div className="col-span-4">
-                    <Combobox
-                      options={produtosOptions}
-                      value={produtoAtual.produto_id}
-                      onValueChange={(v) => setProdutoAtual({...produtoAtual, produto_id: v})}
-                      placeholder="Selecione o produto"
-                      searchPlaceholder="Buscar produto..."
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input 
-                      value={produtoAtual.quantidade} 
-                      onChange={(e) => setProdutoAtual({...produtoAtual, quantidade: e.target.value})} 
-                      placeholder="Qtd" 
-                      className="h-8 text-xs" 
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input 
-                      value={produtoAtual.valor_unitario} 
-                      onChange={(e) => setProdutoAtual({...produtoAtual, valor_unitario: e.target.value})} 
-                      placeholder="Vlr. Un." 
-                      className="h-8 text-xs" 
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input 
-                      value={produtoAtual.desconto} 
-                      onChange={(e) => setProdutoAtual({...produtoAtual, desconto: e.target.value})} 
-                      placeholder="Desconto" 
-                      className="h-8 text-xs" 
-                    />
-                  </div>
-                  <div className="col-span-2 flex gap-2">
-                    <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-8 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700">
-                      <Plus className="w-3.5 h-3.5 mr-1" />
-                      Adicionar
-                    </Button>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)} className="h-8 w-8">
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                <div className="flex justify-between items-center mb-2">
+                  <Label className="text-xs font-semibold">Produtos *</Label>
+                  <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-3.5 h-3.5" />
+                    Adicionar
+                  </Button>
                 </div>
 
-                {produtosLista.length > 0 && (
-                  <div className="mt-3 border rounded">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50">
-                          <TableHead className="text-xs">Produto</TableHead>
-                          <TableHead className="text-xs">Código</TableHead>
-                          <TableHead className="text-xs">Unidade</TableHead>
-                          <TableHead className="text-xs text-right">Quantidade</TableHead>
-                          <TableHead className="text-xs text-right">Vlr. Unit.</TableHead>
-                          <TableHead className="text-xs text-right">Subtotal</TableHead>
-                          <TableHead className="text-xs text-right">Desconto</TableHead>
-                          <TableHead className="text-xs text-right">Total</TableHead>
-                          <TableHead className="text-xs w-12"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="w-8 text-xs"></TableHead>
+                      <TableHead className="text-xs">Produto *</TableHead>
+                      <TableHead className="text-xs text-right w-24">Qtd *</TableHead>
+                      <TableHead className="text-xs text-right w-28">Total *</TableHead>
+                      <TableHead className="text-xs text-right w-28">Desc.</TableHead>
+                      <TableHead className="text-xs text-right w-28">Líquido</TableHead>
+                      <TableHead className="text-xs w-12">UN</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosLista.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-xs py-8 text-slate-500">
+                          <AutocompleteGenerico
+                            items={produtos}
+                            value={produtoAtual.produto_id}
+                            onChange={(v) => setProdutoAtual({...produtoAtual, produto_id: v})}
+                            placeholder="Buscar produto..."
+                            displayField="nome_produto"
+                            searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                            renderSubtext={(item) => item.codigo_interno}
+                            className="max-w-md mx-auto"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <>
                         {produtosLista.map((prod, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="text-xs">{prod.produto_nome}</TableCell>
-                            <TableCell className="text-xs">{prod.produto_codigo || '-'}</TableCell>
-                            <TableCell className="text-xs">{prod.unidade_medida || '-'}</TableCell>
-                            <TableCell className="text-xs text-right">{formatarNumero(prod.quantidade)}</TableCell>
-                            <TableCell className="text-xs text-right">R$ {formatarNumero(prod.valor_unitario)}</TableCell>
-                            <TableCell className="text-xs text-right">R$ {formatarNumero(prod.quantidade * prod.valor_unitario)}</TableCell>
-                            <TableCell className="text-xs text-right text-red-600">R$ {formatarNumero(prod.desconto)}</TableCell>
-                            <TableCell className="text-xs text-right font-semibold">R$ {formatarNumero(prod.valor_total)}</TableCell>
                             <TableCell>
-                              <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoverProduto(prod.produto_id)} className="h-6 w-6">
-                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                  <DropdownMenuItem onClick={() => handleEditarProduto(idx)} className="text-xs">
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleRemoverProduto(prod.produto_id)} className="text-xs text-red-600">
+                                    Remover
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
+                            <TableCell className="text-xs font-medium">{prod.produto_nome}</TableCell>
+                            <TableCell className="text-xs text-right">{formatarNumero(prod.quantidade)}</TableCell>
+                            <TableCell className="text-xs text-right">{formatarMoeda(prod.quantidade * prod.valor_unitario)}</TableCell>
+                            <TableCell className="text-xs text-right text-red-600">{formatarMoeda(prod.desconto)}</TableCell>
+                            <TableCell className="text-xs text-right font-semibold text-emerald-700">{formatarMoeda(prod.valor_total)}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{prod.unidade_medida || '-'}</TableCell>
                           </TableRow>
                         ))}
-                        <TableRow className="bg-slate-50 font-semibold">
-                          <TableCell colSpan={5} className="text-xs text-right">Subtotal:</TableCell>
-                          <TableCell className="text-xs text-right">{formatarMoeda(subtotalGeral)}</TableCell>
-                          <TableCell className="text-xs text-right text-red-600">{formatarMoeda(descontoTotal)}</TableCell>
-                          <TableCell className="text-xs text-right">{formatarMoeda(valorTotalGeral)}</TableCell>
-                          <TableCell></TableCell>
+                        <TableRow>
+                          <TableCell colSpan={7} className="p-2">
+                            <AutocompleteGenerico
+                              items={produtos}
+                              value={produtoAtual.produto_id}
+                              onChange={(v) => setProdutoAtual({...produtoAtual, produto_id: v})}
+                              placeholder="Buscar produto..."
+                              displayField="nome_produto"
+                              searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                              renderSubtext={(item) => item.codigo_interno}
+                            />
+                          </TableCell>
                         </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {produtosLista.length > 0 && produtoAtual.produto_id && (
+                  <Card className="mt-3 bg-slate-50 border-slate-300">
+                    <CardContent className="p-3">
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quantidade *</Label>
+                          <Input 
+                            value={produtoAtual.quantidade} 
+                            onChange={(e) => setProdutoAtual({...produtoAtual, quantidade: e.target.value})} 
+                            placeholder="0,00" 
+                            className="h-8 text-xs" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Valor Unitário</Label>
+                          <Input 
+                            value={produtoAtual.valor_unitario} 
+                            onChange={(e) => setProdutoAtual({...produtoAtual, valor_unitario: e.target.value})} 
+                            placeholder="0,00" 
+                            className="h-8 text-xs" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Desconto</Label>
+                          <Input 
+                            value={produtoAtual.desconto} 
+                            onChange={(e) => setProdutoAtual({...produtoAtual, desconto: e.target.value})} 
+                            placeholder="0,00" 
+                            className="h-8 text-xs" 
+                          />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-8 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700">
+                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            Confirmar
+                          </Button>
+                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)} className="h-8 w-8">
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {produtosLista.length > 0 && (
+                  <Card className="mt-3 bg-blue-50 border-blue-200">
+                    <CardContent className="p-3">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Total:</span>
+                          <span className="font-bold">{formatarMoeda(subtotalGeral)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Desconto:</span>
+                          <span className="font-bold text-red-600">{formatarMoeda(descontoTotal)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Líquido:</span>
+                          <span className="font-bold text-emerald-700">{formatarMoeda(valorTotalGeral)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
 
               <div className="space-y-1">
                 <Label className="text-xs">Observações</Label>
-                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES ADICIONAIS..." className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
+                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="Observações Adicionais..." className="text-xs" rows={2} />
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
@@ -497,9 +627,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         </Card>
       </motion.div>
 
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { const local = locais.find(l => l.id === id); if (local) { if (!formData.local_estoque) handleChange('local_estoque', local.nome); } setShowDialogLocal(false); }} />
-      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
-      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { setProdutoAtual({...produtoAtual, produto_id: id}); setShowDialogProduto(false); }} />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_mov'] }); const local = locais.find(l => l.id === id); if (local && !formData.local_estoque) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_mov'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
+      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['produtos'] }); setProdutoAtual({...produtoAtual, produto_id: id}); setShowDialogProduto(false); }} />
     </>
   );
 }
