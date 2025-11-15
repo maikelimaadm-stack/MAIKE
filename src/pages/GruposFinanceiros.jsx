@@ -287,8 +287,8 @@ export default function GruposFinanceiros() {
   const gruposParaSelect = grupos.filter(g => g.tipo === formData.tipo && g.nivel === 1);
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Grupos Financeiros</h1>
           <p className="text-xs text-slate-600">Estrutura hierárquica de grupos</p>
@@ -309,25 +309,27 @@ export default function GruposFinanceiros() {
 
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-emerald-200 bg-emerald-50">
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm">{editingItem ? 'Editar' : 'Novo'} Grupo Financeiro</CardTitle>
+          <Card className="shadow-sm border-slate-300 bg-white">
+            <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+              <CardTitle className="text-sm font-semibold text-slate-900">
+                {editingItem ? 'Editar' : 'Novo'} Grupo Financeiro
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-3">
+            <CardContent className="p-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <Label className="text-xs">Código *</Label>
                     <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="1.1" className="h-8 text-xs" />
                   </div>
-                  <div className="space-y-1.5 col-span-2">
+                  <div className="col-span-2 space-y-1">
                     <Label className="text-xs">Descrição *</Label>
                     <Input value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} placeholder="DESCRIÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
                     <Label className="text-xs">Tipo *</Label>
                     <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v, grupo_pai_id: "" })}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -337,7 +339,7 @@ export default function GruposFinanceiros() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="col-span-2 space-y-1">
                     <Label className="text-xs">Grupo Pai (Opcional)</Label>
                     <Select value={formData.grupo_pai_id} onValueChange={(v) => setFormData({ ...formData, grupo_pai_id: v })}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhum (raiz)" /></SelectTrigger>
@@ -350,13 +352,11 @@ export default function GruposFinanceiros() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); }} size="sm" className="h-8 text-xs">
-                    <X className="w-3 h-3 mr-1" />
                     Cancelar
                   </Button>
                   <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-                    <Save className="w-3 h-3 mr-1" />
                     Salvar
                   </Button>
                 </div>
