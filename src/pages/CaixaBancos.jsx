@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Wallet, Plus, Edit, Trash2, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getEmpresaSelecionada } from "@/Layout";
@@ -143,8 +143,6 @@ export default function CaixaBancos() {
     });
   };
 
-  const saldoTotal = contas.filter(c => c.ativo).reduce((sum, c) => sum + (c.saldo_atual || 0), 0);
-
   return (
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
@@ -152,35 +150,10 @@ export default function CaixaBancos() {
           <h1 className="text-2xl font-bold text-slate-800">Caixa & Bancos</h1>
           <p className="text-sm text-slate-600">Gerencie contas bancárias e caixa</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Plus className="w-4 h-4" />
           Nova Conta
         </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-600">Saldo Total</p>
-              <p className="text-lg font-bold text-slate-900">{formatarMoeda(saldoTotal)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-600">Contas Ativas</p>
-              <p className="text-lg font-bold text-slate-900">{contas.filter(c => c.ativo).length}</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <AnimatePresence>
@@ -270,7 +243,7 @@ export default function CaixaBancos() {
         )}
       </AnimatePresence>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm border-slate-300">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50">
@@ -291,12 +264,12 @@ export default function CaixaBancos() {
               ) : (
                 contas.map((conta) => (
                   <TableRow key={conta.id} className="hover:bg-slate-50">
-                    <TableCell className="text-xs"><Badge variant="outline">{conta.tipo}</Badge></TableCell>
+                    <TableCell className="text-xs"><Badge variant="outline" className="text-xs">{conta.tipo}</Badge></TableCell>
                     <TableCell className="text-xs font-medium">{conta.titular}</TableCell>
                     <TableCell className="text-xs text-slate-600">{conta.banco} {conta.agencia && `• ${conta.agencia}`} {conta.numero && `• ${conta.numero}`}</TableCell>
                     <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(conta.saldo_atual || 0)}</TableCell>
                     <TableCell className="text-center">
-                      <Badge className={conta.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}>
+                      <Badge className={`text-xs ${conta.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                         {conta.ativo ? 'Ativa' : 'Inativa'}
                       </Badge>
                     </TableCell>

@@ -547,15 +547,15 @@ export default function LancamentoFinanceiro() {
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Lançamento Financeiro</h1>
-              <p className="text-sm text-slate-600">Contas a pagar e receber</p>
+              <h1 className="text-xl font-bold text-slate-900">Lançamento Financeiro</h1>
+              <p className="text-xs text-slate-600">Contas a pagar e receber</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-9 gap-1.5">
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
                 <Download className="w-4 h-4" />
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-9 gap-1.5 bg-slate-700 hover:bg-slate-800">
+              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-4 h-4" />
                 Novo Lançamento
               </Button>
@@ -563,9 +563,9 @@ export default function LancamentoFinanceiro() {
           </div>
 
           <Tabs value={abaAtiva} onValueChange={(v) => { setAbaAtiva(v); setTipoLancamento(v === "pagar" ? "Pagar" : "Receber"); }}>
-            <TabsList className="grid w-full max-w-md grid-cols-2 h-10 bg-slate-100">
-              <TabsTrigger value="pagar">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
-              <TabsTrigger value="receber">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-8 bg-slate-100">
+              <TabsTrigger value="pagar" className="text-xs">Contas a Pagar ({lancamentosPagar.length})</TabsTrigger>
+              <TabsTrigger value="receber" className="text-xs">Contas a Receber ({lancamentosReceber.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pagar" className="mt-4">

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { getEmpresaSelecionada } from "@/Layout";
@@ -159,8 +159,8 @@ export default function AtivosFixos() {
           <h1 className="text-2xl font-bold text-slate-800">Ativos Fixos</h1>
           <p className="text-sm text-slate-600">Gerencie veículos, máquinas e equipamentos</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Plus className="w-4 h-4" />
           Novo Ativo
         </Button>
       </div>
@@ -272,7 +272,7 @@ export default function AtivosFixos() {
         )}
       </AnimatePresence>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm border-slate-300">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50">
@@ -293,12 +293,12 @@ export default function AtivosFixos() {
               ) : (
                 ativos.map((ativo) => (
                   <TableRow key={ativo.id} className="hover:bg-slate-50">
-                    <TableCell className="text-xs"><Badge variant="outline">{ativo.tipo}</Badge></TableCell>
+                    <TableCell className="text-xs"><Badge variant="outline" className="text-xs">{ativo.tipo}</Badge></TableCell>
                     <TableCell className="text-xs font-medium">{ativo.descricao}</TableCell>
                     <TableCell className="text-xs text-slate-600">{ativo.marca} {ativo.modelo}</TableCell>
                     <TableCell className="text-right font-mono text-xs font-semibold">{formatarMoeda(ativo.valor_atual || 0)}</TableCell>
                     <TableCell className="text-center">
-                      <Badge className={ativo.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}>
+                      <Badge className={`text-xs ${ativo.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                         {ativo.status}
                       </Badge>
                     </TableCell>
