@@ -39,11 +39,6 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-};
-
 const TIPOS_DETALHADOS = {
   'Entrada': ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Devolução de Cliente', 'Doação Recebida', 'Bonificação', 'Produção', 'Importação', 'Transferência Recebida', 'Acerto de Estoque', 'Outros'],
   'Saída': ['Venda', 'Venda à Vista', 'Venda a Prazo', 'Devolução ao Fornecedor', 'Doação', 'Perda', 'Quebra', 'Consumo Interno', 'Produção', 'Transferência Enviada', 'Acerto de Estoque', 'Outros'],
@@ -69,15 +64,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     cliente_nome: initialData?.cliente_nome || "",
     centro_custo_id: initialData?.centro_custo_id || "",
     motivo_movimentacao: initialData?.motivo_movimentacao || "",
-    observacoes: initialData?.observacoes || ""
-  });
-
-  const [produtosLista, setProdutosLista] = useState([]);
-  const [produtoAtual, setProdutoAtual] = useState({
-    produto_id: "",
-    quantidade: "",
-    valor_unitario: "",
-    desconto: "0,00"
+    observacoes: initialData?.observacoes || "",
+    produtos_selecionados: []
   });
 
   const [showDialogLocal, setShowDialogLocal] = useState(false);
@@ -120,61 +108,53 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   };
 
   const handleAdicionarProduto = () => {
-    if (!produtoAtual.produto_id || !produtoAtual.quantidade) {
-      toast.error('Selecione um produto e informe a quantidade!');
-      return;
-    }
-
-    const produto = produtos.find(p => p.id === produtoAtual.produto_id);
-    const jaExiste = produtosLista.find(p => p.produto_id === produtoAtual.produto_id);
-
-    if (jaExiste) {
-      toast.error('Produto já adicionado à lista!');
-      return;
-    }
-
-    const quantidade = parseNumero(produtoAtual.quantidade);
-    const valorUnitario = produtoAtual.valor_unitario ? parseNumero(produtoAtual.valor_unitario) : 0;
-    const desconto = produtoAtual.desconto ? parseNumero(produtoAtual.desconto) : 0;
-    const subtotal = quantidade * valorUnitario;
-    const valorTotal = subtotal - desconto;
-
-    const novoProduto = {
-      produto_id: produtoAtual.produto_id,
-      produto_nome: produto?.nome_produto,
-      produto_codigo: produto?.codigo_interno,
-      unidade_medida: produto?.unidade_medida,
-      quantidade,
-      valor_unitario: valorUnitario,
-      desconto,
-      valor_total: valorTotal
-    };
-
-    setProdutosLista([...produtosLista, novoProduto]);
-    setProdutoAtual({ produto_id: "", quantidade: "", valor_unitario: "", desconto: "0,00" });
-    toast.success('Produto adicionado!');
+    setFormData(prev => ({
+      ...prev,
+      produtos_selecionados: [...prev.produtos_selecionados, { produto_id: "", produto_nome: "", quantidade: "", valor_total: "", desconto_item: "0,00" }]
+    }));
   };
 
-  const handleEditarProduto = (index) => {
-    const produto = produtosLista[index];
-    setProdutoAtual({
-      produto_id: produto.produto_id,
-      quantidade: formatarNumero(produto.quantidade),
-      valor_unitario: formatarNumero(produto.valor_unitario),
-      desconto: formatarNumero(produto.desconto)
-    });
-    handleRemoverProduto(produto.produto_id);
+  const handleRemoverProduto = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      produtos_selecionados: prev.produtos_selecionados.filter((_, i) => i !== index)
+    }));
   };
 
-  const handleRemoverProduto = (produto_id) => {
-    setProdutosLista(produtosLista.filter(p => p.produto_id !== produto_id));
+  const handleAtualizarProduto = (index, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      produtos_selecionados: prev.produtos_selecionados.map((p, i) => {
+        if (i === index) {
+          const updated = { ...p, [campo]: valor };
+
+          if (campo === 'produto_id') {
+            const produto = produtos.find(prod => prod.id === valor);
+            if (produto) {
+              updated.produto_nome = produto.nome_produto;
+              updated.unidade = produto.unidade_medida;
+            }
+          }
+          return updated;
+        }
+        return p;
+      })
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.tipo_movimentacao || produtosLista.length === 0 || !formData.tipo_detalhado || !formData.motivo_movimentacao) {
+    if (!formData.tipo_movimentacao || formData.produtos_selecionados.length === 0 || !formData.tipo_detalhado || !formData.motivo_movimentacao) {
       toast.error('Preencha todos os campos obrigatórios e adicione pelo menos um produto!');
+      return;
+    }
+
+    const produtosIncompletos = formData.produtos_selecionados.filter(p =>
+      !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
+    );
+    if (produtosIncompletos.length > 0) {
+      toast.error('Preencha todos os campos dos produtos!');
       return;
     }
 
@@ -193,9 +173,33 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
+    if (formData.tipo_movimentacao === 'Entrada' && !formData.fornecedor_id) {
+      toast.error('Selecione o fornecedor!');
+      return;
+    }
+
     const centro = centros.find(c => c.id === formData.centro_custo_id);
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
     const empresaDestino = empresas.find(e => e.id === formData.empresa_destino_id);
+
+    const produtosProcessados = formData.produtos_selecionados.map(p => {
+      const qtd = parseNumero(p.quantidade);
+      const totalGross = parseNumero(p.valor_total);
+      const desconto = parseNumero(p.desconto_item || "0");
+      const valorLiquido = totalGross - desconto;
+      const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0;
+      
+      return {
+        produto_id: p.produto_id,
+        produto_nome: p.produto_nome,
+        produto_codigo: p.produto_codigo,
+        unidade_medida: p.unidade,
+        quantidade: qtd,
+        valor_unitario: valorUnitario,
+        desconto: desconto,
+        valor_total: valorLiquido
+      };
+    });
 
     const dadosComuns = {
       tipo_movimentacao: formData.tipo_movimentacao,
@@ -222,7 +226,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       status: 'Ativa'
     };
 
-    onSubmit({ ...dadosComuns, produtos: produtosLista });
+    onSubmit({ ...dadosComuns, produtos: produtosProcessados });
   };
 
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
@@ -233,9 +237,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const mostrarLocalDestino = formData.tipo_movimentacao === 'Transferência';
   const mostrarEmpresaDestino = formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas';
 
-  const valorTotalGeral = produtosLista.reduce((acc, p) => acc + p.valor_total, 0);
-  const descontoTotal = produtosLista.reduce((acc, p) => acc + p.desconto, 0);
-  const subtotalGeral = produtosLista.reduce((acc, p) => acc + (p.quantidade * p.valor_unitario), 0);
+  const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
+    const total = parseNumero(p.valor_total || "0");
+    const desc = parseNumero(p.desconto_item || "0");
+    return sum + (total - desc);
+  }, 0);
+
+  const totalProdutosBruto = formData.produtos_selecionados.reduce((sum, p) => {
+    return sum + parseNumero(p.valor_total || "0");
+  }, 0);
+
+  const totalDescontos = formData.produtos_selecionados.reduce((sum, p) => {
+    return sum + parseNumero(p.desconto_item || "0");
+  }, 0);
 
   return (
     <>
@@ -307,8 +321,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   <div className="flex gap-2">
                     <AutocompleteGenerico
                       items={locais}
-                      value={formData.local_estoque}
-                      onChange={(v) => handleChange('local_estoque', v)}
+                      value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
+                      onChange={(id) => {
+                        const local = locais.find(l => l.id === id);
+                        handleChange('local_estoque', local?.nome || "");
+                      }}
                       placeholder="Selecione o local"
                       displayField="nome"
                       searchFields={["nome", "descricao"]}
@@ -326,8 +343,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <div className="flex gap-2">
                       <AutocompleteGenerico
                         items={locais}
-                        value={formData.local_destino}
-                        onChange={(v) => handleChange('local_destino', v)}
+                        value={locais.find(l => l.nome === formData.local_destino)?.id || ""}
+                        onChange={(id) => {
+                          const local = locais.find(l => l.id === id);
+                          handleChange('local_destino', local?.nome || "");
+                        }}
                         placeholder="Selecione o local"
                         displayField="nome"
                         searchFields={["nome", "descricao"]}
@@ -360,8 +380,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <div className="flex gap-2">
                         <AutocompleteGenerico
                           items={locaisEmpresaDestino}
-                          value={formData.local_destino}
-                          onChange={(v) => handleChange('local_destino', v)}
+                          value={locaisEmpresaDestino.find(l => l.nome === formData.local_destino)?.id || ""}
+                          onChange={(id) => {
+                            const local = locaisEmpresaDestino.find(l => l.id === id);
+                            handleChange('local_destino', local?.nome || "");
+                          }}
                           placeholder="Selecione o local"
                           displayField="nome"
                           searchFields={["nome", "descricao"]}
@@ -466,146 +489,112 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </Button>
                 </div>
 
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      <TableHead className="w-8 text-xs"></TableHead>
-                      <TableHead className="text-xs">Produto *</TableHead>
-                      <TableHead className="text-xs text-right w-24">Qtd *</TableHead>
-                      <TableHead className="text-xs text-right w-28">Total *</TableHead>
-                      <TableHead className="text-xs text-right w-28">Desc.</TableHead>
-                      <TableHead className="text-xs text-right w-28">Líquido</TableHead>
-                      <TableHead className="text-xs w-12">UN</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtosLista.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-xs py-8 text-slate-500">
-                          <AutocompleteGenerico
-                            items={produtos}
-                            value={produtoAtual.produto_id}
-                            onChange={(v) => setProdutoAtual({...produtoAtual, produto_id: v})}
-                            placeholder="Buscar produto..."
-                            displayField="nome_produto"
-                            searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                            renderSubtext={(item) => item.codigo_interno}
-                            className="max-w-md mx-auto"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {produtosLista.map((prod, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
-                                  <DropdownMenuItem onClick={() => handleEditarProduto(idx)} className="text-xs">
-                                    Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleRemoverProduto(prod.produto_id)} className="text-xs text-red-600">
-                                    Remover
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                            <TableCell className="text-xs font-medium">{prod.produto_nome}</TableCell>
-                            <TableCell className="text-xs text-right">{formatarNumero(prod.quantidade)}</TableCell>
-                            <TableCell className="text-xs text-right">{formatarMoeda(prod.quantidade * prod.valor_unitario)}</TableCell>
-                            <TableCell className="text-xs text-right text-red-600">{formatarMoeda(prod.desconto)}</TableCell>
-                            <TableCell className="text-xs text-right font-semibold text-emerald-700">{formatarMoeda(prod.valor_total)}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{prod.unidade_medida || '-'}</TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell colSpan={7} className="p-2">
-                            <AutocompleteGenerico
-                              items={produtos}
-                              value={produtoAtual.produto_id}
-                              onChange={(v) => setProdutoAtual({...produtoAtual, produto_id: v})}
-                              placeholder="Buscar produto..."
-                              displayField="nome_produto"
-                              searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                              renderSubtext={(item) => item.codigo_interno}
-                            />
-                          </TableCell>
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="border rounded overflow-auto max-h-60 bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-8 text-xs"></TableHead>
+                          <TableHead className="w-[180px] text-xs">Produto *</TableHead>
+                          <TableHead className="text-right w-[80px] text-xs">Qtd *</TableHead>
+                          <TableHead className="text-right w-[90px] text-xs">Total *</TableHead>
+                          <TableHead className="text-right w-[80px] text-xs">Desc.</TableHead>
+                          <TableHead className="text-right w-[90px] text-xs">Líquido</TableHead>
+                          <TableHead className="text-center w-[50px] text-xs">UN</TableHead>
                         </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {formData.produtos_selecionados.map((produto, index) => {
+                          const total = parseNumero(produto.valor_total || "0");
+                          const desc = parseNumero(produto.desconto_item || "0");
+                          const liquido = total - desc;
+                          const qtd = parseNumero(produto.quantidade || "0");
+                          const unitario = qtd > 0 ? (liquido / qtd) : 0;
 
-                {produtosLista.length > 0 && produtoAtual.produto_id && (
-                  <Card className="mt-3 bg-slate-50 border-slate-300">
-                    <CardContent className="p-3">
-                      <div className="grid grid-cols-4 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Quantidade *</Label>
-                          <Input 
-                            value={produtoAtual.quantidade} 
-                            onChange={(e) => setProdutoAtual({...produtoAtual, quantidade: e.target.value})} 
-                            placeholder="0,00" 
-                            className="h-8 text-xs" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Valor Unitário</Label>
-                          <Input 
-                            value={produtoAtual.valor_unitario} 
-                            onChange={(e) => setProdutoAtual({...produtoAtual, valor_unitario: e.target.value})} 
-                            placeholder="0,00" 
-                            className="h-8 text-xs" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Desconto</Label>
-                          <Input 
-                            value={produtoAtual.desconto} 
-                            onChange={(e) => setProdutoAtual({...produtoAtual, desconto: e.target.value})} 
-                            placeholder="0,00" 
-                            className="h-8 text-xs" 
-                          />
-                        </div>
-                        <div className="flex items-end gap-2">
-                          <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-8 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700">
-                            <Plus className="w-3.5 h-3.5 mr-1" />
-                            Confirmar
-                          </Button>
-                          <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)} className="h-8 w-8">
-                            <Plus className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {produtosLista.length > 0 && (
-                  <Card className="mt-3 bg-blue-50 border-blue-200">
-                    <CardContent className="p-3">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Total:</span>
-                          <span className="font-bold">{formatarMoeda(subtotalGeral)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Desconto:</span>
-                          <span className="font-bold text-red-600">{formatarMoeda(descontoTotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Líquido:</span>
-                          <span className="font-bold text-emerald-700">{formatarMoeda(valorTotalGeral)}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          return (
+                            <TableRow key={index}>
+                              <TableCell className="w-8">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start">
+                                    <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
+                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                              <TableCell className="w-[180px]">
+                                <AutocompleteGenerico
+                                  items={produtos}
+                                  value={produto.produto_id}
+                                  onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                                  placeholder="Buscar produto..."
+                                  displayField="nome_produto"
+                                  searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                                  renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
+                                  className="w-full"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[80px]">
+                                <Input 
+                                  value={produto.quantidade} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'quantidade', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-right h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="w-[90px]">
+                                <Input 
+                                  value={produto.valor_total} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'valor_total', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-right h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="w-[80px]">
+                                <Input 
+                                  value={produto.desconto_item || "0,00"} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'desconto_item', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-right h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="text-right w-[90px]">
+                                <div className="font-mono font-semibold text-xs">{formatarMoeda(liquido)}</div>
+                                <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                              </TableCell>
+                              <TableCell className="text-center w-[50px]">
+                                <span className="text-xs font-mono">{produto.unidade || '-'}</span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {formData.produtos_selecionados.length > 0 && (
+                          <TableRow className="bg-slate-100 font-semibold border-t-2">
+                            <TableCell colSpan={3} className="text-xs">TOTAL</TableCell>
+                            <TableCell className="text-right font-mono text-xs">{formatarMoeda(totalProdutosBruto)}</TableCell>
+                            <TableCell className="text-right font-mono text-xs text-red-600">{formatarMoeda(totalDescontos)}</TableCell>
+                            <TableCell className="text-right font-mono text-xs text-emerald-700 font-bold">{formatarMoeda(totalProdutosLiquido)}</TableCell>
+                            <TableCell colSpan={1}></TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </div>
 
@@ -629,7 +618,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
       <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_mov'] }); const local = locais.find(l => l.id === id); if (local && !formData.local_estoque) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_mov'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
-      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['produtos'] }); setProdutoAtual({...produtoAtual, produto_id: id}); setShowDialogProduto(false); }} />
+      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['produtos'] }); setShowDialogProduto(false); }} />
     </>
   );
 }
