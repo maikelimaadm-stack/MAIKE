@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, Users, Settings, CheckSquare, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -24,86 +23,55 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'numero', label: 'Nº', default: true },
-  { id: 'nome', label: 'Nome', default: true },
-  { id: 'tipo', label: 'Tipo Pessoa', default: true },
-  { id: 'documento', label: 'CPF/CNPJ', default: true },
-  { id: 'telefone', label: 'Telefone', default: true },
-  { id: 'email', label: 'E-mail', default: true },
-  { id: 'cidade', label: 'Cidade', default: true },
-  { id: 'estado', label: 'Estado', default: false },
-  { id: 'observacoes', label: 'Observações', default: false },
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
+  { id: 'tipo', label: 'Tipo', default: true, sortable: true },
+  { id: 'nome', label: 'Nome', default: true, sortable: true },
+  { id: 'cpf_cnpj', label: 'CPF/CNPJ', default: true, sortable: false },
+  { id: 'telefone', label: 'Telefone', default: true, sortable: false },
+  { id: 'email', label: 'Email', default: false, sortable: false },
+  { id: 'cidade', label: 'Cidade', default: true, sortable: true },
+  { id: 'estado', label: 'UF', default: true, sortable: true },
 ];
 
-export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onPrint, isLoading }) {
+const ITEMS_PER_PAGE = 50;
+
+export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete, onPrint, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   
-  // Carregar configuração de colunas do localStorage
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    if (typeof window !== 'undefined') { // Ensure localStorage is available (client-side)
-      const saved = localStorage.getItem('colunas_fornecedores');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          // Filter out any IDs that are no longer available in COLUNAS_DISPONIVEIS
-          // and ensure all parsed IDs are valid.
-          const validParsed = parsed.filter(id => COLUNAS_DISPONIVEIS.some(c => c.id === id));
-          // If all saved columns are valid, use them. Otherwise, default.
-          if (validParsed.length === parsed.length && validParsed.length > 0) {
-            return validParsed;
-          }
-        } catch (error) {
-          console.error("Failed to parse 'colunas_fornecedores' from localStorage:", error);
-          // Fallback to default if parsing fails
-        }
+    const saved = localStorage.getItem('colunas_fornecedores');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
       }
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_fornecedores');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
   
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
-
-  const filteredFornecedores = fornecedores.filter(fornecedor => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      fornecedor.nome?.toLowerCase().includes(searchLower) ||
-      fornecedor.cidade?.toLowerCase().includes(searchLower) ||
-      fornecedor.cpf?.includes(searchLower) ||
-      fornecedor.cnpj?.includes(searchLower) ||
-      fornecedor.email?.toLowerCase().includes(searchLower) ||
-      fornecedor.numero_cadastro?.includes(searchLower)
-    );
-  });
-
-  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(filteredFornecedores.length / itemsPerPage);
-  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
-  const endIndex = itemsPerPage === -1 ? filteredFornecedores.length : startIndex + itemsPerPage;
-  const paginatedFornecedores = filteredFornecedores.slice(startIndex, endIndex);
-
-  const handleItemsPerPageChange = (value) => {
-    setItemsPerPage(value === 'all' ? -1 : parseInt(value));
-    setCurrentPage(1); // Reset to first page when items per page changes
-  };
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -111,14 +79,100 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
         ? prev.filter(id => id !== colunaId)
         : [...prev, colunaId];
       
-      // Salvar no localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('colunas_fornecedores', JSON.stringify(novasColunas));
-      }
+      localStorage.setItem('colunas_fornecedores', JSON.stringify(novasColunas));
       
       return novasColunas;
     });
   };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_fornecedores', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
+
+  const filteredFornecedores = fornecedores.filter(fornecedor => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      fornecedor.nome?.toLowerCase().includes(searchLower) ||
+      fornecedor.cpf?.toLowerCase().includes(searchLower) ||
+      fornecedor.cnpj?.toLowerCase().includes(searchLower) ||
+      fornecedor.cidade?.toLowerCase().includes(searchLower) ||
+      fornecedor.telefone?.toLowerCase().includes(searchLower) ||
+      fornecedor.email?.toLowerCase().includes(searchLower) ||
+      fornecedor.numero_cadastro?.toString().includes(searchLower)
+    );
+  });
+
+  const sortedFornecedores = [...filteredFornecedores].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aValue, bValue;
+
+    switch (sortField) {
+      case 'numero':
+        aValue = parseInt(a.numero_cadastro) || 0;
+        bValue = parseInt(b.numero_cadastro) || 0;
+        break;
+      case 'tipo':
+        aValue = a.tipo_pessoa;
+        bValue = b.tipo_pessoa;
+        break;
+      case 'nome':
+        aValue = a.nome;
+        bValue = b.nome;
+        break;
+      case 'cidade':
+        aValue = a.cidade || '';
+        bValue = b.cidade || '';
+        break;
+      case 'estado':
+        aValue = a.estado || '';
+        bValue = b.estado || '';
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedFornecedores.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedFornecedores = sortedFornecedores.slice(startIndex, endIndex);
 
   const toggleSelectAll = () => {
     if (selectedItems.length === paginatedFornecedores.length && paginatedFornecedores.length > 0) {
@@ -135,27 +189,24 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} cadastro(s) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
+    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} fornecedor(es) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
       setIsDeletingBulk(true);
       setDeleteProgress({ current: 0, total: selectedItems.length });
-
+      
       let deleted = 0;
       for (const id of selectedItems) {
         try {
-          await onDelete(id, true); // Assuming onDelete can handle an optional `isBulk` flag
+          await onDelete(id, true);
           deleted++;
           setDeleteProgress({ current: deleted, total: selectedItems.length });
         } catch (error) {
           console.error('Erro ao excluir:', error);
-          // Optionally, handle individual item deletion failure, e.g., show a toast.
         }
       }
-
-      // Give a small delay for UX before closing the dialog
+      
       setTimeout(() => {
         setIsDeletingBulk(false);
         setSelectedItems([]);
-        setShowBulkActions(false);
       }, 500);
     }
   };
@@ -165,201 +216,172 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
       const fornecedor = fornecedores.find(f => f.id === id);
       if (fornecedor) onPrint(fornecedor);
     });
-    setShowBulkActions(false);
   };
 
-  const deleteProgressPercentage = deleteProgress.total > 0
-    ? Math.round((deleteProgress.current / deleteProgress.total) * 100)
+  const deleteProgressPercentage = deleteProgress.total > 0 
+    ? Math.round((deleteProgress.current / deleteProgress.total) * 100) 
     : 0;
+
+  const renderCell = (coluna, fornecedor) => {
+    switch (coluna.id) {
+      case 'numero':
+        return <TableCell className="text-xs border-r border-slate-200">{fornecedor.numero_cadastro || '-'}</TableCell>;
+      case 'tipo':
+        return (
+          <TableCell className="border-r border-slate-200">
+            <Badge variant="outline" className={`text-xs ${fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-purple-50 text-purple-700 border-purple-300'}`}>
+              {fornecedor.tipo_pessoa}
+            </Badge>
+          </TableCell>
+        );
+      case 'nome':
+        return <TableCell className="text-xs font-semibold border-r border-slate-200">{fornecedor.nome}</TableCell>;
+      case 'cpf_cnpj':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{fornecedor.cpf || fornecedor.cnpj || '-'}</TableCell>;
+      case 'telefone':
+        return <TableCell className="text-xs border-r border-slate-200">{fornecedor.telefone || '-'}</TableCell>;
+      case 'email':
+        return <TableCell className="text-xs border-r border-slate-200">{fornecedor.email || '-'}</TableCell>;
+      case 'cidade':
+        return <TableCell className="text-xs border-r border-slate-200">{fornecedor.cidade || '-'}</TableCell>;
+      case 'estado':
+        return <TableCell className="text-xs border-r border-slate-200">{fornecedor.estado || '-'}</TableCell>;
+      default:
+        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+    }
+  };
 
   return (
     <>
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle className="flex items-center gap-3 text-slate-900 text-sm">
-              Fornecedores/Clientes ({filteredFornecedores.length})
-              {selectedItems.length > 0 && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                  {selectedItems.length} selecionados
-                </Badge>
-              )}
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Fornecedores/Clientes ({fornecedores.length})
             </CardTitle>
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex gap-2 items-center">
               {selectedItems.length > 0 && (
-                <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700 h-8 text-xs">
-                      <CheckSquare className="w-4 h-4" />
-                      Ações em Massa
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel className="text-xs">Ações para {selectedItems.length} itens</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem onClick={handleBulkPrint} className="text-xs">
-                      <Printer className="w-4 h-4 mr-2" />
-                      Imprimir Todos
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600 text-xs">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir Todos
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {selectedItems.length} selecionado(s)
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkPrint} className="text-xs">
+                        Imprimir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                        Excluir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
+                        Limpar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               )}
-
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-300 h-8 text-xs"
-                />
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300 h-8 w-8">
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                  <DropdownMenuLabel className="text-xs">Colunas Visíveis</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {COLUNAS_DISPONIVEIS.map((coluna) => (
-                    <DropdownMenuCheckboxItem
-                      key={coluna.id}
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onCheckedChange={() => toggleColuna(coluna.id)}
-                      className="text-xs"
-                    >
-                      {coluna.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-3.5 h-3.5" />
+                Colunas
+              </Button>
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="w-12 text-xs">
+                <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-8 text-xs border-r border-slate-200">
                     <Checkbox
                       checked={selectedItems.length === paginatedFornecedores.length && paginatedFornecedores.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  {colunasVisiveis.includes('numero') && <TableHead className="font-semibold text-slate-700 text-xs">Nº</TableHead>}
-                  {colunasVisiveis.includes('nome') && <TableHead className="font-semibold text-slate-700 text-xs">Nome</TableHead>}
-                  {colunasVisiveis.includes('tipo') && <TableHead className="font-semibold text-slate-700 text-xs">Tipo</TableHead>}
-                  {colunasVisiveis.includes('documento') && <TableHead className="font-semibold text-slate-700 text-xs">CPF/CNPJ</TableHead>}
-                  {colunasVisiveis.includes('telefone') && <TableHead className="font-semibold text-slate-700 text-xs">Telefone</TableHead>}
-                  {colunasVisiveis.includes('email') && <TableHead className="font-semibold text-slate-700 text-xs">E-mail</TableHead>}
-                  {colunasVisiveis.includes('cidade') && <TableHead className="font-semibold text-slate-700 text-xs">Cidade</TableHead>}
-                  {colunasVisiveis.includes('estado') && <TableHead className="font-semibold text-slate-700 text-xs">Estado</TableHead>}
-                  {colunasVisiveis.includes('observacoes') && <TableHead className="font-semibold text-slate-700 text-xs">Observações</TableHead>}
+                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  {colunasOrdenadas.map((coluna) => {
+                    return (
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
+                      >
+                        <div className="flex items-center">
+                          {coluna.label}
+                          {coluna.sortable && getSortIcon(coluna.id)}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i} className="animate-pulse">
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-4"></div></TableCell>
-                        {colunasVisiveis.map((col, idx) => (
-                          <TableCell key={idx}><div className="h-4 bg-slate-200 rounded w-20"></div></TableCell>
-                        ))}
-                      </TableRow>
-                    ))
+                    <TableRow>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                    </TableRow>
                   ) : paginatedFornecedores.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <Users className="w-12 h-12" />
-                          <p className="text-sm font-medium">Nenhum cadastro encontrado</p>
-                          <p className="text-xs">
-                            {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando um novo fornecedor/cliente'}
-                          </p>
-                        </div>
-                      </TableCell>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhum fornecedor</TableCell>
                     </TableRow>
                   ) : (
                     paginatedFornecedores.map((fornecedor) => (
-                      <ContextMenu key={fornecedor.id}>
-                        <ContextMenuTrigger asChild>
-                          <motion.tr
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
-                          >
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedItems.includes(fornecedor.id)}
-                                onCheckedChange={() => toggleSelectItem(fornecedor.id)}
-                              />
-                            </TableCell>
-                            {colunasVisiveis.includes('numero') && (
-                              <TableCell className="font-bold text-slate-900">
-                                {fornecedor.numero_cadastro || '-'}
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('nome') && (
-                              <TableCell className="font-semibold text-slate-900">
-                                {fornecedor.nome}
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('tipo') && (
-                              <TableCell>
-                                <Badge className={`text-xs ${fornecedor.tipo_pessoa === 'Física' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-purple-100 text-purple-800 border-purple-300'}`}>
-                                  {fornecedor.tipo_pessoa}
-                                </Badge>
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('documento') && (
-                              <TableCell className="font-mono text-slate-700">
-                                {fornecedor.tipo_pessoa === 'Física' ? fornecedor.cpf || '-' : fornecedor.cnpj || '-'}
-                              </TableCell>
-                            )}
-                            {colunasVisiveis.includes('telefone') && (
-                              <TableCell className="text-slate-700">{fornecedor.telefone || '-'}</TableCell>
-                            )}
-                            {colunasVisiveis.includes('email') && (
-                              <TableCell className="text-slate-700">{fornecedor.email || '-'}</TableCell>
-                            )}
-                            {colunasVisiveis.includes('cidade') && (
-                              <TableCell className="text-slate-700">{fornecedor.cidade || '-'}</TableCell>
-                            )}
-                            {colunasVisiveis.includes('estado') && (
-                              <TableCell className="text-slate-700 uppercase">{fornecedor.estado || '-'}</TableCell>
-                            )}
-                            {colunasVisiveis.includes('observacoes') && (
-                              <TableCell className="text-slate-600 max-w-xs truncate">
-                                {fornecedor.observacoes || '-'}
-                              </TableCell>
-                            )}
-                          </motion.tr>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem onClick={() => onEdit(fornecedor)} className="text-xs">
-                            <Edit className="w-4 h-4 mr-2 text-blue-600" />
-                            Editar
-                          </ContextMenuItem>
-                          <ContextMenuItem onClick={() => onPrint(fornecedor)} className="text-xs">
-                            <Printer className="w-4 h-4 mr-2 text-green-600" />
-                            Imprimir Ficha
-                          </ContextMenuItem>
-                          <ContextMenuItem onClick={() => onDelete(fornecedor.id)} className="text-xs">
-                            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
-                            Excluir
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
+                      <motion.tr 
+                        key={fornecedor.id}
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        className="hover:bg-slate-50 transition-colors border-b"
+                      >
+                        <TableCell className="border-r border-slate-200">
+                          <Checkbox
+                            checked={selectedItems.includes(fornecedor.id)}
+                            onCheckedChange={() => toggleSelectItem(fornecedor.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center border-r border-slate-200">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => onEdit(fornecedor)} className="text-xs">
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onPrint(fornecedor)} className="text-xs">
+                                Imprimir Ficha
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => onDelete(fornecedor.id)} className="text-xs text-red-600">
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        {colunasOrdenadas.map(coluna => (
+                          <React.Fragment key={coluna.id}>
+                            {renderCell(coluna, fornecedor)}
+                          </React.Fragment>
+                        ))}
+                      </motion.tr>
                     ))
                   )}
                 </AnimatePresence>
@@ -367,65 +389,119 @@ export default function TabelaFornecedores({ fornecedores, onEdit, onDelete, onP
             </Table>
           </div>
 
-          {!isLoading && paginatedFornecedores.length > 0 && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span>Mostrar</span>
-                <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-24 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20" className="text-xs">20</SelectItem>
-                    <SelectItem value="50" className="text-xs">50</SelectItem>
-                    <SelectItem value="100" className="text-xs">100</SelectItem>
-                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span>por página</span>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
+              <div className="text-xs text-slate-600">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedFornecedores.length)} de {sortedFornecedores.length} registros
               </div>
-
-              {itemsPerPage !== -1 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronsLeft className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8">
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  
-                  <div className="flex items-center gap-2 px-3 text-xs">
-                    <span className="text-slate-700 font-medium">
-                      Pág {currentPage} de {totalPages}
-                    </span>
-                    <span className="text-slate-500">
-                      ({startIndex + 1}-{Math.min(endIndex, filteredFornecedores.length)} de {filteredFornecedores.length})
-                    </span>
-                  </div>
-
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="h-8 w-8">
-                    <ChevronsRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Anterior
+                </Button>
+                <span className="text-xs text-slate-600">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 text-xs"
+                >
+                  Próxima
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Modal de Progresso de Exclusão */}
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-red-600" />
-              Excluindo Cadastros
+              Excluindo Registros
             </DialogTitle>
             <DialogDescription>
-              Aguarde enquanto excluímos os cadastros selecionados...
+              Aguarde enquanto excluímos os registros selecionados...
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
