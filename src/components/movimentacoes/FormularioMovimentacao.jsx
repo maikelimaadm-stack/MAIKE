@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -140,40 +139,37 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-                <ArrowRightLeft className="w-5 h-5 text-white" />
-              </div>
+        <Card className="shadow-sm border-slate-300 bg-white">
+          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Tipo de Movimentação *</Label>
+          <CardContent className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo de Movimentação *</Label>
                   <Select value={formData.tipo_movimentacao} onValueChange={(v) => handleChange('tipo_movimentacao', v)} required>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Entrada">Entrada</SelectItem>
-                      <SelectItem value="Saída">Saída</SelectItem>
-                      <SelectItem value="Transferência">Transferência</SelectItem>
-                      <SelectItem value="Ajuste">Ajuste</SelectItem>
+                      <SelectItem value="Entrada" className="text-xs">Entrada</SelectItem>
+                      <SelectItem value="Saída" className="text-xs">Saída</SelectItem>
+                      <SelectItem value="Transferência" className="text-xs">Transferência</SelectItem>
+                      <SelectItem value="Ajuste" className="text-xs">Ajuste</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tipo Detalhado *</Label>
-                  <Input value={formData.tipo_detalhado} onChange={(e) => handleChange('tipo_detalhado', e.target.value)} placeholder="COMPRA, VENDA, ETC" className="uppercase" style={{ textTransform: 'uppercase' }} required />
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo Detalhado *</Label>
+                  <Input value={formData.tipo_detalhado} onChange={(e) => handleChange('tipo_detalhado', e.target.value)} placeholder="COMPRA, VENDA, ETC" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} required />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Produto *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Produto *</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={produtosOptions}
@@ -181,23 +177,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       onValueChange={(v) => handleChange('produto_id', v)}
                       placeholder="Selecione o produto"
                       searchPlaceholder="Buscar produto..."
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogProduto(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Quantidade *</Label>
-                  <Input value={formData.quantidade} onChange={(e) => handleChange('quantidade', e.target.value)} placeholder="0,00" required />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantidade *</Label>
+                  <Input value={formData.quantidade} onChange={(e) => handleChange('quantidade', e.target.value)} placeholder="0,00" className="h-8 text-xs" required />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Local Origem</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Local Origem</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={locaisOptions}
@@ -205,16 +201,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       onValueChange={(v) => handleChange('local_estoque_origem', v)}
                       placeholder="Selecione"
                       searchPlaceholder="Buscar local..."
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Local Destino</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Local Destino</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={locaisOptions}
@@ -222,23 +218,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       onValueChange={(v) => handleChange('local_estoque_destino', v)}
                       placeholder="Selecione"
                       searchPlaceholder="Buscar local..."
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Valor Unitário</Label>
-                  <Input value={formData.valor_unitario} onChange={(e) => handleChange('valor_unitario', e.target.value)} placeholder="0,00" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor Unitário</Label>
+                  <Input value={formData.valor_unitario} onChange={(e) => handleChange('valor_unitario', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Centro de Custo</Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={centrosOptions}
@@ -246,80 +242,79 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       onValueChange={(v) => handleChange('centro_custo_id', v)}
                       placeholder="Selecione"
                       searchPlaceholder="Buscar centro..."
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Tipo Documento</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo Documento</Label>
                   <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Nota Fiscal">Nota Fiscal</SelectItem>
-                      <SelectItem value="Recibo">Recibo</SelectItem>
-                      <SelectItem value="Pedido de Compra">Pedido de Compra</SelectItem>
-                      <SelectItem value="Ordem de Serviço">Ordem de Serviço</SelectItem>
-                      <SelectItem value="Sem Documento">Sem Documento</SelectItem>
+                      <SelectItem value="Nota Fiscal" className="text-xs">Nota Fiscal</SelectItem>
+                      <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                      <SelectItem value="Pedido de Compra" className="text-xs">Pedido de Compra</SelectItem>
+                      <SelectItem value="Ordem de Serviço" className="text-xs">Ordem de Serviço</SelectItem>
+                      <SelectItem value="Sem Documento" className="text-xs">Sem Documento</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Nº Documento</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data Documento</Label>
-                  <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} />
-                </div>
               </div>
 
-              {formData.tipo_movimentacao === 'Entrada' && (
-                <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <Combobox
-                    options={fornecedoresOptions}
-                    value={formData.fornecedor_id}
-                    onValueChange={(v) => handleChange('fornecedor_id', v)}
-                    placeholder="Selecione o fornecedor"
-                    searchPlaceholder="Buscar fornecedor..."
-                  />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nº Documento</Label>
+                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                 </div>
-              )}
 
-              {formData.tipo_movimentacao === 'Saída' && (
-                <div className="space-y-2">
-                  <Label>Cliente/Destinatário</Label>
-                  <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} />
+                <div className="space-y-1">
+                  <Label className="text-xs">Data Documento</Label>
+                  <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs" />
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label>Motivo da Movimentação *</Label>
-                <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="DESCREVA O MOTIVO" className="uppercase" style={{ textTransform: 'uppercase' }} required />
+                {formData.tipo_movimentacao === 'Entrada' && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fornecedor</Label>
+                    <Combobox
+                      options={fornecedoresOptions}
+                      value={formData.fornecedor_id}
+                      onValueChange={(v) => handleChange('fornecedor_id', v)}
+                      placeholder="Selecione o fornecedor"
+                      searchPlaceholder="Buscar fornecedor..."
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                )}
+
+                {formData.tipo_movimentacao === 'Saída' && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cliente/Destinatário</Label>
+                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES ADICIONAIS..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <div className="space-y-1">
+                <Label className="text-xs">Motivo da Movimentação *</Label>
+                <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="DESCREVA O MOTIVO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} required />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+              <div className="space-y-1">
+                <Label className="text-xs">Observações</Label>
+                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES ADICIONAIS..." className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
-                  <Save className="w-4 h-4" />
+                <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
                   {initialData?.id ? 'Atualizar' : 'Salvar'}
                 </Button>
               </div>
