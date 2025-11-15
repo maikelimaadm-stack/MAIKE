@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck, Eye } from "lucide-react";
+import { Edit, Trash2, Printer, Search, DollarSign, Settings, CheckSquare, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Truck, Eye, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,13 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -73,6 +80,8 @@ const COLUNAS_DISPONIVEIS = [
 
 export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDelete, onPrint, onLancarEntrega, isLoading }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -131,10 +140,17 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
   };
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === filteredCustos.length && filteredCustos.length > 0) {
-      setSelectedItems([]);
+    if (paginatedCustos.length === 0) return;
+
+    const currentPageItemIds = paginatedCustos.map(c => c.id);
+    const areAllOnPageSelected = currentPageItemIds.every(id => selectedItems.includes(id));
+
+    if (areAllOnPageSelected) {
+      setSelectedItems(prev => prev.filter(id => !currentPageItemIds.includes(id)));
     } else {
-      setSelectedItems(filteredCustos.map(c => c.id));
+      const newSelected = new Set(selectedItems);
+      currentPageItemIds.forEach(id => newSelected.add(id));
+      setSelectedItems(Array.from(newSelected));
     }
   };
 
@@ -277,6 +293,16 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
     return 0;
   });
 
+  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedCustos.length / itemsPerPage);
+  const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+  const endIndex = itemsPerPage === -1 ? sortedCustos.length : startIndex + itemsPerPage;
+  const paginatedCustos = sortedCustos.slice(startIndex, endIndex);
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value === 'all' ? -1 : parseInt(value));
+    setCurrentPage(1);
+  };
+
   const getStatusBadge = (status) => {
     const config = {
       'Pendente': 'bg-orange-100 text-orange-800 border-orange-300',
@@ -284,7 +310,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
       'Entregue': 'bg-green-100 text-green-800 border-green-300',
       'Cancelado': 'bg-red-100 text-red-800 border-red-300',
     };
-    return config[status] || config['Pendente'];
+    return config[status] || 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
   const deleteProgressPercentage = deleteProgress.total > 0 
@@ -293,19 +319,19 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
 
   return (
     <>
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
+            <CardTitle className="flex items-center gap-3 text-slate-900 text-sm">
               <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-white" />
               </div>
-              Lançamentos de Custos
-              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-                {filteredCustos.length} {filteredCustos.length === 1 ? 'lançamento' : 'lançamentos'}
+              Custos de Safra
+              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300 text-xs">
+                {filteredCustos.length}
               </Badge>
               {selectedItems.length > 0 && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
                   {selectedItems.length} selecionados
                 </Badge>
               )}
@@ -314,19 +340,19 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
               {selectedItems.length > 0 && (
                 <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
+                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700 h-8 text-xs">
                       <CheckSquare className="w-4 h-4" />
                       Ações em Massa
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs">Ações para {selectedItems.length} itens</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
+                    <DropdownMenuCheckboxItem onClick={handleBulkPrint} className="text-xs">
                       <Printer className="w-4 h-4 mr-2" />
                       Imprimir Todos
                     </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
+                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600 text-xs">
                       <Trash2 className="w-4 h-4 mr-2" />
                       Excluir Todos
                     </DropdownMenuCheckboxItem>
@@ -334,30 +360,31 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                 </DropdownMenu>
               )}
               
-              <div className="relative flex-1 md:w-80">
+              <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por fornecedor, produto, status..."
+                  placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
+                  className="pl-10 border-slate-300 h-8 text-xs"
                 />
               </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300 h-8 w-8">
                     <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs">Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (
                     <DropdownMenuCheckboxItem
                       key={coluna.id}
                       checked={colunasVisiveis.includes(coluna.id)}
                       onCheckedChange={() => toggleColuna(coluna.id)}
+                      className="text-xs"
                     >
                       {coluna.label}
                     </DropdownMenuCheckboxItem>
@@ -372,15 +399,15 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <Checkbox
-                      checked={selectedItems.length === sortedCustos.length && sortedCustos.length > 0}
+                      checked={paginatedCustos.length > 0 && paginatedCustos.every(item => selectedItems.includes(item.id))}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
                   {colunasVisiveis.includes('numero') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('numero')}
                     >
                       <div className="flex items-center">
@@ -391,7 +418,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('fornecedor') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('fornecedor')}
                     >
                       <div className="flex items-center">
@@ -402,7 +429,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('produto') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('produto')}
                     >
                       <div className="flex items-center">
@@ -413,7 +440,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('quantidade') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('quantidade')}
                     >
                       <div className="flex items-center justify-end">
@@ -424,7 +451,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('quantidade_entregue') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('quantidade_entregue')}
                     >
                       <div className="flex items-center justify-end">
@@ -435,7 +462,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('quantidade_restante') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('quantidade_restante')}
                     >
                       <div className="flex items-center justify-end">
@@ -445,11 +472,11 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                     </TableHead>
                   )}
                   {colunasVisiveis.includes('unidade') && (
-                    <TableHead className="font-semibold text-slate-700">UN</TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-xs">UN</TableHead>
                   )}
                   {colunasVisiveis.includes('valor_unitario') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('valor_unitario')}
                     >
                       <div className="flex items-center justify-end">
@@ -460,7 +487,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('valor_total') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 text-right cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('valor_total')}
                     >
                       <div className="flex items-center justify-end">
@@ -471,7 +498,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('prazo_entrega') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('prazo_entrega')}
                     >
                       <div className="flex items-center">
@@ -482,7 +509,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('data_entrega') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('data_entrega')}
                     >
                       <div className="flex items-center">
@@ -493,7 +520,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                   )}
                   {colunasVisiveis.includes('status') && (
                     <TableHead 
-                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                      className="font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 text-xs"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center">
@@ -503,12 +530,11 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                     </TableHead>
                   )}
                   {colunasVisiveis.includes('forma_pagamento') && (
-                    <TableHead className="font-semibold text-slate-700">Forma Pgto.</TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-xs">Forma Pgto.</TableHead>
                   )}
                   {colunasVisiveis.includes('observacoes') && (
-                    <TableHead className="font-semibold text-slate-700">Observações</TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-xs">Observações</TableHead>
                   )}
-                  {/* Remove the "Ações" column header as actions will be in the context menu */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -523,20 +549,20 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                         <TableCell><div className="h-8 bg-slate-200 rounded w-full"></div></TableCell>
                       </TableRow>
                     ))
-                  ) : sortedCustos.length === 0 ? (
+                  ) : paginatedCustos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12"> {/* Adjusted colspan */}
+                      <TableCell colSpan={colunasVisiveis.length + 1} className="text-center py-12">
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <DollarSign className="w-12 h-12" />
                           <p className="text-lg font-medium">Nenhum lançamento encontrado</p>
-                          <p className="text-sm">
+                          <p className="text-xs">
                             {searchTerm ? 'Tente ajustar sua busca' : 'Comece adicionando um novo lançamento'}
                           </p>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedCustos.map((custo) => {
+                    paginatedCustos.map((custo) => {
                       const qtdEntregue = custo.quantidade_entregue || 0;
                       const qtdRestante = custo.quantidade - qtdEntregue;
                       const percentualEntregue = (custo.quantidade > 0) ? (qtdEntregue / custo.quantidade) * 100 : 0;
@@ -548,7 +574,7 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
-                              className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                              className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
                             >
                               <TableCell>
                                 <Checkbox
@@ -565,15 +591,6 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                                 <TableCell className="font-semibold text-slate-900">
                                   <div className="flex items-center gap-2">
                                     {custo.fornecedor_nome}
-                                    {/* <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={(e) => { e.stopPropagation(); handleVerFornecedor(custo.id); }}
-                                      title="Ver detalhes do fornecedor"
-                                    >
-                                      <Eye className="w-3 h-3" />
-                                    </Button> */}
                                   </div>
                                 </TableCell>
                               )}
@@ -581,15 +598,6 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                                 <TableCell className="text-slate-700">
                                   <div className="flex items-center gap-2">
                                     {custo.produto_nome}
-                                    {/* <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={(e) => { e.stopPropagation(); handleVerHistoricoEntregas(custo.id); }}
-                                      title="Ver histórico de entregas"
-                                    >
-                                      <Eye className="w-3 h-3 text-green-600" />
-                                    </Button> */}
                                   </div>
                                 </TableCell>
                               )}
@@ -654,31 +662,30 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
                                   {custo.observacoes || '-'}
                                 </TableCell>
                               )}
-                              {/* Remove the individual action buttons */}
                             </motion.tr>
                           </ContextMenuTrigger>
                           <ContextMenuContent>
-                            <ContextMenuItem onClick={() => onLancarEntrega(custo)}>
+                            <ContextMenuItem onClick={() => onLancarEntrega(custo)} className="text-xs">
                               <Truck className="w-4 h-4 mr-2 text-orange-600" />
                               Lançar Entrega
                             </ContextMenuItem>
-                            <ContextMenuItem onClick={() => handleVerHistoricoEntregas(custo.id)}>
+                            <ContextMenuItem onClick={() => handleVerHistoricoEntregas(custo.id)} className="text-xs">
                               <Eye className="w-4 h-4 mr-2 text-green-600" />
                               Ver Histórico de Entregas
                             </ContextMenuItem>
-                            <ContextMenuItem onClick={() => handleVerFornecedor(custo.id)}>
+                            <ContextMenuItem onClick={() => handleVerFornecedor(custo.id)} className="text-xs">
                               <Eye className="w-4 h-4 mr-2 text-blue-600" />
                               Ver Fornecedor
                             </ContextMenuItem>
-                            <ContextMenuItem onClick={() => onEdit(custo)}>
+                            <ContextMenuItem onClick={() => onEdit(custo)} className="text-xs">
                               <Edit className="w-4 h-4 mr-2 text-blue-600" />
                               Editar
                             </ContextMenuItem>
-                            <ContextMenuItem onClick={() => onPrint(custo)}>
+                            <ContextMenuItem onClick={() => onPrint(custo)} className="text-xs">
                               <Printer className="w-4 h-4 mr-2 text-green-600" />
                               Imprimir
                             </ContextMenuItem>
-                            <ContextMenuItem onClick={() => onDelete(custo.id)}>
+                            <ContextMenuItem onClick={() => onDelete(custo.id)} className="text-xs">
                               <Trash2 className="w-4 h-4 mr-2 text-red-600" />
                               Excluir
                             </ContextMenuItem>
@@ -691,6 +698,53 @@ export default function TabelaCustos({ custos, fornecedores = [], onEdit, onDele
               </TableBody>
             </Table>
           </div>
+
+          {!isLoading && paginatedCustos.length > 0 && (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <span>Mostrar</span>
+                <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-24 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20" className="text-xs">20</SelectItem>
+                    <SelectItem value="50" className="text-xs">50</SelectItem>
+                    <SelectItem value="100" className="text-xs">100</SelectItem>
+                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span>por página</span>
+              </div>
+
+              {itemsPerPage !== -1 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="h-8 w-8">
+                    <ChevronsLeft className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-8 w-8">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-2 px-3 text-xs">
+                    <span className="text-slate-700 font-medium">
+                      Pág {currentPage} de {totalPages}
+                    </span>
+                    <span className="text-slate-500">
+                      ({startIndex + 1}-{Math.min(endIndex, sortedCustos.length)} de {sortedCustos.length})
+                    </span>
+                  </div>
+
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="h-8 w-8">
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="h-8 w-8">
+                    <ChevronsRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

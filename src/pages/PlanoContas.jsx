@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,7 +63,7 @@ export default function PlanoContas() {
     descricao: "",
     tipo: "Despesa",
     plano_pai_id: "",
-    aceita_lancamento: true
+    aceita_lancamento: false // Changed from true to false
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -97,7 +98,7 @@ export default function PlanoContas() {
       queryClient.invalidateQueries({ queryKey: ['planos_hierarquico'] });
       setShowForm(false);
       setEditingItem(null);
-      setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: true });
+      setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: false }); // Changed from true to false
       toast.success('✅ Plano de contas salvo!');
     },
   });
@@ -108,7 +109,7 @@ export default function PlanoContas() {
       queryClient.invalidateQueries({ queryKey: ['planos_hierarquico'] });
       setShowForm(false);
       setEditingItem(null);
-      setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: true });
+      setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: false }); // Changed from true to false
       toast.success('✅ Plano atualizado!');
     },
   });
@@ -309,7 +310,7 @@ export default function PlanoContas() {
               Inserir Padrão
             </Button>
           )}
-          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: true }); }} size="sm" className="gap-1 text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: false }); }} size="sm" className="gap-1 text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
             <Plus className="w-3.5 h-3.5" />
             Novo
           </Button>
