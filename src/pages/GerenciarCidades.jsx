@@ -364,49 +364,6 @@ export default function GerenciarCidades() {
     toast.success('Relatório de erros baixado!');
   };
 
-  const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => {
-      const novasColunas = prev.includes(colunaId)
-        ? prev.filter(id => id !== colunaId)
-        : [...prev, colunaId];
-      
-      localStorage.setItem('colunas_cidades', JSON.stringify(novasColunas));
-      
-      return novasColunas;
-    });
-  };
-
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    
-    const items = Array.from(colunasOrdem);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    
-    setColunasOrdem(items);
-    localStorage.setItem('colunas_ordem_cidades', JSON.stringify(items));
-  };
-
-  const colunasOrdenadas = colunasOrdem
-    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
-    .filter(c => c && colunasVisiveis.includes(c.id));
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const getSortIcon = (field) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 ml-1" />
-      : <ArrowDown className="w-3 h-3 ml-1" />;
-  };
-
   const cidadesFiltradas = cidades.filter(c => {
     const matchNome = !searchTerm || c.nome?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchEstado = !estadoFiltro || c.estado === estadoFiltro;
