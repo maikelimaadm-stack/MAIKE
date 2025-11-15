@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, Edit, Printer, Trash2, X, GripVertical } from "lucide-react";
+import { MoreVertical, Search, Settings, ArrowUpDown, ArrowUp, ArrowDown, Loader2, X, GripVertical } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -83,6 +83,8 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
   const [selectedItems, setSelectedItems] = useState([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
@@ -198,11 +200,16 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
     return 0;
   });
 
+  const totalPages = Math.ceil(sortedPesagens.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPesagens = sortedPesagens.slice(startIndex, endIndex);
+
   const toggleSelectAll = () => {
-    if (selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0) {
+    if (selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(sortedPesagens.map(p => p.id));
+      setSelectedItems(paginatedPesagens.map(p => p.id));
     }
   };
 
@@ -310,17 +317,14 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                       <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBulkPrint} className="text-xs">
-                        <Printer className="w-3.5 h-3.5 mr-2" />
                         Imprimir Todos
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
-                        <Trash2 className="w-3.5 h-3.5 mr-2" />
                         Excluir Todos
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
-                        <X className="w-3.5 h-3.5 mr-2" />
                         Limpar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -347,7 +351,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                 <TableRow className="bg-slate-50 border-b">
                   <TableHead className="w-8 text-xs border-r border-slate-200">
                     <Checkbox
-                      checked={selectedItems.length === sortedPesagens.length && sortedPesagens.length > 0}
+                      checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
@@ -374,12 +378,12 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     <TableRow>
                       <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
                     </TableRow>
-                  ) : sortedPesagens.length === 0 ? (
+                  ) : paginatedPesagens.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhuma pesagem</TableCell>
                     </TableRow>
                   ) : (
-                    sortedPesagens.map((pesagem) => (
+                    paginatedPesagens.map((pesagem) => (
                       <motion.tr 
                         key={pesagem.id}
                         initial={{ opacity: 0 }} 
@@ -402,16 +406,13 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
                               <DropdownMenuItem onClick={() => onEdit(pesagem)} className="text-xs">
-                                <Edit className="w-3.5 h-3.5 mr-2" />
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => onPrint(pesagem)} className="text-xs">
-                                <Printer className="w-3.5 h-3.5 mr-2" />
                                 Imprimir
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => onDelete(pesagem.id)} className="text-xs text-red-600">
-                                <Trash2 className="w-3.5 h-3.5 mr-2" />
                                 Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -429,6 +430,72 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
               </TableBody>
             </Table>
           </div>
+          
+          {sortedPesagens.length > 0 && (
+            <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-slate-200 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-600">Exibindo</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-7 text-xs border border-slate-300 rounded px-2"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                </select>
+                <span className="text-xs text-slate-600">
+                  de {sortedPesagens.length} registros
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="h-7 px-2 text-xs"
+                >
+                  Primeira
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 px-2 text-xs"
+                >
+                  Anterior
+                </Button>
+                <span className="text-xs text-slate-600 px-2">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 px-2 text-xs"
+                >
+                  Próxima
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="h-7 px-2 text-xs"
+                >
+                  Última
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
