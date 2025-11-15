@@ -27,58 +27,31 @@ const parseNumero = (str) => {
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return "R$ 0,00";
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 const TIPOS_DETALHADOS = {
-  'Entrada': [
-    'Compra',
-    'Compra à Vista',
-    'Compra a Prazo',
-    'Devolução de Cliente',
-    'Doação Recebida',
-    'Bonificação',
-    'Produção',
-    'Importação',
-    'Transferência Recebida',
-    'Acerto de Estoque',
-    'Outros'
-  ],
-  'Saída': [
-    'Venda',
-    'Venda à Vista',
-    'Venda a Prazo',
-    'Devolução ao Fornecedor',
-    'Doação',
-    'Perda',
-    'Quebra',
-    'Consumo Interno',
-    'Produção',
-    'Transferência Enviada',
-    'Acerto de Estoque',
-    'Outros'
-  ],
-  'Transferência': [
-    'Entre Locais',
-    'Entre Fazendas',
-    'Entre Filiais',
-    'Outros'
-  ],
-  'Ajuste': [
-    'Ajuste Positivo',
-    'Ajuste Negativo',
-    'Inventário',
-    'Correção',
-    'Outros'
-  ]
+  'Entrada': ['COMPRA', 'COMPRA À VISTA', 'COMPRA A PRAZO', 'DEVOLUÇÃO DE CLIENTE', 'DOAÇÃO RECEBIDA', 'BONIFICAÇÃO', 'PRODUÇÃO', 'IMPORTAÇÃO', 'TRANSFERÊNCIA RECEBIDA', 'ACERTO DE ESTOQUE', 'OUTROS'],
+  'Saída': ['VENDA', 'VENDA À VISTA', 'VENDA A PRAZO', 'DEVOLUÇÃO AO FORNECEDOR', 'DOAÇÃO', 'PERDA', 'QUEBRA', 'CONSUMO INTERNO', 'PRODUÇÃO', 'TRANSFERÊNCIA ENVIADA', 'ACERTO DE ESTOQUE', 'OUTROS'],
+  'Transferência': ['ENTRE LOCAIS', 'ENTRE FAZENDAS', 'ENTRE FILIAIS', 'OUTROS'],
+  'Ajuste': ['AJUSTE POSITIVO', 'AJUSTE NEGATIVO', 'INVENTÁRIO', 'CORREÇÃO', 'OUTROS']
 };
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
   const [formData, setFormData] = useState({
     tipo_movimentacao: initialData?.tipo_movimentacao || "",
     tipo_detalhado: initialData?.tipo_detalhado?.toUpperCase() || "",
-    local_estoque_origem: initialData?.local_estoque_origem?.toUpperCase() || "",
-    local_estoque_destino: initialData?.local_estoque_destino?.toUpperCase() || "",
-    tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
+    local_estoque: initialData?.local_estoque_origem?.toUpperCase() || initialData?.local_estoque_destino?.toUpperCase() || "",
+    local_destino: initialData?.local_estoque_destino?.toUpperCase() || "",
+    tipo_documento: initialData?.tipo_documento || "NOTA FISCAL",
     numero_documento: initialData?.numero_documento || "",
+    serie_documento: initialData?.serie_documento || "",
+    chave_documento: initialData?.chave_documento || "",
     data_documento: initialData?.data_documento || "",
+    cfop: initialData?.cfop || "",
+    natureza_operacao: initialData?.natureza_operacao || "",
     fornecedor_id: initialData?.fornecedor_id || "",
     cliente_nome: initialData?.cliente_nome?.toUpperCase() || "",
     centro_custo_id: initialData?.centro_custo_id || "",
@@ -90,7 +63,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [produtoAtual, setProdutoAtual] = useState({
     produto_id: "",
     quantidade: "",
-    valor_unitario: ""
+    valor_unitario: "",
+    desconto: "0,00"
   });
 
   const [showDialogLocal, setShowDialogLocal] = useState(false);
@@ -116,7 +90,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
   const handleChange = (field, value) => {
     let processedValue = value;
-    if (['tipo_detalhado', 'local_estoque_origem', 'local_estoque_destino', 'cliente_nome', 'motivo_movimentacao', 'observacoes'].includes(field) && typeof value === 'string') {
+    if (['tipo_detalhado', 'local_estoque', 'local_destino', 'cliente_nome', 'motivo_movimentacao', 'observacoes', 'natureza_operacao'].includes(field) && typeof value === 'string') {
       processedValue = value.toUpperCase();
     }
     setFormData(prev => ({ ...prev, [field]: processedValue }));
@@ -136,18 +110,25 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
+    const quantidade = parseNumero(produtoAtual.quantidade);
+    const valorUnitario = produtoAtual.valor_unitario ? parseNumero(produtoAtual.valor_unitario) : 0;
+    const desconto = produtoAtual.desconto ? parseNumero(produtoAtual.desconto) : 0;
+    const subtotal = quantidade * valorUnitario;
+    const valorTotal = subtotal - desconto;
+
     const novoProduto = {
       produto_id: produtoAtual.produto_id,
       produto_nome: produto?.nome_produto,
       produto_codigo: produto?.codigo_interno,
       unidade_medida: produto?.unidade_medida,
-      quantidade: parseNumero(produtoAtual.quantidade),
-      valor_unitario: produtoAtual.valor_unitario ? parseNumero(produtoAtual.valor_unitario) : 0,
-      valor_total: produtoAtual.valor_unitario ? parseNumero(produtoAtual.quantidade) * parseNumero(produtoAtual.valor_unitario) : 0
+      quantidade,
+      valor_unitario: valorUnitario,
+      desconto,
+      valor_total: valorTotal
     };
 
     setProdutosLista([...produtosLista, novoProduto]);
-    setProdutoAtual({ produto_id: "", quantidade: "", valor_unitario: "" });
+    setProdutoAtual({ produto_id: "", quantidade: "", valor_unitario: "", desconto: "0,00" });
     toast.success('Produto adicionado!');
   };
 
@@ -163,18 +144,18 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    if (formData.tipo_movimentacao === 'Entrada' && !formData.local_estoque_destino) {
-      toast.error('Defina o local de destino!');
+    if (formData.tipo_movimentacao === 'Entrada' && !formData.local_estoque) {
+      toast.error('Defina o local de estoque de destino!');
       return;
     }
 
-    if (formData.tipo_movimentacao === 'Saída' && !formData.local_estoque_origem) {
-      toast.error('Defina o local de origem!');
+    if (formData.tipo_movimentacao === 'Saída' && !formData.local_estoque) {
+      toast.error('Defina o local de estoque de origem!');
       return;
     }
 
-    if (formData.tipo_movimentacao === 'Transferência' && (!formData.local_estoque_origem || !formData.local_estoque_destino)) {
-      toast.error('Defina origem e destino!');
+    if (formData.tipo_movimentacao === 'Transferência' && (!formData.local_estoque || !formData.local_destino)) {
+      toast.error('Defina local de origem e destino!');
       return;
     }
 
@@ -183,19 +164,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
     const dadosComuns = {
       tipo_movimentacao: formData.tipo_movimentacao,
-      tipo_detalhado: formData.tipo_detalhado.toUpperCase(),
-      local_estoque_origem: formData.local_estoque_origem?.toUpperCase() || undefined,
-      local_estoque_destino: formData.local_estoque_destino?.toUpperCase() || undefined,
+      tipo_detalhado: formData.tipo_detalhado,
+      local_estoque_origem: formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? formData.local_estoque : undefined,
+      local_estoque_destino: formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' ? (formData.tipo_movimentacao === 'Transferência' ? formData.local_destino : formData.local_estoque) : undefined,
       tipo_documento: formData.tipo_documento || undefined,
       numero_documento: formData.numero_documento?.toUpperCase() || undefined,
+      serie_documento: formData.serie_documento?.toUpperCase() || undefined,
+      chave_documento: formData.chave_documento || undefined,
       data_documento: formData.data_documento || undefined,
+      cfop: formData.cfop || undefined,
+      natureza_operacao: formData.natureza_operacao?.toUpperCase() || undefined,
       fornecedor_id: formData.fornecedor_id || undefined,
       fornecedor_nome: fornecedor?.nome?.toUpperCase(),
       cliente_nome: formData.cliente_nome?.toUpperCase() || undefined,
       centro_custo_id: formData.centro_custo_id || undefined,
       centro_custo_nome: centro?.nome?.toUpperCase(),
-      motivo_movimentacao: formData.motivo_movimentacao.toUpperCase(),
-      observacoes: formData.observacoes?.toUpperCase() || undefined,
+      motivo_movimentacao: formData.motivo_movimentacao,
+      observacoes: formData.observacoes || undefined,
       data_movimentacao: new Date().toISOString(),
       status: 'Ativa'
     };
@@ -209,6 +194,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const centrosOptions = centros.map(c => ({ value: c.id, label: c.nome }));
 
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
+  const mostrarFornecedor = formData.tipo_movimentacao === 'Entrada' && ['COMPRA', 'COMPRA À VISTA', 'COMPRA A PRAZO', 'IMPORTAÇÃO'].some(t => formData.tipo_detalhado.includes(t));
+  const mostrarCliente = formData.tipo_movimentacao === 'Saída' && ['VENDA', 'VENDA À VISTA', 'VENDA A PRAZO'].some(t => formData.tipo_detalhado.includes(t));
+  const mostrarDadosNFe = ['COMPRA', 'VENDA', 'IMPORTAÇÃO'].some(t => formData.tipo_detalhado.includes(t));
+  const mostrarLocalDestino = formData.tipo_movimentacao === 'Transferência';
+
+  const valorTotalGeral = produtosLista.reduce((acc, p) => acc + p.valor_total, 0);
+  const descontoTotal = produtosLista.reduce((acc, p) => acc + p.desconto, 0);
+  const subtotalGeral = produtosLista.reduce((acc, p) => acc + (p.quantidade * p.valor_unitario), 0);
 
   return (
     <>
@@ -245,7 +238,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     </SelectTrigger>
                     <SelectContent>
                       {tiposDetalhadosDisponiveis.map(tipo => (
-                        <SelectItem key={tipo} value={tipo.toUpperCase()} className="text-xs">{tipo}</SelectItem>
+                        <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -271,12 +264,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Local Origem</Label>
+                  <Label className="text-xs">
+                    {formData.tipo_movimentacao === 'Entrada' ? 'Local Estoque Destino *' : 
+                     formData.tipo_movimentacao === 'Saída' ? 'Local Estoque Origem *' : 
+                     'Local Estoque Origem *'}
+                  </Label>
                   <div className="flex gap-2">
                     <Combobox
                       options={locaisOptions}
-                      value={formData.local_estoque_origem}
-                      onValueChange={(v) => handleChange('local_estoque_origem', v)}
+                      value={formData.local_estoque}
+                      onValueChange={(v) => handleChange('local_estoque', v)}
                       placeholder="Selecione"
                       searchPlaceholder="Buscar local..."
                       className="flex-1 h-8 text-xs"
@@ -287,72 +284,100 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Local Destino</Label>
-                  <div className="flex gap-2">
-                    <Combobox
-                      options={locaisOptions}
-                      value={formData.local_estoque_destino}
-                      onValueChange={(v) => handleChange('local_estoque_destino', v)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar local..."
-                      className="flex-1 h-8 text-xs"
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
+                {mostrarLocalDestino && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Local Estoque Destino *</Label>
+                    <div className="flex gap-2">
+                      <Combobox
+                        options={locaisOptions}
+                        value={formData.local_destino}
+                        onValueChange={(v) => handleChange('local_destino', v)}
+                        placeholder="Selecione"
+                        searchPlaceholder="Buscar local..."
+                        className="flex-1 h-8 text-xs"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Tipo Documento</Label>
-                  <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Nota Fiscal" className="text-xs">Nota Fiscal</SelectItem>
-                      <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
-                      <SelectItem value="Pedido de Compra" className="text-xs">Pedido de Compra</SelectItem>
-                      <SelectItem value="Ordem de Serviço" className="text-xs">Ordem de Serviço</SelectItem>
-                      <SelectItem value="Sem Documento" className="text-xs">Sem Documento</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Nº Documento</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Data Documento</Label>
-                  <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs" />
-                </div>
-
-                {formData.tipo_movimentacao === 'Entrada' && (
+                {mostrarFornecedor && (
                   <div className="space-y-1">
                     <Label className="text-xs">Fornecedor</Label>
                     <Combobox
                       options={fornecedoresOptions}
                       value={formData.fornecedor_id}
                       onValueChange={(v) => handleChange('fornecedor_id', v)}
-                      placeholder="Selecione o fornecedor"
+                      placeholder="Selecione"
                       searchPlaceholder="Buscar fornecedor..."
                       className="h-8 text-xs"
                     />
                   </div>
                 )}
 
-                {formData.tipo_movimentacao === 'Saída' && (
+                {mostrarCliente && (
                   <div className="space-y-1">
                     <Label className="text-xs">Cliente/Destinatário</Label>
                     <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                   </div>
                 )}
               </div>
+
+              {mostrarDadosNFe && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tipo Documento</Label>
+                      <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NOTA FISCAL" className="text-xs">Nota Fiscal</SelectItem>
+                          <SelectItem value="NF-E" className="text-xs">NF-e</SelectItem>
+                          <SelectItem value="NFC-E" className="text-xs">NFC-e</SelectItem>
+                          <SelectItem value="RECIBO" className="text-xs">Recibo</SelectItem>
+                          <SelectItem value="OUTROS" className="text-xs">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nº Documento</Label>
+                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Série</Label>
+                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="001" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Data Documento</Label>
+                      <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">CFOP</Label>
+                      <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="0000" className="h-8 text-xs" maxLength={4} />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Natureza da Operação</Label>
+                      <Input value={formData.natureza_operacao} onChange={(e) => handleChange('natureza_operacao', e.target.value)} placeholder="COMPRA PARA COMERCIALIZAÇÃO" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
+                    <Input value={formData.chave_documento} onChange={(e) => handleChange('chave_documento', e.target.value)} placeholder="00000000000000000000000000000000000000000000" className="h-8 text-xs" maxLength={44} />
+                  </div>
+                </>
+              )}
 
               <div className="space-y-1">
                 <Label className="text-xs">Motivo da Movimentação *</Label>
@@ -362,7 +387,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="border-t pt-4">
                 <Label className="text-xs font-semibold">Adicionar Produtos *</Label>
                 <div className="grid grid-cols-12 gap-2 mt-2">
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     <Combobox
                       options={produtosOptions}
                       value={produtoAtual.produto_id}
@@ -384,11 +409,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <Input 
                       value={produtoAtual.valor_unitario} 
                       onChange={(e) => setProdutoAtual({...produtoAtual, valor_unitario: e.target.value})} 
-                      placeholder="Valor Un." 
+                      placeholder="Vlr. Un." 
                       className="h-8 text-xs" 
                     />
                   </div>
-                  <div className="col-span-3 flex gap-2">
+                  <div className="col-span-2">
+                    <Input 
+                      value={produtoAtual.desconto} 
+                      onChange={(e) => setProdutoAtual({...produtoAtual, desconto: e.target.value})} 
+                      placeholder="Desconto" 
+                      className="h-8 text-xs" 
+                    />
+                  </div>
+                  <div className="col-span-2 flex gap-2">
                     <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-8 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700">
                       <Plus className="w-3.5 h-3.5 mr-1" />
                       Adicionar
@@ -408,7 +441,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           <TableHead className="text-xs">Código</TableHead>
                           <TableHead className="text-xs">Unidade</TableHead>
                           <TableHead className="text-xs text-right">Quantidade</TableHead>
-                          <TableHead className="text-xs text-right">Valor Un.</TableHead>
+                          <TableHead className="text-xs text-right">Vlr. Unit.</TableHead>
+                          <TableHead className="text-xs text-right">Subtotal</TableHead>
+                          <TableHead className="text-xs text-right">Desconto</TableHead>
                           <TableHead className="text-xs text-right">Total</TableHead>
                           <TableHead className="text-xs w-12"></TableHead>
                         </TableRow>
@@ -421,6 +456,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                             <TableCell className="text-xs">{prod.unidade_medida || '-'}</TableCell>
                             <TableCell className="text-xs text-right">{formatarNumero(prod.quantidade)}</TableCell>
                             <TableCell className="text-xs text-right">R$ {formatarNumero(prod.valor_unitario)}</TableCell>
+                            <TableCell className="text-xs text-right">R$ {formatarNumero(prod.quantidade * prod.valor_unitario)}</TableCell>
+                            <TableCell className="text-xs text-right text-red-600">R$ {formatarNumero(prod.desconto)}</TableCell>
                             <TableCell className="text-xs text-right font-semibold">R$ {formatarNumero(prod.valor_total)}</TableCell>
                             <TableCell>
                               <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoverProduto(prod.produto_id)} className="h-6 w-6">
@@ -430,8 +467,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           </TableRow>
                         ))}
                         <TableRow className="bg-slate-50 font-semibold">
-                          <TableCell colSpan={5} className="text-xs text-right">Total Geral:</TableCell>
-                          <TableCell className="text-xs text-right">R$ {formatarNumero(produtosLista.reduce((acc, p) => acc + p.valor_total, 0))}</TableCell>
+                          <TableCell colSpan={5} className="text-xs text-right">Subtotal:</TableCell>
+                          <TableCell className="text-xs text-right">{formatarMoeda(subtotalGeral)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">{formatarMoeda(descontoTotal)}</TableCell>
+                          <TableCell className="text-xs text-right">{formatarMoeda(valorTotalGeral)}</TableCell>
                           <TableCell></TableCell>
                         </TableRow>
                       </TableBody>
@@ -458,7 +497,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         </Card>
       </motion.div>
 
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { const local = locais.find(l => l.id === id); if (local) { if (!formData.local_estoque_destino) handleChange('local_estoque_destino', local.nome); if (!formData.local_estoque_origem) handleChange('local_estoque_origem', local.nome); } setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { const local = locais.find(l => l.id === id); if (local) { if (!formData.local_estoque) handleChange('local_estoque', local.nome); } setShowDialogLocal(false); }} />
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
       <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { setProdutoAtual({...produtoAtual, produto_id: id}); setShowDialogProduto(false); }} />
     </>
