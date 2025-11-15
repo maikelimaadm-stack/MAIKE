@@ -79,7 +79,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
   });
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(20); // Changed from 10 to 20
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItems, setSelectedItems] = useState([]);
@@ -272,19 +272,13 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
 
   return (
     <>
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl flex items-center justify-center">
-                <Scale className="w-5 h-5 text-white" />
-              </div>
-              Registros de Pesagens
-              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-                {sortedPesagens.length} {sortedPesagens.length === 1 ? 'pesagem' : 'pesagens'}
-              </Badge>
+            <CardTitle className="flex items-center gap-3 text-slate-900 text-sm">
+              Pesagens ({sortedPesagens.length})
               {selectedItems.length > 0 && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
                   {selectedItems.length} selecionados
                 </Badge>
               )}
@@ -293,19 +287,19 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
               {selectedItems.length > 0 && (
                 <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700">
+                    <Button variant="outline" className="gap-2 border-blue-300 text-blue-700 h-8 text-xs">
                       <CheckSquare className="w-4 h-4" />
                       Ações em Massa
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Ações para {selectedItems.length} itens</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs">Ações para {selectedItems.length} itens</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem onClick={handleBulkPrint}>
+                    <DropdownMenuCheckboxItem onClick={handleBulkPrint} className="text-xs">
                       <Printer className="w-4 h-4 mr-2" />
                       Imprimir Todos
                     </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600">
+                    <DropdownMenuCheckboxItem onClick={handleBulkDelete} className="text-red-600 text-xs">
                       <Trash2 className="w-4 h-4 mr-2" />
                       Excluir Todos
                     </DropdownMenuCheckboxItem>
@@ -313,30 +307,31 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                 </DropdownMenu>
               )}
               
-              <div className="relative flex-1 md:w-80">
+              <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por placa, motorista, produto..."
+                  placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-300 focus:border-green-500 focus:ring-green-500"
+                  className="pl-10 border-slate-300 h-8 text-xs"
                 />
               </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300">
+                  <Button variant="outline" size="icon" title="Configurar Colunas" className="border-slate-300 h-8 w-8">
                     <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                  <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs">Colunas Visíveis</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {COLUNAS_DISPONIVEIS.map((coluna) => (
                     <DropdownMenuCheckboxItem
                       key={coluna.id}
                       checked={colunasVisiveis.includes(coluna.id)}
                       onCheckedChange={() => toggleColuna(coluna.id)}
+                      className="text-xs"
                     >
                       {coluna.label}
                     </DropdownMenuCheckboxItem>
@@ -351,7 +346,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 hover:bg-slate-50">
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <Checkbox
                       checked={selectedItems.length === paginatedPesagens.length && paginatedPesagens.length > 0}
                       onCheckedChange={toggleSelectAll}
@@ -621,21 +616,20 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
 
           {!isLoading && paginatedPesagens.length > 0 && (
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
                 <span>Mostrar</span>
                 <Select value={itemsPerPage === -1 ? 'all' : itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-24 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="200">200</SelectItem>
-                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="20" className="text-xs">20</SelectItem>
+                    <SelectItem value="50" className="text-xs">50</SelectItem>
+                    <SelectItem value="100" className="text-xs">100</SelectItem>
+                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
                   </SelectContent>
                 </Select>
-                <span>registros por página</span>
+                <span>por página</span>
               </div>
 
               {itemsPerPage !== -1 && (
@@ -645,6 +639,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     size="icon"
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
+                    className="h-8 w-8"
                   >
                     <ChevronsLeft className="w-4 h-4" />
                   </Button>
@@ -653,13 +648,14 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     size="icon"
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
+                    className="h-8 w-8"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
                   
-                  <div className="flex items-center gap-2 px-3 text-sm">
+                  <div className="flex items-center gap-2 px-3 text-xs">
                     <span className="text-slate-700 font-medium">
-                      Página {currentPage} de {totalPages}
+                      Pág {currentPage} de {totalPages}
                     </span>
                     <span className="text-slate-500">
                       ({startIndex + 1}-{Math.min(endIndex, sortedPesagens.length)} de {sortedPesagens.length})
@@ -671,6 +667,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     size="icon"
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
+                    className="h-8 w-8"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -679,6 +676,7 @@ export default function TabelaPesagens({ pesagens = [], onEdit, onDelete, onPrin
                     size="icon"
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
+                    className="h-8 w-8"
                   >
                     <ChevronsRight className="w-4 h-4" />
                   </Button>
