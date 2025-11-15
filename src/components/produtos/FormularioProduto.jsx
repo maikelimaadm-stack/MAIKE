@@ -368,7 +368,7 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                   <X className="w-4 h-4" />
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+                <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
                   <Save className="w-4 h-4" />
                   {isEditing ? 'Atualizar' : 'Salvar'} Produto
                 </Button>
@@ -381,8 +381,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       <Dialog open={showNovaUnidade} onOpenChange={setShowNovaUnidade}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nova Unidade de Medida</DialogTitle>
-            <DialogDescription>Cadastre uma nova unidade para usar no produto</DialogDescription>
+            <DialogTitle className="text-sm">Nova Unidade de Medida</DialogTitle>
+            <DialogDescription className="text-xs">Cadastre uma nova unidade para usar no produto</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -407,10 +407,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               />
             </div>
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }}>
+              <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }} className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarUnidade} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSalvarUnidade} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
                 Salvar Unidade
               </Button>
             </div>
@@ -421,8 +421,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       <Dialog open={showNovaCategoria} onOpenChange={setShowNovaCategoria}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nova Categoria</DialogTitle>
-            <DialogDescription>Cadastre uma nova categoria para usar no produto</DialogDescription>
+            <DialogTitle className="text-sm">Nova Categoria</DialogTitle>
+            <DialogDescription className="text-xs">Cadastre uma nova categoria para usar no produto</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -456,10 +456,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               />
             </div>
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }}>
+              <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }} className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarCategoria} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSalvarCategoria} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
                 Salvar Categoria
               </Button>
             </div>
@@ -470,8 +470,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       <Dialog open={showNovoLocal} onOpenChange={setShowNovoLocal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo Local de Estoque</DialogTitle>
-            <DialogDescription>Cadastre um novo local para usar no produto</DialogDescription>
+            <DialogTitle className="text-sm">Novo Local de Estoque</DialogTitle>
+            <DialogDescription className="text-xs">Cadastre um novo local para usar no produto</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -505,10 +505,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               />
             </div>
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }}>
+              <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }} className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleSalvarLocal} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSalvarLocal} className="bg-slate-700 hover:bg-slate-800 h-8 text-xs">
                 Salvar Local
               </Button>
             </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -317,7 +318,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   <X className="w-4 h-4" />
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+                <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
                   <Save className="w-4 h-4" />
                   {initialData?.id ? 'Atualizar' : 'Salvar'}
                 </Button>

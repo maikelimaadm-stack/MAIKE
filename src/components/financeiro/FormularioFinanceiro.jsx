@@ -515,7 +515,7 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg"
+                  className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg"
                   disabled={!initialData?.id && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                 >
                   <Save className="w-4 h-4" />

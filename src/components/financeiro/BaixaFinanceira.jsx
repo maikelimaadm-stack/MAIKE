@@ -691,7 +691,7 @@ export default function BaixaFinanceira({ lancamento, onClose, onSuccess, dadosL
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button type="button" variant="outline" onClick={onClose} className="h-8 text-xs">Fechar</Button>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs" disabled={baixaMutation.isPending}>Confirmar</Button>
+              <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-8 text-xs" disabled={baixaMutation.isPending}>Confirmar</Button>
             </div>
           </form>
         </CardContent>

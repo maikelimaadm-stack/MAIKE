@@ -300,7 +300,7 @@ export default function GruposFinanceiros() {
               Inserir Padrão
             </Button>
           )}
-          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", grupo_pai_id: "" }); }} size="sm" className="gap-1 text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", grupo_pai_id: "" }); }} size="sm" className="gap-1 text-xs h-8 bg-slate-700 hover:bg-slate-800">
             <Plus className="w-3.5 h-3.5" />
             Novo
           </Button>
@@ -355,7 +355,7 @@ export default function GruposFinanceiros() {
                     <X className="w-3 h-3 mr-1" />
                     Cancelar
                   </Button>
-                  <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
                     <Save className="w-3 h-3 mr-1" />
                     Salvar
                   </Button>

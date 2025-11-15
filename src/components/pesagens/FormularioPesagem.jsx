@@ -267,7 +267,7 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 gap-2 shadow-lg">
+              <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
                 <Save className="w-4 h-4" />
                 {isEditing ? 'Atualizar' : 'Salvar'} Pesagem
               </Button>

@@ -555,7 +555,7 @@ export default function LancamentoFinanceiro() {
                 <Download className="w-4 h-4" />
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
                 <Plus className="w-4 h-4" />
                 Novo Lançamento
               </Button>

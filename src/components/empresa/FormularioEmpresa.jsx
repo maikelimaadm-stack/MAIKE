@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -306,7 +307,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" className="bg-slate-700 hover:bg-slate-800">
                 <Save className="w-4 h-4 mr-2" />
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>

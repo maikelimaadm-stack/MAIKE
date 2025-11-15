@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -150,7 +151,7 @@ export default function CaixaBancos() {
           <h1 className="text-2xl font-bold text-slate-800">Caixa & Bancos</h1>
           <p className="text-sm text-slate-600">Gerencie contas bancárias e caixa</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
           <Plus className="w-4 h-4" />
           Nova Conta
         </Button>
@@ -234,7 +235,7 @@ export default function CaixaBancos() {
 
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">Cancelar</Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar</Button>
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">Salvar</Button>
                   </div>
                 </form>
               </CardContent>

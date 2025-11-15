@@ -194,7 +194,7 @@ export default function Categorias() {
                 className="pl-10 h-8 text-xs border-slate-300"
               />
             </div>
-            <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
               <Plus className="w-3.5 h-3.5" />
               Nova Categoria
             </Button>
@@ -239,7 +239,7 @@ export default function Categorias() {
                     <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); resetForm(); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
                       {editing ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>

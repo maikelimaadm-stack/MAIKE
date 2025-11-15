@@ -497,7 +497,7 @@ export default function Pesagens() {
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Modelo
             </Button>
-            <Button onClick={() => { setEditingPesagem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
+            <Button onClick={() => { setEditingPesagem(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800 ml-auto">
               <Plus className="w-3.5 h-3.5" />
               Nova Pesagem
             </Button>
