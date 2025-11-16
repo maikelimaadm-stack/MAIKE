@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -47,7 +47,6 @@ const TIPOS_DETALHADOS = {
 };
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
-  const [tabelaExpandida, setTabelaExpandida] = useState(true);
   const [formData, setFormData] = useState({
     tipo_movimentacao: initialData?.tipo_movimentacao || "",
     tipo_detalhado: initialData?.tipo_detalhado || "",
@@ -113,7 +112,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       ...prev,
       produtos_selecionados: [...prev.produtos_selecionados, { produto_id: "", produto_nome: "", quantidade: "", valor_total: "", desconto_item: "0,00" }]
     }));
-    setTabelaExpandida(true);
   };
 
   const handleRemoverProduto = (index) => {
@@ -485,136 +483,112 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
                   <Label className="text-xs font-semibold">Produtos</Label>
-                  <div className="flex gap-2">
-                    {formData.produtos_selecionados.length > 0 && (
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setTabelaExpandida(!tabelaExpandida)}
-                        className="h-7 text-xs gap-1"
-                      >
-                        {tabelaExpandida ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        {tabelaExpandida ? 'Recolher' : 'Expandir'}
-                      </Button>
-                    )}
-                    <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1">
-                      <Plus className="w-3.5 h-3.5" />
-                      Adicionar
-                    </Button>
-                  </div>
+                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1">
+                    <Plus className="w-3.5 h-3.5" />
+                    Adicionar
+                  </Button>
                 </div>
 
-                <AnimatePresence>
-                  {tabelaExpandida && formData.produtos_selecionados.length > 0 && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="border rounded bg-white">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-slate-50">
-                              <TableHead className="w-8 text-xs"></TableHead>
-                              <TableHead className="min-w-[180px] text-xs">Produto *</TableHead>
-                              <TableHead className="text-center w-16 text-xs">Qtd *</TableHead>
-                              <TableHead className="text-center w-20 text-xs">Total *</TableHead>
-                              <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
-                              <TableHead className="text-center w-24 text-xs">Líquido</TableHead>
-                              <TableHead className="text-center w-12 text-xs">UN</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {formData.produtos_selecionados.map((produto, index) => {
-                              const total = parseNumero(produto.valor_total || "0");
-                              const desc = parseNumero(produto.desconto_item || "0");
-                              const liquido = total - desc;
-                              const qtd = parseNumero(produto.quantidade || "0");
-                              const unitario = qtd > 0 ? (liquido / qtd) : 0;
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="border rounded bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-8 text-xs"></TableHead>
+                          <TableHead className="min-w-[180px] text-xs">Produto *</TableHead>
+                          <TableHead className="text-center w-16 text-xs">Qtd *</TableHead>
+                          <TableHead className="text-center w-20 text-xs">Total *</TableHead>
+                          <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
+                          <TableHead className="text-center w-24 text-xs">Líquido</TableHead>
+                          <TableHead className="text-center w-12 text-xs">UN</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {formData.produtos_selecionados.map((produto, index) => {
+                          const total = parseNumero(produto.valor_total || "0");
+                          const desc = parseNumero(produto.desconto_item || "0");
+                          const liquido = total - desc;
+                          const qtd = parseNumero(produto.quantidade || "0");
+                          const unitario = qtd > 0 ? (liquido / qtd) : 0;
 
-                              return (
-                                <TableRow key={index}>
-                                  <TableCell className="w-8">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                                          <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="start">
-                                        <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
-                                          <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                          Excluir
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TableCell>
-                                  <TableCell className="min-w-[180px]">
-                                    <AutocompleteGenerico
-                                      items={produtos}
-                                      value={produto.produto_id}
-                                      onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
-                                      placeholder="Buscar produto..."
-                                      displayField="nome_produto"
-                                      searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                                      renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
-                                      className="w-full"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="w-16">
-                                    <Input 
-                                      value={produto.quantidade} 
-                                      onChange={(e) => {
-                                        const valor = e.target.value.replace(/[^\d,]/g, '');
-                                        handleAtualizarProduto(index, 'quantidade', valor);
-                                      }} 
-                                      placeholder="0,00" 
-                                      className="text-center h-6 text-xs" 
-                                    />
-                                  </TableCell>
-                                  <TableCell className="w-20">
-                                    <Input 
-                                      value={produto.valor_total} 
-                                      onChange={(e) => {
-                                        const valor = e.target.value.replace(/[^\d,]/g, '');
-                                        handleAtualizarProduto(index, 'valor_total', valor);
-                                      }} 
-                                      placeholder="0,00" 
-                                      className="text-center h-6 text-xs" 
-                                    />
-                                  </TableCell>
-                                  <TableCell className="w-20">
-                                    <Input 
-                                      value={produto.desconto_item || "0,00"} 
-                                      onChange={(e) => {
-                                        const valor = e.target.value.replace(/[^\d,]/g, '');
-                                        handleAtualizarProduto(index, 'desconto_item', valor);
-                                      }} 
-                                      placeholder="0,00" 
-                                      className="text-center h-6 text-xs" 
-                                    />
-                                  </TableCell>
-                                  <TableCell className="w-24">
-                                    <div className="text-center">
-                                      <div className="font-bold text-xs">{formatarMoeda(liquido)}</div>
-                                      <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-center w-12">
-                                    <span className="text-xs font-mono">{produto.unidade || '-'}</span>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                          return (
+                            <TableRow key={index}>
+                              <TableCell className="w-8">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start">
+                                    <DropdownMenuItem onClick={() => handleRemoverProduto(index)} className="text-xs text-red-600">
+                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                              <TableCell className="min-w-[180px]">
+                                <AutocompleteGenerico
+                                  items={produtos}
+                                  value={produto.produto_id}
+                                  onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                                  placeholder="Buscar produto..."
+                                  displayField="nome_produto"
+                                  searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                                  renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
+                                  className="w-full"
+                                />
+                              </TableCell>
+                              <TableCell className="w-16">
+                                <Input 
+                                  value={produto.quantidade} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'quantidade', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-center h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="w-20">
+                                <Input 
+                                  value={produto.valor_total} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'valor_total', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-center h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="w-20">
+                                <Input 
+                                  value={produto.desconto_item || "0,00"} 
+                                  onChange={(e) => {
+                                    const valor = e.target.value.replace(/[^\d,]/g, '');
+                                    handleAtualizarProduto(index, 'desconto_item', valor);
+                                  }} 
+                                  placeholder="0,00" 
+                                  className="text-center h-6 text-xs" 
+                                />
+                              </TableCell>
+                              <TableCell className="w-24">
+                                <div className="text-center">
+                                  <div className="font-bold text-xs">{formatarMoeda(liquido)}</div>
+                                  <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center w-12">
+                                <span className="text-xs font-mono">{produto.unidade || '-'}</span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
 
                 {formData.produtos_selecionados.length > 0 && (
                   <div className="mt-3 bg-white border border-slate-300 rounded p-3">
