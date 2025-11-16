@@ -484,7 +484,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
-                  <Label className="text-xs font-semibold">Produtos * ({formData.produtos_selecionados.length})</Label>
+                  <Label className="text-xs font-semibold">Produtos</Label>
                   <div className="flex gap-2">
                     {formData.produtos_selecionados.length > 0 && (
                       <Button 
@@ -498,7 +498,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         {tabelaExpandida ? 'Recolher' : 'Expandir'}
                       </Button>
                     )}
-                    <Button type="button" onClick={handleAdicionarProduto} size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
+                    <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1">
                       <Plus className="w-3.5 h-3.5" />
                       Adicionar
                     </Button>
@@ -519,12 +519,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           <TableHeader>
                             <TableRow className="bg-slate-50">
                               <TableHead className="w-8 text-xs"></TableHead>
-                              <TableHead className="w-[180px] text-xs">Produto *</TableHead>
-                              <TableHead className="text-right w-[80px] text-xs">Qtd *</TableHead>
-                              <TableHead className="text-right w-[90px] text-xs">Total *</TableHead>
-                              <TableHead className="text-right w-[80px] text-xs">Desc.</TableHead>
-                              <TableHead className="text-right w-[90px] text-xs">Líquido</TableHead>
-                              <TableHead className="text-center w-[50px] text-xs">UN</TableHead>
+                              <TableHead className="min-w-[180px] text-xs">Produto *</TableHead>
+                              <TableHead className="text-center w-16 text-xs">Qtd *</TableHead>
+                              <TableHead className="text-center w-20 text-xs">Total *</TableHead>
+                              <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
+                              <TableHead className="text-center w-24 text-xs">Líquido</TableHead>
+                              <TableHead className="text-center w-12 text-xs">UN</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -552,7 +552,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   </TableCell>
-                                  <TableCell className="w-[180px]">
+                                  <TableCell className="min-w-[180px]">
                                     <AutocompleteGenerico
                                       items={produtos}
                                       value={produto.produto_id}
@@ -564,7 +564,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                       className="w-full"
                                     />
                                   </TableCell>
-                                  <TableCell className="w-[80px]">
+                                  <TableCell className="w-16">
                                     <Input 
                                       value={produto.quantidade} 
                                       onChange={(e) => {
@@ -572,10 +572,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                         handleAtualizarProduto(index, 'quantidade', valor);
                                       }} 
                                       placeholder="0,00" 
-                                      className="text-right h-6 text-xs" 
+                                      className="text-center h-6 text-xs" 
                                     />
                                   </TableCell>
-                                  <TableCell className="w-[90px]">
+                                  <TableCell className="w-20">
                                     <Input 
                                       value={produto.valor_total} 
                                       onChange={(e) => {
@@ -583,10 +583,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                         handleAtualizarProduto(index, 'valor_total', valor);
                                       }} 
                                       placeholder="0,00" 
-                                      className="text-right h-6 text-xs" 
+                                      className="text-center h-6 text-xs" 
                                     />
                                   </TableCell>
-                                  <TableCell className="w-[80px]">
+                                  <TableCell className="w-20">
                                     <Input 
                                       value={produto.desconto_item || "0,00"} 
                                       onChange={(e) => {
@@ -594,14 +594,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                         handleAtualizarProduto(index, 'desconto_item', valor);
                                       }} 
                                       placeholder="0,00" 
-                                      className="text-right h-6 text-xs" 
+                                      className="text-center h-6 text-xs" 
                                     />
                                   </TableCell>
-                                  <TableCell className="text-right w-[90px]">
-                                    <div className="font-mono font-semibold text-xs">{formatarMoeda(liquido)}</div>
-                                    <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                                  <TableCell className="w-24">
+                                    <div className="text-center">
+                                      <div className="font-bold text-xs">{formatarMoeda(liquido)}</div>
+                                      <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                                    </div>
                                   </TableCell>
-                                  <TableCell className="text-center w-[50px]">
+                                  <TableCell className="text-center w-12">
                                     <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                                   </TableCell>
                                 </TableRow>
@@ -615,24 +617,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </AnimatePresence>
 
                 {formData.produtos_selecionados.length > 0 && (
-                  <Card className="mt-3 bg-blue-50 border-blue-200">
-                    <CardContent className="p-3">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Total:</span>
-                          <span className="font-bold">{formatarMoeda(totalProdutosBruto)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Desconto:</span>
-                          <span className="font-bold text-red-600">{formatarMoeda(totalDescontos)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Líquido:</span>
-                          <span className="font-bold text-emerald-700">{formatarMoeda(totalProdutosLiquido)}</span>
-                        </div>
+                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="font-semibold text-slate-800 mb-1">Valor a Pagar</div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Produtos (líquido):</span>
+                        <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex justify-between font-bold border-t pt-1 mt-1 text-slate-900">
+                        <span>TOTAL A PAGAR:</span>
+                        <span className="font-mono text-base">{formatarMoeda(totalProdutosLiquido)}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 
