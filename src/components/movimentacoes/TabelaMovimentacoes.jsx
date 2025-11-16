@@ -50,21 +50,47 @@ const formatarData = (dataString) => {
   }
 };
 
+const formatarDataSimples = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR');
+  } catch {
+    return '-';
+  }
+};
+
 const COLUNAS_DISPONIVEIS = [
   { id: 'numero', label: 'Nº', default: true, sortable: true },
-  { id: 'data', label: 'Data', default: true, sortable: true },
+  { id: 'data', label: 'Data/Hora', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
-  { id: 'tipo_detalhado', label: 'Tipo Doc', default: true, sortable: false },
-  { id: 'documento', label: 'Nº Documento', default: true, sortable: false },
+  { id: 'tipo_detalhado', label: 'Tipo Detalhado', default: true, sortable: false },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: true, sortable: false },
+  { id: 'numero_documento', label: 'Nº Documento', default: true, sortable: false },
+  { id: 'serie_documento', label: 'Série', default: false, sortable: false },
+  { id: 'chave_documento', label: 'Chave NF-e', default: false, sortable: false },
+  { id: 'data_documento', label: 'Data Doc', default: false, sortable: false },
+  { id: 'cfop', label: 'CFOP', default: false, sortable: false },
+  { id: 'natureza_operacao', label: 'Natureza Op.', default: false, sortable: false },
   { id: 'produto', label: 'Produto', default: true, sortable: true },
+  { id: 'produto_codigo', label: 'Código Prod', default: false, sortable: false },
+  { id: 'produto_categoria', label: 'Categoria', default: false, sortable: false },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
-  { id: 'unidade', label: 'UN', default: false, sortable: false },
-  { id: 'fornecedor', label: 'Fornecedor', default: true, sortable: true },
-  { id: 'local_origem', label: 'Local Origem', default: false, sortable: false },
+  { id: 'unidade', label: 'UN', default: true, sortable: false },
+  { id: 'valor_unitario', label: 'Vlr Unit.', default: true, sortable: false },
+  { id: 'valor_total', label: 'Vlr Total', default: true, sortable: false },
+  { id: 'custo_medio_antes', label: 'Custo Médio Ant.', default: false, sortable: false },
+  { id: 'custo_medio_depois', label: 'Custo Médio Dep.', default: false, sortable: false },
+  { id: 'saldo_antes', label: 'Saldo Ant.', default: false, sortable: false },
+  { id: 'saldo_depois', label: 'Saldo Dep.', default: false, sortable: false },
+  { id: 'fornecedor', label: 'Fornecedor/Cliente', default: true, sortable: true },
+  { id: 'local_origem', label: 'Local Origem', default: true, sortable: false },
   { id: 'local_destino', label: 'Local Destino', default: true, sortable: false },
   { id: 'centro_custo', label: 'Centro de Custo', default: false, sortable: false },
-  { id: 'valor_unitario', label: 'Vlr Unit.', default: false, sortable: false },
-  { id: 'valor_total', label: 'Vlr Total', default: false, sortable: false },
+  { id: 'motivo', label: 'Motivo', default: false, sortable: false },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: false },
+  { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
   { id: 'status', label: 'Status', default: true, sortable: true },
 ];
 
@@ -154,9 +180,12 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       mov.produto_codigo?.toLowerCase().includes(searchLower) ||
       mov.tipo_movimentacao?.toLowerCase().includes(searchLower) ||
       mov.tipo_detalhado?.toLowerCase().includes(searchLower) ||
+      mov.tipo_documento?.toLowerCase().includes(searchLower) ||
       mov.fornecedor_nome?.toLowerCase().includes(searchLower) ||
       mov.cliente_nome?.toLowerCase().includes(searchLower) ||
       mov.numero_documento?.toLowerCase().includes(searchLower) ||
+      mov.chave_documento?.toLowerCase().includes(searchLower) ||
+      mov.cfop?.toLowerCase().includes(searchLower) ||
       String(mov.numero_movimentacao)?.includes(searchLower) ||
       mov.centro_custo_nome?.toLowerCase().includes(searchLower) ||
       mov.local_estoque_origem?.toLowerCase().includes(searchLower) ||
@@ -286,14 +315,42 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
         );
       case 'tipo_detalhado':
         return <TableCell className="text-xs border-r border-slate-200">{mov.tipo_detalhado || '-'}</TableCell>;
-      case 'documento':
+      case 'tipo_documento':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.tipo_documento || '-'}</TableCell>;
+      case 'numero_documento':
         return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.numero_documento || '-'}</TableCell>;
+      case 'serie_documento':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.serie_documento || '-'}</TableCell>;
+      case 'chave_documento':
+        return <TableCell className="text-xs font-mono max-w-[200px] truncate border-r border-slate-200" title={mov.chave_documento}>{mov.chave_documento || '-'}</TableCell>;
+      case 'data_documento':
+        return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_documento)}</TableCell>;
+      case 'cfop':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.cfop || '-'}</TableCell>;
+      case 'natureza_operacao':
+        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.natureza_operacao}>{mov.natureza_operacao || '-'}</TableCell>;
       case 'produto':
         return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.produto_nome}</TableCell>;
+      case 'produto_codigo':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.produto_codigo || '-'}</TableCell>;
+      case 'produto_categoria':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.produto_categoria || '-'}</TableCell>;
       case 'quantidade':
         return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarNumero(mov.quantidade)}</TableCell>;
       case 'unidade':
         return <TableCell className="text-xs border-r border-slate-200">{mov.unidade_medida || '-'}</TableCell>;
+      case 'valor_unitario':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.valor_unitario)}</TableCell>;
+      case 'valor_total':
+        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarMoeda(mov.valor_total)}</TableCell>;
+      case 'custo_medio_antes':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_antes)}</TableCell>;
+      case 'custo_medio_depois':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.custo_medio_depois)}</TableCell>;
+      case 'saldo_antes':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_antes)}</TableCell>;
+      case 'saldo_depois':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_depois)}</TableCell>;
       case 'fornecedor':
         return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
       case 'local_origem':
@@ -302,10 +359,12 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || '-'}</TableCell>;
       case 'centro_custo':
         return <TableCell className="text-xs border-r border-slate-200">{mov.centro_custo_nome || '-'}</TableCell>;
-      case 'valor_unitario':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarMoeda(mov.valor_unitario)}</TableCell>;
-      case 'valor_total':
-        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{formatarMoeda(mov.valor_total)}</TableCell>;
+      case 'motivo':
+        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.motivo_movimentacao}>{mov.motivo_movimentacao || '-'}</TableCell>;
+      case 'observacoes':
+        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+      case 'responsavel':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.usuario_responsavel || '-'}</TableCell>;
       case 'status':
         return (
           <TableCell className="border-r border-slate-200">
@@ -487,7 +546,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       </Card>
 
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
           </DialogHeader>
@@ -495,7 +554,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
           <div className="space-y-3 flex-1 overflow-auto">
             <div className="space-y-1">
               <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {COLUNAS_DISPONIVEIS.map((coluna) => (
                   <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
                     <input
