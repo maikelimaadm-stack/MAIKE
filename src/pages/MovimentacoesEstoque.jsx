@@ -6,6 +6,15 @@ import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Package, Download, Aler
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Loader2 } from "lucide-react";
 
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
@@ -44,11 +53,19 @@ const calcularCustoMedio = (estoqueAtual, custoMedioAtual, quantidadeEntrada, cu
   return (valorTotalAtual + valorTotalEntrada) / novoEstoque;
 };
 
+const parseNumero = (str) => {
+  if (!str && str !== 0) return 0;
+  if (typeof str === 'number') return str;
+  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+};
+
 export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
   const [showImportXML, setShowImportXML] = useState(false);
   const [dadosImportadosXML, setDadosImportadosXML] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -123,23 +140,29 @@ export default function MovimentacoesEstoque() {
     const produtoData = produtos.find(p => p.id === produto.produto_id);
     if (!produtoData) throw new Error(`Produto ${produto.produto_nome} não encontrado`);
 
+    const quantidade = parseNumero(produto.quantidade);
+    const valorTotal = parseNumero(produto.valor_total);
+    const desconto = parseNumero(produto.desconto_item || 0);
+    const valorLiquido = valorTotal - desconto;
+    const valorUnitario = quantidade > 0 ? (valorLiquido / quantidade) : 0;
+
     const estoqueAtual = produtoData.estoque_atual || 0;
     const custoMedioAtual = produtoData.preco_custo || 0;
     let novoEstoque = estoqueAtual;
     let novoCustoMedio = custoMedioAtual;
 
     if (dadosComuns.tipo_movimentacao === 'Entrada') {
-      novoEstoque = estoqueAtual + produto.quantidade;
-      if (dadosComuns.tipo_detalhado?.includes('COMPRA') && produto.valor_unitario) {
-        novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, produto.quantidade, produto.valor_unitario);
+      novoEstoque = estoqueAtual + quantidade;
+      if (dadosComuns.tipo_detalhado?.toUpperCase().includes('COMPRA') && valorUnitario) {
+        novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, quantidade, valorUnitario);
       }
     } else if (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') {
-      novoEstoque = estoqueAtual - produto.quantidade;
+      novoEstoque = estoqueAtual - quantidade;
     } else if (dadosComuns.tipo_movimentacao === 'Ajuste') {
-      if (dadosComuns.tipo_detalhado?.includes('POSITIVO')) {
-        novoEstoque = estoqueAtual + produto.quantidade;
+      if (dadosComuns.tipo_detalhado?.toUpperCase().includes('POSITIVO')) {
+        novoEstoque = estoqueAtual + quantidade;
       } else {
-        novoEstoque = estoqueAtual - produto.quantidade;
+        novoEstoque = estoqueAtual - quantidade;
       }
     }
 
@@ -148,14 +171,33 @@ export default function MovimentacoesEstoque() {
     const movimentacao = {
       empresa_id: empresaSelecionadaId,
       numero_movimentacao: String(proximoNumero),
-      ...dadosComuns,
+      tipo_movimentacao: dadosComuns.tipo_movimentacao,
+      tipo_detalhado: dadosComuns.tipo_detalhado,
+      data_movimentacao: new Date().toISOString(),
       produto_id: produto.produto_id,
       produto_nome: produto.produto_nome,
-      produto_codigo: produto.produto_codigo,
-      quantidade: produto.quantidade,
-      unidade_medida: produto.unidade_medida,
-      valor_unitario: produto.valor_unitario || undefined,
-      valor_total: produto.valor_total || undefined,
+      produto_codigo: produtoData.codigo_interno,
+      produto_categoria: produtoData.categoria,
+      quantidade: quantidade,
+      unidade_medida: produto.unidade || produtoData.unidade_medida,
+      valor_unitario: valorUnitario,
+      valor_total: valorLiquido,
+      local_estoque_origem: dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_estoque : undefined,
+      local_estoque_destino: dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência' ? (dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_destino : dadosComuns.local_estoque) : undefined,
+      tipo_documento: dadosComuns.tipo_documento || undefined,
+      numero_documento: dadosComuns.numero_documento || undefined,
+      serie_documento: dadosComuns.serie_documento || undefined,
+      chave_documento: dadosComuns.chave_documento || undefined,
+      data_documento: dadosComuns.data_documento || undefined,
+      cfop: dadosComuns.cfop || undefined,
+      natureza_operacao: dadosComuns.natureza_operacao || undefined,
+      fornecedor_id: dadosComuns.fornecedor_id || undefined,
+      fornecedor_nome: dadosComuns.fornecedor_id ? fornecedores.find(f => f.id === dadosComuns.fornecedor_id)?.nome : undefined,
+      cliente_nome: dadosComuns.cliente_nome || undefined,
+      centro_custo_id: dadosComuns.centro_custo_id || undefined,
+      centro_custo_nome: dadosComuns.centro_custo_id ? centros.find(c => c.id === dadosComuns.centro_custo_id)?.nome : undefined,
+      motivo_movimentacao: dadosComuns.motivo_movimentacao,
+      observacoes: dadosComuns.observacoes || undefined,
       saldo_antes: estoqueAtual,
       saldo_depois: novoEstoque,
       custo_medio_antes: custoMedioAtual,
@@ -172,21 +214,39 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleSubmit = async (formData) => {
-    try {
-      const { produtos: produtosLista, ...dadosComuns } = formData;
+    const produtosLista = formData.produtos_selecionados || formData.produtos || [];
+    
+    if (produtosLista.length === 0) {
+      toast.error('Adicione pelo menos um produto!');
+      return;
+    }
 
+    setIsSaving(true);
+    setSaveProgress({ current: 0, total: produtosLista.length });
+
+    try {
+      const { produtos_selecionados, produtos, ...dadosComuns } = formData;
+
+      let saved = 0;
       for (const produto of produtosLista) {
         await processarMovimentacaoProduto(produto, dadosComuns);
+        saved++;
+        setSaveProgress({ current: saved, total: produtosLista.length });
       }
 
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      setShowForm(false);
-      setEditingMovimentacao(null);
-      setDadosImportadosXML(null);
-      toast.success(`✅ ${produtosLista.length} movimentação(ões) registrada(s)!`);
+      
+      setTimeout(() => {
+        setIsSaving(false);
+        setShowForm(false);
+        setEditingMovimentacao(null);
+        setDadosImportadosXML(null);
+        toast.success(`✅ ${produtosLista.length} movimentação(ões) registrada(s)!`);
+      }, 500);
     } catch (error) {
       console.error('Erro:', error);
+      setIsSaving(false);
       toast.error(error.message || 'Erro ao processar movimentação');
     }
   };
@@ -261,6 +321,10 @@ export default function MovimentacoesEstoque() {
     toast.success('Dados carregados no formulário!');
   };
 
+  const saveProgressPercentage = saveProgress.total > 0 
+    ? Math.round((saveProgress.current / saveProgress.total) * 100) 
+    : 0;
+
   return (
     <div className="p-4 md:p-6 space-y-2">
       {!showForm && (
@@ -310,6 +374,34 @@ export default function MovimentacoesEstoque() {
         produtos={produtos}
         fornecedores={fornecedores}
       />
+
+      <Dialog open={isSaving} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+              Salvando Movimentações
+            </DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto processamos as movimentações de estoque...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {saveProgress.current} de {saveProgress.total}
+                </span>
+              </div>
+              <Progress value={saveProgressPercentage} className="h-3" />
+              <p className="text-center text-sm font-medium text-emerald-600">
+                {saveProgressPercentage}%
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
