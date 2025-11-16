@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,7 @@ import { format } from "date-fns";
 
 import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
-import ImportarNFeXML from "../components/movimentacoes/ImportarNFeXML";
+import ImportarNFeMovimentacao from "../components/movimentacoes/ImportarNFeMovimentacao";
 
 const getNextSystemNumber = async () => {
   try {
@@ -252,66 +253,75 @@ export default function MovimentacoesEstoque() {
     toast.success('Exportado!');
   };
 
-  const handleImportacaoXML = async ({ fornecedor_id, dadosNFe, itens, dadosComplementares, xmlFile }) => {
-    const centro = centros.find(c => c.id === dadosComplementares.centro_custo_id);
-    
-    for (const item of itens) {
-      const produto = produtos.find(p => p.id === item.produto_id);
-      
-      if (!produto) {
-        console.warn(`Produto com ID ${item.produto_id} não encontrado, pulando item.`);
-        continue;
+  const handleImportacaoXML = async (dadosImportacao) => {
+    try {
+      const { produtos: produtosLista, ...dadosComuns } = dadosImportacao;
+
+      for (const produto of produtosLista) {
+        const produtoData = produtos.find(p => p.id === produto.produto_id);
+        if (!produtoData) continue;
+
+        const estoqueAtual = produtoData.estoque_atual || 0;
+        const custoMedioAtual = produtoData.preco_custo || 0;
+        
+        const quantidade = typeof produto.quantidade === 'string' ? parseFloat(produto.quantidade.replace(',', '.')) : produto.quantidade;
+        const valorTotal = typeof produto.valor_total === 'string' ? parseFloat(produto.valor_total.replace(',', '.')) : produto.valor_total;
+        const desconto = typeof produto.desconto_item === 'string' ? parseFloat(produto.desconto_item.replace(',', '.')) : (produto.desconto_item || 0);
+        
+        const valorLiquido = valorTotal - desconto;
+        const valorUnitario = quantidade > 0 ? (valorLiquido / quantidade) : 0;
+
+        const novoEstoque = estoqueAtual + quantidade;
+        const novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, quantidade, valorUnitario);
+
+        const proximoNumero = await getNextSystemNumber();
+
+        await base44.entities.MovimentacaoEstoque.create({
+          empresa_id: empresaSelecionadaId,
+          numero_movimentacao: String(proximoNumero),
+          tipo_movimentacao: 'Entrada',
+          tipo_detalhado: dadosComuns.tipo_detalhado || 'Compra',
+          data_movimentacao: new Date().toISOString(),
+          produto_id: produto.produto_id,
+          produto_nome: produto.produto_nome,
+          produto_codigo: produtoData.codigo_interno,
+          quantidade: quantidade,
+          unidade_medida: produto.unidade || produtoData.unidade_medida,
+          local_estoque_destino: dadosComuns.local_estoque,
+          valor_unitario: valorUnitario,
+          valor_total: valorLiquido,
+          tipo_documento: dadosComuns.tipo_documento,
+          numero_documento: dadosComuns.numero_documento,
+          serie_documento: dadosComuns.serie_documento,
+          chave_documento: dadosComuns.chave_documento,
+          data_documento: dadosComuns.data_documento,
+          cfop: dadosComuns.cfop,
+          natureza_operacao: dadosComuns.natureza_operacao,
+          fornecedor_id: dadosComuns.fornecedor_id,
+          fornecedor_nome: dadosComuns.fornecedor_nome,
+          motivo_movimentacao: dadosComuns.motivo_movimentacao || `IMPORTAÇÃO XML NF-E ${dadosComuns.numero_documento}`,
+          observacoes: dadosComuns.observacoes,
+          saldo_antes: estoqueAtual,
+          saldo_depois: novoEstoque,
+          custo_medio_antes: custoMedioAtual,
+          custo_medio_depois: novoCustoMedio,
+          usuario_responsavel: user?.email || 'Sistema',
+          status: 'Ativa'
+        });
+
+        await base44.entities.Produto.update(produtoData.id, {
+          estoque_atual: novoEstoque,
+          preco_custo: novoCustoMedio
+        });
       }
 
-      const estoqueAtual = produto?.estoque_atual || 0;
-      const custoMedioAtual = produto?.preco_custo || 0;
-      const novoEstoque = estoqueAtual + item.quantidade;
-      const novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, item.quantidade, item.valor_unitario);
-
-      const proximoNumero = await getNextSystemNumber();
-
-      await base44.entities.MovimentacaoEstoque.create({
-        empresa_id: empresaSelecionadaId,
-        numero_movimentacao: String(proximoNumero),
-        tipo_movimentacao: 'Entrada',
-        tipo_detalhado: 'Compra',
-        data_movimentacao: new Date().toISOString(),
-        produto_id: item.produto_id,
-        produto_nome: produto?.nome_produto,
-        produto_codigo: produto?.codigo_interno,
-        quantidade: item.quantidade,
-        unidade_medida: produto?.unidade_medida,
-        local_estoque_destino: dadosComplementares.local_estoque,
-        valor_unitario: item.valor_unitario,
-        valor_total: item.quantidade * item.valor_unitario,
-        tipo_documento: 'Nota Fiscal',
-        numero_documento: dadosNFe.numero,
-        serie_documento: dadosNFe.serie,
-        chave_documento: dadosNFe.chave,
-        data_documento: dadosNFe.data_emissao,
-        fornecedor_id: fornecedor_id,
-        fornecedor_nome: fornecedores.find(f => f.id === fornecedor_id)?.nome,
-        motivo_movimentacao: `IMPORTAÇÃO XML NF-E ${dadosNFe.numero}`,
-        centro_custo_id: dadosComplementares.centro_custo_id,
-        centro_custo_nome: centro?.nome,
-        observacoes: dadosComplementares.observacoes?.toUpperCase(),
-        saldo_antes: estoqueAtual,
-        saldo_depois: novoEstoque,
-        custo_medio_antes: custoMedioAtual,
-        custo_medio_depois: novoCustoMedio,
-        usuario_responsavel: user?.email || 'Sistema',
-        status: 'Ativa',
-        anexos: [{ nome: `NF-e ${dadosNFe.numero} XML`, url: xmlFile, tipo: 'application/xml' }]
-      });
-
-      await base44.entities.Produto.update(item.produto_id, {
-        estoque_atual: novoEstoque,
-        preco_custo: novoCustoMedio
-      });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      toast.success(`✅ ${produtosLista.length} produto(s) importado(s)!`);
+    } catch (error) {
+      console.error('Erro:', error);
+      toast.error(error.message || 'Erro ao importar');
     }
-
-    queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-    queryClient.invalidateQueries({ queryKey: ['produtos'] });
   };
 
   return (
@@ -356,12 +366,13 @@ export default function MovimentacoesEstoque() {
 
       {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={handleEdit} onCancel={handleCancel} isLoading={isLoading} />}
 
-      <ImportarNFeXML
+      <ImportarNFeMovimentacao
         open={showImportXML}
         onClose={() => setShowImportXML(false)}
         onSuccess={handleImportacaoXML}
         produtos={produtos}
         fornecedores={fornecedores}
+        centros={centros} // Added to ensure it's available if needed by the component internally
       />
     </div>
   );
