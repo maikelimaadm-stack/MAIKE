@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,7 +51,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [formData, setFormData] = useState({
     tipo_movimentacao: initialData?.tipo_movimentacao || "",
     tipo_detalhado: initialData?.tipo_detalhado || "",
-    local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || "",
+    local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || initialData?.local_estoque || "",
     local_destino: initialData?.local_estoque_destino || "",
     empresa_destino_id: initialData?.empresa_destino_id || "",
     tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
@@ -65,7 +66,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     centro_custo_id: initialData?.centro_custo_id || "",
     motivo_movimentacao: initialData?.motivo_movimentacao || "",
     observacoes: initialData?.observacoes || "",
-    produtos_selecionados: []
+    produtos_selecionados: initialData?.produtos_selecionados || []
   });
 
   const [showDialogLocal, setShowDialogLocal] = useState(false);
