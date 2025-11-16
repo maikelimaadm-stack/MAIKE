@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +48,7 @@ export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
   const [showImportXML, setShowImportXML] = useState(false);
+  const [dadosImportadosXML, setDadosImportadosXML] = useState(null);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -183,6 +183,7 @@ export default function MovimentacoesEstoque() {
       queryClient.invalidateQueries({ queryKey: ['produtos'] });
       setShowForm(false);
       setEditingMovimentacao(null);
+      setDadosImportadosXML(null);
       toast.success(`✅ ${produtosLista.length} movimentação(ões) registrada(s)!`);
     } catch (error) {
       console.error('Erro:', error);
@@ -253,75 +254,11 @@ export default function MovimentacoesEstoque() {
     toast.success('Exportado!');
   };
 
-  const handleImportacaoXML = async (dadosImportacao) => {
-    try {
-      const { produtos: produtosLista, ...dadosComuns } = dadosImportacao;
-
-      for (const produto of produtosLista) {
-        const produtoData = produtos.find(p => p.id === produto.produto_id);
-        if (!produtoData) continue;
-
-        const estoqueAtual = produtoData.estoque_atual || 0;
-        const custoMedioAtual = produtoData.preco_custo || 0;
-        
-        const quantidade = typeof produto.quantidade === 'string' ? parseFloat(produto.quantidade.replace(',', '.')) : produto.quantidade;
-        const valorTotal = typeof produto.valor_total === 'string' ? parseFloat(produto.valor_total.replace(',', '.')) : produto.valor_total;
-        const desconto = typeof produto.desconto_item === 'string' ? parseFloat(produto.desconto_item.replace(',', '.')) : (produto.desconto_item || 0);
-        
-        const valorLiquido = valorTotal - desconto;
-        const valorUnitario = quantidade > 0 ? (valorLiquido / quantidade) : 0;
-
-        const novoEstoque = estoqueAtual + quantidade;
-        const novoCustoMedio = calcularCustoMedio(estoqueAtual, custoMedioAtual, quantidade, valorUnitario);
-
-        const proximoNumero = await getNextSystemNumber();
-
-        await base44.entities.MovimentacaoEstoque.create({
-          empresa_id: empresaSelecionadaId,
-          numero_movimentacao: String(proximoNumero),
-          tipo_movimentacao: 'Entrada',
-          tipo_detalhado: dadosComuns.tipo_detalhado || 'Compra',
-          data_movimentacao: new Date().toISOString(),
-          produto_id: produto.produto_id,
-          produto_nome: produto.produto_nome,
-          produto_codigo: produtoData.codigo_interno,
-          quantidade: quantidade,
-          unidade_medida: produto.unidade || produtoData.unidade_medida,
-          local_estoque_destino: dadosComuns.local_estoque,
-          valor_unitario: valorUnitario,
-          valor_total: valorLiquido,
-          tipo_documento: dadosComuns.tipo_documento,
-          numero_documento: dadosComuns.numero_documento,
-          serie_documento: dadosComuns.serie_documento,
-          chave_documento: dadosComuns.chave_documento,
-          data_documento: dadosComuns.data_documento,
-          cfop: dadosComuns.cfop,
-          natureza_operacao: dadosComuns.natureza_operacao,
-          fornecedor_id: dadosComuns.fornecedor_id,
-          fornecedor_nome: dadosComuns.fornecedor_nome,
-          motivo_movimentacao: dadosComuns.motivo_movimentacao || `IMPORTAÇÃO XML NF-E ${dadosComuns.numero_documento}`,
-          observacoes: dadosComuns.observacoes,
-          saldo_antes: estoqueAtual,
-          saldo_depois: novoEstoque,
-          custo_medio_antes: custoMedioAtual,
-          custo_medio_depois: novoCustoMedio,
-          usuario_responsavel: user?.email || 'Sistema',
-          status: 'Ativa'
-        });
-
-        await base44.entities.Produto.update(produtoData.id, {
-          estoque_atual: novoEstoque,
-          preco_custo: novoCustoMedio
-        });
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
-      toast.success(`✅ ${produtosLista.length} produto(s) importado(s)!`);
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error(error.message || 'Erro ao importar');
-    }
+  const handleImportacaoXML = (dadosImportacao) => {
+    setDadosImportadosXML(dadosImportacao);
+    setShowImportXML(false);
+    setShowForm(true);
+    toast.success('Dados carregados no formulário!');
   };
 
   return (
@@ -342,7 +279,7 @@ export default function MovimentacoesEstoque() {
                 <Download className="w-3.5 h-3.5" />
                 Exportar
               </Button>
-              <Button onClick={() => { setEditingMovimentacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => { setEditingMovimentacao(null); setDadosImportadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
                 <Plus className="w-3.5 h-3.5" />
                 Nova Movimentação
               </Button>
@@ -355,8 +292,8 @@ export default function MovimentacoesEstoque() {
         {showForm && (
           <FormularioMovimentacao
             onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); }}
-            initialData={editingMovimentacao}
+            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); setDadosImportadosXML(null); }}
+            initialData={dadosImportadosXML || editingMovimentacao}
             isEditing={!!editingMovimentacao}
             produtos={produtos}
             fornecedores={fornecedores}
@@ -372,7 +309,6 @@ export default function MovimentacoesEstoque() {
         onSuccess={handleImportacaoXML}
         produtos={produtos}
         fornecedores={fornecedores}
-        centros={centros} // Added to ensure it's available if needed by the component internally
       />
     </div>
   );
