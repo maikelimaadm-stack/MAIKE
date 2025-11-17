@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, FileCode, Folder, Copy, Check, Database } from "lucide-react";
 import { toast } from "sonner";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 
 const ARQUIVOS_SISTEMA = {
   "Layout": {
@@ -132,7 +130,6 @@ const ARQUIVOS_SISTEMA = {
 
 export default function Backup() {
   const [copiando, setCopiando] = useState(null);
-  const [baixando, setBaixando] = useState(false);
 
   const getTotalArquivos = () => {
     return Object.values(ARQUIVOS_SISTEMA).reduce((total, grupo) => total + grupo.arquivos.length, 0);
@@ -141,8 +138,7 @@ export default function Backup() {
   const handleCopyToClipboard = async (arquivo) => {
     setCopiando(arquivo);
     try {
-      // Simula leitura do arquivo
-      await navigator.clipboard.writeText(`// Conteúdo de ${arquivo}\n// Use a base44 para ler este arquivo`);
+      await navigator.clipboard.writeText(arquivo);
       toast.success(`${arquivo} copiado!`);
       setTimeout(() => setCopiando(null), 2000);
     } catch (error) {
@@ -151,85 +147,47 @@ export default function Backup() {
     }
   };
 
-  const handleDownloadTudo = async () => {
-    setBaixando(true);
-    toast.info('Preparando backup completo...');
+  const handleDownloadListaTXT = () => {
+    const linhas = ['# BACKUP - LISTA DE ARQUIVOS DO SISTEMA', '', `Data: ${new Date().toLocaleString('pt-BR')}`, `Total: ${getTotalArquivos()} arquivos`, '', ''];
+    
+    Object.entries(ARQUIVOS_SISTEMA).forEach(([grupo, dados]) => {
+      linhas.push(`## ${grupo} (${dados.arquivos.length} arquivos)`);
+      linhas.push('');
+      dados.arquivos.forEach(arquivo => {
+        linhas.push(`- ${arquivo}`);
+      });
+      linhas.push('');
+    });
 
-    try {
-      const zip = new JSZip();
-      
-      // Adiciona informações do backup
-      const info = {
-        sistema: "Sistema de Gestão - Fazenda Palmital",
-        data_backup: new Date().toISOString(),
-        total_arquivos: getTotalArquivos(),
-        versao: "1.0.0",
-        grupos: Object.keys(ARQUIVOS_SISTEMA)
-      };
-      
-      zip.file("INFO_BACKUP.json", JSON.stringify(info, null, 2));
+    linhas.push('', '## INSTRUÇÕES PARA BACKUP MANUAL', '');
+    linhas.push('1. Acesse o Base44 Dashboard');
+    linhas.push('2. Para cada arquivo acima, faça o download via interface');
+    linhas.push('3. Mantenha a estrutura de pastas');
+    linhas.push('4. Para entities, exporte também os dados do banco');
+    linhas.push('');
 
-      // Cria README
-      const readme = `# Backup do Sistema de Gestão
-      
-Data: ${new Date().toLocaleString('pt-BR')}
-Total de Arquivos: ${getTotalArquivos()}
-
-## Estrutura do Projeto
-
-${Object.entries(ARQUIVOS_SISTEMA).map(([grupo, dados]) => `
-### ${grupo}
-${dados.arquivos.map(arq => `- ${arq}`).join('\n')}
-`).join('\n')}
-
-## Como Restaurar
-
-1. Faça upload dos arquivos no Base44
-2. Configure as entities primeiro
-3. Configure o Layout
-4. Configure as páginas
-5. Configure os componentes
-
-## Importante
-
-Este é um backup de código-fonte. Para backup completo do sistema,
-inclua também:
-- Backup do banco de dados
-- Configurações da empresa
-- Arquivos enviados (logos, documentos, etc)
-`;
-
-      zip.file("README.md", readme);
-
-      // Simula adicionar arquivos ao ZIP
-      for (const [grupo, dados] of Object.entries(ARQUIVOS_SISTEMA)) {
-        const folder = zip.folder(grupo.replace(/ /g, '_'));
-        
-        for (const arquivo of dados.arquivos) {
-          // Adiciona placeholder - em produção você leria o conteúdo real
-          folder.file(
-            arquivo.split('/').pop(), 
-            `// ${arquivo}\n// Conteúdo do arquivo ${arquivo}\n// Data: ${new Date().toISOString()}\n\n// Use a base44 para obter o conteúdo real deste arquivo`
-          );
-        }
-      }
-
-      // Gera o ZIP
-      const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `backup_sistema_${new Date().toISOString().split('T')[0]}.zip`);
-      
-      toast.success('✅ Backup baixado com sucesso!');
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error('Erro ao gerar backup');
-    } finally {
-      setBaixando(false);
-    }
+    const conteudo = linhas.join('\n');
+    const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_lista_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success('✅ Lista baixada!');
   };
 
-  const handleDownloadGrupo = (grupo, arquivos) => {
-    toast.info(`Baixando grupo: ${grupo}`);
-    // Implementação similar ao backup completo, mas apenas para o grupo
+  const handleCopyAllPaths = () => {
+    const paths = [];
+    Object.values(ARQUIVOS_SISTEMA).forEach(grupo => {
+      paths.push(...grupo.arquivos);
+    });
+    
+    navigator.clipboard.writeText(paths.join('\n'));
+    toast.success(`${paths.length} caminhos copiados!`);
   };
 
   return (
@@ -237,25 +195,26 @@ inclua também:
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Backup do Sistema</h1>
-          <p className="text-xs text-slate-600">Exportar todo o código-fonte do projeto</p>
+          <p className="text-xs text-slate-600">Lista completa de arquivos do projeto</p>
         </div>
-        <Button 
-          onClick={handleDownloadTudo} 
-          disabled={baixando}
-          className="bg-emerald-600 hover:bg-emerald-700"
-        >
-          {baixando ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-              Gerando...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Baixar Tudo (.zip)
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleCopyAllPaths} 
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+          >
+            <Copy className="w-3.5 h-3.5 mr-2" />
+            Copiar Todos
+          </Button>
+          <Button 
+            onClick={handleDownloadListaTXT}
+            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+          >
+            <Download className="w-3.5 h-3.5 mr-2" />
+            Baixar Lista (.txt)
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -336,15 +295,6 @@ inclua também:
                       {dados.arquivos.length} arquivo(s)
                     </Badge>
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => handleDownloadGrupo(grupo, dados.arquivos)}
-                    className="h-7 text-xs"
-                  >
-                    <Download className="w-3.5 h-3.5 mr-1" />
-                    Baixar Grupo
-                  </Button>
                 </div>
                 <div className="divide-y">
                   {dados.arquivos.map((arquivo) => (
@@ -383,13 +333,14 @@ inclua também:
               </svg>
             </div>
             <div className="flex-1">
-              <h4 className="font-semibold text-sm text-blue-900 mb-1">⚠️ Importante</h4>
+              <h4 className="font-semibold text-sm text-blue-900 mb-1">⚠️ Como fazer backup completo</h4>
               <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
-                <li>Este backup contém apenas o código-fonte do sistema</li>
-                <li>Para backup completo, exporte também os dados do banco de dados</li>
-                <li>Salve este arquivo em local seguro</li>
+                <li>Baixe a lista de arquivos clicando no botão acima</li>
+                <li>Use o Base44 Dashboard para fazer download de cada arquivo</li>
+                <li>Para backup de dados, exporte cada entidade do banco de dados</li>
+                <li>Salve tudo em local seguro (ex: Google Drive, Dropbox)</li>
                 <li>Recomendamos fazer backups semanais</li>
-                <li>Para restaurar, importe os arquivos via Base44 Dashboard</li>
+                <li>Para restaurar, reimporte os arquivos via Base44 Dashboard</li>
               </ul>
             </div>
           </div>
