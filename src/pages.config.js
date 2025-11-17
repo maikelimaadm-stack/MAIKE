@@ -31,7 +31,8 @@ import CaixaBancos from './pages/CaixaBancos';
 import FluxoCaixa from './pages/FluxoCaixa';
 import LivroCaixa from './pages/LivroCaixa';
 import AtivosFixos from './pages/AtivosFixos';
-import Layout from './Layout.jsx';
+import Backup from './pages/Backup';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -68,10 +69,11 @@ export const PAGES = {
     "FluxoCaixa": FluxoCaixa,
     "LivroCaixa": LivroCaixa,
     "AtivosFixos": AtivosFixos,
+    "Backup": Backup,
 }
 
 export const pagesConfig = {
     mainPage: "Dashboard",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };
