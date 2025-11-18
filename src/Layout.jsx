@@ -50,6 +50,16 @@ const DEFAULT_MENU = [
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
+    id: "pecuaria",
+    title: "Pecuaria",
+    icon: "Package",
+    submenu: [
+      { id: "pec-gado", title: "Cadastro de Gado", url: "CadastroGado" },
+      { id: "pec-areas", title: "Areas e Pastagens", url: "AreasPastagem" },
+      { id: "pec-mapa", title: "Mapa de Movimentacao", url: "MapaMovimentacao" },
+    ],
+  },
+  {
     id: "financeiro",
     title: "Financeiro",
     icon: "DollarSign",

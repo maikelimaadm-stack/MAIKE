@@ -14,6 +14,7 @@ const MODULOS_SISTEMA = [
   { id: "pesagens", title: "Pesagens", icon: "Scale" },
   { id: "custos", title: "Custos de Safra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentações Estoque", icon: "ArrowRightLeft" },
+  { id: "pecuaria", title: "Pecuária (Todos)", icon: "Package" },
   { id: "financeiro", title: "Financeiro (Todos)", icon: "DollarSign" },
   { id: "fiscal", title: "Fiscal (Todos)", icon: "BookOpen" },
   { id: "cadastros", title: "Cadastros (Todos)", icon: "FolderOpen" },
