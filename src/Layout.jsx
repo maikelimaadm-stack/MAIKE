@@ -254,8 +254,8 @@ export default function Layout({ children, currentPageName }) {
     // Admin sempre tem acesso
     if (user?.role === 'admin' || userPermissions?.is_admin) return true;
     
-    // Se não tem permissões configuradas, bloqueia acesso
-    if (!userPermissions) return false;
+    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
+    if (!userPermissions) return true;
     
     // Verifica se o módulo está nas permissões
     return userPermissions.modulos_permitidos?.includes(itemId);
