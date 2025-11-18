@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -236,8 +235,14 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
-    base44.auth.logout();
+  const handleLogout = async () => {
+    try {
+      await base44.auth.logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Erro ao sair:', error);
+      window.location.href = '/';
+    }
   };
 
   const isActive = (item) => {
