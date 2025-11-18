@@ -33,6 +33,8 @@ import LivroCaixa from './pages/LivroCaixa';
 import AtivosFixos from './pages/AtivosFixos';
 import Backup from './pages/Backup';
 import CadastroGado from './pages/CadastroGado';
+import AreasPastagem from './pages/AreasPastagem';
+import MapaMovimentacao from './pages/MapaMovimentacao';
 import __Layout from './Layout.jsx';
 
 
@@ -72,6 +74,8 @@ export const PAGES = {
     "AtivosFixos": AtivosFixos,
     "Backup": Backup,
     "CadastroGado": CadastroGado,
+    "AreasPastagem": AreasPastagem,
+    "MapaMovimentacao": MapaMovimentacao,
 }
 
 export const pagesConfig = {
