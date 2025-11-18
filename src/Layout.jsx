@@ -146,6 +146,7 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
+  // ATUALIZAR MENU - SEM LOOP!
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('custom_menu');
@@ -181,19 +182,21 @@ export default function Layout({ children, currentPageName }) {
     enabled: !!empresaSelecionada && empresas.length > 0,
   });
 
+  // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
     if (!empresaSelecionada && empresas.length > 0 && !isChangingEmpresa.current) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas.length]);
+  }, [empresas.length]); // Apenas quando o tamanho mudar
 
   const handleEmpresaChange = (empresaId) => {
     isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
     
+    // Usar timeout para evitar loops
     setTimeout(() => {
       window.location.reload();
     }, 100);
@@ -232,23 +235,9 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
-  /** ⛔ AQUI ESTÁ A FUNÇÃO DE LOGOUT CORRIGIDA ⛔ **/
-  const handleLogout = async () => {
-    try {
-      await base44.auth.logout();
-
-      // limpa dados locais
-      localStorage.removeItem("empresa_selecionada_id");
-      localStorage.removeItem("custom_menu");
-
-      // redireciona para login
-      window.location.href = "/login";
-
-    } catch (err) {
-      console.error("Erro ao fazer logout:", err);
-    }
+  const handleLogout = () => {
+    base44.auth.logout();
   };
-  /** ⛔ FIM DO LOGOUT CORRIGIDO ⛔ **/
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
@@ -397,8 +386,6 @@ export default function Layout({ children, currentPageName }) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  
-                  {/* ⛔ BOTÃO SAIR CHAMA O LOGOUT CORRIGIDO ⛔ */}
                   <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
                     <LogOut className="w-3 h-3 mr-2" />
                     Sair
