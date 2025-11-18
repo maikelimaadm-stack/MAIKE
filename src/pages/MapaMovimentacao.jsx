@@ -1,14 +1,14 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Polygon, Popup, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup, Marker, useMapEvents, LayersControl } from 'react-leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, ArrowRightLeft, Plus, RefreshCw, Edit, Trash2, Save, X, PenTool } from "lucide-react";
+import { Map, ArrowRightLeft, Plus, RefreshCw, Edit, Trash2, Save, X, PenTool, Satellite, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import 'leaflet/dist/leaflet.css';
+
+const { BaseLayer } = LayersControl;
 
 const getStatusColor = (status) => {
   const colors = {
@@ -38,25 +40,18 @@ const MapDrawer = ({ onComplete, isDrawing, currentPoints, onPointAdd }) => {
     },
   });
 
-  return (
-    <>
-      {currentPoints.map((point, idx) => (
-        <Marker key={idx} position={point} />
-      ))}
-      {currentPoints.length > 2 && (
-        <Polygon
-          positions={currentPoints}
-          pathOptions={{
-            color: '#3b82f6',
-            fillColor: '#3b82f6',
-            fillOpacity: 0.3,
-            weight: 2,
-            dashArray: '5, 5'
-          }}
-        />
-      )}
-    </>
-  );
+  return currentPoints.length > 0 && isDrawing ? (
+    <Polygon
+      positions={currentPoints.length < 3 ? [...currentPoints, ...currentPoints] : currentPoints}
+      pathOptions={{
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.2,
+        weight: 3,
+        dashArray: '10, 5'
+      }}
+    />
+  ) : null;
 };
 
 export default function MapaMovimentacao() {
@@ -303,12 +298,33 @@ export default function MapaMovimentacao() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div style={{ height: '600px', width: '100%' }}>
-              <MapContainer center={defaultCenter} zoom={14} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+            <div style={{ height: '600px', width: '100%', position: 'relative' }}>
+              <MapContainer 
+                center={defaultCenter} 
+                zoom={15} 
+                style={{ height: '100%', width: '100%', borderRadius: '0 0 8px 8px' }}
+                zoomControl={true}
+              >
+                <LayersControl position="topright">
+                  <BaseLayer checked name="Mapa">
+                    <TileLayer
+                      attribution='&copy; Google Maps'
+                      url="https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}"
+                    />
+                  </BaseLayer>
+                  <BaseLayer name="Satélite">
+                    <TileLayer
+                      attribution='&copy; Google Maps'
+                      url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                    />
+                  </BaseLayer>
+                  <BaseLayer name="Híbrido">
+                    <TileLayer
+                      attribution='&copy; Google Maps'
+                      url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                    />
+                  </BaseLayer>
+                </LayersControl>
                 
                 <MapDrawer 
                   isDrawing={isDrawing || isEditMode}
@@ -316,15 +332,12 @@ export default function MapaMovimentacao() {
                   onPointAdd={handlePointAdd}
                 />
 
-                {areas.map((area) => {
-                  if (editingArea?.id === area.id) return null;
+                {!isDrawing && !isEditMode && areas.map((area) => {
+                  const coords = area.coordenadas?.coords || [];
+                  if (coords.length < 3) return null;
 
-                  const coords = area.coordenadas?.coords || [
-                    [defaultCenter[0] + Math.random() * 0.01, defaultCenter[1] + Math.random() * 0.01],
-                    [defaultCenter[0] + Math.random() * 0.01, defaultCenter[1] + Math.random() * 0.01 + 0.005],
-                    [defaultCenter[0] + Math.random() * 0.01 + 0.005, defaultCenter[1] + Math.random() * 0.01 + 0.005],
-                    [defaultCenter[0] + Math.random() * 0.01 + 0.005, defaultCenter[1] + Math.random() * 0.01]
-                  ];
+                  const animaisNaArea = getAnimaisNaArea(area.id).length;
+                  const percentual = area.capacidade_maxima > 0 ? (animaisNaArea / area.capacidade_maxima) * 100 : 0;
 
                   return (
                     <Polygon
@@ -333,25 +346,54 @@ export default function MapaMovimentacao() {
                       pathOptions={{
                         color: getStatusColor(area.status_ocupacao),
                         fillColor: getStatusColor(area.status_ocupacao),
-                        fillOpacity: 0.4,
-                        weight: 2
+                        fillOpacity: 0.35,
+                        weight: 2.5
                       }}
                       eventHandlers={{
-                        click: () => !isDrawing && !isEditMode && setSelectedArea(area)
+                        click: () => setSelectedArea(area),
+                        mouseover: (e) => e.target.setStyle({ fillOpacity: 0.6, weight: 3 }),
+                        mouseout: (e) => e.target.setStyle({ fillOpacity: 0.35, weight: 2.5 })
                       }}
                     >
-                      <Popup>
-                        <div className="text-xs space-y-2">
-                          <div className="font-bold text-sm">{area.nome}</div>
-                          <div className="text-slate-600">Tamanho: {area.tamanho_hectares} ha</div>
-                          <div className="text-slate-600">Capacidade: {area.capacidade_maxima} UA</div>
-                          <div className="text-slate-600">Atual: {getAnimaisNaArea(area.id).length} animais</div>
-                          <div className="text-slate-600">Status: {area.status_ocupacao}</div>
-                          <div className="flex gap-1 mt-2">
+                      <Popup closeButton={false} className="custom-popup">
+                        <div className="p-2" style={{ minWidth: '200px' }}>
+                          <div className="font-bold text-base mb-2 text-slate-900">{area.nome}</div>
+                          <div className="space-y-1 text-xs text-slate-700">
+                            <div className="flex justify-between">
+                              <span>Tamanho:</span>
+                              <span className="font-semibold">{area.tamanho_hectares} ha</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Capacidade:</span>
+                              <span className="font-semibold">{area.capacidade_maxima} UA</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Animais:</span>
+                              <span className="font-semibold">{animaisNaArea}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Ocupação:</span>
+                              <span className="font-semibold">{percentual.toFixed(0)}%</span>
+                            </div>
+                            <div className="mt-2 pt-2 border-t">
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs"
+                                style={{
+                                  backgroundColor: getStatusColor(area.status_ocupacao) + '20',
+                                  color: getStatusColor(area.status_ocupacao),
+                                  borderColor: getStatusColor(area.status_ocupacao)
+                                }}
+                              >
+                                {area.status_ocupacao}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 mt-3">
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="h-6 text-xs"
+                              className="h-7 text-xs flex-1"
                               onClick={() => handleEditArea(area)}
                             >
                               <Edit className="w-3 h-3 mr-1" />
@@ -360,7 +402,7 @@ export default function MapaMovimentacao() {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="h-6 text-xs text-red-600"
+                              className="h-7 text-xs flex-1 text-red-600 hover:bg-red-50"
                               onClick={() => handleDeleteArea(area.id)}
                             >
                               <Trash2 className="w-3 h-3 mr-1" />
@@ -373,6 +415,12 @@ export default function MapaMovimentacao() {
                   );
                 })}
               </MapContainer>
+
+              {(isDrawing || isEditMode) && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+                  {isEditMode ? 'Clique no mapa para redefinir a área' : `Clique no mapa para desenhar (${currentPoints.length} pontos)`}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
