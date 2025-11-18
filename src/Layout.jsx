@@ -235,14 +235,8 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await base44.auth.logout();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Erro ao sair:', error);
-      window.location.href = '/';
-    }
+  const handleLogout = () => {
+    base44.auth.logout();
   };
 
   const isActive = (item) => {
