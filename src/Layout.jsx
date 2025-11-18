@@ -135,6 +135,7 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [userPermissions, setUserPermissions] = useState(null);
   const isChangingEmpresa = useRef(false);
   
   const [menuItems, setMenuItems] = useState(() => {
@@ -207,6 +208,16 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+        
+        // Carregar permissões do usuário
+        try {
+          const allPermissoes = await base44.entities.Permissao.list();
+          const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
+          setUserPermissions(permissao);
+        } catch (error) {
+          console.error("Erro ao carregar permissões:", error);
+          setUserPermissions(null);
+        }
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
         setUser(null);
@@ -239,6 +250,32 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
+  const hasAccess = (itemId) => {
+    // Admin sempre tem acesso
+    if (user?.role === 'admin' || userPermissions?.is_admin) return true;
+    
+    // Se não tem permissões configuradas, bloqueia acesso
+    if (!userPermissions) return false;
+    
+    // Verifica se o módulo está nas permissões
+    return userPermissions.modulos_permitidos?.includes(itemId);
+  };
+
+  const filterMenuByPermissions = (items) => {
+    return items.filter(item => {
+      if (!hasAccess(item.id)) return false;
+      
+      if (item.submenu) {
+        item.submenu = filterMenuByPermissions(item.submenu);
+        return item.submenu.length > 0;
+      }
+      
+      return true;
+    });
+  };
+
+  const menuItemsFiltered = filterMenuByPermissions(menuItems);
+
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
     if (item.submenu) return item.submenu.some(sub => {
@@ -249,7 +286,7 @@ export default function Layout({ children, currentPageName }) {
     return false;
   };
 
-  const allPages = getAllPages(menuItems);
+  const allPages = getAllPages(menuItemsFiltered);
   const filteredPages = searchTerm 
     ? allPages.filter(p => 
         p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -404,7 +441,7 @@ export default function Layout({ children, currentPageName }) {
                     <SheetTitle className="text-left text-sm">Menu</SheetTitle>
                   </SheetHeader>
                   <div className="mt-4 space-y-1">
-                    {menuItems.map((item) => {
+                    {menuItemsFiltered.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
                       
                       if (item.submenu) {
@@ -462,7 +499,7 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
-              {menuItems.map((item) => {
+              {menuItemsFiltered.map((item) => {
                 const Icon = iconsMap[item.icon] || Home;
                 const active = isActive(item);
 
