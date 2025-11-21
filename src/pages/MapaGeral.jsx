@@ -347,11 +347,15 @@ export default function MapaGeral() {
             labelOrigin: new google.maps.Point(35, 25)
           };
         } else {
+          // Sem ícone configurado - usar marcador padrão colorido
           markerIcon = {
-            url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/c3602d1e3_Designsemnome3.png',
-            scaledSize: new google.maps.Size(70, 70),
-            anchor: new google.maps.Point(35, 35),
-            labelOrigin: new google.maps.Point(35, 25)
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 30,
+            fillColor: '#10b981',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 4,
+            labelOrigin: new google.maps.Point(0, 0)
           };
         }
 
