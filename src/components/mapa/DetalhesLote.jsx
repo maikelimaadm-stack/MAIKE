@@ -613,7 +613,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       </Dialog>
 
       <Dialog open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl">
           <FormularioMudancaCategoria
             lote={lotes}
             onSubmit={handleMudancaCategoria}
