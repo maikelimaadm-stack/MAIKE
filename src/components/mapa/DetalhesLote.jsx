@@ -53,6 +53,18 @@ export default function DetalhesLote({ lotes, onClose }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  // Agrupar lotes por categoria
+  const lotesPorCategoria = lotes.reduce((acc, lote) => {
+    const cat = lote.categoria?.toUpperCase() || 'SEM CATEGORIA';
+    if (!acc[cat]) {
+      acc[cat] = [];
+    }
+    acc[cat].push(lote);
+    return acc;
+  }, {});
+
+  const categorias = Object.keys(lotesPorCategoria).sort();
+  
   // Calcular total de cabeças
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
   
@@ -344,8 +356,19 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(lotes.length, 3)}, 1fr)` }}>
-        {lotes.map((lote, index) => (
+      <div className="space-y-4">
+        {categorias.map(categoria => {
+          const lotesCategoria = lotesPorCategoria[categoria];
+          const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
+          
+          return (
+            <div key={categoria}>
+              <div className="text-sm font-bold text-emerald-700 mb-2 pb-1 border-b border-emerald-200">
+                {categoria} - {totalCabecasCategoria} cabeças
+              </div>
+              
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(lotesCategoria.length, 3)}, 1fr)` }}>
+                {lotesCategoria.map((lote, index) => (
           <div key={lote.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
@@ -415,7 +438,11 @@ export default function DetalhesLote({ lotes, onClose }) {
               </div>
             </div>
           </div>
-        ))}
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-4 gap-3 pt-3 border-t">
