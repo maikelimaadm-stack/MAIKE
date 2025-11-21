@@ -386,16 +386,14 @@ export default function MapaPecuaria() {
           label: {
             text: String(lote.quantidade_cabecas),
             color: '#ffffff',
-            fontSize: '16px',
+            fontSize: '14px',
             fontWeight: 'bold'
           },
           icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 20,
-            fillColor: corIcone,
-            fillOpacity: 1,
-            strokeColor: '#ffffff',
-            strokeWeight: 3
+            url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/c3602d1e3_Designsemnome3.png',
+            scaledSize: new google.maps.Size(50, 50),
+            anchor: new google.maps.Point(25, 25),
+            labelOrigin: new google.maps.Point(25, 25)
           },
           title: lote.nome
         });
