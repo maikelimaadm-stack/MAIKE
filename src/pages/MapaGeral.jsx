@@ -37,6 +37,8 @@ const loadGoogleMapsScript = () => {
 export default function MapaGeral() {
   const [mapType, setMapType] = useState('satellite');
   const [modoDesenho, setModoDesenho] = useState(null); // 'poligono', 'ponto', 'linha'
+  const [modoEdicao, setModoEdicao] = useState(false); // modo de edição/visualização
+  const [snappingEnabled, setSnappingEnabled] = useState(true);
   const [showAreas, setShowAreas] = useState(true);
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
@@ -111,6 +113,53 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const SNAP_DISTANCE = 15; // pixels
+
+  const findNearestPoint = (mouseLatLng, map) => {
+    if (!snappingEnabled) return null;
+
+    const projection = map.getProjection();
+    if (!projection) return null;
+
+    const mousePoint = projection.fromLatLngToPoint(mouseLatLng);
+    let nearestPoint = null;
+    let minDistance = Infinity;
+
+    // Verificar pontos de áreas
+    areas.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      coords.forEach(coord => {
+        const point = projection.fromLatLngToPoint(new google.maps.LatLng(coord[0] || coord.lat, coord[1] || coord.lng));
+        const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
+        const scale = Math.pow(2, map.getZoom());
+        const pixelDistance = distance * scale;
+        
+        if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
+          minDistance = pixelDistance;
+          nearestPoint = { lat: coord[0] || coord.lat, lng: coord[1] || coord.lng };
+        }
+      });
+    });
+
+    // Verificar pontos de linhas
+    linhas.forEach(linha => {
+      const coords = linha.coordenadas?.coords || [];
+      coords.forEach(coord => {
+        const point = projection.fromLatLngToPoint(new google.maps.LatLng(coord[0] || coord.lat, coord[1] || coord.lng));
+        const distance = Math.sqrt(Math.pow(point.x - mousePoint.x, 2) + Math.pow(point.y - mousePoint.y, 2));
+        const scale = Math.pow(2, map.getZoom());
+        const pixelDistance = distance * scale;
+        
+        if (pixelDistance < SNAP_DISTANCE && pixelDistance < minDistance) {
+          minDistance = pixelDistance;
+          nearestPoint = { lat: coord[0] || coord.lat, lng: coord[1] || coord.lng };
+        }
+      });
+    });
+
+    return nearestPoint;
+  };
+
   const cancelarDesenho = () => {
     setModoDesenho(null);
     setCurrentPoints([]);
@@ -168,8 +217,16 @@ export default function MapaGeral() {
     if (!mapInstanceRef.current || !modoDesenho) return;
 
     const handleMapClick = (e) => {
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
+      let lat = e.latLng.lat();
+      let lng = e.latLng.lng();
+      
+      // Aplicar snapping
+      const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
+      if (snappedPoint) {
+        lat = snappedPoint.lat;
+        lng = snappedPoint.lng;
+        toast.success('🧲 Encaixado!', { duration: 500 });
+      }
       
       if (modoDesenho === 'ponto') {
         setCurrentMarker({ lat, lng });
@@ -283,27 +340,47 @@ export default function MapaGeral() {
           paths,
           strokeColor: cor,
           strokeOpacity: 1,
-          strokeWeight: 2.5,
+          strokeWeight: modoEdicao ? 3 : 2.5,
           fillColor: cor,
-          fillOpacity: 0.35,
+          fillOpacity: modoEdicao ? 0.25 : 0.35,
+          editable: modoEdicao,
+          draggable: modoEdicao,
         });
 
         polygon.setMap(mapInstanceRef.current);
         polygonsRef.current.push(polygon);
 
-        polygon.addListener('click', () => {
-          const infoWindow = new google.maps.InfoWindow({
-            content: `
-              <div style="padding: 8px;">
-                <strong>${area.nome}</strong><br/>
-                <span style="font-size: 12px;">Área: ${area.tamanho_hectares || 0} ha</span>
-              </div>
-            `
-          });
-          const bounds = new google.maps.LatLngBounds();
-          paths.forEach(p => bounds.extend(p));
-          infoWindow.setPosition(bounds.getCenter());
-          infoWindow.open(mapInstanceRef.current);
+        // Salvar alterações quando editar
+        if (modoEdicao) {
+          const updateAreaMutation = async () => {
+            const newPaths = polygon.getPath().getArray().map(p => [p.lat(), p.lng()]);
+            await base44.entities.AreaPastagem.update(area.id, {
+              coordenadas: { coords: newPaths, cor }
+            });
+            queryClient.invalidateQueries({ queryKey: ['areas'] });
+            toast.success('Área atualizada!');
+          };
+
+          google.maps.event.addListener(polygon.getPath(), 'set_at', updateAreaMutation);
+          google.maps.event.addListener(polygon.getPath(), 'insert_at', updateAreaMutation);
+          google.maps.event.addListener(polygon, 'dragend', updateAreaMutation);
+        }
+
+        polygon.addListener('click', (e) => {
+          if (!modoEdicao && e.vertex === undefined) {
+            const infoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="padding: 8px;">
+                  <strong>${area.nome}</strong><br/>
+                  <span style="font-size: 12px;">Área: ${area.tamanho_hectares || 0} ha</span>
+                </div>
+              `
+            });
+            const bounds = new google.maps.LatLngBounds();
+            paths.forEach(p => bounds.extend(p));
+            infoWindow.setPosition(bounds.getCenter());
+            infoWindow.open(mapInstanceRef.current);
+          }
         });
       });
     }
@@ -339,20 +416,33 @@ export default function MapaGeral() {
           map: mapInstanceRef.current,
           icon: markerIcon,
           title: ponto.nome,
+          draggable: modoEdicao,
         });
 
         markersRef.current.push(marker);
 
-        marker.addListener('click', () => {
-          const infoWindow = new google.maps.InfoWindow({
-            content: `
-              <div style="padding: 10px;">
-                <strong style="font-size: 14px;">${ponto.nome}</strong><br/>
-                <span style="font-size: 12px; color: #666;">${ponto.tipo}</span>
-              </div>
-            `
+        // Salvar posição ao arrastar em modo de edição
+        if (modoEdicao) {
+          marker.addListener('dragend', async (e) => {
+            const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+            await base44.entities.PontoReferencia.update(ponto.id, { coordenadas: newPos });
+            queryClient.invalidateQueries({ queryKey: ['pontos'] });
+            toast.success('Ponto reposicionado!');
           });
-          infoWindow.open(mapInstanceRef.current, marker);
+        }
+
+        marker.addListener('click', () => {
+          if (!modoEdicao) {
+            const infoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="padding: 10px;">
+                  <strong style="font-size: 14px;">${ponto.nome}</strong><br/>
+                  <span style="font-size: 12px; color: #666;">${ponto.tipo}</span>
+                </div>
+              `
+            });
+            infoWindow.open(mapInstanceRef.current, marker);
+          }
         });
       });
     }
@@ -370,25 +460,53 @@ export default function MapaGeral() {
           path: paths,
           strokeColor: cor,
           strokeOpacity: 1,
-          strokeWeight: 3,
+          strokeWeight: modoEdicao ? 4 : 3,
+          editable: modoEdicao,
+          draggable: modoEdicao,
         });
 
         polyline.setMap(mapInstanceRef.current);
         polylinesRef.current.push(polyline);
 
+        // Salvar alterações quando editar
+        if (modoEdicao) {
+          const updateLinhaMutation = async () => {
+            const newPaths = polyline.getPath().getArray().map(p => [p.lat(), p.lng()]);
+            
+            // Recalcular comprimento
+            let comprimentoMetros = 0;
+            if (window.google?.maps?.geometry) {
+              comprimentoMetros = google.maps.geometry.spherical.computeLength(polyline.getPath());
+            }
+
+            await base44.entities.LinhaGeografica.update(linha.id, {
+              coordenadas: { coords: newPaths, cor },
+              comprimento_metros: comprimentoMetros
+            });
+            queryClient.invalidateQueries({ queryKey: ['linhas'] });
+            toast.success('Linha atualizada!');
+          };
+
+          google.maps.event.addListener(polyline.getPath(), 'set_at', updateLinhaMutation);
+          google.maps.event.addListener(polyline.getPath(), 'insert_at', updateLinhaMutation);
+          google.maps.event.addListener(polyline, 'dragend', updateLinhaMutation);
+        }
+
         polyline.addListener('click', () => {
-          const infoWindow = new google.maps.InfoWindow({
-            content: `
-              <div style="padding: 8px;">
-                <strong>${linha.nome}</strong><br/>
-                <span style="font-size: 12px;">${linha.tipo} - ${linha.comprimento_metros ? (linha.comprimento_metros/1000).toFixed(2) + ' km' : 'N/A'}</span>
-              </div>
-            `
-          });
-          const bounds = new google.maps.LatLngBounds();
-          paths.forEach(p => bounds.extend(p));
-          infoWindow.setPosition(bounds.getCenter());
-          infoWindow.open(mapInstanceRef.current);
+          if (!modoEdicao) {
+            const infoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="padding: 8px;">
+                  <strong>${linha.nome}</strong><br/>
+                  <span style="font-size: 12px;">${linha.tipo} - ${linha.comprimento_metros ? (linha.comprimento_metros/1000).toFixed(2) + ' km' : 'N/A'}</span>
+                </div>
+              `
+            });
+            const bounds = new google.maps.LatLngBounds();
+            paths.forEach(p => bounds.extend(p));
+            infoWindow.setPosition(bounds.getCenter());
+            infoWindow.open(mapInstanceRef.current);
+          }
         });
       });
     }
@@ -504,28 +622,40 @@ export default function MapaGeral() {
                 {!modoDesenho && (
                   <>
                     <Button
+                      onClick={() => setModoEdicao(!modoEdicao)}
+                      size="sm"
+                      variant={modoEdicao ? 'default' : 'outline'}
+                      className={`h-7 text-xs ${modoEdicao ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      {modoEdicao ? 'Modo Edição' : 'Editar'}
+                    </Button>
+                    <Button
                       onClick={() => setModoDesenho('poligono')}
                       size="sm"
                       className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                      disabled={modoEdicao}
                     >
                       <Square className="w-3 h-3 mr-1" />
-                      Desenhar Área
+                      Área
                     </Button>
                     <Button
                       onClick={() => setModoDesenho('ponto')}
                       size="sm"
                       className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                      disabled={modoEdicao}
                     >
                       <MapPin className="w-3 h-3 mr-1" />
-                      Adicionar Ponto
+                      Ponto
                     </Button>
                     <Button
                       onClick={() => setModoDesenho('linha')}
                       size="sm"
                       className="h-7 text-xs bg-orange-600 hover:bg-orange-700"
+                      disabled={modoEdicao}
                     >
                       <Minus className="w-3 h-3 mr-1" />
-                      Desenhar Linha
+                      Linha
                     </Button>
                   </>
                 )}
@@ -586,6 +716,11 @@ export default function MapaGeral() {
                 {modoDesenho === 'linha' && `➡️ Clique no mapa para desenhar a linha (${currentPoints.length} pontos)`}
               </div>
             )}
+            {modoEdicao && !modoDesenho && (
+              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
+                ✏️ MODO EDIÇÃO - Arraste vértices para editar elementos
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -597,49 +732,72 @@ export default function MapaGeral() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
+            {modoEdicao && (
+              <div className="bg-purple-50 border border-purple-200 rounded p-2 mb-3">
+                <div className="text-xs font-semibold text-purple-900 mb-1">✏️ Modo Edição</div>
+                <div className="text-[10px] text-purple-700">
+                  Arraste vértices e elementos para editar
+                </div>
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
-              <span className="text-xs">Áreas ({areas.length})</span>
+              <span className="text-xs">🧲 Snapping</span>
               <Button
-                variant={showAreas ? 'default' : 'outline'}
+                variant={snappingEnabled ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setShowAreas(!showAreas)}
+                onClick={() => setSnappingEnabled(!snappingEnabled)}
                 className="h-7 text-xs"
               >
-                {showAreas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                {snappingEnabled ? 'ON' : 'OFF'}
               </Button>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs">Pontos ({pontos.length})</span>
-              <Button
-                variant={showPontos ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowPontos(!showPontos)}
-                className="h-7 text-xs"
-              >
-                {showPontos ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs">Linhas ({linhas.length})</span>
-              <Button
-                variant={showLinhas ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowLinhas(!showLinhas)}
-                className="h-7 text-xs"
-              >
-                {showLinhas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs">Lotes ({lotes.length})</span>
-              <Button
-                variant={showLotes ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowLotes(!showLotes)}
-                className="h-7 text-xs"
-              >
-                {showLotes ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
+
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs">Áreas ({areas.length})</span>
+                <Button
+                  variant={showAreas ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowAreas(!showAreas)}
+                  className="h-7 text-xs"
+                >
+                  {showAreas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                </Button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs">Pontos ({pontos.length})</span>
+                <Button
+                  variant={showPontos ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowPontos(!showPontos)}
+                  className="h-7 text-xs"
+                >
+                  {showPontos ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                </Button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs">Linhas ({linhas.length})</span>
+                <Button
+                  variant={showLinhas ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowLinhas(!showLinhas)}
+                  className="h-7 text-xs"
+                >
+                  {showLinhas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                </Button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs">Lotes ({lotes.length})</span>
+                <Button
+                  variant={showLotes ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowLotes(!showLotes)}
+                  className="h-7 text-xs"
+                >
+                  {showLotes ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
