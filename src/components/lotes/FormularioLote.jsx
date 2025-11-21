@@ -11,11 +11,6 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
 const CATEGORIAS = [
-  "Bezerro", "Bezerro Desmamado", "Novilho", "Novilha",
-  "Vaca", "Touro", "Garrote", "Matrizes", "Reprodutores"
-];
-
-const CATEGORIAS_OFICIAIS = [
   "Bezerro 0 a 12 meses",
   "Bezerra 0 a 12 meses",
   "Garrote 13 a 24 meses",
@@ -35,7 +30,6 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
     nome: "",
     quantidade_cabecas: "",
     categoria: "",
-    categoria_oficial: "",
     sexo: "",
     peso_medio_kg: "",
     idade_media_meses: "",
@@ -133,27 +127,13 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Categoria *</Label>
+                <Label className="text-xs">Categoria Oficial *</Label>
                 <Select value={formData.categoria} onValueChange={(v) => handleChange('categoria', v)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIAS.map(cat => (
-                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Categoria Oficial *</Label>
-                <Select value={formData.categoria_oficial} onValueChange={(v) => handleChange('categoria_oficial', v)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS_OFICIAIS.map(cat => (
                       <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
                     ))}
                   </SelectContent>
