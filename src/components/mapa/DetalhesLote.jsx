@@ -240,21 +240,56 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleNascimento = async (formData) => {
-    const lotesMae = lotes.filter(l => l.categoria === formData.categoria_mae);
-    const loteAtualizar = lotesMae[0];
+    // Determinar categoria baseada no sexo
+    const categoriaFilhote = formData.sexo === "Macho" 
+      ? "Bezerro 0 a 12 meses" 
+      : "Bezerra 0 a 12 meses";
     
+    // Buscar lote da categoria correta na mesma área
+    const areaAtualId = lotes[0]?.area_atual_id;
+    const todosLotes = await base44.entities.Lote.list();
+    let loteFilhote = todosLotes.find(l => 
+      l.empresa_id === empresaSelecionadaId && 
+      l.categoria === categoriaFilhote && 
+      l.area_atual_id === areaAtualId &&
+      l.status === 'Ativo'
+    );
+
+    if (loteFilhote) {
+      // Adicionar ao lote existente
+      await base44.entities.Lote.update(loteFilhote.id, {
+        quantidade_cabecas: loteFilhote.quantidade_cabecas + formData.quantidade,
+        peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg
+      });
+    } else {
+      // Criar novo lote
+      const areaAtual = areas.find(a => a.id === areaAtualId);
+      loteFilhote = await base44.entities.Lote.create({
+        empresa_id: empresaSelecionadaId,
+        nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaAtual?.nome || 'AREA'}`,
+        quantidade_cabecas: formData.quantidade,
+        categoria: categoriaFilhote,
+        sexo: formData.sexo,
+        peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : null,
+        idade_media_meses: 0,
+        area_atual_id: areaAtualId,
+        area_atual_nome: areaAtual?.nome || '',
+        data_entrada: formData.data_nascimento,
+        origem: 'Nascimento',
+        status: 'Ativo',
+        sistema_produtivo: lotes[0]?.sistema_produtivo
+      });
+    }
+
+    // Registrar movimentação
     await base44.entities.MovimentacaoPecuaria.create({
       empresa_id: empresaSelecionadaId,
       data_movimentacao: new Date(formData.data_nascimento).toISOString(),
       tipo: 'Nascimento',
-      lote: loteAtualizar.nome,
+      lote: loteFilhote.nome,
       quantidade_animais: formData.quantidade,
       peso_medio: parseFloat(formData.peso_medio) || null,
-      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. ${formData.observacoes}`
-    });
-
-    await base44.entities.Lote.update(loteAtualizar.id, {
-      quantidade_cabecas: loteAtualizar.quantidade_cabecas + formData.quantidade
+      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
