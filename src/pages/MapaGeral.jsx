@@ -276,7 +276,10 @@ export default function MapaGeral() {
         paths.forEach(p => bounds.extend(p));
         const center = bounds.getCenter();
 
-        const configIcone = iconesConfig.find(ic => ic.tipo_entidade === 'Lote' && ic.categoria === lote.categoria);
+        const configIcone = iconesConfig.find(ic => 
+          ic.tipo_entidade === 'Lote' && 
+          ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
+        );
         let markerIcon;
 
         if (configIcone?.icone_url) {
