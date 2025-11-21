@@ -356,44 +356,56 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const extrairDadosObservacoes = (obs) => {
     if (!obs) return {};
-    
+
     const dados = {};
-    
+
     // Categoria
     const catMatch = obs.match(/Categoria[:\s]+([^.]+)/i);
     if (catMatch) dados.categoria = catMatch[1].trim();
-    
+
     // De X para Y (mudança de categoria)
     const mudancaMatch = obs.match(/De\s+([^p]+)\s+para\s+([^.]+)/i);
     if (mudancaMatch) {
       dados.categoria_origem = mudancaMatch[1].trim();
       dados.categoria_destino = mudancaMatch[2].trim();
     }
-    
+
     // Categoria mãe
     const catMaeMatch = obs.match(/Categoria mãe[:\s]+([^.]+)/i);
     if (catMaeMatch) dados.categoria_mae = catMaeMatch[1].trim();
-    
+
+    // Categoria filhote
+    const catFilhoteMatch = obs.match(/Categoria filhote[:\s]+([^.]+)/i);
+    if (catFilhoteMatch) dados.categoria_filhote = catFilhoteMatch[1].trim();
+
     // Sexo
     const sexoMatch = obs.match(/Sexo[:\s]+([^.]+)/i);
     if (sexoMatch) dados.sexo = sexoMatch[1].trim();
-    
+
     // Causa
     const causaMatch = obs.match(/Causa[:\s]+([^.]+)/i);
     if (causaMatch) dados.causa = causaMatch[1].trim();
-    
+
     // Destino
     const destinoMatch = obs.match(/Destino[:\s]+([^.]+)/i);
     if (destinoMatch) dados.destino = destinoMatch[1].trim();
-    
+
     // Peso vivo
     const pesoVivoMatch = obs.match(/Peso vivo[:\s]+([0-9.,]+)/i);
     if (pesoVivoMatch) dados.peso_vivo = pesoVivoMatch[1].trim();
-    
+
     // Peso carcaça
     const pesoCarcacaMatch = obs.match(/Peso carcaça[:\s]+([0-9.,]+)/i);
     if (pesoCarcacaMatch) dados.peso_carcaca = pesoCarcacaMatch[1].trim();
-    
+
+    // Peso anterior
+    const pesoAnteriorMatch = obs.match(/Peso anterior[:\s]+([0-9.,]+)/i);
+    if (pesoAnteriorMatch) dados.peso_anterior = pesoAnteriorMatch[1].trim();
+
+    // Ganho
+    const ganhoMatch = obs.match(/Ganho[:\s]+([0-9.,+-]+)/i);
+    if (ganhoMatch) dados.ganho = ganhoMatch[1].trim();
+
     return dados;
   };
 
@@ -457,7 +469,46 @@ export default function HistoricoMovimentacoesPecuaria() {
       case 'peso_carcaca':
         return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{dadosObs.peso_carcaca || '-'}</TableCell>;
       case 'observacoes':
-        return <TableCell className="text-xs max-w-[200px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+        const dadosCompletos = extrairDadosObservacoes(mov.observacoes);
+        return (
+          <TableCell className="text-xs border-r border-slate-200">
+            <div className="space-y-1 max-w-[300px]">
+              {mov.tipo === 'Nascimento' && (
+                <div className="space-y-0.5 bg-green-50 border border-green-200 rounded p-2">
+                  {dadosCompletos.categoria_mae && <div><span className="font-semibold">Mãe:</span> {dadosCompletos.categoria_mae}</div>}
+                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
+                  {dadosCompletos.categoria_filhote && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria_filhote}</div>}
+                </div>
+              )}
+              {mov.tipo === 'Morte' && dadosCompletos.causa && (
+                <div className="bg-red-50 border border-red-200 rounded p-2">
+                  <span className="font-semibold">Causa:</span> {dadosCompletos.causa}
+                </div>
+              )}
+              {mov.tipo === 'Abate' && (
+                <div className="space-y-0.5 bg-orange-50 border border-orange-200 rounded p-2">
+                  {dadosCompletos.peso_vivo && <div><span className="font-semibold">Peso vivo:</span> {dadosCompletos.peso_vivo}kg</div>}
+                  {dadosCompletos.peso_carcaca && <div><span className="font-semibold">Carcaça:</span> {dadosCompletos.peso_carcaca}kg</div>}
+                  {dadosCompletos.destino && <div><span className="font-semibold">Destino:</span> {dadosCompletos.destino}</div>}
+                </div>
+              )}
+              {mov.tipo === 'Mudança de Categoria' && dadosCompletos.categoria_origem && dadosCompletos.categoria_destino && (
+                <div className="bg-purple-50 border border-purple-200 rounded p-2">
+                  <span className="font-semibold">{dadosCompletos.categoria_origem}</span> → <span className="font-bold">{dadosCompletos.categoria_destino}</span>
+                </div>
+              )}
+              {mov.tipo === 'Pesagem' && (
+                <div className="space-y-0.5 bg-emerald-50 border border-emerald-200 rounded p-2">
+                  {dadosCompletos.peso_anterior && <div><span className="font-semibold">Anterior:</span> {dadosCompletos.peso_anterior}kg</div>}
+                  {dadosCompletos.ganho && <div><span className="font-semibold">Ganho:</span> {dadosCompletos.ganho}kg</div>}
+                </div>
+              )}
+              {mov.observacoes && !['Nascimento', 'Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && (
+                <div className="text-slate-600 truncate" title={mov.observacoes}>{mov.observacoes}</div>
+              )}
+            </div>
+          </TableCell>
+        );
       case 'responsavel':
         return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
       default:
