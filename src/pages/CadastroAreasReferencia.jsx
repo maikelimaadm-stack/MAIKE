@@ -206,33 +206,6 @@ export default function CadastroAreasReferencia() {
       renderItems();
     });
   }, []);
-          const position = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-          setCurrentMarker(position);
-          
-          if (tempMarkerRef.current) {
-            tempMarkerRef.current.setMap(null);
-          }
-
-          tempMarkerRef.current = new google.maps.Marker({
-            position,
-            map: mapInstanceRef.current,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: corSelecionada,
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2
-            }
-          });
-
-          setShowDialog(true);
-        }
-      });
-
-      renderItems();
-    });
-  }, []);
 
   useEffect(() => {
     if (mapInstanceRef.current) {
