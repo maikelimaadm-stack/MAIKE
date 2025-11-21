@@ -118,7 +118,7 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const SNAP_DISTANCE = 15; // pixels
+  const SNAP_DISTANCE = 30; // pixels
 
   const findNearestPoint = (mouseLatLng, map) => {
     if (!snappingEnabled) return null;
@@ -255,16 +255,25 @@ export default function MapaGeral() {
   useEffect(() => {
     if (!mapInstanceRef.current || !modoDesenho || !mapReady) return;
 
+    let clickTimeout = null;
+
     const handleMapClick = (e) => {
+      // Evitar múltiplos cliques rápidos
+      if (clickTimeout) return;
+      
+      clickTimeout = setTimeout(() => {
+        clickTimeout = null;
+      }, 300);
+
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
       
-      // Aplicar snapping
+      // Aplicar snapping com indicador visual
       const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
       if (snappedPoint) {
         lat = snappedPoint.lat;
         lng = snappedPoint.lng;
-        toast.success('🧲 Encaixado!', { duration: 500 });
+        toast.success('🧲 Encaixado!', { duration: 800 });
       }
       
       if (modoDesenho === 'ponto') {
@@ -282,15 +291,18 @@ export default function MapaGeral() {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
           const updated = [...prev, newPoint];
-          toast.success(`Ponto ${updated.length} adicionado`, { duration: 1000 });
+          toast.success(`✅ Ponto ${updated.length} adicionado`, { duration: 800 });
           return updated;
         });
       }
     };
 
     const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
-    return () => google.maps.event.removeListener(listener);
-  }, [modoDesenho, mapReady]);
+    return () => {
+      google.maps.event.removeListener(listener);
+      if (clickTimeout) clearTimeout(clickTimeout);
+    };
+  }, [modoDesenho, mapReady, snappingEnabled]);
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
@@ -327,13 +339,14 @@ export default function MapaGeral() {
       guideLineRef.current = new google.maps.Polyline({
         path: [lastPoint, targetPoint],
         strokeColor: snappedPoint ? '#10b981' : '#3b82f6',
-        strokeOpacity: 0.7,
-        strokeWeight: 3,
+        strokeOpacity: 0.8,
+        strokeWeight: snappedPoint ? 4 : 3,
         icons: [{
           icon: lineSymbol,
           offset: '100%'
         }],
-        map: mapInstanceRef.current
+        map: mapInstanceRef.current,
+        zIndex: 999
       });
     };
 
