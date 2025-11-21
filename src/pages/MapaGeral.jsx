@@ -586,16 +586,16 @@ export default function MapaGeral() {
         if (configIcone?.icone_url) {
           markerIcon = {
             url: configIcone.icone_url,
-            scaledSize: new google.maps.Size(50, 50),
-            anchor: new google.maps.Point(25, 25),
-            labelOrigin: new google.maps.Point(25, 25)
+            scaledSize: new google.maps.Size(70, 70),
+            anchor: new google.maps.Point(35, 35),
+            labelOrigin: new google.maps.Point(35, 35)
           };
         } else {
           markerIcon = {
             url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/c3602d1e3_Designsemnome3.png',
-            scaledSize: new google.maps.Size(50, 50),
-            anchor: new google.maps.Point(25, 25),
-            labelOrigin: new google.maps.Point(25, 25)
+            scaledSize: new google.maps.Size(70, 70),
+            anchor: new google.maps.Point(35, 35),
+            labelOrigin: new google.maps.Point(35, 35)
           };
         }
 
@@ -970,8 +970,9 @@ export default function MapaGeral() {
                 height: '700px',
                 width: '100%',
                 backgroundColor: '#e5e7eb',
-                cursor: modoDesenho ? 'crosshair' : 'default'
+                cursor: (modoDesenho && mapReady) ? 'crosshair' : 'default'
               }}
+              className={modoDesenho && mapReady ? '[&_*]:cursor-crosshair' : ''}
             />
             {!mapReady && showMapa && (
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
