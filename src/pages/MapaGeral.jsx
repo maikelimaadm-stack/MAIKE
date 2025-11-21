@@ -290,7 +290,7 @@ export default function MapaGeral() {
         const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
 
         // Detectar categorias únicas
-        const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase()).filter(Boolean))].sort();
+        const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase().trim()).filter(Boolean))].sort();
 
         let configIcone;
         let iconeKey = '';
@@ -300,7 +300,7 @@ export default function MapaGeral() {
           // Uma única categoria - usar ícone específico
           configIcone = iconesConfig.find(ic => 
             ic.tipo_entidade === 'Lote' && 
-            ic.categoria?.toUpperCase() === categorias[0]
+            ic.categoria?.toUpperCase().trim() === categorias[0]
           );
           iconeKey = categorias[0];
         } else if (categorias.length > 1) {
@@ -312,28 +312,30 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          // Verificar correspondência EXATA
+          // Ordenar configs por quantidade de categorias (do mais específico para o menos)
+          configsMisto.sort((a, b) => (b.categorias_misto?.length || 0) - (a.categorias_misto?.length || 0));
+
+          // Verificar correspondência EXATA - mesmo número E mesmos valores
           for (const config of configsMisto) {
-            const categoriasConfigSorted = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
+            const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
             
-            // Correspondência EXATA: mesmo comprimento e mesmos elementos
-            const matchExato = categorias.length === categoriasConfigSorted.length &&
-              categorias.every((cat, idx) => cat === categoriasConfigSorted[idx]);
-            
-            if (matchExato) {
-              configIcone = config;
-              iconeKey = 'MISTO';
-              break;
+            // MATCH EXATO: mesmo tamanho E todos os elementos iguais
+            if (categorias.length === categoriasConfig.length) {
+              const todosIguais = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
+              
+              if (todosIguais) {
+                configIcone = config;
+                iconeKey = 'MISTO';
+                break;
+              }
             }
           }
 
-          // Se não encontrou match exato, usar qualquer MISTO genérico
+          // Se não encontrou match exato, NÃO usar nenhum ícone MISTO genérico
           if (!configIcone) {
-            configIcone = iconesConfig.find(ic => 
-              ic.tipo_entidade === 'Lote' && 
-              ic.categoria?.toUpperCase() === 'MISTO'
-            );
-            iconeKey = 'MISTO';
+            // Usar ícone padrão sem configuração
+            configIcone = null;
+            iconeKey = 'MISTO_SEM_CONFIG';
           }
         }
 
