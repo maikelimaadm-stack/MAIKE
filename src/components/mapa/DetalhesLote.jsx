@@ -366,210 +366,111 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
+          const pesoMedio = lotesCategoria[0]?.peso_medio_kg || 0;
           
           return (
-            <div key={categoria}>
-              <div className="text-xs font-semibold text-emerald-600 mb-2">
-                {totalCabecasCategoria} cabeças - {categoria}
-              </div>
-              
-              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(lotesCategoria.length, 3)}, 1fr)` }}>
-                {lotesCategoria.map((lote, index) => (
-          <div key={lote.id} className="bg-slate-50 rounded p-2 border border-slate-200">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <div className="text-[10px] text-slate-600 uppercase">{lote.nome}</div>
-                <div className="w-5 h-5 bg-emerald-500 rounded flex items-center justify-center mt-1">
-                  <Check className="w-3 h-3 text-white" />
+            <div key={categoria} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-slate-900 mb-1">{categoria}</div>
+              <div className="text-xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
+              <div className="space-y-1 text-[10px]">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Lotes:</span>
+                  <span className="font-semibold">{lotesCategoria.map(l => l.nome).join(', ')}</span>
                 </div>
-              </div>
-              {(() => {
-                const configIcone = iconesConfig.find(ic => 
-                  ic.tipo_entidade === 'Lote' && 
-                  ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
-                );
-
-                const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
-
-                if (iconeUrl) {
-                  return (
-                    <img 
-                      src={iconeUrl} 
-                      alt={lote.categoria} 
-                      className="w-12 h-12 object-contain" 
-                    />
-                  );
-                }
-                return null;
-              })()}
-            </div>
-
-            <div className="space-y-1">
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Último peso informado (kg)</div>
-                <div className="text-xs font-bold text-slate-900">{lote.peso_medio || '-'}</div>
-              </div>
-
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Último GMD (kg/cab/dia)</div>
-                <div className="text-xs font-bold text-slate-900">{lote.gmd || '-'}</div>
-              </div>
-
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Taxa de ganho (%)</div>
-                <div className="text-xs font-bold text-slate-900">{lote.taxa_ganho || '-'}</div>
-              </div>
-
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Peso projetado (kg)</div>
-                <div className="text-xs font-bold text-slate-900">{lote.peso_projetado || '-'}</div>
-              </div>
-
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Último consumo (kg/cab/dia)</div>
-                <div className="text-xs font-bold text-slate-900">{lote.ultimo_consumo || '-'}</div>
-              </div>
-
-              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
-                <div className="text-[8px] text-emerald-700">Indivíduos</div>
-                <div className="text-xs font-bold text-slate-900">{lote.quantidade_cabecas || '-'}</div>
-              </div>
-            </div>
-          </div>
-                ))}
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Peso médio:</span>
+                  <span className="font-semibold">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-4 gap-3 pt-3 border-t">
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Quantidade de cabeças</div>
-            <div className="text-xl font-bold text-slate-900">{totalCabecas}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Peso médio projetado</div>
-            <div className="text-xs text-slate-500">(kg)</div>
-            <div className="text-xl font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Taxa de lotação projetada</div>
-            <div className="text-xs text-slate-500">(kg/ha)</div>
-            <div className="text-xl font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Taxa de lotação (UA/ha)</div>
-            <div className="text-xl font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Última movimentação</div>
-            <div className="text-sm font-bold text-slate-900">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+        <div className="grid grid-cols-4 gap-4 text-xs">
+          <div>
+            <div className="text-slate-600 mb-0.5">Total de cabeças</div>
+            <div className="text-lg font-bold text-slate-900">{totalCabecas}</div>
+          </div>
+          <div>
+            <div className="text-slate-600 mb-0.5">Última movimentação</div>
+            <div className="text-sm font-semibold text-slate-900">
               {lotes[0]?.data_entrada ? new Date(lotes[0].data_entrada).toLocaleDateString() : '-'}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Última suplementação</div>
-            <div className="text-sm font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Índice consumo anterior</div>
-            <div className="text-xs text-slate-500">(kg/100 kg/dia)</div>
-            <div className="text-sm font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-emerald-600 mb-1">Oferta de forragem</div>
-            <div className="text-xs text-slate-500">(%)</div>
-            <div className="text-sm font-bold text-slate-900">-</div>
-          </CardContent>
-        </Card>
+          </div>
+          <div>
+            <div className="text-slate-600 mb-0.5">Área atual</div>
+            <div className="text-sm font-semibold text-slate-900">{areaAtual?.nome || '-'}</div>
+          </div>
+          <div>
+            <div className="text-slate-600 mb-0.5">Sistema</div>
+            <div className="text-sm font-semibold text-slate-900">{lotes[0]?.sistema_produtivo || '-'}</div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-6 gap-2 pt-3">
-        <Button 
-          onClick={() => setShowAbate(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-        >
-          <div className="text-3xl">🥩</div>
-          <span className="text-[10px] font-semibold">Abate para consumo</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowMorte(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-        >
-          <div className="text-3xl">✕</div>
-          <span className="text-[10px] font-semibold">Morte</span>
-        </Button>
-
+      <div className="grid grid-cols-3 gap-2">
         <Button 
           onClick={() => setShowMovimentacao(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+          variant="outline"
+          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
         >
-          <div className="text-3xl">⇄</div>
-          <span className="text-[10px] font-semibold">Movimentação</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowMudancaCategoria(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-        >
-          <div className="text-3xl">🔄</div>
-          <span className="text-[10px] font-semibold">Mudança de categoria</span>
-        </Button>
-
-        <Button 
-          onClick={() => setShowNascimento(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-        >
-          <div className="text-3xl">⭐</div>
-          <span className="text-[10px] font-semibold">Nascimento</span>
+          Movimentação
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
-          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+          variant="outline"
+          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
         >
-          <div className="text-3xl">⚖</div>
-          <span className="text-[10px] font-semibold">Pesagem</span>
+          Pesagem
+        </Button>
+
+        <Button 
+          onClick={() => setShowMudancaCategoria(true)}
+          variant="outline"
+          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+        >
+          Mudança Categoria
+        </Button>
+
+        <Button 
+          onClick={() => setShowNascimento(true)}
+          variant="outline"
+          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+        >
+          Nascimento
+        </Button>
+
+        <Button 
+          onClick={() => setShowMorte(true)}
+          variant="outline"
+          className="h-12 text-xs font-semibold border-red-300 hover:bg-red-50 text-red-700"
+        >
+          Morte
+        </Button>
+
+        <Button 
+          onClick={() => setShowAbate(true)}
+          variant="outline"
+          className="h-12 text-xs font-semibold border-orange-300 hover:bg-orange-50 text-orange-700"
+        >
+          Abate
         </Button>
       </div>
 
-      <div className="mt-4">
-        <Button 
-          onClick={() => setShowHistorico(true)}
-          variant="outline"
-          className="w-full h-10 text-xs font-semibold"
-        >
-          📋 Ver Histórico Completo
-        </Button>
-      </div>
+      <Button 
+        onClick={() => setShowHistorico(true)}
+        variant="outline"
+        className="w-full h-9 text-xs font-semibold mt-3 border-slate-300"
+      >
+        Ver Histórico Completo
+      </Button>
 
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
