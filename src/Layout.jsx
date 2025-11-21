@@ -55,7 +55,7 @@ const DEFAULT_MENU = [
     icon: "Package",
     submenu: [
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-      { id: "pec-mapa-geral", title: "Mapa Geral", url: "MapaGeral" },
+      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
     ],
   },
   {
@@ -86,6 +86,7 @@ const DEFAULT_MENU = [
     icon: "FolderOpen",
     submenu: [
       { id: "cad-empresa", title: "Empresa", url: "Empresa" },
+      { id: "cad-mapa", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
       { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
       { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
       { id: "cad-produtos", title: "Produtos", url: "Produtos" },
