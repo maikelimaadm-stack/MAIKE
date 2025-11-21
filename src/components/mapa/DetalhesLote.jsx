@@ -207,11 +207,14 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMorte = async (formData) => {
+    console.log('🔍 DETALHES - Lotes passados para formulário:', lotes);
+    console.log('🔍 DETALHES - Categorias nos lotes:', lotes.map(l => l.categoria));
+
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
-    
+
     for (const lote of lotesCategoria) {
       const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
-      
+
       await base44.entities.MovimentacaoPecuaria.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
@@ -583,32 +586,38 @@ export default function DetalhesLote({ lotes, onClose }) {
       </Dialog>
 
       <Dialog open={showMorte} onOpenChange={setShowMorte}>
-        <DialogContent className="max-w-md">
-          <FormularioMorte
-            lote={lotes[0]}
-            onSubmit={handleMorte}
-            onCancel={() => setShowMorte(false)}
-          />
+        <DialogContent className="max-w-4xl">
+          {showMorte && (
+            <FormularioMorte
+              lote={lotes}
+              onSubmit={handleMorte}
+              onCancel={() => setShowMorte(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showNascimento} onOpenChange={setShowNascimento}>
-        <DialogContent className="max-w-md">
-          <FormularioNascimento
-            lote={lotes[0]}
-            onSubmit={handleNascimento}
-            onCancel={() => setShowNascimento(false)}
-          />
+        <DialogContent className="max-w-4xl">
+          {showNascimento && (
+            <FormularioNascimento
+              lote={lotes}
+              onSubmit={handleNascimento}
+              onCancel={() => setShowNascimento(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showAbate} onOpenChange={setShowAbate}>
-        <DialogContent className="max-w-md">
-          <FormularioAbate
-            lote={lotes[0]}
-            onSubmit={handleAbate}
-            onCancel={() => setShowAbate(false)}
-          />
+        <DialogContent className="max-w-4xl">
+          {showAbate && (
+            <FormularioAbate
+              lote={lotes}
+              onSubmit={handleAbate}
+              onCancel={() => setShowAbate(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -623,12 +632,14 @@ export default function DetalhesLote({ lotes, onClose }) {
       </Dialog>
 
       <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
-        <DialogContent className="max-w-md">
-          <FormularioPesagem
-            lote={lotes[0]}
-            onSubmit={handlePesagem}
-            onCancel={() => setShowPesagem(false)}
-          />
+        <DialogContent className="max-w-4xl">
+          {showPesagem && (
+            <FormularioPesagem
+              lote={lotes}
+              onSubmit={handlePesagem}
+              onCancel={() => setShowPesagem(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
