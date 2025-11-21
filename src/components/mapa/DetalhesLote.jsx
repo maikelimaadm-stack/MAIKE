@@ -24,9 +24,12 @@ export default function DetalhesLote({ lotes, onClose }) {
     const handleOpenMovimentacao = (e) => {
       setShowMovimentacao(true);
     };
-    
+
     window.addEventListener('open-movimentacao', handleOpenMovimentacao);
-    return () => window.removeEventListener('open-movimentacao', handleOpenMovimentacao);
+    return () => {
+      window.removeEventListener('open-movimentacao', handleOpenMovimentacao);
+      delete window.areaDestinoArrastada;
+    };
   }, []);
 
   const { data: iconesConfig = [] } = useQuery({

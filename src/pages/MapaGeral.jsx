@@ -418,14 +418,12 @@ export default function MapaGeral() {
           marker.setPosition(center);
 
           if (areaMaisProxima && menorDistancia < 500) { // 500 metros de raio
-            // Abrir dialog de movimentação
+            // Abrir dialog de movimentação com área destino
+            window.areaDestinoArrastada = areaMaisProxima.id;
             setSelectedLote(lotesNaArea);
             setShowDetalhesLote(true);
             setTimeout(() => {
-              // Trigger movimentação automaticamente
-              const event = new CustomEvent('open-movimentacao', { 
-                detail: { areaDestino: areaMaisProxima } 
-              });
+              const event = new CustomEvent('open-movimentacao');
               window.dispatchEvent(event);
             }, 100);
           }

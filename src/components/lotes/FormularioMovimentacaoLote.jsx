@@ -13,13 +13,16 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    data_movimentacao: new Date().toISOString().split('T')[0],
-    mover_todos: 'sim',
-    area_saida_id: areaOrigem?.id || '',
-    areas_entrada: [],
-    movimentacoes: [],
-    unir_lotes: {} // { categoria: 'sim' | 'nao' }
+  const [formData, setFormData] = useState(() => {
+    const areaDestino = window.areaDestinoArrastada;
+    return {
+      data_movimentacao: new Date().toISOString().split('T')[0],
+      mover_todos: 'sim',
+      area_saida_id: areaOrigem?.id || '',
+      areas_entrada: areaDestino ? [areaDestino] : [],
+      movimentacoes: [],
+      unir_lotes: {}
+    };
   });
 
   const { data: areas = [] } = useQuery({
