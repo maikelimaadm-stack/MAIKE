@@ -522,9 +522,112 @@ export default function CadastroAreasReferencia() {
               </div>
             </div>
 
-            <div className="pt-3 border-t text-xs text-slate-600">
-              <div className="font-semibold mb-1">📍 Áreas: {areas.length}</div>
-              <div className="font-semibold">🗺️ Pontos: {pontos.length}</div>
+            <div className="pt-3 border-t">
+              <div className="text-xs font-semibold text-slate-700 mb-2">📍 Áreas Cadastradas ({areas.length})</div>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {areas.length === 0 ? (
+                  <div className="text-xs text-slate-500 italic">Nenhuma área cadastrada</div>
+                ) : (
+                  areas.map(area => (
+                    <div key={area.id} className="flex items-center justify-between gap-2 p-2 bg-white border rounded hover:bg-slate-50">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold truncate">{area.nome}</div>
+                        <div className="text-[10px] text-slate-500">{area.tamanho_hectares} ha</div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setEditingItem(area);
+                            setTipoEntidade('area');
+                            const coords = area.coordenadas?.coords || [];
+                            setCurrentPoints(coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })));
+                            setFormData({
+                              nome: area.nome,
+                              area_total: area.tamanho_hectares,
+                              capacidade_maxima: area.capacidade_maxima,
+                              tipo_uso: area.tipo_pastagem,
+                              observacoes: area.observacoes
+                            });
+                            setCorSelecionada(area.coordenadas?.cor || CORES_DISPONIVEIS[3]);
+                            setIsDrawing(true);
+                            toast.info('Clique no mapa para redefinir a área');
+                          }}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-600"
+                          onClick={() => {
+                            if (window.confirm(`Remover área ${area.nome}?`)) {
+                              deleteAreaMutation.mutate(area.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="text-xs font-semibold text-slate-700 mb-2 mt-4">🗺️ Pontos de Referência ({pontos.length})</div>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {pontos.length === 0 ? (
+                  <div className="text-xs text-slate-500 italic">Nenhum ponto cadastrado</div>
+                ) : (
+                  pontos.map(ponto => (
+                    <div key={ponto.id} className="flex items-center justify-between gap-2 p-2 bg-white border rounded hover:bg-slate-50">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ponto.cor }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate">{ponto.nome}</div>
+                          <div className="text-[10px] text-slate-500">{ponto.tipo}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setEditingItem(ponto);
+                            setTipoEntidade('ponto');
+                            setCurrentMarker(ponto.coordenadas);
+                            setFormData({
+                              nome: ponto.nome,
+                              tipo_ponto: ponto.tipo,
+                              observacoes: ponto.observacoes
+                            });
+                            setCorSelecionada(ponto.cor || CORES_DISPONIVEIS[5]);
+                            setIsDrawing(true);
+                            toast.info('Clique no mapa para reposicionar o ponto');
+                          }}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-600"
+                          onClick={() => {
+                            if (window.confirm(`Remover ponto ${ponto.nome}?`)) {
+                              deletePontoMutation.mutate(ponto.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
