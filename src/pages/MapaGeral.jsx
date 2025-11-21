@@ -369,13 +369,8 @@ export default function MapaGeral() {
 
         marker.addListener('click', (e) => {
           e.stop();
-          // Se houver múltiplos lotes, mostrar o primeiro ou criar um dialog específico
-          if (lotesNaArea.length === 1) {
-            setSelectedLote(lotesNaArea[0]);
-          } else {
-            // Mostrar o primeiro lote, mas você pode criar uma lógica diferente aqui
-            setSelectedLote(lotesNaArea[0]);
-          }
+          // Passar TODOS os lotes da área para o componente de detalhes
+          setSelectedLote(lotesNaArea);
           setShowDetalhesLote(true);
         });
       });
@@ -510,7 +505,7 @@ export default function MapaGeral() {
                     <button
                       key={lote.id}
                       onClick={() => {
-                        setSelectedLote(lote);
+                        setSelectedLote([lote]);
                         setShowDetalhesLote(true);
                       }}
                       className="w-full text-left p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -530,13 +525,13 @@ export default function MapaGeral() {
       </div>
 
       <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Lote</DialogTitle>
           </DialogHeader>
           {selectedLote && (
             <DetalhesLote
-              lote={selectedLote}
+              lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
               onClose={() => setShowDetalhesLote(false)}
             />
           )}
