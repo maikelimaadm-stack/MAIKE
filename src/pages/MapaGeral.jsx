@@ -253,16 +253,12 @@ export default function MapaGeral() {
     }
   }, [areas, pontos, linhas, lotes, showAreas, showPontos, showLinhas, showLotes, iconesConfig, mapReady]);
 
-  // Listener de clique no mapa para desenhar com detecção de duplo clique
+  // Listener de clique no mapa para desenhar
   useEffect(() => {
     if (!mapInstanceRef.current || !modoDesenho || !mapReady) return;
 
     const handleMapClick = (e) => {
-      // Previnir propagação
       e.stop();
-      
-      const now = Date.now();
-      const timeDiff = now - lastClickTimeRef.current;
       
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
@@ -274,28 +270,6 @@ export default function MapaGeral() {
         lng = snappedPoint.lng;
         toast.success('🧲 Encaixado!', { duration: 600 });
       }
-
-      // Detectar duplo clique (menos de 400ms entre cliques)
-      const isDoubleClick = timeDiff < 400 && lastClickPositionRef.current &&
-        Math.abs(lastClickPositionRef.current.lat - lat) < 0.0001 &&
-        Math.abs(lastClickPositionRef.current.lng - lng) < 0.0001;
-
-      if (isDoubleClick) {
-        // Duplo clique detectado - finalizar automaticamente
-        if (modoDesenho === 'poligono' && currentPoints.length >= 3) {
-          toast.success('🎯 Polígono finalizado! Arraste os pontos para ajustar', { duration: 2000 });
-          setTimeout(() => finalizarPoligono(), 100);
-        } else if (modoDesenho === 'linha' && currentPoints.length >= 2) {
-          toast.success('📏 Linha finalizada! Arraste os pontos para ajustar', { duration: 2000 });
-          setTimeout(() => finalizarLinha(), 100);
-        }
-        lastClickTimeRef.current = 0;
-        lastClickPositionRef.current = null;
-        return;
-      }
-
-      lastClickTimeRef.current = now;
-      lastClickPositionRef.current = { lat, lng };
       
       if (modoDesenho === 'ponto') {
         setCurrentMarker({ lat, lng });
@@ -312,7 +286,7 @@ export default function MapaGeral() {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
           const updated = [...prev, newPoint];
-          toast.success(`✅ Ponto ${updated.length}`, { duration: 800 });
+          toast.success(`✅ Ponto ${updated.length} adicionado`, { duration: 800 });
           return updated;
         });
       }
@@ -1062,10 +1036,30 @@ export default function MapaGeral() {
               </div>
             )}
             {modoDesenho && mapReady && (
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
-                {modoDesenho === 'poligono' && `🎯 Clique para adicionar pontos (${currentPoints.length}) • DUPLO CLIQUE para finalizar`}
-                {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
-                {modoDesenho === 'linha' && `➡️ Clique para adicionar pontos (${currentPoints.length}) • DUPLO CLIQUE para finalizar`}
+              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+                <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
+                  {modoDesenho === 'poligono' && `🎯 Clique no mapa para adicionar pontos (${currentPoints.length})`}
+                  {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
+                  {modoDesenho === 'linha' && `➡️ Clique no mapa para adicionar pontos (${currentPoints.length})`}
+                </div>
+                {modoDesenho === 'poligono' && currentPoints.length >= 3 && (
+                  <Button
+                    onClick={finalizarPoligono}
+                    size="lg"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
+                  >
+                    ✓ FINALIZAR DESENHO
+                  </Button>
+                )}
+                {modoDesenho === 'linha' && currentPoints.length >= 2 && (
+                  <Button
+                    onClick={finalizarLinha}
+                    size="lg"
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
+                  >
+                    ✓ FINALIZAR DESENHO
+                  </Button>
+                )}
               </div>
             )}
             {modoEdicao && !modoDesenho && mapReady && (
