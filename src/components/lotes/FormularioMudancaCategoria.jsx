@@ -56,7 +56,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     mudancas: categoriasDisponiveis.map(cat => ({
       categoria_atual: cat,
       quantidade: lotesPorCategoria[cat].totalCabecas,
-      categoria_nova: ""
+      categoria_nova: "",
+      selecionada: false
     })),
     observacoes: ""
   });
@@ -64,9 +65,9 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const mudancasValidas = formData.mudancas.filter(m => m.categoria_nova && m.quantidade > 0);
+    const mudancasValidas = formData.mudancas.filter(m => m.selecionada && m.categoria_nova && m.quantidade > 0);
     if (mudancasValidas.length === 0) {
-      alert("Configure pelo menos uma mudança de categoria");
+      alert("Selecione e configure pelo menos uma mudança de categoria");
       return;
     }
 
@@ -102,7 +103,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
               
               return (
-                <div key={index} className="border rounded-lg p-2 bg-white">
+                <div key={index} className={`border rounded-lg p-2 transition-all ${mudanca.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
                   <div className="flex items-start gap-2 mb-2">
                     <div className="flex-1">
                       <div className="text-[10px] font-semibold text-emerald-600">
@@ -136,6 +137,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                         onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
                         className="h-7 text-xs"
                         placeholder="Quantidade"
+                        disabled={!mudanca.selecionada}
                       />
                     </div>
 
@@ -144,6 +146,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                       <Select
                         value={mudanca.categoria_nova}
                         onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
+                        disabled={!mudanca.selecionada}
                       >
                         <SelectTrigger className="h-7 text-xs">
                           <SelectValue placeholder="Selecione" />
@@ -159,9 +162,10 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
                   <Button
                     type="button"
-                    className="h-6 text-[10px] mt-2 w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                    onClick={() => handleMudancaChange(index, 'selecionada', !mudanca.selecionada)}
+                    className={`h-6 text-[10px] mt-2 w-full ${mudanca.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
                   >
-                    Salvar
+                    {mudanca.selecionada ? 'Cancelar' : 'Selecionar'}
                   </Button>
                 </div>
               );
@@ -187,6 +191,9 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
               Cancelar
+            </Button>
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              Confirmar Mudanças
             </Button>
           </div>
         </form>
