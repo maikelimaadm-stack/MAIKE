@@ -40,7 +40,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
   const [formData, setFormData] = useState({
     data_mudanca: new Date().toISOString().split('T')[0],
-    mudancas: [],
+    mudancas: categoriasDisponiveis.map(cat => ({
+      categoria_atual: cat,
+      quantidade: lotesPorCategoria[cat].totalCabecas,
+      categoria_nova: ""
+    })),
     observacoes: ""
   });
 
@@ -59,28 +63,6 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     });
   };
 
-  const adicionarMudanca = (categoriaAtual) => {
-    const infoCategoria = lotesPorCategoria[categoriaAtual];
-    setFormData({
-      ...formData,
-      mudancas: [
-        ...formData.mudancas,
-        {
-          categoria_atual: categoriaAtual,
-          quantidade: infoCategoria.totalCabecas,
-          categoria_nova: ""
-        }
-      ]
-    });
-  };
-
-  const removerMudanca = (index) => {
-    setFormData({
-      ...formData,
-      mudancas: formData.mudancas.filter((_, i) => i !== index)
-    });
-  };
-
   const handleMudancaChange = (index, field, value) => {
     const novasMudancas = [...formData.mudancas];
     novasMudancas[index] = {
@@ -89,9 +71,6 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     };
     setFormData({ ...formData, mudancas: novasMudancas });
   };
-
-  const categoriasJaAdicionadas = formData.mudancas.map(m => m.categoria_atual);
-  const categoriasDisponiveis2 = categoriasDisponiveis.filter(c => !categoriasJaAdicionadas.includes(c));
 
   return (
     <Card>
@@ -111,107 +90,73 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
             />
           </div>
 
-          {formData.mudancas.length > 0 && (
-            <div className="space-y-3">
-              {formData.mudancas.map((mudanca, index) => {
-                const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
-                
-                return (
-                  <div key={index} className="border rounded-lg p-3 bg-slate-50">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1">
-                        <div className="text-xs font-semibold text-emerald-600 mb-2">
-                          {infoCategoria.totalCabecas} cabeças - {mudanca.categoria_atual}
-                        </div>
-                        <div className="text-[10px] text-slate-600 mb-3">
-                          {infoCategoria.lotes.map(l => l.nome).join(', ')}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Quantidade *</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              max={infoCategoria.totalCabecas}
-                              value={mudanca.quantidade}
-                              onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
-                              className="h-8 text-xs"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs">Categoria de manejo *</Label>
-                            <Select
-                              value={mudanca.categoria_nova}
-                              onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CATEGORIAS.filter(c => c !== mudanca.categoria_atual).map(cat => (
-                                  <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
+          <div className="space-y-3">
+            {formData.mudancas.map((mudanca, index) => {
+              const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
+              
+              return (
+                <div key={index} className="border rounded-lg p-3 bg-slate-50">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-emerald-600 mb-2">
+                        {infoCategoria.totalCabecas} cabeças - {mudanca.categoria_atual}
+                      </div>
+                      <div className="text-[10px] text-slate-600 mb-3">
+                        {infoCategoria.lotes.map(l => l.nome).join(', ')}
                       </div>
 
-                      <div className="flex flex-col gap-2">
-                        <div className="w-12 h-12 flex items-center justify-center">
-                          <div className="w-10 h-10 bg-emerald-500 rounded flex items-center justify-center text-white text-xs font-bold">
-                            {mudanca.categoria_atual.substring(0, 2)}
-                          </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quantidade *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={infoCategoria.totalCabecas}
+                            value={mudanca.quantidade}
+                            onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                            className="h-8 text-xs"
+                          />
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removerMudanca(index)}
-                          className="h-6 w-6 text-red-600"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Categoria de manejo *</Label>
+                          <Select
+                            value={mudanca.categoria_nova}
+                            onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIAS.filter(c => c !== mudanca.categoria_atual).map(cat => (
+                                <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs mt-2 w-full text-emerald-600 border-emerald-600"
-                      disabled
-                    >
-                      Salvar
-                    </Button>
+                    <div className="w-12 h-12 flex items-center justify-center">
+                      <div className="w-10 h-10 bg-emerald-500 rounded flex items-center justify-center text-white text-xs font-bold">
+                        {mudanca.categoria_atual.substring(0, 2)}
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
 
-          {categoriasDisponiveis2.length > 0 && (
-            <div className="border rounded-lg p-3 bg-white">
-              <Label className="text-xs mb-2 block">Selecione uma categoria para mudar:</Label>
-              <div className="flex flex-wrap gap-2">
-                {categoriasDisponiveis2.map(cat => (
                   <Button
-                    key={cat}
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => adicionarMudanca(cat)}
-                    className="h-8 text-xs"
+                    className="h-7 text-xs mt-2 w-full text-emerald-600 border-emerald-600"
+                    disabled
                   >
-                    <Plus className="w-3 h-3 mr-1" />
-                    {cat}
+                    Salvar
                   </Button>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs">Observações</Label>
