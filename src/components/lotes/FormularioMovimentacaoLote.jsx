@@ -18,7 +18,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     mover_todos: 'sim',
     area_saida_id: areaOrigem?.id || '',
     areas_entrada: [],
-    movimentacoes: []
+    movimentacoes: [],
+    unir_lotes: {} // { categoria: 'sim' | 'nao' }
   });
 
   const { data: areas = [] } = useQuery({
@@ -26,6 +27,15 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
       return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: todosLotes = [] } = useQuery({
+    queryKey: ['lotes', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -47,6 +57,33 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   }, {});
 
   const categorias = Object.values(categoriasPorLote);
+
+  // Verificar se há lotes com mesma categoria nas áreas de destino
+  const categoriasComLotesExistentes = React.useMemo(() => {
+    if (formData.areas_entrada.length === 0) return {};
+    
+    const resultado = {};
+    formData.areas_entrada.forEach(areaId => {
+      if (!areaId) return;
+      
+      const lotesNaArea = todosLotes.filter(l => l.area_atual_id === areaId);
+      
+      categorias.forEach(cat => {
+        const loteExistente = lotesNaArea.find(l => l.categoria?.toUpperCase() === cat.categoria);
+        if (loteExistente) {
+          if (!resultado[cat.categoria]) {
+            resultado[cat.categoria] = [];
+          }
+          resultado[cat.categoria].push({
+            area_nome: areas.find(a => a.id === areaId)?.nome || '',
+            lote: loteExistente
+          });
+        }
+      });
+    });
+    
+    return resultado;
+  }, [formData.areas_entrada, todosLotes, areas, categorias]);
 
   // Inicializar movimentações quando mudar para "não"
   React.useEffect(() => {
@@ -296,6 +333,47 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           Remover
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Object.keys(categoriasComLotesExistentes).length > 0 && (
+            <div className="border border-amber-300 rounded p-3 bg-amber-50">
+              <div className="text-xs font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                <span className="text-lg">⚠️</span>
+                Existem lotes com mesma categoria na(s) área(s) de destino
+              </div>
+              <div className="space-y-3">
+                {Object.entries(categoriasComLotesExistentes).map(([categoria, lotes]) => (
+                  <div key={categoria} className="bg-white border rounded p-3">
+                    <div className="text-xs font-semibold text-slate-700 mb-2">{categoria}</div>
+                    {lotes.map((item, idx) => (
+                      <div key={idx} className="text-[10px] text-slate-600 mb-2">
+                        • {item.area_nome}: {item.lote.nome} ({item.lote.quantidade_cabecas} cabeças)
+                      </div>
+                    ))}
+                    <div className="mt-2">
+                      <Label className="text-xs mb-2 block">Deseja unir ao lote existente?</Label>
+                      <RadioGroup
+                        value={formData.unir_lotes[categoria] || 'nao'}
+                        onValueChange={(v) => setFormData({ 
+                          ...formData, 
+                          unir_lotes: { ...formData.unir_lotes, [categoria]: v }
+                        })}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="sim" id={`unir-sim-${categoria}`} />
+                          <Label htmlFor={`unir-sim-${categoria}`} className="text-xs cursor-pointer">Sim, unir</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="nao" id={`unir-nao-${categoria}`} />
+                          <Label htmlFor={`unir-nao-${categoria}`} className="text-xs cursor-pointer">Não, criar novo</Label>
+                        </div>
+                      </RadioGroup>
                     </div>
                   </div>
                 ))}

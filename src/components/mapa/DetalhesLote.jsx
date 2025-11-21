@@ -185,93 +185,65 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${lotes.length}, 1fr)` }}>
-        {lotes.map((lote, index) => (
-          <div key={lote.id} className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-emerald-600 font-semibold text-base mb-1">
-                  {lote.quantidade_cabecas} cabeças - {lote.categoria?.toUpperCase() || 'SEM CATEGORIA'}
-                </div>
-                <div className="text-xs text-slate-600">LOTE {lote.numero_lote || lote.nome}</div>
-                <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center mt-2">
-                  <Check className="w-5 h-5 text-white" />
-                </div>
-              </div>
-              {(() => {
-                const configIcone = iconesConfig.find(ic => 
-                  ic.tipo_entidade === 'Lote' && 
-                  ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
-                );
-                
-                const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
-                
-                if (iconeUrl) {
-                  return (
-                    <img 
-                      src={iconeUrl} 
-                      alt={lote.categoria} 
-                      className="w-20 h-20 object-contain" 
-                    />
-                  );
-                }
-                return null;
-              })()}
-            </div>
+      <div className="max-h-[400px] overflow-y-auto pr-2">
+        <div className="space-y-4">
+          {lotes.map((lote, index) => (
+            <Card key={lote.id} className="bg-slate-50">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="text-emerald-600 font-semibold text-base mb-1">
+                      {lote.quantidade_cabecas} cabeças - {lote.categoria?.toUpperCase() || 'SEM CATEGORIA'}
+                    </div>
+                    <div className="text-xs text-slate-600">LOTE {lote.numero_lote || lote.nome}</div>
+                  </div>
+                  {(() => {
+                    const configIcone = iconesConfig.find(ic => 
+                      ic.tipo_entidade === 'Lote' && 
+                      ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
+                    );
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Último peso informado</div>
-                <div className="text-xs text-slate-500">(kg)</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.peso_medio || '-'}
-                </div>
-              </div>
+                    const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Último GMD ocorrido</div>
-                <div className="text-xs text-slate-500">(kg/cabeça/dia)</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.gmd || '-'}
+                    if (iconeUrl) {
+                      return (
+                        <img 
+                          src={iconeUrl} 
+                          alt={lote.categoria} 
+                          className="w-16 h-16 object-contain" 
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
-              </div>
 
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Taxa de ganho</div>
-                <div className="text-xs text-slate-500">(%)</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.taxa_ganho || '-'}
-                </div>
-              </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white p-2 rounded text-center border border-slate-200">
+                    <div className="text-[10px] text-emerald-700 mb-1">Peso</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      {lote.peso_medio || '-'} kg
+                    </div>
+                  </div>
 
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Peso projetado</div>
-                <div className="text-xs text-slate-500">(kg)</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.peso_projetado || '-'}
-                </div>
-              </div>
+                  <div className="bg-white p-2 rounded text-center border border-slate-200">
+                    <div className="text-[10px] text-emerald-700 mb-1">GMD</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      {lote.gmd || '-'} kg/dia
+                    </div>
+                  </div>
 
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Último consumo</div>
-                <div className="text-xs text-slate-500">(kg/cabeça/dia)</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.ultimo_consumo || '-'}
+                  <div className="bg-white p-2 rounded text-center border border-slate-200">
+                    <div className="text-[10px] text-emerald-700 mb-1">Consumo</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      {lote.ultimo_consumo || '-'} kg/dia
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">{lote.categoria || 'Categoria'}</div>
-                <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.quantidade_cabecas || '-'} cabeças
-                </div>
-                <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mt-1">
-                  <span className="text-white text-xs">✓</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3 pt-3 border-t">
