@@ -127,6 +127,14 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
                   </div>
                 )}
 
+                {['Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && mov.area_origem_nome && (
+                  <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-slate-600 flex-shrink-0" />
+                    <span className="text-slate-700 font-medium">Área: </span>
+                    <span className="text-slate-900 font-bold">{mov.area_origem_nome}</span>
+                  </div>
+                )}
+
                 {mov.peso_medio && (
                   <div className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />

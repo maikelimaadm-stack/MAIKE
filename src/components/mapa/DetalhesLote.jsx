@@ -211,6 +211,8 @@ export default function DetalhesLote({ lotes, onClose }) {
     console.log('🔍 DETALHES - Categorias nos lotes:', lotes.map(l => l.categoria));
 
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
+    const areaAtualId = lotes[0]?.area_atual_id;
+    const areaMorte = areas.find(a => a.id === areaAtualId);
 
     for (const lote of lotesCategoria) {
       const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
@@ -221,7 +223,9 @@ export default function DetalhesLote({ lotes, onClose }) {
         tipo: 'Morte',
         lote: lote.nome,
         quantidade_animais: qtdRemover,
-        observacoes: `Categoria: ${formData.categoria}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
+        area_origem_id: areaAtualId,
+        area_origem_nome: areaMorte?.nome || '',
+        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
       });
 
       await base44.entities.Lote.update(lote.id, {
@@ -305,17 +309,21 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const handleAbate = async (formData) => {
     const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
-    
+    const areaAtualId = lotes[0]?.area_atual_id;
+    const areaAbate = areas.find(a => a.id === areaAtualId);
+
     for (const lote of lotesCategoria) {
       const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
-      
+
       await base44.entities.MovimentacaoPecuaria.create({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: new Date(formData.data_abate).toISOString(),
         tipo: 'Abate',
         lote: lote.nome,
         quantidade_animais: qtdRemover,
-        observacoes: `Categoria: ${formData.categoria}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
+        area_origem_id: areaAtualId,
+        area_origem_nome: areaAbate?.nome || '',
+        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
       });
 
       await base44.entities.Lote.update(lote.id, {
@@ -334,28 +342,33 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMudancaCategoria = async (formData) => {
+    const areaAtualId = lotes[0]?.area_atual_id;
+    const areaMudanca = areas.find(a => a.id === areaAtualId);
+
     for (const mudanca of formData.mudancas) {
       const lotesCategoria = lotes.filter(l => l.categoria === mudanca.categoria_atual);
       let quantidadeRestante = mudanca.quantidade;
-      
+
       for (const lote of lotesCategoria) {
         if (quantidadeRestante <= 0) break;
-        
+
         const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
-        
+
         await base44.entities.MovimentacaoPecuaria.create({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: new Date(formData.data_mudanca).toISOString(),
           tipo: 'Mudança de Categoria',
           lote: lote.nome,
           quantidade_animais: qtdMudar,
-          observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. ${formData.observacoes}`
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaMudanca?.nome || '',
+          observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
         });
 
         await base44.entities.Lote.update(lote.id, {
           categoria: mudanca.categoria_nova
         });
-        
+
         quantidadeRestante -= qtdMudar;
       }
     }
@@ -368,14 +381,17 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handlePesagem = async (formData) => {
+    const areaAtualId = lotes[0]?.area_atual_id;
+    const areaPesagem = areas.find(a => a.id === areaAtualId);
+
     for (const categoria of formData.categorias_selecionadas) {
       const lotesCategoria = lotes.filter(l => l.categoria === categoria);
       const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
-      
+
       for (const lote of lotesCategoria) {
         const pesoAnterior = lote.peso_medio_kg || 0;
         const ganho = pesoNovo - pesoAnterior;
-        
+
         await base44.entities.MovimentacaoPecuaria.create({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: new Date(formData.data_pesagem).toISOString(),
@@ -383,7 +399,9 @@ export default function DetalhesLote({ lotes, onClose }) {
           lote: lote.nome,
           quantidade_animais: lote.quantidade_cabecas,
           peso_medio: pesoNovo,
-          observacoes: `Categoria: ${categoria}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaPesagem?.nome || '',
+          observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
         });
 
         await base44.entities.Lote.update(lote.id, {

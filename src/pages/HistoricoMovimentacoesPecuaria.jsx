@@ -481,27 +481,38 @@ export default function HistoricoMovimentacoesPecuaria() {
                   {mov.area_destino_nome && <div><span className="font-semibold">Área:</span> {mov.area_destino_nome}</div>}
                 </div>
               )}
-              {mov.tipo === 'Morte' && dadosCompletos.causa && (
-                <div className="bg-red-50 border border-red-200 rounded p-2">
-                  <span className="font-semibold">Causa:</span> {dadosCompletos.causa}
+              {mov.tipo === 'Morte' && (
+                <div className="space-y-0.5 bg-red-50 border border-red-200 rounded p-2">
+                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
+                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
+                  {dadosCompletos.causa && <div><span className="font-semibold">Causa:</span> {dadosCompletos.causa}</div>}
+                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
                 </div>
               )}
               {mov.tipo === 'Abate' && (
                 <div className="space-y-0.5 bg-orange-50 border border-orange-200 rounded p-2">
+                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
+                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
                   {dadosCompletos.peso_vivo && <div><span className="font-semibold">Peso vivo:</span> {dadosCompletos.peso_vivo}kg</div>}
                   {dadosCompletos.peso_carcaca && <div><span className="font-semibold">Carcaça:</span> {dadosCompletos.peso_carcaca}kg</div>}
                   {dadosCompletos.destino && <div><span className="font-semibold">Destino:</span> {dadosCompletos.destino}</div>}
+                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
                 </div>
               )}
               {mov.tipo === 'Mudança de Categoria' && dadosCompletos.categoria_origem && dadosCompletos.categoria_destino && (
-                <div className="bg-purple-50 border border-purple-200 rounded p-2">
-                  <span className="font-semibold">{dadosCompletos.categoria_origem}</span> → <span className="font-bold">{dadosCompletos.categoria_destino}</span>
+                <div className="space-y-0.5 bg-purple-50 border border-purple-200 rounded p-2">
+                  <div><span className="font-semibold">{dadosCompletos.categoria_origem}</span> → <span className="font-bold">{dadosCompletos.categoria_destino}</span></div>
+                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
+                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
                 </div>
               )}
               {mov.tipo === 'Pesagem' && (
                 <div className="space-y-0.5 bg-emerald-50 border border-emerald-200 rounded p-2">
+                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
+                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
                   {dadosCompletos.peso_anterior && <div><span className="font-semibold">Anterior:</span> {dadosCompletos.peso_anterior}kg</div>}
                   {dadosCompletos.ganho && <div><span className="font-semibold">Ganho:</span> {dadosCompletos.ganho}kg</div>}
+                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
                 </div>
               )}
               {mov.observacoes && !['Nascimento', 'Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && (
