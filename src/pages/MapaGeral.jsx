@@ -358,7 +358,7 @@ export default function MapaGeral() {
 
   // Desenhar polígono/linha temporária e marcadores nos pontos
   useEffect(() => {
-    if (!mapInstanceRef.current || currentPoints.length === 0) return;
+    if (!mapInstanceRef.current || currentPoints.length === 0 || !modoDesenho) return;
 
     // Limpar marcadores anteriores
     pointMarkersRef.current.forEach(m => m.setMap(null));
@@ -682,8 +682,7 @@ export default function MapaGeral() {
       toast.error('Desenhe pelo menos 3 pontos!');
       return;
     }
-    setModoAjuste(true);
-    toast.success('✏️ Arraste os pontos para ajustar. Clique em SALVAR quando estiver pronto!', { duration: 3000 });
+    setShowFormularioArea(true);
   };
 
   const finalizarLinha = () => {
@@ -691,16 +690,11 @@ export default function MapaGeral() {
       toast.error('Desenhe pelo menos 2 pontos!');
       return;
     }
-    setModoAjuste(true);
-    toast.success('✏️ Arraste os pontos para ajustar. Clique em SALVAR quando estiver pronto!', { duration: 3000 });
+    setShowFormularioLinha(true);
   };
 
-  const salvarDesenho = () => {
-    if (modoDesenho === 'poligono') {
-      setShowFormularioArea(true);
-    } else if (modoDesenho === 'linha') {
-      setShowFormularioLinha(true);
-    }
+  const continuarDesenho = () => {
+    setModoAjuste(false);
   };
 
   if (!showMapa) {
@@ -1049,45 +1043,28 @@ export default function MapaGeral() {
             )}
             {modoDesenho && mapReady && (
               <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-                {!modoAjuste ? (
-                  <>
-                    <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
-                      {modoDesenho === 'poligono' && `🎯 Clique no mapa para adicionar pontos (${currentPoints.length})`}
-                      {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
-                      {modoDesenho === 'linha' && `➡️ Clique no mapa para adicionar pontos (${currentPoints.length})`}
-                    </div>
-                    {modoDesenho === 'poligono' && currentPoints.length >= 3 && (
-                      <Button
-                        onClick={finalizarPoligono}
-                        size="lg"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
-                      >
-                        ✓ FINALIZAR DESENHO
-                      </Button>
-                    )}
-                    {modoDesenho === 'linha' && currentPoints.length >= 2 && (
-                      <Button
-                        onClick={finalizarLinha}
-                        size="lg"
-                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
-                      >
-                        ✓ FINALIZAR DESENHO
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
-                      ✏️ ARRASTE OS PONTOS PARA AJUSTAR
-                    </div>
-                    <Button
-                      onClick={salvarDesenho}
-                      size="lg"
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-2xl animate-pulse h-14 px-10 text-lg"
-                    >
-                      💾 SALVAR
-                    </Button>
-                  </>
+                <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
+                  {modoDesenho === 'poligono' && `🎯 Clique no mapa para adicionar pontos (${currentPoints.length}) • Arraste os pontos para editar`}
+                  {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
+                  {modoDesenho === 'linha' && `➡️ Clique no mapa para adicionar pontos (${currentPoints.length}) • Arraste os pontos para editar`}
+                </div>
+                {modoDesenho === 'poligono' && currentPoints.length >= 3 && (
+                  <Button
+                    onClick={finalizarPoligono}
+                    size="lg"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
+                  >
+                    ✓ FINALIZAR DESENHO
+                  </Button>
+                )}
+                {modoDesenho === 'linha' && currentPoints.length >= 2 && (
+                  <Button
+                    onClick={finalizarLinha}
+                    size="lg"
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-12 px-8"
+                  >
+                    ✓ FINALIZAR DESENHO
+                  </Button>
                 )}
               </div>
             )}
@@ -1187,7 +1164,6 @@ export default function MapaGeral() {
             coordenadas={currentPoints}
             onSave={() => {
               setShowFormularioArea(false);
-              setModoAjuste(false);
               cancelarDesenho();
               queryClient.invalidateQueries({ queryKey: ['areas'] });
             }}
@@ -1227,7 +1203,6 @@ export default function MapaGeral() {
             coordenadas={currentPoints}
             onSave={() => {
               setShowFormularioLinha(false);
-              setModoAjuste(false);
               cancelarDesenho();
               queryClient.invalidateQueries({ queryKey: ['linhas'] });
             }}
