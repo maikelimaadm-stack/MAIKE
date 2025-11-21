@@ -295,9 +295,6 @@ export default function MapaGeral() {
         let configIcone;
         let iconeKey = '';
 
-        console.log('🔍 ÁREA:', area.nome);
-        console.log('📋 Categorias na área (ordenadas):', categorias);
-
         // Definir ícone baseado nas categorias
         if (categorias.length === 1) {
           // Uma única categoria - usar ícone específico
@@ -306,7 +303,6 @@ export default function MapaGeral() {
             ic.categoria?.toUpperCase().trim() === categorias[0]
           );
           iconeKey = categorias[0];
-          console.log('✅ Usando ícone único:', configIcone?.categoria);
         } else if (categorias.length > 1) {
           // Múltiplas categorias - buscar MISTO com correspondência EXATA
           const configsMisto = iconesConfig.filter(ic => 
@@ -316,40 +312,29 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          console.log('🔧 Total de configs MISTO:', configsMisto.length);
-
           // Buscar por correspondência EXATA (mesmo tamanho e mesmas categorias)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
 
-            console.log('🔍 Comparando com config:', config.descricao);
-            console.log('   - Categorias da área:', categorias.join(', '));
-            console.log('   - Categorias da config:', categoriasConfig.join(', '));
-            console.log('   - Tamanhos:', categorias.length, 'vs', categoriasConfig.length);
-
             // Verificar se tem EXATAMENTE as mesmas categorias
             if (categorias.length === categoriasConfig.length) {
               const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
-              console.log('   - Match exato?', match);
 
               if (match) {
                 configIcone = config;
                 iconeKey = 'MISTO';
-                console.log('✅ MATCH ENCONTRADO! Usando:', config.descricao);
                 break;
               }
             }
           }
 
-          // Se não encontrou match exato, usar ícone MISTO genérico
+          // Se não encontrou match exato, usar qualquer MISTO disponível
           if (!configIcone) {
             configIcone = iconesConfig.find(ic => 
               ic.tipo_entidade === 'Lote' && 
-              ic.categoria?.toUpperCase() === 'MISTO' &&
-              (!ic.categorias_misto || ic.categorias_misto.length === 0)
+              ic.categoria?.toUpperCase() === 'MISTO'
             );
             iconeKey = 'MISTO';
-            console.log('⚠️ Nenhum match exato - usando MISTO genérico');
           }
         }
 
