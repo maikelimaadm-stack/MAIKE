@@ -54,9 +54,10 @@ const DEFAULT_MENU = [
     title: "Pecuaria",
     icon: "Package",
     submenu: [
-      { id: "pec-gado", title: "Cadastro de Gado", url: "CadastroGado" },
+      { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
       { id: "pec-areas", title: "Cadastro de Areas", url: "CadastroAreasReferencia" },
       { id: "pec-mapa", title: "Mapa de Manejo", url: "MapaMovimentacao" },
+      { id: "pec-mapa-pecuaria", title: "Mapa da Pecuaria", url: "MapaPecuaria" },
     ],
   },
   {
