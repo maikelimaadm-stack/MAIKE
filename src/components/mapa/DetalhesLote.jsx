@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tantml/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -13,10 +13,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
+import FormularioMorte from "../lotes/FormularioMorte";
+import FormularioNascimento from "../lotes/FormularioNascimento";
+import FormularioAbate from "../lotes/FormularioAbate";
+import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
+import FormularioPesagem from "../lotes/FormularioPesagem";
+import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showMovimentacao, setShowMovimentacao] = useState(false);
+  const [showMorte, setShowMorte] = useState(false);
+  const [showNascimento, setShowNascimento] = useState(false);
+  const [showAbate, setShowAbate] = useState(false);
+  const [showMudancaCategoria, setShowMudancaCategoria] = useState(false);
+  const [showPesagem, setShowPesagem] = useState(false);
+  const [showHistorico, setShowHistorico] = useState(false);
   const queryClient = useQueryClient();
 
   // Listener para abrir movimentação via drag-and-drop
@@ -182,6 +194,125 @@ export default function DetalhesLote({ lotes, onClose }) {
     return movimentacaoMutation.mutateAsync(formData);
   };
 
+  const handleMorte = async (formData) => {
+    const lote = lotes[0];
+    
+    await base44.entities.MovimentacaoPecuaria.create({
+      empresa_id: empresaSelecionadaId,
+      data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
+      tipo: 'Morte',
+      lote: lote.nome,
+      quantidade_animais: formData.quantidade,
+      observacoes: `Causa: ${formData.causa_morte}. ${formData.observacoes}`
+    });
+
+    await base44.entities.Lote.update(lote.id, {
+      quantidade_cabecas: lote.quantidade_cabecas - formData.quantidade
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    toast.success('Morte registrada');
+    setShowMorte(false);
+    onClose();
+  };
+
+  const handleNascimento = async (formData) => {
+    const lote = lotes[0];
+    
+    await base44.entities.MovimentacaoPecuaria.create({
+      empresa_id: empresaSelecionadaId,
+      data_movimentacao: new Date(formData.data_nascimento).toISOString(),
+      tipo: 'Nascimento',
+      lote: lote.nome,
+      quantidade_animais: formData.quantidade,
+      peso_medio: parseFloat(formData.peso_medio) || null,
+      observacoes: `Sexo: ${formData.sexo}. ${formData.observacoes}`
+    });
+
+    await base44.entities.Lote.update(lote.id, {
+      quantidade_cabecas: lote.quantidade_cabecas + formData.quantidade
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    toast.success('Nascimento registrado');
+    setShowNascimento(false);
+    onClose();
+  };
+
+  const handleAbate = async (formData) => {
+    const lote = lotes[0];
+    
+    await base44.entities.MovimentacaoPecuaria.create({
+      empresa_id: empresaSelecionadaId,
+      data_movimentacao: new Date(formData.data_abate).toISOString(),
+      tipo: 'Abate',
+      lote: lote.nome,
+      quantidade_animais: formData.quantidade,
+      observacoes: `Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
+    });
+
+    await base44.entities.Lote.update(lote.id, {
+      quantidade_cabecas: lote.quantidade_cabecas - formData.quantidade
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    toast.success('Abate registrado');
+    setShowAbate(false);
+    onClose();
+  };
+
+  const handleMudancaCategoria = async (formData) => {
+    const lote = lotes[0];
+    
+    await base44.entities.MovimentacaoPecuaria.create({
+      empresa_id: empresaSelecionadaId,
+      data_movimentacao: new Date(formData.data_mudanca).toISOString(),
+      tipo: 'Mudança de Categoria',
+      lote: lote.nome,
+      quantidade_animais: lote.quantidade_cabecas,
+      observacoes: `De ${lote.categoria} para ${formData.categoria_nova}. ${formData.observacoes}`
+    });
+
+    await base44.entities.Lote.update(lote.id, {
+      categoria: formData.categoria_nova
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    toast.success('Categoria atualizada');
+    setShowMudancaCategoria(false);
+    onClose();
+  };
+
+  const handlePesagem = async (formData) => {
+    const lote = lotes[0];
+    const pesoAnterior = lote.peso_medio_kg || 0;
+    const ganho = parseFloat(formData.peso_medio) - pesoAnterior;
+    
+    await base44.entities.MovimentacaoPecuaria.create({
+      empresa_id: empresaSelecionadaId,
+      data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+      tipo: 'Pesagem',
+      lote: lote.nome,
+      quantidade_animais: lote.quantidade_cabecas,
+      peso_medio: parseFloat(formData.peso_medio),
+      observacoes: `Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+    });
+
+    await base44.entities.Lote.update(lote.id, {
+      peso_medio_kg: parseFloat(formData.peso_medio)
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    toast.success('Pesagem registrada');
+    setShowPesagem(false);
+    onClose();
+  };
+
   return (
     <div className="space-y-4">
       <div className="text-xl font-bold text-slate-900 pb-2 border-b">
@@ -327,12 +458,18 @@ export default function DetalhesLote({ lotes, onClose }) {
       </div>
 
       <div className="grid grid-cols-6 gap-2 pt-3">
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowAbate(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">🥩</div>
           <span className="text-xs font-semibold">Abate para consumo</span>
         </Button>
 
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowMorte(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">✕</div>
           <span className="text-xs font-semibold">Morte</span>
         </Button>
@@ -345,19 +482,38 @@ export default function DetalhesLote({ lotes, onClose }) {
           <span className="text-xs font-semibold">Movimentação</span>
         </Button>
 
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowMudancaCategoria(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">🔄</div>
           <span className="text-xs font-semibold">Mudança de categoria</span>
         </Button>
 
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowNascimento(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">⭐</div>
           <span className="text-xs font-semibold">Nascimento</span>
         </Button>
 
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowPesagem(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">⚖</div>
           <span className="text-xs font-semibold">Pesagem</span>
+        </Button>
+      </div>
+
+      <div className="mt-4">
+        <Button 
+          onClick={() => setShowHistorico(true)}
+          variant="outline"
+          className="w-full h-10 text-xs font-semibold"
+        >
+          📋 Ver Histórico Completo
         </Button>
       </div>
 
@@ -372,6 +528,62 @@ export default function DetalhesLote({ lotes, onClose }) {
             onSubmit={handleMovimentacao}
             onCancel={() => setShowMovimentacao(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMorte} onOpenChange={setShowMorte}>
+        <DialogContent className="max-w-md">
+          <FormularioMorte
+            lote={lotes[0]}
+            onSubmit={handleMorte}
+            onCancel={() => setShowMorte(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNascimento} onOpenChange={setShowNascimento}>
+        <DialogContent className="max-w-md">
+          <FormularioNascimento
+            lote={lotes[0]}
+            onSubmit={handleNascimento}
+            onCancel={() => setShowNascimento(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAbate} onOpenChange={setShowAbate}>
+        <DialogContent className="max-w-md">
+          <FormularioAbate
+            lote={lotes[0]}
+            onSubmit={handleAbate}
+            onCancel={() => setShowAbate(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria}>
+        <DialogContent className="max-w-md">
+          <FormularioMudancaCategoria
+            lote={lotes[0]}
+            onSubmit={handleMudancaCategoria}
+            onCancel={() => setShowMudancaCategoria(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
+        <DialogContent className="max-w-md">
+          <FormularioPesagem
+            lote={lotes[0]}
+            onSubmit={handlePesagem}
+            onCancel={() => setShowPesagem(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <HistoricoMovimentacoes lotesIds={lotes.map(l => l.nome)} />
         </DialogContent>
       </Dialog>
       </div>
