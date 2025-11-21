@@ -37,6 +37,9 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   console.log('⚖️ PESAGEM - Categorias encontradas:', categoriasDisponiveis);
   console.log('⚖️ PESAGEM - Detalhes por categoria:', lotesPorCategoria);
 
+  const [modoPesagem, setModoPesagem] = useState("categorias"); // "categorias" ou "todos"
+  const [pesoGeral, setPesoGeral] = useState(0);
+
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],
     pesagens: categoriasDisponiveis.map(cat => ({
@@ -49,18 +52,33 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const pesagensValidas = formData.pesagens.filter(p => p.selecionada && p.peso > 0);
-    if (pesagensValidas.length === 0) {
-      alert("Selecione e configure pelo menos uma pesagem");
-      return;
-    }
     
-    onSubmit({
-      data_pesagem: formData.data_pesagem,
-      categorias_selecionadas: pesagensValidas.map(p => p.categoria),
-      pesos_por_categoria: pesagensValidas.reduce((acc, p) => ({ ...acc, [p.categoria]: p.peso }), {}),
-      observacoes: formData.observacoes
-    });
+    if (modoPesagem === "todos") {
+      if (pesoGeral <= 0) {
+        alert("Informe o peso para todos os animais");
+        return;
+      }
+      
+      onSubmit({
+        data_pesagem: formData.data_pesagem,
+        categorias_selecionadas: categoriasDisponiveis,
+        pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => ({ ...acc, [cat]: pesoGeral }), {}),
+        observacoes: formData.observacoes
+      });
+    } else {
+      const pesagensValidas = formData.pesagens.filter(p => p.selecionada && p.peso > 0);
+      if (pesagensValidas.length === 0) {
+        alert("Selecione e configure pelo menos uma pesagem");
+        return;
+      }
+      
+      onSubmit({
+        data_pesagem: formData.data_pesagem,
+        categorias_selecionadas: pesagensValidas.map(p => p.categoria),
+        pesos_por_categoria: pesagensValidas.reduce((acc, p) => ({ ...acc, [p.categoria]: p.peso }), {}),
+        observacoes: formData.observacoes
+      });
+    }
   };
 
   const handlePesagemChange = (index, field, value) => {
@@ -89,7 +107,43 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-2 border-b pb-3">
+            <Label className="text-xs font-semibold">Modo de Pesagem</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={() => setModoPesagem("categorias")}
+                className={`flex-1 h-9 text-xs ${modoPesagem === "categorias" ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+              >
+                Pesar por Categoria
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setModoPesagem("todos")}
+                className={`flex-1 h-9 text-xs ${modoPesagem === "todos" ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+              >
+                Pesar Todos (Mesmo Peso)
+              </Button>
+            </div>
+          </div>
+
+          {modoPesagem === "todos" ? (
+            <div className="space-y-2 bg-emerald-50 border border-emerald-300 rounded-lg p-4">
+              <Label className="text-xs font-semibold">Peso para Todos os Animais</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={pesoGeral}
+                onChange={(e) => setPesoGeral(parseFloat(e.target.value) || 0)}
+                className="h-10 text-sm font-semibold"
+                placeholder="Peso em kg"
+              />
+              <div className="text-[10px] text-slate-600 mt-2">
+                Este peso será aplicado a todas as {categoriasDisponiveis.length} categoria(s) selecionada(s)
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
             {formData.pesagens.map((pesagem, index) => {
               const infoCategoria = lotesPorCategoria[pesagem.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -160,7 +214,8 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           <div className="space-y-1">
             <Label className="text-xs">Observações Gerais</Label>
