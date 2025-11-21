@@ -72,7 +72,7 @@ export default function CadastroLotes() {
   });
 
   const deleteLoteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Lote.update(id, { status: 'Baixado' }),
+    mutationFn: (id) => base44.entities.Lote.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       toast.success('✅ Lote excluído!');
