@@ -311,20 +311,26 @@ export default function MapaGeral() {
             ic.categorias_misto?.length > 0
           );
 
-          // Verificar se as categorias presentes correspondem exatamente a alguma config MISTO
-          for (const config of configsMisto) {
-            const categoriasConfig = config.categorias_misto.map(c => c.toUpperCase()).sort();
-            const categoriasArea = [...categorias].sort();
+          let melhorMatch = null;
+          let maiorCoincidencia = 0;
 
-            if (JSON.stringify(categoriasConfig) === JSON.stringify(categoriasArea)) {
-              configIcone = config;
-              iconeKey = 'MISTO';
-              break;
+          // Verificar qual configuração MISTO tem mais coincidências com as categorias presentes
+          for (const config of configsMisto) {
+            const categoriasConfig = config.categorias_misto.map(c => c.toUpperCase());
+            const coincidencias = categorias.filter(cat => categoriasConfig.includes(cat)).length;
+
+            // Se todas as categorias da área estão no MISTO configurado
+            if (coincidencias === categorias.length && coincidencias > maiorCoincidencia) {
+              melhorMatch = config;
+              maiorCoincidencia = coincidencias;
             }
           }
 
-          // Se não encontrou configuração específica, usar qualquer MISTO genérico
-          if (!configIcone) {
+          if (melhorMatch) {
+            configIcone = melhorMatch;
+            iconeKey = 'MISTO';
+          } else {
+            // Se não encontrou configuração específica, usar qualquer MISTO genérico
             configIcone = iconesConfig.find(ic => 
               ic.tipo_entidade === 'Lote' && 
               ic.categoria?.toUpperCase() === 'MISTO'
