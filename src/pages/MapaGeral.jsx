@@ -962,14 +962,22 @@ export default function MapaGeral() {
                 cursor: modoDesenho ? 'crosshair' : 'default'
               }}
             />
-            {modoDesenho && (
+            {!mapReady && showMapa && (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
+                  <span className="font-semibold text-slate-700">Carregando mapa...</span>
+                </div>
+              </div>
+            )}
+            {modoDesenho && mapReady && (
               <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
                 {modoDesenho === 'poligono' && `🎯 Clique no mapa para desenhar a área (${currentPoints.length} pontos)`}
                 {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
                 {modoDesenho === 'linha' && `➡️ Clique no mapa para desenhar a linha (${currentPoints.length} pontos)`}
               </div>
             )}
-            {modoEdicao && !modoDesenho && (
+            {modoEdicao && !modoDesenho && mapReady && (
               <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
                 ✏️ MODO EDIÇÃO - Arraste vértices para editar elementos
               </div>
