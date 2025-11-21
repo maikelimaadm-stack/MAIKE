@@ -98,6 +98,7 @@ export default function GerenciadorIcones() {
       tipo_entidade: "",
       categoria: "",
       icone_url: "",
+      sub_icone_url: "",
       cor_padrao: CORES_PADRAO[0],
       descricao: "",
       categorias_misto: []
@@ -147,6 +148,7 @@ export default function GerenciadorIcones() {
       tipo_entidade: icone.tipo_entidade,
       categoria: icone.categoria,
       icone_url: icone.icone_url || "",
+      sub_icone_url: icone.sub_icone_url || "",
       cor_padrao: icone.cor_padrao || CORES_PADRAO[0],
       descricao: icone.descricao || "",
       categorias_misto: icone.categorias_misto || []
@@ -311,7 +313,7 @@ export default function GerenciadorIcones() {
             )}
 
             <div className="space-y-1">
-              <Label className="text-xs">Ícone (Imagem)</Label>
+              <Label className="text-xs">Ícone Principal (Mapa)</Label>
               <div className="flex gap-2">
                 <Input
                   type="file"
@@ -335,6 +337,47 @@ export default function GerenciadorIcones() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setFormData({ ...formData, icone_url: "" })}
+                    className="h-6 w-6 text-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Sub Ícone (Informações/Detalhes)</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploadingFile(true);
+                    try {
+                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                      setFormData({ ...formData, sub_icone_url: file_url });
+                      toast.success('✅ Sub ícone carregado!');
+                    } catch (error) {
+                      toast.error('❌ Erro ao carregar sub ícone');
+                      console.error(error);
+                    } finally {
+                      setUploadingFile(false);
+                    }
+                  }}
+                  className="h-8 text-xs"
+                  disabled={uploadingFile}
+                />
+              </div>
+              {formData.sub_icone_url && (
+                <div className="flex items-center gap-2 mt-2">
+                  <img src={formData.sub_icone_url} alt="Preview Sub" className="w-10 h-10 object-contain border rounded" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setFormData({ ...formData, sub_icone_url: "" })}
                     className="h-6 w-6 text-red-600"
                   >
                     <X className="w-3 h-3" />

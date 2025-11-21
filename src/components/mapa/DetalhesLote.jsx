@@ -49,10 +49,12 @@ export default function DetalhesLote({ lotes, onClose }) {
                   ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
                 );
                 
-                if (configIcone?.icone_url) {
+                const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+                
+                if (iconeUrl) {
                   return (
                     <img 
-                      src={configIcone.icone_url} 
+                      src={iconeUrl} 
                       alt={lote.categoria} 
                       className="w-12 h-12 object-contain" 
                     />
