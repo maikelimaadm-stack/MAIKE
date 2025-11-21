@@ -19,6 +19,16 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const queryClient = useQueryClient();
 
+  // Listener para abrir movimentação via drag-and-drop
+  React.useEffect(() => {
+    const handleOpenMovimentacao = (e) => {
+      setShowMovimentacao(true);
+    };
+    
+    window.addEventListener('open-movimentacao', handleOpenMovimentacao);
+    return () => window.removeEventListener('open-movimentacao', handleOpenMovimentacao);
+  }, []);
+
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
@@ -155,13 +165,15 @@ export default function DetalhesLote({ lotes, onClose }) {
     },
     onSuccess: () => {
       console.log('Movimentação finalizada com sucesso!');
+      toast.success('✅ Movimentação realizada com sucesso!');
+      
+      // Invalidar queries
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      toast.success('✅ Movimentação realizada com sucesso!');
+      
+      // Fechar modais
       setShowMovimentacao(false);
-      setTimeout(() => {
-        onClose();
-      }, 500);
+      onClose();
     },
     onError: (error) => {
       console.error('Erro na movimentação:', error);

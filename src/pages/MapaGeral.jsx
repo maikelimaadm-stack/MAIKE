@@ -379,16 +379,56 @@ export default function MapaGeral() {
             className: 'marker-label'
           },
           title: area.nome,
-          zIndex: 1000
+          zIndex: 1000,
+          draggable: true
         });
 
         markersRef.current.push(marker);
 
         marker.addListener('click', (e) => {
           e.stop();
-          // Passar TODOS os lotes da área para o componente de detalhes
           setSelectedLote(lotesNaArea);
           setShowDetalhesLote(true);
+        });
+
+        marker.addListener('dragend', (e) => {
+          const newPos = e.latLng;
+
+          // Encontrar área mais próxima
+          let areaMaisProxima = null;
+          let menorDistancia = Infinity;
+
+          areas.forEach(a => {
+            if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) return;
+
+            const paths = a.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+            const bounds = new google.maps.LatLngBounds();
+            paths.forEach(p => bounds.extend(p));
+            const areaCenter = bounds.getCenter();
+
+            const distancia = google.maps.geometry.spherical.computeDistanceBetween(newPos, areaCenter);
+
+            if (distancia < menorDistancia) {
+              menorDistancia = distancia;
+              areaMaisProxima = a;
+            }
+          });
+
+          // Retornar marcador para posição original
+          marker.setPosition(center);
+
+          if (areaMaisProxima && menorDistancia < 500) { // 500 metros de raio
+            // Abrir dialog de movimentação
+            setSelectedLote(lotesNaArea);
+            setShowDetalhesLote(true);
+            setTimeout(() => {
+              // Trigger movimentação automaticamente
+              const event = new CustomEvent('open-movimentacao', { 
+                detail: { areaDestino: areaMaisProxima } 
+              });
+              window.dispatchEvent(event);
+            }, 100);
+          }
         });
       });
     }
