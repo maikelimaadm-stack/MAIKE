@@ -395,7 +395,7 @@ export default function MapaCadastro() {
           fillColor: cor,
           fillOpacity: modoEdicao ? 0.25 : 0.35,
           editable: modoEdicao,
-          draggable: modoEdicao,
+          draggable: false,
         });
 
         polygon.setMap(mapInstanceRef.current);
@@ -413,7 +413,6 @@ export default function MapaCadastro() {
 
           google.maps.event.addListener(polygon.getPath(), 'set_at', updateAreaMutation);
           google.maps.event.addListener(polygon.getPath(), 'insert_at', updateAreaMutation);
-          google.maps.event.addListener(polygon, 'dragend', updateAreaMutation);
         }
 
         polygon.addListener('click', (e) => {
@@ -509,7 +508,7 @@ export default function MapaCadastro() {
           strokeOpacity: 1,
           strokeWeight: modoEdicao ? 4 : 3,
           editable: modoEdicao,
-          draggable: modoEdicao,
+          draggable: false,
         });
 
         polyline.setMap(mapInstanceRef.current);
@@ -534,7 +533,6 @@ export default function MapaCadastro() {
 
           google.maps.event.addListener(polyline.getPath(), 'set_at', updateLinhaMutation);
           google.maps.event.addListener(polyline.getPath(), 'insert_at', updateLinhaMutation);
-          google.maps.event.addListener(polyline, 'dragend', updateLinhaMutation);
         }
 
         polyline.addListener('click', () => {
