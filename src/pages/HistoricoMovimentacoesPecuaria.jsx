@@ -65,11 +65,14 @@ const formatarDataSimples = (dataString) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data/Hora', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
+  { id: 'empresa', label: 'Fazenda', default: true, sortable: false },
   { id: 'lote', label: 'Lote', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
   { id: 'peso_medio', label: 'Peso Médio (kg)', default: false, sortable: false },
   { id: 'area_origem', label: 'Área Origem', default: true, sortable: false },
+  { id: 'codigo_area_origem', label: 'Código Área Origem', default: false, sortable: false },
   { id: 'area_destino', label: 'Área Destino', default: true, sortable: false },
+  { id: 'codigo_area_destino', label: 'Código Área Destino', default: false, sortable: false },
   { id: 'categoria_origem', label: 'Categoria Origem', default: false, sortable: false },
   { id: 'categoria_destino', label: 'Categoria Destino', default: false, sortable: false },
   { id: 'sexo', label: 'Sexo', default: false, sortable: false },
@@ -79,7 +82,6 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'peso_carcaca', label: 'Peso Carcaça (kg)', default: false, sortable: false },
   { id: 'observacoes', label: 'Observações', default: true, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
-  { id: 'empresa', label: 'Fazenda', default: false, sortable: false },
 ];
 
 const ITEMS_PER_PAGE = 50;
@@ -401,6 +403,12 @@ export default function HistoricoMovimentacoesPecuaria() {
     initialData: [],
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-pastagem'],
+    queryFn: () => base44.entities.AreaPastagem.list(),
+    initialData: [],
+  });
+
   const renderCell = (coluna, mov) => {
     const dadosObs = extrairDadosObservacoes(mov.observacoes);
     
@@ -415,6 +423,9 @@ export default function HistoricoMovimentacoesPecuaria() {
             </Badge>
           </TableCell>
         );
+      case 'empresa':
+        const empresa = empresas.find(e => e.id === mov.empresa_id);
+        return <TableCell className="text-xs font-semibold border-r border-slate-200">{empresa?.apelido || empresa?.nome || '-'}</TableCell>;
       case 'lote':
         return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote}</TableCell>;
       case 'quantidade':
@@ -423,8 +434,14 @@ export default function HistoricoMovimentacoesPecuaria() {
         return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? formatarNumero(mov.peso_medio) : '-'}</TableCell>;
       case 'area_origem':
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_origem_nome || '-'}</TableCell>;
+      case 'codigo_area_origem':
+        const areaOrigem = areas.find(a => a.id === mov.area_origem_id);
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{areaOrigem?.codigo || '-'}</TableCell>;
       case 'area_destino':
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_destino_nome || '-'}</TableCell>;
+      case 'codigo_area_destino':
+        const areaDestino = areas.find(a => a.id === mov.area_destino_id);
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{areaDestino?.codigo || '-'}</TableCell>;
       case 'categoria_origem':
         return <TableCell className="text-xs border-r border-slate-200">{dadosObs.categoria_origem || dadosObs.categoria || '-'}</TableCell>;
       case 'categoria_destino':
@@ -443,9 +460,6 @@ export default function HistoricoMovimentacoesPecuaria() {
         return <TableCell className="text-xs max-w-[200px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
         return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
-      case 'empresa':
-        const empresa = empresas.find(e => e.id === mov.empresa_id);
-        return <TableCell className="text-xs border-r border-slate-200">{empresa?.apelido || empresa?.nome || '-'}</TableCell>;
       default:
         return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
     }
