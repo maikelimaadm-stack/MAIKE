@@ -8,12 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save } from "lucide-react";
 
 export default function FormularioMorte({ lote, onSubmit, onCancel }) {
+  const categorias = Array.isArray(lote) 
+    ? [...new Set(lote.map(l => l.categoria).filter(Boolean))]
+    : [lote.categoria].filter(Boolean);
+
   const [formData, setFormData] = useState({
     data_ocorrencia: new Date().toISOString().split('T')[0],
+    categoria: categorias[0] || "",
     quantidade: 1,
     causa_morte: "",
     observacoes: ""
   });
+
+  const lotesCategoria = Array.isArray(lote)
+    ? lote.filter(l => l.categoria === formData.categoria)
+    : [lote];
+  const quantidadeMaxima = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();

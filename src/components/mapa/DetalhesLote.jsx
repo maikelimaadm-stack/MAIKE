@@ -195,20 +195,27 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMorte = async (formData) => {
-    const lote = lotes[0];
+    const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     
-    await base44.entities.MovimentacaoPecuaria.create({
-      empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
-      tipo: 'Morte',
-      lote: lote.nome,
-      quantidade_animais: formData.quantidade,
-      observacoes: `Causa: ${formData.causa_morte}. ${formData.observacoes}`
-    });
+    for (const lote of lotesCategoria) {
+      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
+      
+      await base44.entities.MovimentacaoPecuaria.create({
+        empresa_id: empresaSelecionadaId,
+        data_movimentacao: new Date(formData.data_ocorrencia).toISOString(),
+        tipo: 'Morte',
+        lote: lote.nome,
+        quantidade_animais: qtdRemover,
+        observacoes: `Categoria: ${formData.categoria}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
+      });
 
-    await base44.entities.Lote.update(lote.id, {
-      quantidade_cabecas: lote.quantidade_cabecas - formData.quantidade
-    });
+      await base44.entities.Lote.update(lote.id, {
+        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+      });
+
+      formData.quantidade -= qtdRemover;
+      if (formData.quantidade <= 0) break;
+    }
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
@@ -218,20 +225,21 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleNascimento = async (formData) => {
-    const lote = lotes[0];
+    const lotesMae = lotes.filter(l => l.categoria === formData.categoria_mae);
+    const loteAtualizar = lotesMae[0];
     
     await base44.entities.MovimentacaoPecuaria.create({
       empresa_id: empresaSelecionadaId,
       data_movimentacao: new Date(formData.data_nascimento).toISOString(),
       tipo: 'Nascimento',
-      lote: lote.nome,
+      lote: loteAtualizar.nome,
       quantidade_animais: formData.quantidade,
       peso_medio: parseFloat(formData.peso_medio) || null,
-      observacoes: `Sexo: ${formData.sexo}. ${formData.observacoes}`
+      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. ${formData.observacoes}`
     });
 
-    await base44.entities.Lote.update(lote.id, {
-      quantidade_cabecas: lote.quantidade_cabecas + formData.quantidade
+    await base44.entities.Lote.update(loteAtualizar.id, {
+      quantidade_cabecas: loteAtualizar.quantidade_cabecas + formData.quantidade
     });
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
@@ -242,20 +250,27 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleAbate = async (formData) => {
-    const lote = lotes[0];
+    const lotesCategoria = lotes.filter(l => l.categoria === formData.categoria);
     
-    await base44.entities.MovimentacaoPecuaria.create({
-      empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date(formData.data_abate).toISOString(),
-      tipo: 'Abate',
-      lote: lote.nome,
-      quantidade_animais: formData.quantidade,
-      observacoes: `Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
-    });
+    for (const lote of lotesCategoria) {
+      const qtdRemover = Math.min(formData.quantidade, lote.quantidade_cabecas);
+      
+      await base44.entities.MovimentacaoPecuaria.create({
+        empresa_id: empresaSelecionadaId,
+        data_movimentacao: new Date(formData.data_abate).toISOString(),
+        tipo: 'Abate',
+        lote: lote.nome,
+        quantidade_animais: qtdRemover,
+        observacoes: `Categoria: ${formData.categoria}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
+      });
 
-    await base44.entities.Lote.update(lote.id, {
-      quantidade_cabecas: lote.quantidade_cabecas - formData.quantidade
-    });
+      await base44.entities.Lote.update(lote.id, {
+        quantidade_cabecas: lote.quantidade_cabecas - qtdRemover
+      });
+
+      formData.quantidade -= qtdRemover;
+      if (formData.quantidade <= 0) break;
+    }
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
@@ -265,50 +280,60 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMudancaCategoria = async (formData) => {
-    const lote = lotes[0];
-    
-    await base44.entities.MovimentacaoPecuaria.create({
-      empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date(formData.data_mudanca).toISOString(),
-      tipo: 'Mudança de Categoria',
-      lote: lote.nome,
-      quantidade_animais: lote.quantidade_cabecas,
-      observacoes: `De ${lote.categoria} para ${formData.categoria_nova}. ${formData.observacoes}`
-    });
+    for (const categoriaAtual of formData.categorias_selecionadas) {
+      const lotesCategoria = lotes.filter(l => l.categoria === categoriaAtual);
+      
+      for (const lote of lotesCategoria) {
+        await base44.entities.MovimentacaoPecuaria.create({
+          empresa_id: empresaSelecionadaId,
+          data_movimentacao: new Date(formData.data_mudanca).toISOString(),
+          tipo: 'Mudança de Categoria',
+          lote: lote.nome,
+          quantidade_animais: lote.quantidade_cabecas,
+          observacoes: `De ${categoriaAtual} para ${formData.categoria_nova}. ${formData.observacoes}`
+        });
 
-    await base44.entities.Lote.update(lote.id, {
-      categoria: formData.categoria_nova
-    });
+        await base44.entities.Lote.update(lote.id, {
+          categoria: formData.categoria_nova
+        });
+      }
+    }
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
-    toast.success('Categoria atualizada');
+    toast.success('Categorias atualizadas');
     setShowMudancaCategoria(false);
     onClose();
   };
 
   const handlePesagem = async (formData) => {
-    const lote = lotes[0];
-    const pesoAnterior = lote.peso_medio_kg || 0;
-    const ganho = parseFloat(formData.peso_medio) - pesoAnterior;
-    
-    await base44.entities.MovimentacaoPecuaria.create({
-      empresa_id: empresaSelecionadaId,
-      data_movimentacao: new Date(formData.data_pesagem).toISOString(),
-      tipo: 'Pesagem',
-      lote: lote.nome,
-      quantidade_animais: lote.quantidade_cabecas,
-      peso_medio: parseFloat(formData.peso_medio),
-      observacoes: `Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
-    });
+    for (const categoria of formData.categorias_selecionadas) {
+      const lotesCategoria = lotes.filter(l => l.categoria === categoria);
+      const pesoNovo = parseFloat(formData.pesos_por_categoria[categoria]);
+      
+      for (const lote of lotesCategoria) {
+        const pesoAnterior = lote.peso_medio_kg || 0;
+        const ganho = pesoNovo - pesoAnterior;
+        
+        await base44.entities.MovimentacaoPecuaria.create({
+          empresa_id: empresaSelecionadaId,
+          data_movimentacao: new Date(formData.data_pesagem).toISOString(),
+          tipo: 'Pesagem',
+          lote: lote.nome,
+          quantidade_animais: lote.quantidade_cabecas,
+          peso_medio: pesoNovo,
+          observacoes: `Categoria: ${categoria}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
+        });
 
-    await base44.entities.Lote.update(lote.id, {
-      peso_medio_kg: parseFloat(formData.peso_medio)
-    });
+        await base44.entities.Lote.update(lote.id, {
+          peso_medio_kg: pesoNovo
+        });
+      }
+    }
 
     queryClient.invalidateQueries({ queryKey: ['lotes'] });
     queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
-    toast.success('Pesagem registrada');
+    toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
   };

@@ -19,14 +19,22 @@ const CATEGORIAS = [
 ];
 
 export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
+  const lotesArray = Array.isArray(lote) ? lote : [lote];
+  const categoriasAtuais = [...new Set(lotesArray.map(l => l.categoria).filter(Boolean))];
+
   const [formData, setFormData] = useState({
     data_mudanca: new Date().toISOString().split('T')[0],
+    categorias_selecionadas: categoriasAtuais.length === 1 ? [categoriasAtuais[0]] : [],
     categoria_nova: "",
     observacoes: ""
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (formData.categorias_selecionadas.length === 0) {
+      alert("Selecione pelo menos uma categoria");
+      return;
+    }
     if (!formData.categoria_nova) {
       alert("Selecione a nova categoria");
       return;
@@ -34,16 +42,45 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     onSubmit(formData);
   };
 
+  const toggleCategoria = (cat) => {
+    const atual = formData.categorias_selecionadas;
+    if (atual.includes(cat)) {
+      setFormData({ ...formData, categorias_selecionadas: atual.filter(c => c !== cat) });
+    } else {
+      setFormData({ ...formData, categorias_selecionadas: [...atual, cat] });
+    }
+  };
+
+  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
+
   return (
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Mudança de Categoria - {lote.nome}</CardTitle>
+        <CardTitle className="text-sm font-semibold">Mudança de Categoria - {nomeExibicao}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="bg-slate-50 border rounded p-3 mb-3">
-            <div className="text-xs text-slate-600 mb-1">Categoria Atual:</div>
-            <div className="text-sm font-semibold text-slate-900">{lote.categoria}</div>
+            <div className="text-xs text-slate-600 mb-2">Categorias Atuais - Selecione quais deseja mudar:</div>
+            <div className="flex flex-wrap gap-2">
+              {categoriasAtuais.map(cat => {
+                const isSelected = formData.categorias_selecionadas.includes(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCategoria(cat)}
+                    className={`px-3 py-1 text-xs rounded border transition-all ${
+                      isSelected 
+                        ? 'bg-emerald-600 text-white border-emerald-600' 
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-600'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -68,7 +105,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                 <SelectValue placeholder="Selecione a nova categoria" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIAS.filter(c => c !== lote.categoria).map(cat => (
+                {CATEGORIAS.map(cat => (
                   <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
                 ))}
               </SelectContent>

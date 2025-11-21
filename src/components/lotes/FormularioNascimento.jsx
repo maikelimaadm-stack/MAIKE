@@ -8,8 +8,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save } from "lucide-react";
 
 export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
+  const lotesArray = Array.isArray(lote) ? lote : [lote];
+  
+  // Filtrar apenas fêmeas acima de 13 meses
+  const categoriasFemeas = [...new Set(
+    lotesArray
+      .filter(l => {
+        const cat = l.categoria || "";
+        return cat.toLowerCase().includes('fêmea') || 
+               cat.toLowerCase().includes('vaca') || 
+               cat.toLowerCase().includes('novilha');
+      })
+      .filter(l => {
+        const cat = l.categoria || "";
+        return !cat.includes('0 a 12 meses'); // Excluir bezerras
+      })
+      .map(l => l.categoria)
+      .filter(Boolean)
+  )];
+
   const [formData, setFormData] = useState({
     data_nascimento: new Date().toISOString().split('T')[0],
+    categoria_mae: categoriasFemeas[0] || "",
     quantidade: 1,
     sexo: "",
     peso_medio: "",
@@ -18,16 +38,48 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (categoriasFemeas.length === 0) {
+      alert("Não há categorias de fêmeas aptas para dar nascimento (acima de 13 meses)");
+      return;
+    }
     onSubmit(formData);
   };
+
+  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
 
   return (
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Registrar Nascimento - {lote.nome}</CardTitle>
+        <CardTitle className="text-sm font-semibold">Registrar Nascimento - {nomeExibicao}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
+          {categoriasFemeas.length === 0 && (
+            <div className="bg-red-50 border border-red-200 rounded p-3 text-xs text-red-800">
+              ⚠️ Não há categorias de fêmeas aptas para dar nascimento. Apenas fêmeas acima de 13 meses podem ter nascimentos.
+            </div>
+          )}
+
+          {categoriasFemeas.length > 1 && (
+            <div className="space-y-1">
+              <Label className="text-xs">Categoria da Mãe *</Label>
+              <Select
+                value={formData.categoria_mae}
+                onValueChange={(v) => setFormData({ ...formData, categoria_mae: v })}
+                required
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriasFemeas.map(cat => (
+                    <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Data do Nascimento *</Label>
@@ -37,6 +89,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                 onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
                 className="h-8 text-xs"
                 required
+                disabled={categoriasFemeas.length === 0}
               />
             </div>
 
@@ -49,6 +102,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                 onChange={(e) => setFormData({ ...formData, quantidade: parseInt(e.target.value) || 0 })}
                 className="h-8 text-xs"
                 required
+                disabled={categoriasFemeas.length === 0}
               />
             </div>
           </div>
