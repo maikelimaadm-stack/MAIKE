@@ -63,7 +63,7 @@ const formatarDataSimples = (dataString) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
-  { id: 'data', label: 'Data/Hora', default: true, sortable: true },
+  { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'empresa', label: 'Fazenda', default: true, sortable: false },
   { id: 'lote', label: 'Lote', default: true, sortable: true },
@@ -414,7 +414,7 @@ export default function HistoricoMovimentacoesPecuaria() {
     
     switch (coluna.id) {
       case 'data':
-        return <TableCell className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
+        return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_movimentacao)}</TableCell>;
       case 'tipo':
         return (
           <TableCell className="border-r border-slate-200">
