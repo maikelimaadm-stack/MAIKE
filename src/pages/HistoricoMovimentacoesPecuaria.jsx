@@ -67,11 +67,19 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'lote', label: 'Lote', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
-  { id: 'peso_medio', label: 'Peso Médio (kg)', default: true, sortable: false },
+  { id: 'peso_medio', label: 'Peso Médio (kg)', default: false, sortable: false },
   { id: 'area_origem', label: 'Área Origem', default: true, sortable: false },
   { id: 'area_destino', label: 'Área Destino', default: true, sortable: false },
+  { id: 'categoria_origem', label: 'Categoria Origem', default: false, sortable: false },
+  { id: 'categoria_destino', label: 'Categoria Destino', default: false, sortable: false },
+  { id: 'sexo', label: 'Sexo', default: false, sortable: false },
+  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: false },
+  { id: 'destino_abate', label: 'Destino Abate', default: false, sortable: false },
+  { id: 'peso_vivo', label: 'Peso Vivo (kg)', default: false, sortable: false },
+  { id: 'peso_carcaca', label: 'Peso Carcaça (kg)', default: false, sortable: false },
   { id: 'observacoes', label: 'Observações', default: true, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
+  { id: 'empresa', label: 'Fazenda', default: false, sortable: false },
 ];
 
 const ITEMS_PER_PAGE = 50;
