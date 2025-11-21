@@ -318,14 +318,14 @@ export default function MapaGeral() {
             url: configIcone.icone_url,
             scaledSize: new google.maps.Size(70, 70),
             anchor: new google.maps.Point(35, 35),
-            labelOrigin: new google.maps.Point(35, 30)
+            labelOrigin: new google.maps.Point(35, 28)
           };
         } else {
           markerIcon = {
             url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/c3602d1e3_Designsemnome3.png',
             scaledSize: new google.maps.Size(70, 70),
             anchor: new google.maps.Point(35, 35),
-            labelOrigin: new google.maps.Point(35, 30)
+            labelOrigin: new google.maps.Point(35, 28)
           };
         }
 
