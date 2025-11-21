@@ -98,11 +98,11 @@ export default function MapaPecuaria() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: gado = [] } = useQuery({
-    queryKey: ['gado', empresaSelecionadaId],
+  const { data: lotes = [] } = useQuery({
+    queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Gado.list();
-      return all.filter(g => g.empresa_id === empresaSelecionadaId && g.status === 'Ativo');
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -145,24 +145,26 @@ export default function MapaPecuaria() {
 
   const moveLoteMutation = useMutation({
     mutationFn: async ({ loteId, areaDestinoId }) => {
-      const animaisLote = gado.filter(g => g.lote === loteId);
-      
-      for (const animal of animaisLote) {
-        await base44.entities.Gado.update(animal.id, {
-          area_atual_id: areaDestinoId
-        });
-      }
+      const lote = lotes.find(l => l.id === loteId);
+      if (!lote) throw new Error('Lote não encontrado');
 
-      const areaOrigem = areas.find(a => a.id === animaisLote[0]?.area_atual_id);
+      const areaOrigem = areas.find(a => a.id === lote.area_atual_id);
       const destino = areas.find(a => a.id === areaDestinoId);
 
+      // Atualizar o lote com nova área
+      await base44.entities.Lote.update(loteId, {
+        area_atual_id: areaDestinoId,
+        area_atual_nome: destino?.nome
+      });
+
+      // Registrar movimentação
       await base44.entities.MovimentacaoPecuaria.create({
         empresa_id: empresaSelecionadaId,
         numero_movimentacao: String(Date.now()),
         tipo: 'Transferência de Área',
         data_movimentacao: new Date().toISOString(),
-        lote: loteId,
-        quantidade_animais: animaisLote.length,
+        lote: lote.nome,
+        quantidade_animais: lote.quantidade_cabecas,
         area_origem_id: areaOrigem?.id,
         area_origem_nome: areaOrigem?.nome,
         area_destino_id: areaDestinoId,
@@ -172,7 +174,7 @@ export default function MapaPecuaria() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gado'] });
+      queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['areas'] });
       setShowMoveDialog(false);
       setSelectedLote(null);
@@ -202,30 +204,17 @@ export default function MapaPecuaria() {
     }
   };
 
-  // Agrupar gado por lote e área
-  const lotesPorArea = gado.reduce((acc, animal) => {
-    if (!animal.lote || !animal.area_atual_id) return acc;
-    const key = `${animal.lote}_${animal.area_atual_id}`;
-    if (!acc[key]) {
-      acc[key] = {
-        lote: animal.lote,
-        area_id: animal.area_atual_id,
-        animais: [],
-        categoria: animal.categoria
+  // Lotes com localização
+  const lotesComLocalizacao = lotes
+    .filter(lote => lote.area_atual_id)
+    .map(lote => {
+      const area = areas.find(a => a.id === lote.area_atual_id);
+      return {
+        ...lote,
+        area
       };
-    }
-    acc[key].animais.push(animal);
-    return acc;
-  }, {});
-
-  const lotesComLocalizacao = Object.values(lotesPorArea).map(lote => {
-    const area = areas.find(a => a.id === lote.area_id);
-    return {
-      ...lote,
-      area,
-      quantidade: lote.animais.length
-    };
-  }).filter(l => l.area);
+    })
+    .filter(l => l.area);
 
   // Filtrar áreas
   const areasFiltered = areas.filter(area => {
@@ -236,7 +225,7 @@ export default function MapaPecuaria() {
 
   // Filtrar lotes
   const lotesFiltered = lotesComLocalizacao.filter(lote => {
-    if (searchTerm && !lote.lote.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (searchTerm && !lote.nome.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (filterCategoria !== 'all' && lote.categoria !== filterCategoria) return false;
     return true;
   });
@@ -271,7 +260,7 @@ export default function MapaPecuaria() {
     if (mapInstanceRef.current) {
       renderMap();
     }
-  }, [areas, gado, showAreas, showLotes, areasFiltered, lotesFiltered]);
+  }, [areas, lotes, showAreas, showLotes, areasFiltered, lotesFiltered]);
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -395,7 +384,7 @@ export default function MapaPecuaria() {
           position: center,
           map: mapInstanceRef.current,
           label: {
-            text: String(lote.quantidade),
+            text: String(lote.quantidade_cabecas),
             color: '#ffffff',
             fontSize: '16px',
             fontWeight: 'bold'
@@ -408,7 +397,7 @@ export default function MapaPecuaria() {
             strokeColor: '#ffffff',
             strokeWeight: 3
           },
-          title: lote.lote
+          title: lote.nome
         });
 
         markersRef.current.push(marker);
@@ -416,15 +405,16 @@ export default function MapaPecuaria() {
         marker.addListener('click', () => {
           infoWindowRef.current.setContent(`
             <div style="padding: 12px; min-width: 220px;">
-              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #0f172a;">🐄 ${lote.lote}</div>
+              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #0f172a;">🐄 ${lote.nome}</div>
               <div style="font-size: 13px; color: #475569; line-height: 1.8;">
-                <div><strong>Quantidade:</strong> ${lote.quantidade} cabeças</div>
+                <div><strong>Quantidade:</strong> ${lote.quantidade_cabecas} cabeças</div>
                 <div><strong>Categoria:</strong> ${lote.categoria || 'Não definida'}</div>
+                <div><strong>Peso Médio:</strong> ${lote.peso_medio_kg ? lote.peso_medio_kg + ' kg' : 'N/A'}</div>
                 <div><strong>Área atual:</strong> ${lote.area.nome}</div>
               </div>
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
                 <button 
-                  onclick="window.moverLote('${lote.lote}', '${lote.area_id}')"
+                  onclick="window.moverLote('${lote.id}', '${lote.area_atual_id}')"
                   style="width: 100%; padding: 8px; background: #10b981; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;"
                 >
                   🔄 Mover Lote
@@ -441,8 +431,9 @@ export default function MapaPecuaria() {
 
   // Função global para mover lote (chamada pelo botão no InfoWindow)
   useEffect(() => {
-    window.moverLote = (lote, areaAtualId) => {
-      setSelectedLote({ lote, area_atual_id: areaAtualId });
+    window.moverLote = (loteId, areaAtualId) => {
+      const lote = lotes.find(l => l.id === loteId);
+      setSelectedLote(lote);
       setShowMoveDialog(true);
       if (infoWindowRef.current) {
         infoWindowRef.current.close();
@@ -452,7 +443,7 @@ export default function MapaPecuaria() {
     return () => {
       delete window.moverLote;
     };
-  }, []);
+  }, [lotes]);
 
   const handleStartDrawing = () => {
     setIsDrawing(true);
@@ -499,12 +490,12 @@ export default function MapaPecuaria() {
     }
 
     moveLoteMutation.mutate({
-      loteId: selectedLote.lote,
+      loteId: selectedLote.id,
       areaDestinoId: selectedArea
     });
   };
 
-  const categorias = [...new Set(gado.map(g => g.categoria).filter(Boolean))];
+  const categorias = [...new Set(lotes.map(l => l.categoria).filter(Boolean))];
 
   return (
     <div className="p-4 space-y-3">
@@ -676,7 +667,7 @@ export default function MapaPecuaria() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Total de Animais:</span>
-                  <span className="font-semibold">{gado.length}</span>
+                  <span className="font-semibold">{lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0)}</span>
                 </div>
               </div>
             </div>
@@ -829,7 +820,8 @@ export default function MapaPecuaria() {
           <div className="space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded p-3">
               <div className="text-xs font-semibold text-blue-900">Lote Selecionado</div>
-              <div className="text-sm font-bold text-blue-700">{selectedLote?.lote}</div>
+              <div className="text-sm font-bold text-blue-700">{selectedLote?.nome}</div>
+              <div className="text-xs text-blue-600 mt-1">{selectedLote?.quantidade_cabecas} cabeças</div>
             </div>
 
             <div className="space-y-1">
@@ -839,9 +831,7 @@ export default function MapaPecuaria() {
                   <SelectValue placeholder="Selecione a área" />
                 </SelectTrigger>
                 <SelectContent>
-                  {areas
-                    .filter(a => a.id !== selectedLote?.area_atual_id)
-                    .map(area => (
+                  {areas.map(area => (
                       <SelectItem key={area.id} value={area.id} className="text-xs">
                         {area.nome} ({area.tamanho_hectares} ha)
                       </SelectItem>
