@@ -324,28 +324,32 @@ export default function MapaGeral() {
             console.log(`   Config ${idx + 1}:`, cfg.descricao, '- Categorias:', JSON.stringify(cfg.categorias_misto));
           });
 
-          // Buscar por correspondência CONTIDA (categorias da área devem estar na config)
+          // Buscar por correspondência EXATA (mesmo número e mesmas categorias)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
 
             console.log(`🔍 Testando config "${config.descricao}":`);
-            console.log(`   - Área tem: [${categorias.join(', ')}]`);
-            console.log(`   - Config tem: [${categoriasConfig.join(', ')}]`);
+            console.log(`   - Área tem ${categorias.length} categorias: [${categorias.join(', ')}]`);
+            console.log(`   - Config tem ${categoriasConfig.length} categorias: [${categoriasConfig.join(', ')}]`);
 
-            // Verificar se TODAS as categorias da área estão contidas na config
-            const match = categorias.every(cat => categoriasConfig.includes(cat));
-            console.log(`   - Contido? ${match}`);
+            // Verificar se tem o MESMO número de categorias E são as mesmas
+            if (categorias.length === categoriasConfig.length) {
+              const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
+              console.log(`   - Match exato? ${match}`);
 
-            if (match) {
-              configIcone = config;
-              iconeKey = 'MISTO';
-              console.log(`✅ MATCH CONTIDO! Usando: ${config.descricao}`);
-              break;
+              if (match) {
+                configIcone = config;
+                iconeKey = 'MISTO';
+                console.log(`✅ MATCH EXATO! Usando: ${config.descricao}`);
+                break;
+              }
+            } else {
+              console.log(`   - ❌ Tamanhos diferentes - pulando`);
             }
           }
 
           if (!configIcone) {
-            console.log('❌ Nenhuma config contém todas as categorias - não usará ícone');
+            console.log('❌ Nenhum match exato encontrado - não usará ícone');
           }
         }
 
