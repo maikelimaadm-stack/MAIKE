@@ -252,7 +252,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                         <Input
                           type="number"
                           value={mov.quantidade}
-                          onChange={(e) => handleMovimentacaoChange(index, 'quantidade', e.target.value)}
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            if (valor === '' || parseFloat(valor) <= mov.quantidade_maxima) {
+                              handleMovimentacaoChange(index, 'quantidade', valor);
+                            }
+                          }}
                           max={mov.quantidade_maxima}
                           className="h-8 text-xs"
                           required
