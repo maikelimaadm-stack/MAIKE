@@ -68,6 +68,7 @@ export default function MapaGeral() {
   const currentPolylineRef = useRef(null);
   const tempMarkerRef = useRef(null);
   const guideLineRef = useRef(null);
+  const pointMarkersRef = useRef([]);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -185,6 +186,9 @@ export default function MapaGeral() {
       guideLineRef.current.setMap(null);
       guideLineRef.current = null;
     }
+    // Limpar marcadores dos pontos
+    pointMarkersRef.current.forEach(m => m.setMap(null));
+    pointMarkersRef.current = [];
   };
 
   const iniciarDesenho = (tipo) => {
@@ -343,9 +347,38 @@ export default function MapaGeral() {
     };
   }, [modoDesenho, currentPoints, snappingEnabled, mapReady]);
 
-  // Desenhar polígono/linha temporária conforme pontos são adicionados
+  // Desenhar polígono/linha temporária e marcadores nos pontos
   useEffect(() => {
     if (!mapInstanceRef.current || currentPoints.length === 0) return;
+
+    // Limpar marcadores anteriores
+    pointMarkersRef.current.forEach(m => m.setMap(null));
+    pointMarkersRef.current = [];
+
+    // Criar marcadores para cada ponto
+    currentPoints.forEach((point, index) => {
+      const marker = new google.maps.Marker({
+        position: point,
+        map: mapInstanceRef.current,
+        label: {
+          text: String(index + 1),
+          color: '#ffffff',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#3b82f6',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 3
+        },
+        draggable: false,
+        zIndex: 1000
+      });
+      pointMarkersRef.current.push(marker);
+    });
 
     if (modoDesenho === 'poligono' && currentPoints.length >= 2) {
       if (currentPolygonRef.current) {
