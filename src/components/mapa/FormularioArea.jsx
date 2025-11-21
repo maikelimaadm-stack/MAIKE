@@ -25,7 +25,6 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     nome: "",
     tipo_pastagem: "Pasto/Piquete",
-    area_total: "",
     capacidade_maxima: "",
     cor: CORES_DISPONIVEIS[0],
     observacoes: ""
@@ -36,14 +35,6 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
       const allAreas = await base44.entities.AreaPastagem.list();
       const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
       
-      // Calcular área automaticamente
-      if (window.google?.maps?.geometry) {
-        const polygon = new google.maps.Polygon({ paths: coordenadas });
-        const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
-        const areaHa = (areaM2 / 10000).toFixed(2);
-        data.tamanho_hectares = parseFloat(areaHa);
-      }
-
       return base44.entities.AreaPastagem.create({
         ...data,
         empresa_id: empresaSelecionadaId,
@@ -66,15 +57,38 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
     }
   });
 
+  // Calcular área automaticamente quando o componente carrega
+  React.useEffect(() => {
+    if (window.google?.maps?.geometry && coordenadas && coordenadas.length >= 3) {
+      const polygon = new google.maps.Polygon({ 
+        paths: coordenadas.map(c => new google.maps.LatLng(c.lat, c.lng))
+      });
+      const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
+      const areaHa = (areaM2 / 10000).toFixed(2);
+      setFormData(prev => ({ ...prev, area_total: areaHa }));
+    }
+  }, [coordenadas]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.nome) {
       toast.error('Preencha o nome da área!');
       return;
     }
+    // Calcular área
+    let tamanhoHectares = 0;
+    if (window.google?.maps?.geometry && coordenadas && coordenadas.length >= 3) {
+      const polygon = new google.maps.Polygon({ 
+        paths: coordenadas.map(c => new google.maps.LatLng(c.lat, c.lng))
+      });
+      const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
+      tamanhoHectares = parseFloat((areaM2 / 10000).toFixed(2));
+    }
+
     createAreaMutation.mutate({
       nome: formData.nome.toUpperCase(),
       tipo_pastagem: formData.tipo_pastagem,
+      tamanho_hectares: tamanhoHectares,
       capacidade_maxima: parseFloat(formData.capacidade_maxima) || 0,
       observacoes: formData.observacoes?.toUpperCase(),
       cor: formData.cor
@@ -107,6 +121,13 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
           </SelectContent>
         </Select>
       </div>
+
+      {formData.area_total && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+          <div className="text-xs text-emerald-700 mb-1">Área Calculada</div>
+          <div className="text-2xl font-bold text-emerald-900">{formData.area_total} ha</div>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label className="text-xs">Capacidade (UA)</Label>

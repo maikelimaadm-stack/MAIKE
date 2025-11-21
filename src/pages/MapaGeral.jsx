@@ -35,6 +35,7 @@ const loadGoogleMapsScript = () => {
 };
 
 export default function MapaGeral() {
+  const [showMapa, setShowMapa] = useState(false); // controla se mostra mapa ou lista
   const [mapType, setMapType] = useState('satellite');
   const [modoDesenho, setModoDesenho] = useState(null); // 'poligono', 'ponto', 'linha'
   const [modoEdicao, setModoEdicao] = useState(false); // modo de edição/visualização
@@ -43,6 +44,7 @@ export default function MapaGeral() {
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
   const [showLotes, setShowLotes] = useState(true);
+  const [activeTab, setActiveTab] = useState('areas'); // 'areas', 'pontos', 'linhas'
   
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
@@ -164,6 +166,7 @@ export default function MapaGeral() {
     setModoDesenho(null);
     setCurrentPoints([]);
     setCurrentMarker(null);
+    setShowMapa(false);
     if (currentPolygonRef.current) {
       currentPolygonRef.current.setMap(null);
       currentPolygonRef.current = null;
@@ -182,7 +185,16 @@ export default function MapaGeral() {
     }
   };
 
+  const iniciarDesenho = (tipo) => {
+    setModoDesenho(tipo);
+    setShowMapa(true);
+    setCurrentPoints([]);
+    setCurrentMarker(null);
+  };
+
   useEffect(() => {
+    if (!showMapa) return;
+    
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
 
@@ -198,7 +210,7 @@ export default function MapaGeral() {
       mapInstanceRef.current = map;
       renderMap();
     });
-  }, []);
+  }, [showMapa]);
 
   useEffect(() => {
     if (mapInstanceRef.current) {
@@ -255,7 +267,14 @@ export default function MapaGeral() {
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
-    if (!mapInstanceRef.current || !modoDesenho || currentPoints.length === 0) return;
+    if (!mapInstanceRef.current || !modoDesenho || currentPoints.length === 0) {
+      // Limpar linha guia se não estiver desenhando
+      if (guideLineRef.current) {
+        guideLineRef.current.setMap(null);
+        guideLineRef.current = null;
+      }
+      return;
+    }
     if (modoDesenho === 'ponto') return;
 
     const handleMouseMove = (e) => {
@@ -263,15 +282,30 @@ export default function MapaGeral() {
       const lng = e.latLng.lng();
       const lastPoint = currentPoints[currentPoints.length - 1];
 
+      // Aplicar snapping na linha guia também
+      const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
+      const targetPoint = snappedPoint || { lat, lng };
+
       if (guideLineRef.current) {
         guideLineRef.current.setMap(null);
       }
 
-      guideLineRef.current = new google.maps.Polyline({
-        path: [lastPoint, { lat, lng }],
+      // Criar seta no final da linha
+      const lineSymbol = {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 3,
         strokeColor: '#3b82f6',
-        strokeOpacity: 0.6,
-        strokeWeight: 2,
+      };
+
+      guideLineRef.current = new google.maps.Polyline({
+        path: [lastPoint, targetPoint],
+        strokeColor: snappedPoint ? '#10b981' : '#3b82f6',
+        strokeOpacity: 0.7,
+        strokeWeight: 3,
+        icons: [{
+          icon: lineSymbol,
+          offset: '100%'
+        }],
         map: mapInstanceRef.current
       });
     };
@@ -284,7 +318,7 @@ export default function MapaGeral() {
         guideLineRef.current = null;
       }
     };
-  }, [modoDesenho, currentPoints]);
+  }, [modoDesenho, currentPoints, snappingEnabled]);
 
   // Desenhar polígono/linha temporária conforme pontos são adicionados
   useEffect(() => {
@@ -581,12 +615,219 @@ export default function MapaGeral() {
     setShowFormularioLinha(true);
   };
 
+  if (!showMapa) {
+    return (
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Cadastro de Elementos do Mapa</h1>
+            <p className="text-xs text-slate-600">Gerencie áreas, pontos e linhas da fazenda</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 border-b">
+          <Button
+            variant={activeTab === 'areas' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('areas')}
+            className="h-8 text-xs"
+          >
+            Áreas ({areas.length})
+          </Button>
+          <Button
+            variant={activeTab === 'pontos' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('pontos')}
+            className="h-8 text-xs"
+          >
+            Pontos ({pontos.length})
+          </Button>
+          <Button
+            variant={activeTab === 'linhas' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('linhas')}
+            className="h-8 text-xs"
+          >
+            Linhas ({linhas.length})
+          </Button>
+        </div>
+
+        {activeTab === 'areas' && (
+          <Card>
+            <CardHeader className="bg-slate-50 border-b py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Áreas Cadastradas</CardTitle>
+                <Button
+                  onClick={() => iniciarDesenho('poligono')}
+                  size="sm"
+                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Square className="w-3 h-3 mr-1" />
+                  Nova Área
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold">Código</th>
+                      <th className="text-left px-3 py-2 font-semibold">Nome</th>
+                      <th className="text-left px-3 py-2 font-semibold">Tipo</th>
+                      <th className="text-left px-3 py-2 font-semibold">Área (ha)</th>
+                      <th className="text-left px-3 py-2 font-semibold">Capacidade</th>
+                      <th className="text-left px-3 py-2 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {areas.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="text-center py-8 text-slate-500">
+                          Nenhuma área cadastrada. Clique em "Nova Área" para começar.
+                        </td>
+                      </tr>
+                    ) : (
+                      areas.map(area => (
+                        <tr key={area.id} className="border-b hover:bg-slate-50">
+                          <td className="px-3 py-2 font-mono">#{area.numero_area}</td>
+                          <td className="px-3 py-2 font-semibold">{area.nome}</td>
+                          <td className="px-3 py-2">{area.tipo_pastagem}</td>
+                          <td className="px-3 py-2">{area.tamanho_hectares} ha</td>
+                          <td className="px-3 py-2">{area.capacidade_maxima} UA</td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline">{area.status_ocupacao}</Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'pontos' && (
+          <Card>
+            <CardHeader className="bg-slate-50 border-b py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Pontos de Referência</CardTitle>
+                <Button
+                  onClick={() => iniciarDesenho('ponto')}
+                  size="sm"
+                  className="h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                >
+                  <MapPin className="w-3 h-3 mr-1" />
+                  Novo Ponto
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold">Código</th>
+                      <th className="text-left px-3 py-2 font-semibold">Nome</th>
+                      <th className="text-left px-3 py-2 font-semibold">Tipo</th>
+                      <th className="text-left px-3 py-2 font-semibold">Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pontos.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="text-center py-8 text-slate-500">
+                          Nenhum ponto cadastrado. Clique em "Novo Ponto" para começar.
+                        </td>
+                      </tr>
+                    ) : (
+                      pontos.map(ponto => (
+                        <tr key={ponto.id} className="border-b hover:bg-slate-50">
+                          <td className="px-3 py-2 font-mono">#{ponto.numero_ponto}</td>
+                          <td className="px-3 py-2 font-semibold">{ponto.nome}</td>
+                          <td className="px-3 py-2">{ponto.tipo}</td>
+                          <td className="px-3 py-2 text-slate-500">{ponto.observacoes || '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'linhas' && (
+          <Card>
+            <CardHeader className="bg-slate-50 border-b py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Linhas Geográficas</CardTitle>
+                <Button
+                  onClick={() => iniciarDesenho('linha')}
+                  size="sm"
+                  className="h-8 text-xs bg-orange-600 hover:bg-orange-700"
+                >
+                  <Minus className="w-3 h-3 mr-1" />
+                  Nova Linha
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold">Código</th>
+                      <th className="text-left px-3 py-2 font-semibold">Nome</th>
+                      <th className="text-left px-3 py-2 font-semibold">Tipo</th>
+                      <th className="text-left px-3 py-2 font-semibold">Comprimento</th>
+                      <th className="text-left px-3 py-2 font-semibold">Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linhas.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="text-center py-8 text-slate-500">
+                          Nenhuma linha cadastrada. Clique em "Nova Linha" para começar.
+                        </td>
+                      </tr>
+                    ) : (
+                      linhas.map(linha => (
+                        <tr key={linha.id} className="border-b hover:bg-slate-50">
+                          <td className="px-3 py-2 font-mono">#{linha.numero_linha}</td>
+                          <td className="px-3 py-2 font-semibold">{linha.nome}</td>
+                          <td className="px-3 py-2">{linha.tipo}</td>
+                          <td className="px-3 py-2">
+                            {linha.comprimento_metros ? `${(linha.comprimento_metros/1000).toFixed(2)} km` : '-'}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">{linha.observacoes || '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Mapa Geral da Fazenda</h1>
-          <p className="text-xs text-slate-600">Gerencie áreas, pontos, linhas e lotes no mapa</p>
+          <h1 className="text-xl font-bold text-slate-900">
+            {modoDesenho === 'poligono' && 'Desenhar Nova Área'}
+            {modoDesenho === 'ponto' && 'Adicionar Novo Ponto'}
+            {modoDesenho === 'linha' && 'Desenhar Nova Linha'}
+            {!modoDesenho && 'Mapa Geral da Fazenda'}
+          </h1>
+          <p className="text-xs text-slate-600">
+            {modoDesenho ? 'Clique no mapa para desenhar' : 'Visualize e edite elementos'}
+          </p>
         </div>
       </div>
 
