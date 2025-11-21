@@ -258,6 +258,9 @@ export default function MapaGeral() {
     if (!mapInstanceRef.current || !modoDesenho || !mapReady) return;
 
     const handleMapClick = (e) => {
+      // Previnir propagação
+      e.stop();
+      
       const now = Date.now();
       const timeDiff = now - lastClickTimeRef.current;
       
@@ -309,7 +312,7 @@ export default function MapaGeral() {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
           const updated = [...prev, newPoint];
-          toast.success(`✅ Ponto ${updated.length} - Duplo clique para finalizar`, { duration: 1000 });
+          toast.success(`✅ Ponto ${updated.length}`, { duration: 800 });
           return updated;
         });
       }
@@ -319,12 +322,11 @@ export default function MapaGeral() {
     return () => {
       google.maps.event.removeListener(listener);
     };
-  }, [modoDesenho, mapReady, snappingEnabled, currentPoints]);
+  }, [modoDesenho, mapReady]);
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
     if (!mapInstanceRef.current || !modoDesenho || currentPoints.length === 0 || !mapReady) {
-      // Limpar linha guia se não estiver desenhando
       if (guideLineRef.current) {
         guideLineRef.current.setMap(null);
         guideLineRef.current = null;
@@ -334,11 +336,12 @@ export default function MapaGeral() {
     if (modoDesenho === 'ponto') return;
 
     const handleMouseMove = (e) => {
+      if (!currentPoints.length) return;
+      
       const lat = e.latLng.lat();
       const lng = e.latLng.lng();
       const lastPoint = currentPoints[currentPoints.length - 1];
 
-      // Aplicar snapping na linha guia também
       const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
       const targetPoint = snappedPoint || { lat, lng };
 
@@ -346,7 +349,6 @@ export default function MapaGeral() {
         guideLineRef.current.setMap(null);
       }
 
-      // Criar seta no final da linha
       const lineSymbol = {
         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
         scale: 3,
@@ -356,14 +358,15 @@ export default function MapaGeral() {
       guideLineRef.current = new google.maps.Polyline({
         path: [lastPoint, targetPoint],
         strokeColor: snappedPoint ? '#10b981' : '#3b82f6',
-        strokeOpacity: 0.8,
-        strokeWeight: snappedPoint ? 4 : 3,
+        strokeOpacity: 0.7,
+        strokeWeight: snappedPoint ? 4 : 2,
         icons: [{
           icon: lineSymbol,
           offset: '100%'
         }],
         map: mapInstanceRef.current,
-        zIndex: 999
+        clickable: false,
+        zIndex: 1
       });
     };
 
@@ -375,7 +378,7 @@ export default function MapaGeral() {
         guideLineRef.current = null;
       }
     };
-  }, [modoDesenho, currentPoints, snappingEnabled, mapReady]);
+  }, [modoDesenho, currentPoints.length, mapReady]);
 
   // Desenhar polígono/linha temporária e marcadores nos pontos
   useEffect(() => {
