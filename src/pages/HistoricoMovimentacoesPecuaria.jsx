@@ -352,7 +352,58 @@ export default function HistoricoMovimentacoesPecuaria() {
     toast.success('Exportado!');
   };
 
+  const extrairDadosObservacoes = (obs) => {
+    if (!obs) return {};
+    
+    const dados = {};
+    
+    // Categoria
+    const catMatch = obs.match(/Categoria[:\s]+([^.]+)/i);
+    if (catMatch) dados.categoria = catMatch[1].trim();
+    
+    // De X para Y (mudança de categoria)
+    const mudancaMatch = obs.match(/De\s+([^p]+)\s+para\s+([^.]+)/i);
+    if (mudancaMatch) {
+      dados.categoria_origem = mudancaMatch[1].trim();
+      dados.categoria_destino = mudancaMatch[2].trim();
+    }
+    
+    // Categoria mãe
+    const catMaeMatch = obs.match(/Categoria mãe[:\s]+([^.]+)/i);
+    if (catMaeMatch) dados.categoria_mae = catMaeMatch[1].trim();
+    
+    // Sexo
+    const sexoMatch = obs.match(/Sexo[:\s]+([^.]+)/i);
+    if (sexoMatch) dados.sexo = sexoMatch[1].trim();
+    
+    // Causa
+    const causaMatch = obs.match(/Causa[:\s]+([^.]+)/i);
+    if (causaMatch) dados.causa = causaMatch[1].trim();
+    
+    // Destino
+    const destinoMatch = obs.match(/Destino[:\s]+([^.]+)/i);
+    if (destinoMatch) dados.destino = destinoMatch[1].trim();
+    
+    // Peso vivo
+    const pesoVivoMatch = obs.match(/Peso vivo[:\s]+([0-9.,]+)/i);
+    if (pesoVivoMatch) dados.peso_vivo = pesoVivoMatch[1].trim();
+    
+    // Peso carcaça
+    const pesoCarcacaMatch = obs.match(/Peso carcaça[:\s]+([0-9.,]+)/i);
+    if (pesoCarcacaMatch) dados.peso_carcaca = pesoCarcacaMatch[1].trim();
+    
+    return dados;
+  };
+
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => base44.entities.Empresa.list(),
+    initialData: [],
+  });
+
   const renderCell = (coluna, mov) => {
+    const dadosObs = extrairDadosObservacoes(mov.observacoes);
+    
     switch (coluna.id) {
       case 'data':
         return <TableCell className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
@@ -374,10 +425,27 @@ export default function HistoricoMovimentacoesPecuaria() {
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_origem_nome || '-'}</TableCell>;
       case 'area_destino':
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_destino_nome || '-'}</TableCell>;
+      case 'categoria_origem':
+        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.categoria_origem || dadosObs.categoria || '-'}</TableCell>;
+      case 'categoria_destino':
+        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.categoria_destino || '-'}</TableCell>;
+      case 'sexo':
+        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.sexo || '-'}</TableCell>;
+      case 'causa_morte':
+        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.causa || '-'}</TableCell>;
+      case 'destino_abate':
+        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.destino || '-'}</TableCell>;
+      case 'peso_vivo':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{dadosObs.peso_vivo || '-'}</TableCell>;
+      case 'peso_carcaca':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{dadosObs.peso_carcaca || '-'}</TableCell>;
       case 'observacoes':
         return <TableCell className="text-xs max-w-[200px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
         return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
+      case 'empresa':
+        const empresa = empresas.find(e => e.id === mov.empresa_id);
+        return <TableCell className="text-xs border-r border-slate-200">{empresa?.apelido || empresa?.nome || '-'}</TableCell>;
       default:
         return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
     }
