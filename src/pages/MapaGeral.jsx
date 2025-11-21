@@ -37,6 +37,7 @@ const loadGoogleMapsScript = () => {
 
 export default function MapaGeral() {
   const [showMapa, setShowMapa] = useState(false); // controla se mostra mapa ou lista
+  const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
   const [modoDesenho, setModoDesenho] = useState(null); // 'poligono', 'ponto', 'linha'
   const [modoEdicao, setModoEdicao] = useState(false); // modo de edição/visualização
@@ -194,10 +195,16 @@ export default function MapaGeral() {
   };
 
   useEffect(() => {
-    if (!showMapa) return;
+    if (!showMapa) {
+      setMapReady(false);
+      return;
+    }
     
     loadGoogleMapsScript().then(() => {
-      if (!mapRef.current || mapInstanceRef.current) return;
+      if (!mapRef.current || mapInstanceRef.current) {
+        setMapReady(true);
+        return;
+      }
 
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
@@ -209,7 +216,11 @@ export default function MapaGeral() {
       });
 
       mapInstanceRef.current = map;
-      renderMap();
+      
+      google.maps.event.addListenerOnce(map, 'idle', () => {
+        setMapReady(true);
+        renderMap();
+      });
     });
   }, [showMapa]);
 
@@ -227,7 +238,7 @@ export default function MapaGeral() {
 
   // Listener de clique no mapa para desenhar
   useEffect(() => {
-    if (!mapInstanceRef.current || !modoDesenho) return;
+    if (!mapInstanceRef.current || !modoDesenho || !mapReady) return;
 
     const handleMapClick = (e) => {
       let lat = e.latLng.lat();
@@ -264,7 +275,7 @@ export default function MapaGeral() {
 
     const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
     return () => google.maps.event.removeListener(listener);
-  }, [modoDesenho]);
+  }, [modoDesenho, mapReady]);
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
