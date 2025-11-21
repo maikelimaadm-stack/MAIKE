@@ -109,11 +109,20 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       return;
     }
 
-    if (formData.mover_todos === 'nao' && formData.movimentacoes.length === 0) {
-      alert('Adicione pelo menos uma movimentação');
-      return;
+    if (formData.mover_todos === 'nao') {
+      if (formData.movimentacoes.length === 0) {
+        alert('Adicione pelo menos uma movimentação');
+        return;
+      }
+      
+      const temQuantidadeInvalida = formData.movimentacoes.some(m => !m.quantidade || m.quantidade <= 0);
+      if (temQuantidadeInvalida) {
+        alert('Todas as movimentações devem ter quantidade maior que zero');
+        return;
+      }
     }
 
+    console.log('Enviando movimentação:', formData);
     onSubmit(formData);
   };
 
@@ -228,49 +237,53 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               <div className="text-xs font-semibold text-slate-700 mb-3">
                 Selecione quantidade por categoria
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {formData.movimentacoes.map((mov, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-3">
-                      <Label className="text-[10px]">Quantidade</Label>
-                      <Input
-                        type="number"
-                        value={mov.quantidade}
-                        onChange={(e) => handleMovimentacaoChange(index, 'quantidade', e.target.value)}
-                        max={mov.quantidade_maxima}
-                        className="h-7 text-xs"
-                        required
-                      />
-                      <span className="text-[9px] text-slate-500">Máx: {mov.quantidade_maxima}</span>
-                    </div>
-                    <div className="col-span-4">
-                      <Label className="text-[10px]">Categoria de Manejo</Label>
-                      <Input
-                        value={mov.categoria}
-                        disabled
-                        className="h-7 text-xs bg-slate-100"
-                      />
-                    </div>
-                    <div className="col-span-4">
-                      <Label className="text-[10px]">Peso (kg)</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={mov.peso_medio}
-                        onChange={(e) => handleMovimentacaoChange(index, 'peso_medio', e.target.value)}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveMovimentacao(index)}
-                        className="h-7 w-7 text-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
+                  <div key={index} className="bg-white border rounded p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <Label className="text-xs">Quantidade *</Label>
+                        <Input
+                          type="number"
+                          value={mov.quantidade}
+                          onChange={(e) => handleMovimentacaoChange(index, 'quantidade', e.target.value)}
+                          max={mov.quantidade_maxima}
+                          className="h-8 text-xs"
+                          required
+                        />
+                        <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Categoria de Manejo</Label>
+                        <Input
+                          value={mov.categoria}
+                          disabled
+                          className="h-8 text-xs bg-slate-100 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Peso (kg)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={mov.peso_medio}
+                          onChange={(e) => handleMovimentacaoChange(index, 'peso_medio', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Peso médio"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveMovimentacao(index)}
+                          className="h-8 text-xs text-red-600 w-full"
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
