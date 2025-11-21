@@ -87,7 +87,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     const novasMovimentacoes = [...formData.movimentacoes];
     novasMovimentacoes[index] = {
       ...novasMovimentacoes[index],
-      [field]: field === 'quantidade' || field === 'peso_medio' ? parseFloat(value) || 0 : value
+      [field]: field === 'quantidade' || field === 'peso_medio' ? (value === '' ? '' : parseFloat(value) || 0) : value
     };
     setFormData({ ...formData, movimentacoes: novasMovimentacoes });
   };
