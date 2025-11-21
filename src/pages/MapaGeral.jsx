@@ -304,7 +304,7 @@ export default function MapaGeral() {
           );
           iconeKey = categorias[0];
         } else if (categorias.length > 1) {
-          // Múltiplas categorias - buscar MISTO com correspondência EXATA
+          // Múltiplas categorias - buscar MISTO
           const configsMisto = iconesConfig.filter(ic => 
             ic.tipo_entidade === 'Lote' && 
             ic.categoria?.toUpperCase() === 'MISTO' &&
@@ -312,19 +312,16 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          // Buscar por correspondência EXATA (mesmo número e mesmas categorias)
+          // Buscar config que tenha EXATAMENTE as mesmas categorias (mesmo tamanho)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
 
-            // Verificar se tem o MESMO número de categorias E são as mesmas
-            if (categorias.length === categoriasConfig.length) {
-              const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
-
-              if (match) {
-                configIcone = config;
-                iconeKey = 'MISTO';
-                break;
-              }
+            // Match: mesmo número de categorias E todas as da área estão na config
+            if (categorias.length === categoriasConfig.length &&
+                categorias.every(cat => categoriasConfig.includes(cat))) {
+              configIcone = config;
+              iconeKey = 'MISTO';
+              break;
             }
           }
         }
