@@ -75,18 +75,15 @@ export default function DetalhesLote({ lotes, onClose }) {
             // Registrar movimentação
             await base44.entities.MovimentacaoPecuaria.create({
               empresa_id: empresaSelecionadaId,
-              data_movimentacao: formData.data_movimentacao,
-              tipo_movimentacao: 'Transferência',
-              lote_id: lote.id,
-              lote_nome: lote.nome,
-              categoria: lote.categoria,
-              quantidade_cabecas: lote.quantidade_cabecas,
+              data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
+              tipo: 'Transferência de Área',
+              lote: lote.nome,
+              quantidade_animais: lote.quantidade_cabecas,
               area_origem_id: formData.area_saida_id,
               area_origem_nome: areaSaida?.nome || '',
               area_destino_id: areaEntradaId,
               area_destino_nome: areaEntrada?.nome || '',
-              peso_medio: lote.peso_medio_kg || 0,
-              observacoes: `Movimentação completa do lote`
+              observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
             });
           }
         }
@@ -143,18 +140,15 @@ export default function DetalhesLote({ lotes, onClose }) {
               // Registrar movimentação
               await base44.entities.MovimentacaoPecuaria.create({
                 empresa_id: empresaSelecionadaId,
-                data_movimentacao: formData.data_movimentacao,
-                tipo_movimentacao: 'Transferência',
-                lote_id: lote.id,
-                lote_nome: lote.nome,
-                categoria: mov.categoria,
-                quantidade_cabecas: quantidadeMover,
+                data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
+                tipo: 'Transferência de Área',
+                lote: lote.nome,
+                quantidade_animais: quantidadeMover,
                 area_origem_id: formData.area_saida_id,
                 area_origem_nome: areaSaida?.nome || '',
                 area_destino_id: areaEntradaId,
                 area_destino_nome: areaEntrada?.nome || '',
-                peso_medio: mov.peso_medio,
-                observacoes: `Movimentação de ${quantidadeMover} cabeças`
+                observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria} - Peso médio: ${mov.peso_medio}kg`
               });
 
               quantidadeRestante -= quantidadeMover;
