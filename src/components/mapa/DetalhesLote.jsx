@@ -1,13 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [showMovimentacao, setShowMovimentacao] = useState(false);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
@@ -23,6 +31,23 @@ export default function DetalhesLote({ lotes, onClose }) {
   
   // Título com nomes dos lotes
   const tituloLotes = lotes.map(l => l.nome).join(' - ');
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
+
+  const handleMovimentacao = (formData) => {
+    console.log('Movimentação:', formData);
+    // Aqui você implementará a lógica de movimentação
+    setShowMovimentacao(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -108,7 +133,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               <div className="bg-emerald-50 p-2 rounded text-center">
                 <div className="text-[10px] text-emerald-700 mb-1">{lote.categoria || 'Categoria'}</div>
                 <div className="text-base font-bold text-slate-900 mt-1">
-                  {lote.quantidade_cabecas || '-'} cab.
+                  {lote.quantidade_cabecas || '-'} cabeças
                 </div>
                 <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mt-1">
                   <span className="text-white text-xs">✓</span>
@@ -188,13 +213,16 @@ export default function DetalhesLote({ lotes, onClose }) {
           <div className="text-4xl">🥩</div>
           <span className="text-xs font-semibold">Abate para consumo</span>
         </Button>
-        
+
         <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
           <div className="text-4xl">✕</div>
           <span className="text-xs font-semibold">Morte</span>
         </Button>
 
-        <Button className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button 
+          onClick={() => setShowMovimentacao(true)}
+          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
           <div className="text-4xl">⇄</div>
           <span className="text-xs font-semibold">Movimentação</span>
         </Button>
@@ -214,6 +242,20 @@ export default function DetalhesLote({ lotes, onClose }) {
           <span className="text-xs font-semibold">Pesagem</span>
         </Button>
       </div>
-    </div>
-  );
-}
+
+      <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Movimentação de Lotes</DialogTitle>
+          </DialogHeader>
+          <FormularioMovimentacaoLote
+            lotesOriginais={lotes}
+            areaOrigem={areaAtual}
+            onSubmit={handleMovimentacao}
+            onCancel={() => setShowMovimentacao(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      </div>
+      );
+      }
