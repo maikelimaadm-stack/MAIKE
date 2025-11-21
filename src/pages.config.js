@@ -35,6 +35,7 @@ import Backup from './pages/Backup';
 import AreasPastagem from './pages/AreasPastagem';
 import CadastroLotes from './pages/CadastroLotes';
 import MapaGeral from './pages/MapaGeral';
+import MapaCadastro from './pages/MapaCadastro';
 import __Layout from './Layout.jsx';
 
 
@@ -76,6 +77,7 @@ export const PAGES = {
     "AreasPastagem": AreasPastagem,
     "CadastroLotes": CadastroLotes,
     "MapaGeral": MapaGeral,
+    "MapaCadastro": MapaCadastro,
 }
 
 export const pagesConfig = {
