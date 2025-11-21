@@ -1,14 +1,13 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Polygon, Popup, Marker, useMapEvents, LayersControl } from 'react-leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, ArrowRightLeft, Plus, RefreshCw, Edit, Trash2, Save, X, PenTool, Satellite, MapPin } from "lucide-react";
+import { Map, ArrowRightLeft, Plus, RefreshCw, Edit, Trash2, Save, X, PenTool, Layers } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,9 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import 'leaflet/dist/leaflet.css';
 
-const { BaseLayer } = LayersControl;
+const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
 const getStatusColor = (status) => {
   const colors = {
@@ -30,28 +28,21 @@ const getStatusColor = (status) => {
   return colors[status] || '#64748b';
 };
 
-// Componente para desenhar no mapa
-const MapDrawer = ({ onComplete, isDrawing, currentPoints, onPointAdd }) => {
-  useMapEvents({
-    click: (e) => {
-      if (isDrawing) {
-        onPointAdd([e.latlng.lat, e.latlng.lng]);
-      }
-    },
+const loadGoogleMapsScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps) {
+      resolve();
+      return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
   });
-
-  return currentPoints.length > 0 && isDrawing ? (
-    <Polygon
-      positions={currentPoints.length < 3 ? [...currentPoints, ...currentPoints] : currentPoints}
-      pathOptions={{
-        color: '#3b82f6',
-        fillColor: '#3b82f6',
-        fillOpacity: 0.2,
-        weight: 3,
-        dashArray: '10, 5'
-      }}
-    />
-  ) : null;
 };
 
 export default function MapaMovimentacao() {
@@ -64,6 +55,13 @@ export default function MapaMovimentacao() {
   const [newAreaData, setNewAreaData] = useState({ nome: "", tamanho_hectares: "", capacidade_maxima: "", tipo_pastagem: "" });
   const [editingArea, setEditingArea] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [mapType, setMapType] = useState('roadmap');
+
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const polygonsRef = useRef([]);
+  const currentPolygonRef = useRef(null);
+  const infoWindowRef = useRef(null);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -133,7 +131,6 @@ export default function MapaMovimentacao() {
         ...data,
         empresa_id: empresaSelecionadaId,
         numero_area: String(proximoNumero),
-        coordenadas: { coords: currentPoints },
         quantidade_atual: 0,
         status_ocupacao: 'Disponível',
         ativo: true
@@ -145,6 +142,10 @@ export default function MapaMovimentacao() {
       setCurrentPoints([]);
       setShowNewAreaDialog(false);
       setNewAreaData({ nome: "", tamanho_hectares: "", capacidade_maxima: "", tipo_pastagem: "" });
+      if (currentPolygonRef.current) {
+        currentPolygonRef.current.setMap(null);
+        currentPolygonRef.current = null;
+      }
       toast.success('Área cadastrada no mapa!');
     }
   });
@@ -160,6 +161,10 @@ export default function MapaMovimentacao() {
       setEditingArea(null);
       setIsEditMode(false);
       setCurrentPoints([]);
+      if (currentPolygonRef.current) {
+        currentPolygonRef.current.setMap(null);
+        currentPolygonRef.current = null;
+      }
       toast.success('Área atualizada!');
     }
   });
@@ -187,6 +192,8 @@ export default function MapaMovimentacao() {
     setCurrentPoints([]);
     setIsEditMode(false);
     setEditingArea(null);
+    setSelectedArea(null);
+    if (infoWindowRef.current) infoWindowRef.current.close();
     toast.info('Clique no mapa para desenhar a área (mínimo 3 pontos)');
   };
 
@@ -195,6 +202,10 @@ export default function MapaMovimentacao() {
     setCurrentPoints([]);
     setIsEditMode(false);
     setEditingArea(null);
+    if (currentPolygonRef.current) {
+      currentPolygonRef.current.setMap(null);
+      currentPolygonRef.current = null;
+    }
   };
 
   const handleFinishDrawing = () => {
@@ -211,14 +222,17 @@ export default function MapaMovimentacao() {
       return;
     }
 
-    createAreaMutation.mutate(newAreaData);
+    const coordsFormatted = currentPoints.map(p => [p.lat, p.lng]);
+    createAreaMutation.mutate({ ...newAreaData, coordenadas: { coords: coordsFormatted } });
   };
 
   const handleEditArea = (area) => {
     setEditingArea(area);
     setIsEditMode(true);
-    setCurrentPoints(area.coordenadas?.coords || []);
+    const coords = area.coordenadas?.coords || [];
+    setCurrentPoints(coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })));
     setSelectedArea(null);
+    if (infoWindowRef.current) infoWindowRef.current.close();
     toast.info('Clique no mapa para redefinir a área');
   };
 
@@ -227,7 +241,8 @@ export default function MapaMovimentacao() {
       toast.error('Área precisa ter pelo menos 3 pontos!');
       return;
     }
-    updateAreaMutation.mutate({ id: editingArea.id, coords: currentPoints });
+    const coordsFormatted = currentPoints.map(p => [p.lat, p.lng]);
+    updateAreaMutation.mutate({ id: editingArea.id, coords: coordsFormatted });
   };
 
   const handleDeleteArea = (areaId) => {
@@ -241,17 +256,166 @@ export default function MapaMovimentacao() {
     }
   };
 
-  const handlePointAdd = (point) => {
-    setCurrentPoints([...currentPoints, point]);
-  };
-
   const lotes = [...new Set(gado.map(g => g.lote).filter(Boolean))];
 
   const getAnimaisNaArea = (areaId) => {
     return gado.filter(g => g.area_atual_id === areaId);
   };
 
-  const defaultCenter = [-15.0067, -59.9533];
+  const defaultCenter = { lat: -15.0067, lng: -59.9533 };
+
+  useEffect(() => {
+    loadGoogleMapsScript().then(() => {
+      if (!mapRef.current || mapInstanceRef.current) return;
+
+      const map = new google.maps.Map(mapRef.current, {
+        center: defaultCenter,
+        zoom: 15,
+        mapTypeId: mapType,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+          style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+          position: google.maps.ControlPosition.TOP_RIGHT,
+          mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain']
+        },
+        streetViewControl: false,
+        fullscreenControl: true,
+      });
+
+      mapInstanceRef.current = map;
+      infoWindowRef.current = new google.maps.InfoWindow();
+
+      map.addListener('click', (e) => {
+        if (isDrawing || isEditMode) {
+          const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+          setCurrentPoints(prev => [...prev, newPoint]);
+        }
+      });
+
+      renderAreas();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setMapTypeId(mapType);
+    }
+  }, [mapType]);
+
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      renderAreas();
+    }
+  }, [areas, isDrawing, isEditMode, editingArea]);
+
+  useEffect(() => {
+    if (mapInstanceRef.current && (isDrawing || isEditMode) && currentPoints.length > 0) {
+      if (currentPolygonRef.current) {
+        currentPolygonRef.current.setMap(null);
+      }
+
+      if (currentPoints.length >= 2) {
+        currentPolygonRef.current = new google.maps.Polygon({
+          paths: currentPoints,
+          strokeColor: '#3b82f6',
+          strokeOpacity: 1,
+          strokeWeight: 3,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.2,
+          editable: false,
+          draggable: false,
+        });
+        currentPolygonRef.current.setMap(mapInstanceRef.current);
+      }
+    } else if (currentPolygonRef.current) {
+      currentPolygonRef.current.setMap(null);
+      currentPolygonRef.current = null;
+    }
+  }, [currentPoints, isDrawing, isEditMode]);
+
+  const renderAreas = () => {
+    if (!mapInstanceRef.current) return;
+
+    polygonsRef.current.forEach(polygon => polygon.setMap(null));
+    polygonsRef.current = [];
+
+    if (isDrawing || isEditMode) return;
+
+    areas.forEach(area => {
+      if (editingArea?.id === area.id) return;
+
+      const coords = area.coordenadas?.coords || [];
+      if (coords.length < 3) return;
+
+      const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const animaisNaArea = getAnimaisNaArea(area.id).length;
+
+      const polygon = new google.maps.Polygon({
+        paths: paths,
+        strokeColor: getStatusColor(area.status_ocupacao),
+        strokeOpacity: 1,
+        strokeWeight: 2.5,
+        fillColor: getStatusColor(area.status_ocupacao),
+        fillOpacity: 0.35,
+        editable: false,
+        draggable: false,
+      });
+
+      polygon.setMap(mapInstanceRef.current);
+      polygonsRef.current.push(polygon);
+
+      polygon.addListener('click', () => {
+        setSelectedArea(area);
+        
+        const percentual = area.capacidade_maxima > 0 ? (animaisNaArea / area.capacidade_maxima) * 100 : 0;
+
+        const content = `
+          <div style="padding: 8px; min-width: 220px;">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #0f172a;">${area.nome}</div>
+            <div style="font-size: 12px; color: #475569; line-height: 1.6;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Tamanho:</span>
+                <span style="font-weight: 600;">${area.tamanho_hectares} ha</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Capacidade:</span>
+                <span style="font-weight: 600;">${area.capacidade_maxima} UA</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Animais:</span>
+                <span style="font-weight: 600;">${animaisNaArea}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Ocupação:</span>
+                <span style="font-weight: 600;">${percentual.toFixed(0)}%</span>
+              </div>
+              <div style="padding: 4px 8px; background-color: ${getStatusColor(area.status_ocupacao)}20; 
+                          border: 1px solid ${getStatusColor(area.status_ocupacao)}; 
+                          color: ${getStatusColor(area.status_ocupacao)}; 
+                          border-radius: 4px; text-align: center; font-size: 11px; font-weight: 600;">
+                ${area.status_ocupacao}
+              </div>
+            </div>
+          </div>
+        `;
+
+        const bounds = new google.maps.LatLngBounds();
+        paths.forEach(p => bounds.extend(p));
+        
+        infoWindowRef.current.setContent(content);
+        infoWindowRef.current.setPosition(bounds.getCenter());
+        infoWindowRef.current.open(mapInstanceRef.current);
+      });
+
+      polygon.addListener('mouseover', () => {
+        polygon.setOptions({ fillOpacity: 0.6, strokeWeight: 3 });
+      });
+
+      polygon.addListener('mouseout', () => {
+        polygon.setOptions({ fillOpacity: 0.35, strokeWeight: 2.5 });
+      });
+    });
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-2">
@@ -299,122 +463,15 @@ export default function MapaMovimentacao() {
           </CardHeader>
           <CardContent className="p-0">
             <div style={{ height: '600px', width: '100%', position: 'relative' }}>
-              <MapContainer 
-                center={defaultCenter} 
-                zoom={15} 
-                style={{ height: '100%', width: '100%', borderRadius: '0 0 8px 8px' }}
-                zoomControl={true}
-              >
-                <LayersControl position="topright">
-                  <BaseLayer checked name="Mapa">
-                    <TileLayer
-                      attribution='&copy; Google Maps'
-                      url="https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}"
-                    />
-                  </BaseLayer>
-                  <BaseLayer name="Satélite">
-                    <TileLayer
-                      attribution='&copy; Google Maps'
-                      url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                    />
-                  </BaseLayer>
-                  <BaseLayer name="Híbrido">
-                    <TileLayer
-                      attribution='&copy; Google Maps'
-                      url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                    />
-                  </BaseLayer>
-                </LayersControl>
-                
-                <MapDrawer 
-                  isDrawing={isDrawing || isEditMode}
-                  currentPoints={currentPoints}
-                  onPointAdd={handlePointAdd}
-                />
-
-                {!isDrawing && !isEditMode && areas.map((area) => {
-                  const coords = area.coordenadas?.coords || [];
-                  if (coords.length < 3) return null;
-
-                  const animaisNaArea = getAnimaisNaArea(area.id).length;
-                  const percentual = area.capacidade_maxima > 0 ? (animaisNaArea / area.capacidade_maxima) * 100 : 0;
-
-                  return (
-                    <Polygon
-                      key={area.id}
-                      positions={coords}
-                      pathOptions={{
-                        color: getStatusColor(area.status_ocupacao),
-                        fillColor: getStatusColor(area.status_ocupacao),
-                        fillOpacity: 0.35,
-                        weight: 2.5
-                      }}
-                      eventHandlers={{
-                        click: () => setSelectedArea(area),
-                        mouseover: (e) => e.target.setStyle({ fillOpacity: 0.6, weight: 3 }),
-                        mouseout: (e) => e.target.setStyle({ fillOpacity: 0.35, weight: 2.5 })
-                      }}
-                    >
-                      <Popup closeButton={false} className="custom-popup">
-                        <div className="p-2" style={{ minWidth: '200px' }}>
-                          <div className="font-bold text-base mb-2 text-slate-900">{area.nome}</div>
-                          <div className="space-y-1 text-xs text-slate-700">
-                            <div className="flex justify-between">
-                              <span>Tamanho:</span>
-                              <span className="font-semibold">{area.tamanho_hectares} ha</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Capacidade:</span>
-                              <span className="font-semibold">{area.capacidade_maxima} UA</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Animais:</span>
-                              <span className="font-semibold">{animaisNaArea}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Ocupação:</span>
-                              <span className="font-semibold">{percentual.toFixed(0)}%</span>
-                            </div>
-                            <div className="mt-2 pt-2 border-t">
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs"
-                                style={{
-                                  backgroundColor: getStatusColor(area.status_ocupacao) + '20',
-                                  color: getStatusColor(area.status_ocupacao),
-                                  borderColor: getStatusColor(area.status_ocupacao)
-                                }}
-                              >
-                                {area.status_ocupacao}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex gap-1 mt-3">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-7 text-xs flex-1"
-                              onClick={() => handleEditArea(area)}
-                            >
-                              <Edit className="w-3 h-3 mr-1" />
-                              Editar
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-7 text-xs flex-1 text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteArea(area.id)}
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Excluir
-                            </Button>
-                          </div>
-                        </div>
-                      </Popup>
-                    </Polygon>
-                  );
-                })}
-              </MapContainer>
+              <div 
+                ref={mapRef} 
+                style={{ 
+                  height: '100%', 
+                  width: '100%', 
+                  borderRadius: '0 0 8px 8px',
+                  backgroundColor: '#e5e7eb'
+                }}
+              />
 
               {(isDrawing || isEditMode) && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
