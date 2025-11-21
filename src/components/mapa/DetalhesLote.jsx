@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, ArrowRightLeft, Scale, RefreshCw, Baby, Skull, Scissors } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -397,28 +397,39 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-xl font-bold text-slate-900 pb-2 border-b">
+      <div className="text-sm font-bold text-slate-900 pb-2 border-b">
         {tituloLotes}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
           const pesoMedio = lotesCategoria[0]?.peso_medio_kg || 0;
           
+          const configIcone = iconesConfig.find(ic => 
+            ic.tipo_entidade === 'Lote' && 
+            ic.categoria?.toUpperCase() === categoria?.toUpperCase()
+          );
+          const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+          
           return (
-            <div key={categoria} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="text-xs font-bold text-slate-900 mb-1">{categoria}</div>
-              <div className="text-xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
-              <div className="space-y-1 text-[10px]">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Lotes:</span>
-                  <span className="font-semibold">{lotesCategoria.map(l => l.nome).join(', ')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Peso médio:</span>
-                  <span className="font-semibold">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
+            <div key={categoria} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex items-start gap-2">
+              {iconeUrl && (
+                <img src={iconeUrl} alt={categoria} className="w-8 h-8 object-contain flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-bold text-slate-900 mb-0.5 truncate">{categoria}</div>
+                <div className="text-base font-bold text-emerald-600 mb-1">{totalCabecasCategoria} cab</div>
+                <div className="space-y-0.5 text-[9px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Lotes:</span>
+                    <span className="font-semibold truncate ml-1">{lotesCategoria.map(l => l.nome).join(', ')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Peso:</span>
+                    <span className="font-semibold">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -426,25 +437,25 @@ export default function DetalhesLote({ lotes, onClose }) {
         })}
       </div>
 
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
-        <div className="grid grid-cols-4 gap-4 text-xs">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-3">
+        <div className="grid grid-cols-4 gap-3 text-[10px]">
           <div>
             <div className="text-slate-600 mb-0.5">Total de cabeças</div>
-            <div className="text-lg font-bold text-slate-900">{totalCabecas}</div>
+            <div className="text-sm font-bold text-slate-900">{totalCabecas}</div>
           </div>
           <div>
-            <div className="text-slate-600 mb-0.5">Última movimentação</div>
-            <div className="text-sm font-semibold text-slate-900">
+            <div className="text-slate-600 mb-0.5">Última mov.</div>
+            <div className="text-[11px] font-semibold text-slate-900">
               {lotes[0]?.data_entrada ? new Date(lotes[0].data_entrada).toLocaleDateString() : '-'}
             </div>
           </div>
           <div>
             <div className="text-slate-600 mb-0.5">Área atual</div>
-            <div className="text-sm font-semibold text-slate-900">{areaAtual?.nome || '-'}</div>
+            <div className="text-[11px] font-semibold text-slate-900 truncate">{areaAtual?.nome || '-'}</div>
           </div>
           <div>
             <div className="text-slate-600 mb-0.5">Sistema</div>
-            <div className="text-sm font-semibold text-slate-900">{lotes[0]?.sistema_produtivo || '-'}</div>
+            <div className="text-[11px] font-semibold text-slate-900">{lotes[0]?.sistema_produtivo || '-'}</div>
           </div>
         </div>
       </div>
@@ -453,48 +464,54 @@ export default function DetalhesLote({ lotes, onClose }) {
         <Button 
           onClick={() => setShowMovimentacao(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
         >
+          <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600" />
           Movimentação
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
         >
+          <Scale className="w-3.5 h-3.5 text-slate-600" />
           Pesagem
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
         >
-          Mudança Categoria
+          <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+          Mudança Categ.
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-slate-300 hover:bg-slate-50"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
         >
+          <Baby className="w-3.5 h-3.5 text-slate-600" />
           Nascimento
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-red-300 hover:bg-red-50 text-red-700"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
         >
+          <Skull className="w-3.5 h-3.5 text-slate-600" />
           Morte
         </Button>
 
         <Button 
           onClick={() => setShowAbate(true)}
           variant="outline"
-          className="h-12 text-xs font-semibold border-orange-300 hover:bg-orange-50 text-orange-700"
+          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
         >
+          <Scissors className="w-3.5 h-3.5 text-slate-600" />
           Abate
         </Button>
       </div>
@@ -502,7 +519,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       <Button 
         onClick={() => setShowHistorico(true)}
         variant="outline"
-        className="w-full h-9 text-xs font-semibold mt-3 border-slate-300"
+        className="w-full h-8 text-[11px] font-semibold mt-2 border-slate-300"
       >
         Ver Histórico Completo
       </Button>
