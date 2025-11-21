@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
 
 const DEFAULT_MENU = [
   { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
@@ -440,6 +441,8 @@ export default function ConfiguracoesGerais() {
         </TabsContent>
 
         <TabsContent value="parametros" className="space-y-3 mt-3">
+          <GerenciadorIcones />
+          
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Parâmetros Gerais</CardTitle>
