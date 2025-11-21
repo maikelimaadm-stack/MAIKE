@@ -196,21 +196,16 @@ export default function CadastroAreasReferencia() {
         },
         streetViewControl: false,
         fullscreenControl: true,
+        clickableIcons: false,
+        disableDoubleClickZoom: false,
       });
 
       mapInstanceRef.current = map;
+      console.log('✅ Mapa carregado com sucesso');
 
-      map.addListener('click', (e) => {
-        console.log('Clique no mapa:', { isDrawing, tipoEntidade, lat: e.latLng.lat(), lng: e.latLng.lng() });
-        if (isDrawing && tipoEntidade === 'area') {
-          const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-          console.log('Adicionando ponto:', newPoint);
-          setCurrentPoints(prev => {
-            const updated = [...prev, newPoint];
-            console.log('Total de pontos:', updated.length);
-            return updated;
-          });
-        } else if (isDrawing && tipoEntidade === 'ponto') {
+      renderItems();
+    });
+  }, []);
           const position = { lat: e.latLng.lat(), lng: e.latLng.lng() };
           setCurrentMarker(position);
           
@@ -244,6 +239,66 @@ export default function CadastroAreasReferencia() {
       renderItems();
     }
   }, [areas, pontos, tipoEntidade]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    console.log('🔄 Estado de desenho mudou:', { isDrawing, tipoEntidade });
+
+    const handleMapClick = (e) => {
+      console.log('🖱️ Clique detectado no mapa!', { 
+        isDrawing, 
+        tipoEntidade, 
+        lat: e.latLng.lat(), 
+        lng: e.latLng.lng() 
+      });
+
+      if (isDrawing && tipoEntidade === 'area') {
+        const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        console.log('➕ Adicionando ponto à área:', newPoint);
+        setCurrentPoints(prev => {
+          const updated = [...prev, newPoint];
+          console.log('📍 Total de pontos agora:', updated.length);
+          toast.success(`Ponto ${updated.length} adicionado!`);
+          return updated;
+        });
+      } else if (isDrawing && tipoEntidade === 'ponto') {
+        const position = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        console.log('📌 Posicionando ponto de referência:', position);
+        setCurrentMarker(position);
+        
+        if (tempMarkerRef.current) {
+          tempMarkerRef.current.setMap(null);
+        }
+
+        tempMarkerRef.current = new google.maps.Marker({
+          position,
+          map: mapInstanceRef.current,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: corSelecionada,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+          }
+        });
+
+        toast.success('Ponto posicionado!');
+        setShowDialog(true);
+      } else {
+        console.log('⚠️ Clique ignorado - modo desenho não ativo');
+      }
+    };
+
+    const listener = mapInstanceRef.current.addListener('click', handleMapClick);
+
+    return () => {
+      if (listener) {
+        google.maps.event.removeListener(listener);
+      }
+    };
+  }, [isDrawing, tipoEntidade, corSelecionada]);
 
   useEffect(() => {
     if (mapInstanceRef.current && isDrawing && tipoEntidade === 'area' && currentPoints.length > 0) {
@@ -350,10 +405,11 @@ export default function CadastroAreasReferencia() {
       toast.error('Selecione o tipo (Área ou Ponto)!');
       return;
     }
+    console.log('🎨 Iniciando desenho:', tipoEntidade);
     setIsDrawing(true);
     setCurrentPoints([]);
     setCurrentMarker(null);
-    toast.info(tipoEntidade === 'area' ? 'Clique no mapa para desenhar a área' : 'Clique no mapa para posicionar o ponto');
+    toast.success(tipoEntidade === 'area' ? '✅ Modo desenho ativado! Clique no mapa' : '✅ Modo ponto ativado! Clique no mapa');
   };
 
   const handleFinishArea = () => {
@@ -427,9 +483,14 @@ export default function CadastroAreasReferencia() {
               </CardTitle>
               <div className="flex gap-2">
                 {!isDrawing && (
-                  <Button onClick={handleStartDrawing} size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700">
+                  <Button 
+                    onClick={handleStartDrawing} 
+                    size="sm" 
+                    className="h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                    disabled={!tipoEntidade}
+                  >
                     {tipoEntidade === 'area' ? <Square className="w-3.5 h-3.5 mr-1" /> : <MapPin className="w-3.5 h-3.5 mr-1" />}
-                    Iniciar Desenho
+                    {tipoEntidade ? 'Iniciar Desenho' : 'Selecione o Tipo Primeiro'}
                   </Button>
                 )}
                 {isDrawing && tipoEntidade === 'area' && (
@@ -441,13 +502,19 @@ export default function CadastroAreasReferencia() {
                     <Button 
                       onClick={handleFinishArea} 
                       size="sm" 
-                      className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                      className={`h-8 text-xs ${currentPoints.length >= 3 ? 'bg-emerald-600 hover:bg-emerald-700 animate-pulse' : 'bg-slate-400'}`}
                       disabled={currentPoints.length < 3}
                     >
                       <Save className="w-3.5 h-3.5 mr-1" />
                       Finalizar ({currentPoints.length} pts)
                     </Button>
                   </>
+                )}
+                {isDrawing && tipoEntidade === 'ponto' && (
+                  <Button onClick={resetForm} variant="outline" size="sm" className="h-8 text-xs">
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Cancelar
+                  </Button>
                 )}
               </div>
             </div>
@@ -458,7 +525,9 @@ export default function CadastroAreasReferencia() {
               style={{ 
                 height: '600px', 
                 width: '100%',
-                backgroundColor: '#e5e7eb'
+                backgroundColor: '#e5e7eb',
+                position: 'relative',
+                cursor: isDrawing ? 'crosshair' : 'default'
               }}
             />
             {isDrawing && (
@@ -468,17 +537,19 @@ export default function CadastroAreasReferencia() {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
-                backgroundColor: '#2563eb',
+                backgroundColor: '#16a34a',
                 color: 'white',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                fontSize: '14px',
-                fontWeight: 600
+                padding: '16px 32px',
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                fontSize: '15px',
+                fontWeight: 700,
+                border: '3px solid white',
+                animation: 'pulse 2s infinite'
               }}>
                 {tipoEntidade === 'area' 
-                  ? `Clique no mapa para desenhar (${currentPoints.length} pontos)` 
-                  : 'Clique no mapa para posicionar o ponto'}
+                  ? `🎯 CLIQUE NO MAPA PARA DESENHAR (${currentPoints.length} pontos)` 
+                  : '🎯 CLIQUE NO MAPA PARA POSICIONAR'}
               </div>
             )}
           </CardContent>
@@ -490,16 +561,25 @@ export default function CadastroAreasReferencia() {
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs">Tipo de Entidade *</Label>
-              <Select value={tipoEntidade} onValueChange={(v) => { setTipoEntidade(v); resetForm(); }}>
+              <Label className="text-xs font-semibold">Tipo de Entidade *</Label>
+              <Select value={tipoEntidade} onValueChange={(v) => { 
+                console.log('🔄 Mudando tipo para:', v);
+                setTipoEntidade(v); 
+                resetForm(); 
+              }}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="area" className="text-xs">Área / Polígono</SelectItem>
-                  <SelectItem value="ponto" className="text-xs">Ponto de Referência</SelectItem>
+                  <SelectItem value="area" className="text-xs">📐 Área / Polígono</SelectItem>
+                  <SelectItem value="ponto" className="text-xs">📍 Ponto de Referência</SelectItem>
                 </SelectContent>
               </Select>
+              {tipoEntidade && (
+                <div className="mt-1 text-[10px] text-green-600 font-semibold">
+                  ✅ Selecionado: {tipoEntidade === 'area' ? 'Área' : 'Ponto'}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
