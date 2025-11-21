@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     data_movimentacao: new Date().toISOString().split('T')[0],
@@ -96,7 +97,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     setFormData({ ...formData, movimentacoes: novasMovimentacoes });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.area_saida_id) {
@@ -123,7 +124,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     }
 
     console.log('Enviando movimentação:', formData);
-    onSubmit(formData);
+    setLoading(true);
+    try {
+      await onSubmit(formData);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -292,12 +298,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
               <Save className="w-3 h-3 mr-1" />
-              Avançar
+              {loading ? 'Movimentando...' : 'Avançar'}
             </Button>
           </div>
         </form>

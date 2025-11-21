@@ -47,6 +47,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
+      console.log('Iniciando movimentação...', formData);
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       
       if (formData.mover_todos === 'sim') {
@@ -153,11 +154,14 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     },
     onSuccess: () => {
+      console.log('Movimentação finalizada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      setShowMovimentacao(false);
-      onClose();
       toast.success('✅ Movimentação realizada com sucesso!');
+      setShowMovimentacao(false);
+      setTimeout(() => {
+        onClose();
+      }, 500);
     },
     onError: (error) => {
       console.error('Erro na movimentação:', error);
@@ -165,8 +169,8 @@ export default function DetalhesLote({ lotes, onClose }) {
     }
   });
 
-  const handleMovimentacao = (formData) => {
-    movimentacaoMutation.mutate(formData);
+  const handleMovimentacao = async (formData) => {
+    return movimentacaoMutation.mutateAsync(formData);
   };
 
   return (
