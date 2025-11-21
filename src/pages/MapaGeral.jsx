@@ -290,10 +290,16 @@ export default function MapaGeral() {
         const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
 
         // Detectar categorias únicas
-        const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase()).filter(Boolean))];
+        const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase()).filter(Boolean))].sort();
 
         let configIcone;
         let iconeKey = '';
+
+        console.log('🔍 Categorias na área:', categorias);
+        console.log('🔧 Configs disponíveis:', iconesConfig.filter(ic => ic.tipo_entidade === 'Lote').map(ic => ({
+          categoria: ic.categoria,
+          categorias_misto: ic.categorias_misto
+        })));
 
         // Definir ícone baseado nas categorias
         if (categorias.length === 1) {
@@ -303,39 +309,46 @@ export default function MapaGeral() {
             ic.categoria?.toUpperCase() === categorias[0]
           );
           iconeKey = categorias[0];
+          console.log('✅ Usando ícone único:', configIcone?.categoria);
         } else if (categorias.length > 1) {
-          // Múltiplas categorias - verificar se corresponde a alguma configuração MISTO
+          // Múltiplas categorias - buscar MISTO
           const configsMisto = iconesConfig.filter(ic => 
             ic.tipo_entidade === 'Lote' && 
             ic.categoria?.toUpperCase() === 'MISTO' &&
-            ic.categorias_misto?.length > 0
+            Array.isArray(ic.categorias_misto) &&
+            ic.categorias_misto.length > 0
           );
 
-          let melhorMatch = null;
-          let maiorCoincidencia = 0;
+          console.log('🔍 Configs MISTO encontradas:', configsMisto.length);
 
-          // Verificar qual configuração MISTO tem mais coincidências com as categorias presentes
+          // Verificar correspondência exata ou parcial
           for (const config of configsMisto) {
-            const categoriasConfig = config.categorias_misto.map(c => c.toUpperCase());
-            const coincidencias = categorias.filter(cat => categoriasConfig.includes(cat)).length;
+            const categoriasConfigSorted = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
+            
+            console.log('🔍 Comparando:', {
+              categorias: categorias,
+              categoriasConfig: categoriasConfigSorted
+            });
 
-            // Se todas as categorias da área estão no MISTO configurado
-            if (coincidencias === categorias.length && coincidencias > maiorCoincidencia) {
-              melhorMatch = config;
-              maiorCoincidencia = coincidencias;
+            // Verifica se TODAS as categorias da área estão na configuração MISTO
+            const todasIncluidas = categorias.every(cat => categoriasConfigSorted.includes(cat));
+            
+            if (todasIncluidas) {
+              configIcone = config;
+              iconeKey = 'MISTO';
+              console.log('✅ Match encontrado com config MISTO');
+              break;
             }
           }
 
-          if (melhorMatch) {
-            configIcone = melhorMatch;
-            iconeKey = 'MISTO';
-          } else {
-            // Se não encontrou configuração específica, usar qualquer MISTO genérico
+          // Se não encontrou match específico, usar qualquer MISTO genérico
+          if (!configIcone) {
             configIcone = iconesConfig.find(ic => 
               ic.tipo_entidade === 'Lote' && 
               ic.categoria?.toUpperCase() === 'MISTO'
             );
             iconeKey = 'MISTO';
+            console.log('⚠️ Usando MISTO genérico (sem match específico)');
           }
         }
 
