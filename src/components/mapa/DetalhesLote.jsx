@@ -598,7 +598,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <HistoricoMovimentacoes lotesIds={lotes.map(l => l.nome)} />
+          <HistoricoMovimentacoes lotesIds={lotes.map(l => l.nome)} areaId={areaAtual?.id} />
         </DialogContent>
       </Dialog>
       </div>

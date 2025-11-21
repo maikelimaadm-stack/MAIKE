@@ -23,19 +23,26 @@ const CORES_TIPO = {
   "Pesagem": "bg-emerald-100 text-emerald-800"
 };
 
-export default function HistoricoMovimentacoes({ lotesIds }) {
+export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: movimentacoes = [], isLoading } = useQuery({
-    queryKey: ['historico-movimentacoes', lotesIds],
+    queryKey: ['historico-movimentacoes', lotesIds, areaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter(m => 
-        m.empresa_id === empresaSelecionadaId && 
-        lotesIds.some(id => m.lote?.includes(id))
-      );
+      return all.filter(m => {
+        if (m.empresa_id !== empresaSelecionadaId) return false;
+        
+        // Se tiver areaId, filtra por área origem ou destino
+        if (areaId) {
+          return m.area_origem_id === areaId || m.area_destino_id === areaId;
+        }
+        
+        // Caso contrário, filtra por lotes
+        return lotesIds.some(id => m.lote?.includes(id));
+      });
     },
-    enabled: !!empresaSelecionadaId && lotesIds.length > 0,
+    enabled: !!empresaSelecionadaId && (lotesIds.length > 0 || !!areaId),
   });
 
   if (isLoading) {
@@ -95,27 +102,34 @@ export default function HistoricoMovimentacoes({ lotesIds }) {
                 </div>
               </div>
 
-              {mov.tipo === 'Transferência de Área' && (
-                <div className="flex items-center gap-2 text-xs text-slate-600 mt-2">
-                  <MapPin className="w-3 h-3" />
-                  <span>{mov.area_origem_nome}</span>
-                  <ArrowRight className="w-3 h-3" />
-                  <span className="font-semibold">{mov.area_destino_nome}</span>
+              <div className="mt-2 space-y-1 text-xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <span className="font-semibold">Lote:</span>
+                  <span>{mov.lote}</span>
                 </div>
-              )}
+                
+                {mov.tipo === 'Transferência de Área' && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <MapPin className="w-3 h-3" />
+                    <span>{mov.area_origem_nome}</span>
+                    <ArrowRight className="w-3 h-3" />
+                    <span className="font-semibold">{mov.area_destino_nome}</span>
+                  </div>
+                )}
 
-              {mov.observacoes && (
-                <div className="mt-2 text-xs text-slate-600 bg-white border rounded p-2">
-                  {mov.observacoes}
-                </div>
-              )}
+                {mov.peso_medio && (
+                  <div className="flex items-center gap-1 text-emerald-700">
+                    <TrendingUp className="w-3 h-3" />
+                    Peso: {mov.peso_medio} kg
+                  </div>
+                )}
 
-              {mov.peso_medio && (
-                <div className="flex items-center gap-1 text-xs text-emerald-700 mt-2">
-                  <TrendingUp className="w-3 h-3" />
-                  Peso: {mov.peso_medio} kg
-                </div>
-              )}
+                {mov.observacoes && (
+                  <div className="text-slate-600 bg-white border rounded p-2 mt-1">
+                    {mov.observacoes}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
