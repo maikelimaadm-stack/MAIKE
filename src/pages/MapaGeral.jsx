@@ -197,11 +197,17 @@ export default function MapaGeral() {
   useEffect(() => {
     if (!showMapa) {
       setMapReady(false);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+      }
       return;
     }
     
     loadGoogleMapsScript().then(() => {
-      if (!mapRef.current || mapInstanceRef.current) {
+      if (!mapRef.current) return;
+
+      // Se já existe mapa, apenas marca como ready
+      if (mapInstanceRef.current) {
         setMapReady(true);
         return;
       }
@@ -217,10 +223,15 @@ export default function MapaGeral() {
 
       mapInstanceRef.current = map;
       
-      google.maps.event.addListenerOnce(map, 'idle', () => {
-        setMapReady(true);
-        renderMap();
+      // Aguardar mapa carregar completamente
+      google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
+        setTimeout(() => {
+          setMapReady(true);
+        }, 100);
       });
+    }).catch((error) => {
+      console.error('Erro ao carregar mapa:', error);
+      toast.error('Erro ao carregar mapa. Tente novamente.');
     });
   }, [showMapa]);
 
@@ -231,10 +242,10 @@ export default function MapaGeral() {
   }, [mapType]);
 
   useEffect(() => {
-    if (mapInstanceRef.current) {
+    if (mapInstanceRef.current && mapReady) {
       renderMap();
     }
-  }, [areas, pontos, linhas, lotes, showAreas, showPontos, showLinhas, showLotes, iconesConfig]);
+  }, [areas, pontos, linhas, lotes, showAreas, showPontos, showLinhas, showLotes, iconesConfig, mapReady]);
 
   // Listener de clique no mapa para desenhar
   useEffect(() => {
