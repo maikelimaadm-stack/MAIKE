@@ -29,6 +29,19 @@ const TIPOS_PONTOS = [
   "Porteira", "Curral", "Tronco", "Balança", "Casa Sede"
 ];
 
+const ICONES_PONTOS = {
+  "Cocho": "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/093b10b89_47631448-vaca-em-pe-dentro-uma-fazenda-construcao-para-gado-reproducao-vetor.jpg",
+  "Bebedouro": "💧",
+  "Armazém": "🏪",
+  "Depósito": "📦",
+  "Silo": "🌾",
+  "Porteira": "🚪",
+  "Curral": "🐄",
+  "Tronco": "🔨",
+  "Balança": "⚖️",
+  "Casa Sede": "🏠"
+};
+
 const loadGoogleMapsScript = () => {
   return new Promise((resolve, reject) => {
     if (window.google?.maps) {
@@ -255,17 +268,31 @@ export default function CadastroAreasReferencia() {
           tempMarkerRef.current.setMap(null);
         }
 
-        tempMarkerRef.current = new google.maps.Marker({
-          position,
-          map: mapInstanceRef.current,
-          icon: {
+        const iconUrl = formData.tipo_ponto && ICONES_PONTOS[formData.tipo_ponto];
+        let markerIcon;
+
+        if (iconUrl && iconUrl.startsWith('http')) {
+          markerIcon = {
+            url: iconUrl,
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 20)
+          };
+        } else {
+          markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
+            scale: 12,
             fillColor: corSelecionada,
             fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 2
-          }
+            strokeWeight: 3
+          };
+        }
+
+        tempMarkerRef.current = new google.maps.Marker({
+          position,
+          map: mapInstanceRef.current,
+          icon: markerIcon,
+          draggable: true
         });
 
         toast.success('✅ Ponto posicionado!');
@@ -328,24 +355,44 @@ export default function CadastroAreasReferencia() {
         strokeWeight: 2.5,
         fillColor: cor,
         fillOpacity: 0.4,
+        editable: true,
+        draggable: true,
       });
 
       polygon.setMap(mapInstanceRef.current);
       polygonsRef.current.push(polygon);
 
-      polygon.addListener('click', () => {
-        const infoWindow = new google.maps.InfoWindow({
-          content: `
-            <div style="padding: 8px;">
-              <strong>${area.nome}</strong><br/>
-              <span style="font-size: 12px;">Tamanho: ${area.tamanho_hectares || 0} ha</span>
-            </div>
-          `
+      // Salvar alterações quando o usuário editar o polígono
+      const saveChanges = () => {
+        const newPaths = polygon.getPath().getArray().map(p => [p.lat(), p.lng()]);
+        updateAreaMutation.mutate({
+          id: area.id,
+          data: { coordenadas: { coords: newPaths, cor } }
         });
-        const bounds = new google.maps.LatLngBounds();
-        paths.forEach(p => bounds.extend(p));
-        infoWindow.setPosition(bounds.getCenter());
-        infoWindow.open(mapInstanceRef.current);
+        toast.success('Área atualizada!');
+      };
+
+      google.maps.event.addListener(polygon.getPath(), 'set_at', saveChanges);
+      google.maps.event.addListener(polygon.getPath(), 'insert_at', saveChanges);
+      google.maps.event.addListener(polygon, 'dragend', saveChanges);
+
+      polygon.addListener('click', (e) => {
+        // Só mostra info se não estiver editando
+        if (e.vertex === undefined) {
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+              <div style="padding: 8px;">
+                <strong>${area.nome}</strong><br/>
+                <span style="font-size: 12px;">Tamanho: ${area.tamanho_hectares || 0} ha</span><br/>
+                <span style="font-size: 11px; color: #10b981;">✏️ Clique e arraste os pontos para editar</span>
+              </div>
+            `
+          });
+          const bounds = new google.maps.LatLngBounds();
+          paths.forEach(p => bounds.extend(p));
+          infoWindow.setPosition(bounds.getCenter());
+          infoWindow.open(mapInstanceRef.current);
+        }
       });
     });
 
@@ -353,28 +400,55 @@ export default function CadastroAreasReferencia() {
       const coords = ponto.coordenadas || {};
       if (!coords.lat || !coords.lng) return;
 
-      const marker = new google.maps.Marker({
-        position: { lat: coords.lat, lng: coords.lng },
-        map: mapInstanceRef.current,
-        icon: {
+      const iconUrl = ICONES_PONTOS[ponto.tipo];
+      let markerIcon;
+
+      if (iconUrl && iconUrl.startsWith('http')) {
+        // Usar imagem customizada
+        markerIcon = {
+          url: iconUrl,
+          scaledSize: new google.maps.Size(40, 40),
+          anchor: new google.maps.Point(20, 20)
+        };
+      } else {
+        // Usar emoji/texto como fallback
+        markerIcon = {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
+          scale: 12,
           fillColor: ponto.cor || '#0066ff',
           fillOpacity: 1,
           strokeColor: '#ffffff',
-          strokeWeight: 2
-        },
-        title: ponto.nome
+          strokeWeight: 3
+        };
+      }
+
+      const marker = new google.maps.Marker({
+        position: { lat: coords.lat, lng: coords.lng },
+        map: mapInstanceRef.current,
+        icon: markerIcon,
+        title: ponto.nome,
+        draggable: true,
       });
 
       markersRef.current.push(marker);
 
+      // Salvar posição ao arrastar
+      marker.addListener('dragend', (e) => {
+        const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        updatePontoMutation.mutate({
+          id: ponto.id,
+          data: { coordenadas: newPos }
+        });
+        toast.success('Ponto reposicionado!');
+      });
+
       marker.addListener('click', () => {
         const infoWindow = new google.maps.InfoWindow({
           content: `
-            <div style="padding: 8px;">
-              <strong>${ponto.nome}</strong><br/>
-              <span style="font-size: 12px;">${ponto.tipo}</span>
+            <div style="padding: 10px;">
+              <strong style="font-size: 14px;">${ponto.nome}</strong><br/>
+              <span style="font-size: 12px; color: #666;">${ponto.tipo}</span><br/>
+              <span style="font-size: 11px; color: #10b981; margin-top: 4px; display: block;">🖱️ Arraste para reposicionar</span>
             </div>
           `
         });
