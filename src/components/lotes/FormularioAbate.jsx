@@ -4,144 +4,202 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Save } from "lucide-react";
+import { X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
 export default function FormularioAbate({ lote, onSubmit, onCancel }) {
-  const categorias = Array.isArray(lote) 
-    ? [...new Set(lote.map(l => l.categoria).filter(Boolean))]
-    : [lote.categoria].filter(Boolean);
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const lotesArray = Array.isArray(lote) ? lote : [lote];
+  
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const lotesPorCategoria = lotesArray.reduce((acc, l) => {
+    const cat = l.categoria || 'SEM CATEGORIA';
+    if (!acc[cat]) {
+      acc[cat] = { categoria: cat, lotes: [], totalCabecas: 0 };
+    }
+    acc[cat].lotes.push(l);
+    acc[cat].totalCabecas += l.quantidade_cabecas || 0;
+    return acc;
+  }, {});
+
+  const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
 
   const [formData, setFormData] = useState({
     data_abate: new Date().toISOString().split('T')[0],
-    categoria: categorias[0] || "",
-    quantidade: 1,
-    peso_vivo_total: "",
-    peso_carcaca_total: "",
-    destino: "Consumo próprio",
+    abates: categoriasDisponiveis.map(cat => ({
+      categoria: cat,
+      quantidade: 0,
+      peso_vivo_total: "",
+      peso_carcaca_total: "",
+      destino: "",
+      selecionada: false
+    })),
     observacoes: ""
   });
 
-  const lotesCategoria = Array.isArray(lote)
-    ? lote.filter(l => l.categoria === formData.categoria)
-    : [lote];
-  const quantidadeMaxima = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    const abatesValidos = formData.abates.filter(a => a.selecionada && a.quantidade > 0);
+    if (abatesValidos.length === 0) {
+      alert("Selecione e configure pelo menos um abate");
+      return;
+    }
+    
+    abatesValidos.forEach(abate => {
+      onSubmit({
+        data_abate: formData.data_abate,
+        categoria: abate.categoria,
+        quantidade: abate.quantidade,
+        peso_vivo_total: abate.peso_vivo_total,
+        peso_carcaca_total: abate.peso_carcaca_total,
+        destino: abate.destino,
+        observacoes: formData.observacoes
+      });
+    });
   };
 
-  const nomeExibicao = Array.isArray(lote) 
-    ? lote.map(l => l.nome).join(' - ')
-    : lote.nome;
+  const handleAbateChange = (index, field, value) => {
+    const novosAbates = [...formData.abates];
+    novosAbates[index] = { ...novosAbates[index], [field]: value };
+    setFormData({ ...formData, abates: novosAbates });
+  };
+
+  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
 
   return (
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Registrar Abate - {nomeExibicao}</CardTitle>
+        <CardTitle className="text-sm font-semibold">Abate para Consumo - {nomeExibicao}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {categorias.length > 1 && (
-            <div className="space-y-1">
-              <Label className="text-xs">Categoria *</Label>
-              <Select
-                value={formData.categoria}
-                onValueChange={(v) => setFormData({ ...formData, categoria: v, quantidade: 1 })}
-                required
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map(cat => (
-                    <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Data do Abate *</Label>
-              <Input
-                type="date"
-                value={formData.data_abate}
-                onChange={(e) => setFormData({ ...formData, data_abate: e.target.value })}
-                className="h-8 text-xs"
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Quantidade *</Label>
-              <Input
-                type="number"
-                min="1"
-                max={quantidadeMaxima}
-                value={formData.quantidade}
-                onChange={(e) => setFormData({ ...formData, quantidade: parseInt(e.target.value) || 0 })}
-                className="h-8 text-xs"
-                required
-              />
-              <span className="text-[10px] text-slate-500">Máximo: {quantidadeMaxima}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Peso Vivo Total (kg)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formData.peso_vivo_total}
-                onChange={(e) => setFormData({ ...formData, peso_vivo_total: e.target.value })}
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Peso Carcaça Total (kg)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formData.peso_carcaca_total}
-                onChange={(e) => setFormData({ ...formData, peso_carcaca_total: e.target.value })}
-                className="h-8 text-xs"
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <Label className="text-xs">Destino</Label>
+            <Label className="text-xs">Data do Abate *</Label>
             <Input
-              value={formData.destino}
-              onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+              type="date"
+              value={formData.data_abate}
+              onChange={(e) => setFormData({ ...formData, data_abate: e.target.value })}
               className="h-8 text-xs"
-              placeholder="Ex: Consumo próprio, Venda"
+              required
             />
           </div>
 
+          <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
+            {formData.abates.map((abate, index) => {
+              const infoCategoria = lotesPorCategoria[abate.categoria];
+              const configIcone = iconesConfig.find(ic => 
+                ic.tipo_entidade === 'Lote' && 
+                ic.categoria?.toUpperCase() === abate.categoria?.toUpperCase()
+              );
+              const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+
+              return (
+                <div key={index} className={`border rounded-lg p-2 transition-all ${abate.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className="flex-1">
+                      <div className="text-[10px] font-semibold text-emerald-600">
+                        {infoCategoria.totalCabecas} cabeças - {abate.categoria.split(' ')[0]}
+                      </div>
+                      <div className="text-[8px] text-slate-500 truncate">
+                        {infoCategoria.lotes[0]?.nome}
+                      </div>
+                    </div>
+                    {iconeUrl ? (
+                      <img src={iconeUrl} alt={abate.categoria} className="w-8 h-8 object-contain" />
+                    ) : (
+                      <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                        {abate.categoria.substring(0, 2)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div>
+                      <Label className="text-[10px] text-slate-600">Quantidade *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={infoCategoria.totalCabecas}
+                        value={abate.quantidade}
+                        onChange={(e) => handleAbateChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                        className="h-7 text-xs"
+                        disabled={!abate.selecionada}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] text-slate-600">Peso vivo (kg)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={abate.peso_vivo_total}
+                        onChange={(e) => handleAbateChange(index, 'peso_vivo_total', e.target.value)}
+                        className="h-7 text-xs"
+                        disabled={!abate.selecionada}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] text-slate-600">Peso carcaça (kg)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={abate.peso_carcaca_total}
+                        onChange={(e) => handleAbateChange(index, 'peso_carcaca_total', e.target.value)}
+                        className="h-7 text-xs"
+                        disabled={!abate.selecionada}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] text-slate-600">Destino</Label>
+                      <Input
+                        value={abate.destino}
+                        onChange={(e) => handleAbateChange(index, 'destino', e.target.value)}
+                        className="h-7 text-xs"
+                        disabled={!abate.selecionada}
+                        placeholder="Destino"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={() => handleAbateChange(index, 'selecionada', !abate.selecionada)}
+                    className={`h-6 text-[10px] mt-2 w-full ${abate.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
+                  >
+                    {abate.selecionada ? 'Cancelar' : 'Selecionar'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="space-y-1">
-            <Label className="text-xs">Observações</Label>
+            <Label className="text-xs">Observações Gerais</Label>
             <Textarea
               value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               className="text-xs"
-              rows={3}
-              placeholder="Informações adicionais..."
+              rows={2}
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-              <X className="w-3 h-3 mr-1" />
               Cancelar
             </Button>
             <Button type="submit" size="sm" className="h-8 text-xs bg-orange-600 hover:bg-orange-700">
-              <Save className="w-3 h-3 mr-1" />
-              Registrar Abate
+              Registrar Abates
             </Button>
           </div>
         </form>
