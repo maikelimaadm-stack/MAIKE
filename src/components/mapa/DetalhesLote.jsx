@@ -104,9 +104,9 @@ export default function DetalhesLote({ lotes, onClose }) {
               </div>
 
               <div className="bg-emerald-50 p-2 rounded text-center">
-                <div className="text-[10px] text-emerald-700 mb-1">Indivíduos</div>
-                <div className="text-base font-bold text-slate-900 mt-3">
-                  {lote.quantidade_cabecas || '-'}
+                <div className="text-[10px] text-emerald-700 mb-1">{lote.categoria || 'Categoria'}</div>
+                <div className="text-base font-bold text-slate-900 mt-1">
+                  {lote.quantidade_cabecas || '-'} cab.
                 </div>
                 <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mt-1">
                   <span className="text-white text-xs">✓</span>
