@@ -615,7 +615,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       <Dialog open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria}>
         <DialogContent className="max-w-md">
           <FormularioMudancaCategoria
-            lote={lotes[0]}
+            lote={lotes}
             onSubmit={handleMudancaCategoria}
             onCancel={() => setShowMudancaCategoria(false)}
           />
