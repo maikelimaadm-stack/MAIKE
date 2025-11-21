@@ -56,6 +56,7 @@ const DEFAULT_MENU = [
     submenu: [
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
       { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
+      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
     ],
   },
   {
