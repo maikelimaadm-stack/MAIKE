@@ -244,7 +244,7 @@ export default function DetalhesLote({ lotes, onClose }) {
     const categoriaFilhote = formData.sexo === "Macho" 
       ? "Bezerro 0 a 12 meses" 
       : "Bezerra 0 a 12 meses";
-    
+
     // Buscar lote da categoria correta na mesma área
     const areaAtualId = lotes[0]?.area_atual_id;
     const todosLotes = await base44.entities.Lote.list();
@@ -281,6 +281,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       });
     }
 
+    const areaNascimento = areas.find(a => a.id === areaAtualId);
+
     // Registrar movimentação
     await base44.entities.MovimentacaoPecuaria.create({
       empresa_id: empresaSelecionadaId,
@@ -289,6 +291,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       lote: loteFilhote.nome,
       quantidade_animais: formData.quantidade,
       peso_medio: parseFloat(formData.peso_medio) || null,
+      area_destino_id: areaAtualId,
+      area_destino_nome: areaNascimento?.nome || '',
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 

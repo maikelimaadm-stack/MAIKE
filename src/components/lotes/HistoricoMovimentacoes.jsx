@@ -119,6 +119,14 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
                   </div>
                 )}
 
+                {mov.tipo === 'Nascimento' && mov.area_destino_nome && (
+                  <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <span className="text-green-700 font-medium">Área: </span>
+                    <span className="text-green-900 font-bold">{mov.area_destino_nome}</span>
+                  </div>
+                )}
+
                 {mov.peso_medio && (
                   <div className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />

@@ -478,6 +478,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                   {dadosCompletos.categoria_mae && <div><span className="font-semibold">Mãe:</span> {dadosCompletos.categoria_mae}</div>}
                   {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
                   {dadosCompletos.categoria_filhote && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria_filhote}</div>}
+                  {mov.area_destino_nome && <div><span className="font-semibold">Área:</span> {mov.area_destino_nome}</div>}
                 </div>
               )}
               {mov.tipo === 'Morte' && dadosCompletos.causa && (
