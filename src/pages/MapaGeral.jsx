@@ -291,7 +291,7 @@ export default function MapaGeral() {
 
         // Detectar categorias únicas
         const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase()).filter(Boolean))];
-        
+
         let configIcone;
         let iconeKey = '';
 
@@ -304,12 +304,33 @@ export default function MapaGeral() {
           );
           iconeKey = categorias[0];
         } else if (categorias.length > 1) {
-          // Múltiplas categorias - usar ícone "Misto"
-          configIcone = iconesConfig.find(ic => 
+          // Múltiplas categorias - verificar se corresponde a alguma configuração MISTO
+          const configsMisto = iconesConfig.filter(ic => 
             ic.tipo_entidade === 'Lote' && 
-            ic.categoria?.toUpperCase() === 'MISTO'
+            ic.categoria?.toUpperCase() === 'MISTO' &&
+            ic.categorias_misto?.length > 0
           );
-          iconeKey = 'MISTO';
+
+          // Verificar se as categorias presentes correspondem exatamente a alguma config MISTO
+          for (const config of configsMisto) {
+            const categoriasConfig = config.categorias_misto.map(c => c.toUpperCase()).sort();
+            const categoriasArea = [...categorias].sort();
+
+            if (JSON.stringify(categoriasConfig) === JSON.stringify(categoriasArea)) {
+              configIcone = config;
+              iconeKey = 'MISTO';
+              break;
+            }
+          }
+
+          // Se não encontrou configuração específica, usar qualquer MISTO genérico
+          if (!configIcone) {
+            configIcone = iconesConfig.find(ic => 
+              ic.tipo_entidade === 'Lote' && 
+              ic.categoria?.toUpperCase() === 'MISTO'
+            );
+            iconeKey = 'MISTO';
+          }
         }
 
         let markerIcon;

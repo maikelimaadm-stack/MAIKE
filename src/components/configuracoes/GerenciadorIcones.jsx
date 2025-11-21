@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Image, Upload, Save, X, Edit2, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -44,7 +45,8 @@ export default function GerenciadorIcones() {
     categoria: "",
     icone_url: "",
     cor_padrao: CORES_PADRAO[0],
-    descricao: ""
+    descricao: "",
+    categorias_misto: []
   });
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -97,7 +99,8 @@ export default function GerenciadorIcones() {
       categoria: "",
       icone_url: "",
       cor_padrao: CORES_PADRAO[0],
-      descricao: ""
+      descricao: "",
+      categorias_misto: []
     });
   };
 
@@ -145,7 +148,8 @@ export default function GerenciadorIcones() {
       categoria: icone.categoria,
       icone_url: icone.icone_url || "",
       cor_padrao: icone.cor_padrao || CORES_PADRAO[0],
-      descricao: icone.descricao || ""
+      descricao: icone.descricao || "",
+      categorias_misto: icone.categorias_misto || []
     });
     setShowDialog(true);
   };
@@ -361,6 +365,44 @@ export default function GerenciadorIcones() {
                 </div>
               </div>
             </div>
+
+            {formData.categoria?.toUpperCase() === 'MISTO' && formData.tipo_entidade === 'Lote' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Categorias que formam o MISTO *</Label>
+                <div className="border rounded p-2 space-y-2 bg-slate-50">
+                  <div className="text-[10px] text-slate-600 mb-2">
+                    Selecione as categorias que, quando estiverem juntas na mesma área, devem usar este ícone:
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {CATEGORIAS_SUGERIDAS.Lote.filter(cat => cat !== 'MISTO').map(cat => {
+                      const isSelected = formData.categorias_misto?.includes(cat);
+                      return (
+                        <Badge
+                          key={cat}
+                          variant={isSelected ? 'default' : 'outline'}
+                          className={`cursor-pointer text-[10px] ${isSelected ? 'bg-emerald-600' : ''}`}
+                          onClick={() => {
+                            const current = formData.categorias_misto || [];
+                            if (isSelected) {
+                              setFormData({ ...formData, categorias_misto: current.filter(c => c !== cat) });
+                            } else {
+                              setFormData({ ...formData, categorias_misto: [...current, cat] });
+                            }
+                          }}
+                        >
+                          {cat}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  {formData.categorias_misto?.length > 0 && (
+                    <div className="text-[10px] text-emerald-600 font-semibold mt-2">
+                      ✓ {formData.categorias_misto.length} categoria(s) selecionada(s)
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="text-xs">Descrição</Label>
