@@ -295,10 +295,6 @@ export default function MapaGeral() {
         let configIcone;
         let iconeKey = '';
 
-        console.log('🔍 DEBUGANDO ÁREA:', area.nome);
-        console.log('📋 Categorias detectadas:', JSON.stringify(categorias));
-        console.log('📦 Total de configs disponíveis:', iconesConfig.length);
-
         // Definir ícone baseado nas categorias
         if (categorias.length === 1) {
           // Uma única categoria - usar ícone específico
@@ -307,10 +303,7 @@ export default function MapaGeral() {
             ic.categoria?.toUpperCase().trim() === categorias[0]
           );
           iconeKey = categorias[0];
-          console.log('✅ Categoria única - config encontrado:', !!configIcone);
         } else if (categorias.length > 1) {
-          console.log('🔄 Múltiplas categorias detectadas');
-
           // Múltiplas categorias - buscar MISTO com correspondência EXATA
           const configsMisto = iconesConfig.filter(ic => 
             ic.tipo_entidade === 'Lote' && 
@@ -319,37 +312,20 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          console.log('🎯 Configs MISTO encontrados:', configsMisto.length);
-          configsMisto.forEach((cfg, idx) => {
-            console.log(`   Config ${idx + 1}:`, cfg.descricao, '- Categorias:', JSON.stringify(cfg.categorias_misto));
-          });
-
           // Buscar por correspondência EXATA (mesmo número e mesmas categorias)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
 
-            console.log(`🔍 Testando config "${config.descricao}":`);
-            console.log(`   - Área tem ${categorias.length} categorias: [${categorias.join(', ')}]`);
-            console.log(`   - Config tem ${categoriasConfig.length} categorias: [${categoriasConfig.join(', ')}]`);
-
             // Verificar se tem o MESMO número de categorias E são as mesmas
             if (categorias.length === categoriasConfig.length) {
               const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
-              console.log(`   - Match exato? ${match}`);
 
               if (match) {
                 configIcone = config;
                 iconeKey = 'MISTO';
-                console.log(`✅ MATCH EXATO! Usando: ${config.descricao}`);
                 break;
               }
-            } else {
-              console.log(`   - ❌ Tamanhos diferentes - pulando`);
             }
-          }
-
-          if (!configIcone) {
-            console.log('❌ Nenhum match exato encontrado - não usará ícone');
           }
         }
 
