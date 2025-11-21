@@ -324,7 +324,7 @@ export default function MapaGeral() {
             console.log(`   Config ${idx + 1}:`, cfg.descricao, '- Categorias:', JSON.stringify(cfg.categorias_misto));
           });
 
-          // Buscar por correspondência EXATA
+          // Buscar por correspondência CONTIDA (categorias da área devem estar na config)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
 
@@ -332,22 +332,20 @@ export default function MapaGeral() {
             console.log(`   - Área tem: [${categorias.join(', ')}]`);
             console.log(`   - Config tem: [${categoriasConfig.join(', ')}]`);
 
-            // Verificar se tem EXATAMENTE as mesmas categorias
-            if (categorias.length === categoriasConfig.length) {
-              const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
-              console.log(`   - Match? ${match}`);
+            // Verificar se TODAS as categorias da área estão contidas na config
+            const match = categorias.every(cat => categoriasConfig.includes(cat));
+            console.log(`   - Contido? ${match}`);
 
-              if (match) {
-                configIcone = config;
-                iconeKey = 'MISTO';
-                console.log(`✅ MATCH PERFEITO! Usando: ${config.descricao}`);
-                break;
-              }
+            if (match) {
+              configIcone = config;
+              iconeKey = 'MISTO';
+              console.log(`✅ MATCH CONTIDO! Usando: ${config.descricao}`);
+              break;
             }
           }
 
           if (!configIcone) {
-            console.log('❌ Nenhum match exato encontrado - não usará ícone');
+            console.log('❌ Nenhuma config contém todas as categorias - não usará ícone');
           }
         }
 
