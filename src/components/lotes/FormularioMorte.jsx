@@ -33,6 +33,10 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
   }, {});
 
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
+  
+  console.log('📊 MORTE - Total de lotes recebidos:', lotesArray.length);
+  console.log('📊 MORTE - Categorias encontradas:', categoriasDisponiveis);
+  console.log('📊 MORTE - Detalhes por categoria:', lotesPorCategoria);
 
   const [formData, setFormData] = useState({
     data_ocorrencia: new Date().toISOString().split('T')[0],

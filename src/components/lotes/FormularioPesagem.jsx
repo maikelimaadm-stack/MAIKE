@@ -32,6 +32,10 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   }, {});
 
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
+  
+  console.log('⚖️ PESAGEM - Total de lotes recebidos:', lotesArray.length);
+  console.log('⚖️ PESAGEM - Categorias encontradas:', categoriasDisponiveis);
+  console.log('⚖️ PESAGEM - Detalhes por categoria:', lotesPorCategoria);
 
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],

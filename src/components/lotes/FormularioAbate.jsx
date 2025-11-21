@@ -32,6 +32,10 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
   }, {});
 
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
+  
+  console.log('🥩 ABATE - Total de lotes recebidos:', lotesArray.length);
+  console.log('🥩 ABATE - Categorias encontradas:', categoriasDisponiveis);
+  console.log('🥩 ABATE - Detalhes por categoria:', lotesPorCategoria);
 
   const [formData, setFormData] = useState({
     data_abate: new Date().toISOString().split('T')[0],
