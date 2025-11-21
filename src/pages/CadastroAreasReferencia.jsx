@@ -201,9 +201,15 @@ export default function CadastroAreasReferencia() {
       mapInstanceRef.current = map;
 
       map.addListener('click', (e) => {
+        console.log('Clique no mapa:', { isDrawing, tipoEntidade, lat: e.latLng.lat(), lng: e.latLng.lng() });
         if (isDrawing && tipoEntidade === 'area') {
           const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-          setCurrentPoints(prev => [...prev, newPoint]);
+          console.log('Adicionando ponto:', newPoint);
+          setCurrentPoints(prev => {
+            const updated = [...prev, newPoint];
+            console.log('Total de pontos:', updated.length);
+            return updated;
+          });
         } else if (isDrawing && tipoEntidade === 'ponto') {
           const position = { lat: e.latLng.lat(), lng: e.latLng.lng() };
           setCurrentMarker(position);
@@ -446,7 +452,7 @@ export default function CadastroAreasReferencia() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 relative">
             <div 
               ref={mapRef} 
               style={{ 
@@ -456,7 +462,20 @@ export default function CadastroAreasReferencia() {
               }}
             />
             {isDrawing && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+              <div style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 1000,
+                backgroundColor: '#2563eb',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                fontSize: '14px',
+                fontWeight: 600
+              }}>
                 {tipoEntidade === 'area' 
                   ? `Clique no mapa para desenhar (${currentPoints.length} pontos)` 
                   : 'Clique no mapa para posicionar o ponto'}
@@ -484,16 +503,22 @@ export default function CadastroAreasReferencia() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Cor</Label>
-              <div className="grid grid-cols-7 gap-2">
+              <Label className="text-xs font-semibold">Escolha a Cor</Label>
+              <div className="grid grid-cols-7 gap-1.5">
                 {CORES_DISPONIVEIS.map(cor => (
                   <button
                     key={cor}
+                    type="button"
                     onClick={() => setCorSelecionada(cor)}
-                    className={`w-8 h-8 rounded border-2 transition-all ${corSelecionada === cor ? 'border-slate-900 scale-110' : 'border-slate-300'}`}
+                    className={`w-8 h-8 rounded transition-all ${corSelecionada === cor ? 'ring-2 ring-slate-900 ring-offset-2 scale-110' : 'hover:scale-105'}`}
                     style={{ backgroundColor: cor }}
+                    title={cor}
                   />
                 ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: corSelecionada }} />
+                <span>Cor selecionada: {corSelecionada}</span>
               </div>
             </div>
 
