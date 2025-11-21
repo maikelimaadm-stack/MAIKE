@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowRightLeft, Scale, RefreshCw, Baby, Skull, Scissors } from "lucide-react";
+import { Check, ArrowRightLeft, Scale, RefreshCw, Star, XCircle, Package } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -415,9 +415,6 @@ export default function DetalhesLote({ lotes, onClose }) {
           
           return (
             <div key={categoria} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex items-start gap-2">
-              {iconeUrl && (
-                <img src={iconeUrl} alt={categoria} className="w-8 h-8 object-contain flex-shrink-0" />
-              )}
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] font-bold text-slate-900 mb-0.5 truncate">{categoria}</div>
                 <div className="text-base font-bold text-emerald-600 mb-1">{totalCabecasCategoria} cab</div>
@@ -432,6 +429,9 @@ export default function DetalhesLote({ lotes, onClose }) {
                   </div>
                 </div>
               </div>
+              {iconeUrl && (
+                <img src={iconeUrl} alt={categoria} className="w-8 h-8 object-contain flex-shrink-0" />
+              )}
             </div>
           );
         })}
@@ -493,7 +493,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           variant="outline"
           className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
         >
-          <Baby className="w-3.5 h-3.5 text-slate-600" />
+          <Star className="w-3.5 h-3.5 text-slate-600" />
           Nascimento
         </Button>
 
@@ -502,7 +502,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           variant="outline"
           className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
         >
-          <Skull className="w-3.5 h-3.5 text-slate-600" />
+          <XCircle className="w-3.5 h-3.5 text-slate-600" />
           Morte
         </Button>
 
@@ -511,7 +511,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           variant="outline"
           className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
         >
-          <Scissors className="w-3.5 h-3.5 text-slate-600" />
+          <Package className="w-3.5 h-3.5 text-slate-600" />
           Abate
         </Button>
       </div>
