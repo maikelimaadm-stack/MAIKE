@@ -30,13 +30,37 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
     onSubmit(formData);
   };
 
+  const nomeExibicao = Array.isArray(lote) 
+    ? lote.map(l => l.nome).join(' - ')
+    : lote.nome;
+
   return (
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Registrar Morte - {lote.nome}</CardTitle>
+        <CardTitle className="text-sm font-semibold">Registrar Morte - {nomeExibicao}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
+          {categorias.length > 1 && (
+            <div className="space-y-1">
+              <Label className="text-xs">Categoria *</Label>
+              <Select
+                value={formData.categoria}
+                onValueChange={(v) => setFormData({ ...formData, categoria: v, quantidade: 1 })}
+                required
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map(cat => (
+                    <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Data da Ocorrência *</Label>
@@ -54,13 +78,13 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
               <Input
                 type="number"
                 min="1"
-                max={lote.quantidade_cabecas}
+                max={quantidadeMaxima}
                 value={formData.quantidade}
                 onChange={(e) => setFormData({ ...formData, quantidade: parseInt(e.target.value) || 0 })}
                 className="h-8 text-xs"
                 required
               />
-              <span className="text-[10px] text-slate-500">Máximo: {lote.quantidade_cabecas}</span>
+              <span className="text-[10px] text-slate-500">Máximo: {quantidadeMaxima}</span>
             </div>
           </div>
 
