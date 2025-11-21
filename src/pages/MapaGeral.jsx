@@ -312,18 +312,14 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          // Ordenar configs por quantidade de categorias (do mais específico para o menos)
-          configsMisto.sort((a, b) => (b.categorias_misto?.length || 0) - (a.categorias_misto?.length || 0));
-
-          // Verificar correspondência EXATA - mesmo número E mesmos valores
+          // Buscar por correspondência EXATA (mesmo tamanho e mesmas categorias)
           for (const config of configsMisto) {
             const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
             
-            // MATCH EXATO: mesmo tamanho E todos os elementos iguais
+            // Verificar se tem EXATAMENTE as mesmas categorias
             if (categorias.length === categoriasConfig.length) {
-              const todosIguais = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
-              
-              if (todosIguais) {
+              const match = categorias.every((cat, idx) => cat === categoriasConfig[idx]);
+              if (match) {
                 configIcone = config;
                 iconeKey = 'MISTO';
                 break;
@@ -331,11 +327,14 @@ export default function MapaGeral() {
             }
           }
 
-          // Se não encontrou match exato, NÃO usar nenhum ícone MISTO genérico
+          // Se não encontrou match exato, usar ícone MISTO genérico
           if (!configIcone) {
-            // Usar ícone padrão sem configuração
-            configIcone = null;
-            iconeKey = 'MISTO_SEM_CONFIG';
+            configIcone = iconesConfig.find(ic => 
+              ic.tipo_entidade === 'Lote' && 
+              ic.categoria?.toUpperCase() === 'MISTO' &&
+              (!ic.categorias_misto || ic.categorias_misto.length === 0)
+            );
+            iconeKey = 'MISTO';
           }
         }
 
