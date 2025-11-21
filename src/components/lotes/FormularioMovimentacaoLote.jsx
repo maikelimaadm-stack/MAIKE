@@ -246,8 +246,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               <div className="space-y-3">
                 {formData.movimentacoes.map((mov, index) => (
                   <div key={index} className="bg-white border rounded p-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-start">
+                      <div className="space-y-1">
                         <Label className="text-xs">Quantidade *</Label>
                         <Input
                           type="number"
@@ -259,7 +259,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                         />
                         <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
                       </div>
-                      <div>
+                      <div className="space-y-1">
                         <Label className="text-xs">Categoria de Manejo</Label>
                         <Input
                           value={mov.categoria}
@@ -267,7 +267,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           className="h-8 text-xs bg-slate-100 font-semibold"
                         />
                       </div>
-                      <div>
+                      <div className="space-y-1">
                         <Label className="text-xs">Peso (kg)</Label>
                         <Input
                           type="number"
@@ -278,7 +278,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           placeholder="Peso médio"
                         />
                       </div>
-                      <div className="flex items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs opacity-0">.</Label>
                         <Button
                           type="button"
                           variant="outline"
