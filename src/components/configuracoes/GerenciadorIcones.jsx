@@ -26,7 +26,7 @@ const TIPOS_ENTIDADE = [
 const CATEGORIAS_SUGERIDAS = {
   "Ponto": ["Cocho", "Bebedouro", "Aguada", "Balança", "Curral", "Tronco", "Armazém", "Casa Sede", "Retiro", "Saleiro"],
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
-  "Lote": ["Bezerro", "Novilho", "Vaca", "Touro", "Garrote", "Novilha", "Reprodutor", "Matriz"],
+  "Lote": ["Bezerro", "Novilho", "Vaca", "Touro", "Garrote", "Novilha", "Reprodutor", "Matriz", "MISTO"],
   "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"]
 };
 
