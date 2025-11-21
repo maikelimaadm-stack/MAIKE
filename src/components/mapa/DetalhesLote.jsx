@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showMovimentacao, setShowMovimentacao] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
@@ -43,10 +45,128 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const areaAtual = areas.find(a => a.id === lotes[0]?.area_atual_id);
 
+  const movimentacaoMutation = useMutation({
+    mutationFn: async (formData) => {
+      const areaSaida = areas.find(a => a.id === formData.area_saida_id);
+      
+      if (formData.mover_todos === 'sim') {
+        // Mover todos os lotes para as áreas de entrada
+        for (const areaEntradaId of formData.areas_entrada) {
+          const areaEntrada = areas.find(a => a.id === areaEntradaId);
+          
+          for (const lote of lotes) {
+            // Atualizar lote com nova área
+            await base44.entities.Lote.update(lote.id, {
+              area_atual_id: areaEntradaId,
+              area_atual_nome: areaEntrada?.nome || ''
+            });
+
+            // Registrar movimentação
+            await base44.entities.MovimentacaoPecuaria.create({
+              empresa_id: empresaSelecionadaId,
+              data_movimentacao: formData.data_movimentacao,
+              tipo_movimentacao: 'Transferência',
+              lote_id: lote.id,
+              lote_nome: lote.nome,
+              categoria: lote.categoria,
+              quantidade_cabecas: lote.quantidade_cabecas,
+              area_origem_id: formData.area_saida_id,
+              area_origem_nome: areaSaida?.nome || '',
+              area_destino_id: areaEntradaId,
+              area_destino_nome: areaEntrada?.nome || '',
+              peso_medio: lote.peso_medio_kg || 0,
+              observacoes: `Movimentação completa do lote`
+            });
+          }
+        }
+      } else {
+        // Movimentação parcial por categoria
+        for (const mov of formData.movimentacoes) {
+          if (mov.quantidade <= 0) continue;
+
+          const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
+          
+          for (const areaEntradaId of formData.areas_entrada) {
+            const areaEntrada = areas.find(a => a.id === areaEntradaId);
+            
+            // Calcular quantidade proporcional para cada lote
+            let quantidadeRestante = mov.quantidade;
+            
+            for (const lote of lotesCategoria) {
+              if (quantidadeRestante <= 0) break;
+              
+              const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+              
+              if (quantidadeMover === lote.quantidade_cabecas) {
+                // Mover lote completo
+                await base44.entities.Lote.update(lote.id, {
+                  area_atual_id: areaEntradaId,
+                  area_atual_nome: areaEntrada?.nome || '',
+                  peso_medio_kg: mov.peso_medio
+                });
+              } else {
+                // Dividir lote - criar novo lote na área de destino
+                await base44.entities.Lote.create({
+                  empresa_id: empresaSelecionadaId,
+                  nome: `${lote.nome} (MOVIDO)`,
+                  quantidade_cabecas: quantidadeMover,
+                  categoria: lote.categoria,
+                  sexo: lote.sexo,
+                  peso_medio_kg: mov.peso_medio,
+                  idade_media_meses: lote.idade_media_meses,
+                  area_atual_id: areaEntradaId,
+                  area_atual_nome: areaEntrada?.nome || '',
+                  raca_predominante: lote.raca_predominante,
+                  sistema_produtivo: lote.sistema_produtivo,
+                  data_entrada: formData.data_movimentacao,
+                  origem: 'MOVIMENTAÇÃO',
+                  status: 'Ativo'
+                });
+
+                // Atualizar lote original
+                await base44.entities.Lote.update(lote.id, {
+                  quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
+                });
+              }
+
+              // Registrar movimentação
+              await base44.entities.MovimentacaoPecuaria.create({
+                empresa_id: empresaSelecionadaId,
+                data_movimentacao: formData.data_movimentacao,
+                tipo_movimentacao: 'Transferência',
+                lote_id: lote.id,
+                lote_nome: lote.nome,
+                categoria: mov.categoria,
+                quantidade_cabecas: quantidadeMover,
+                area_origem_id: formData.area_saida_id,
+                area_origem_nome: areaSaida?.nome || '',
+                area_destino_id: areaEntradaId,
+                area_destino_nome: areaEntrada?.nome || '',
+                peso_medio: mov.peso_medio,
+                observacoes: `Movimentação de ${quantidadeMover} cabeças`
+              });
+
+              quantidadeRestante -= quantidadeMover;
+            }
+          }
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      setShowMovimentacao(false);
+      onClose();
+      toast.success('✅ Movimentação realizada com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro na movimentação:', error);
+      toast.error('❌ Erro ao realizar movimentação');
+    }
+  });
+
   const handleMovimentacao = (formData) => {
-    console.log('Movimentação:', formData);
-    // Aqui você implementará a lógica de movimentação
-    setShowMovimentacao(false);
+    movimentacaoMutation.mutate(formData);
   };
 
   return (
