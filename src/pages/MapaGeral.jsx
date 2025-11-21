@@ -279,7 +279,7 @@ export default function MapaGeral() {
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
-    if (!mapInstanceRef.current || !modoDesenho || currentPoints.length === 0) {
+    if (!mapInstanceRef.current || !modoDesenho || currentPoints.length === 0 || !mapReady) {
       // Limpar linha guia se não estiver desenhando
       if (guideLineRef.current) {
         guideLineRef.current.setMap(null);
@@ -330,7 +330,7 @@ export default function MapaGeral() {
         guideLineRef.current = null;
       }
     };
-  }, [modoDesenho, currentPoints, snappingEnabled]);
+  }, [modoDesenho, currentPoints, snappingEnabled, mapReady]);
 
   // Desenhar polígono/linha temporária conforme pontos são adicionados
   useEffect(() => {
