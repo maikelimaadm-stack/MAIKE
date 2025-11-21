@@ -116,10 +116,10 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                 const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
                 return (
-                  <div key={index} className={`border rounded-lg p-2 transition-all ${nasc.selecionada ? 'bg-green-50 border-green-300' : 'bg-white border-slate-200'}`}>
+                  <div key={index} className={`border rounded-lg p-2 transition-all ${nasc.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
                     <div className="flex items-start gap-2 mb-2">
                       <div className="flex-1">
-                        <div className="text-[10px] font-semibold text-green-600">
+                        <div className="text-[10px] font-semibold text-emerald-600">
                           {infoCategoria.totalCabecas} cabeças - {nasc.categoria_mae.split(' ')[0]}
                         </div>
                         <div className="text-[8px] text-slate-500 truncate">
@@ -129,7 +129,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                       {iconeUrl ? (
                         <img src={iconeUrl} alt={nasc.categoria_mae} className="w-8 h-8 object-contain" />
                       ) : (
-                        <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                        <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
                           {nasc.categoria_mae.substring(0, 2)}
                         </div>
                       )}
@@ -182,7 +182,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                     <Button
                       type="button"
                       onClick={() => handleNascimentoChange(index, 'selecionada', !nasc.selecionada)}
-                      className={`h-6 text-[10px] mt-2 w-full ${nasc.selecionada ? 'bg-slate-500 hover:bg-slate-600' : 'bg-green-500 hover:bg-green-600'} text-white`}
+                      className={`h-6 text-[10px] mt-2 w-full ${nasc.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
                     >
                       {nasc.selecionada ? 'Cancelar' : 'Selecionar'}
                     </Button>
