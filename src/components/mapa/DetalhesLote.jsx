@@ -292,22 +292,29 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   const handleMudancaCategoria = async (formData) => {
-    for (const categoriaAtual of formData.categorias_selecionadas) {
-      const lotesCategoria = lotes.filter(l => l.categoria === categoriaAtual);
+    for (const mudanca of formData.mudancas) {
+      const lotesCategoria = lotes.filter(l => l.categoria === mudanca.categoria_atual);
+      let quantidadeRestante = mudanca.quantidade;
       
       for (const lote of lotesCategoria) {
+        if (quantidadeRestante <= 0) break;
+        
+        const qtdMudar = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+        
         await base44.entities.MovimentacaoPecuaria.create({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: new Date(formData.data_mudanca).toISOString(),
           tipo: 'Mudança de Categoria',
           lote: lote.nome,
-          quantidade_animais: lote.quantidade_cabecas,
-          observacoes: `De ${categoriaAtual} para ${formData.categoria_nova}. ${formData.observacoes}`
+          quantidade_animais: qtdMudar,
+          observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. ${formData.observacoes}`
         });
 
         await base44.entities.Lote.update(lote.id, {
-          categoria: formData.categoria_nova
+          categoria: mudanca.categoria_nova
         });
+        
+        quantidadeRestante -= qtdMudar;
       }
     }
 
@@ -356,28 +363,25 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
           
           return (
             <div key={categoria}>
-              <div className="text-sm font-bold text-emerald-700 mb-2 pb-1 border-b border-emerald-200">
-                {categoria} - {totalCabecasCategoria} cabeças
+              <div className="text-xs font-semibold text-emerald-600 mb-2">
+                {totalCabecasCategoria} cabeças - {categoria}
               </div>
               
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(lotesCategoria.length, 3)}, 1fr)` }}>
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(lotesCategoria.length, 3)}, 1fr)` }}>
                 {lotesCategoria.map((lote, index) => (
-          <div key={lote.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-            <div className="flex items-start justify-between mb-3">
+          <div key={lote.id} className="bg-slate-50 rounded p-2 border border-slate-200">
+            <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
-                <div className="text-emerald-600 font-semibold text-sm mb-1">
-                  {lote.quantidade_cabecas} cabeças - {lote.categoria?.toUpperCase() || 'SEM CATEGORIA'}
-                </div>
-                <div className="text-[10px] text-slate-600">{lote.nome}</div>
-                <div className="w-6 h-6 bg-emerald-500 rounded flex items-center justify-center mt-2">
-                  <Check className="w-4 h-4 text-white" />
+                <div className="text-[10px] text-slate-600 uppercase">{lote.nome}</div>
+                <div className="w-5 h-5 bg-emerald-500 rounded flex items-center justify-center mt-1">
+                  <Check className="w-3 h-3 text-white" />
                 </div>
               </div>
               {(() => {
@@ -393,7 +397,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <img 
                       src={iconeUrl} 
                       alt={lote.categoria} 
-                      className="w-16 h-16 object-contain" 
+                      className="w-12 h-12 object-contain" 
                     />
                   );
                 }
@@ -401,40 +405,35 @@ export default function DetalhesLote({ lotes, onClose }) {
               })()}
             </div>
 
-            <div className="space-y-2">
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Último peso informado</div>
-                <div className="text-[8px] text-slate-500">(kg)</div>
-                <div className="text-sm font-bold text-slate-900">{lote.peso_medio || '-'}</div>
+            <div className="space-y-1">
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Último peso informado (kg)</div>
+                <div className="text-xs font-bold text-slate-900">{lote.peso_medio || '-'}</div>
               </div>
 
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Último GMD</div>
-                <div className="text-[8px] text-slate-500">(kg/cab/dia)</div>
-                <div className="text-sm font-bold text-slate-900">{lote.gmd || '-'}</div>
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Último GMD (kg/cab/dia)</div>
+                <div className="text-xs font-bold text-slate-900">{lote.gmd || '-'}</div>
               </div>
 
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Taxa de ganho</div>
-                <div className="text-[8px] text-slate-500">(%)</div>
-                <div className="text-sm font-bold text-slate-900">{lote.taxa_ganho || '-'}</div>
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Taxa de ganho (%)</div>
+                <div className="text-xs font-bold text-slate-900">{lote.taxa_ganho || '-'}</div>
               </div>
 
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Peso projetado</div>
-                <div className="text-[8px] text-slate-500">(kg)</div>
-                <div className="text-sm font-bold text-slate-900">{lote.peso_projetado || '-'}</div>
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Peso projetado (kg)</div>
+                <div className="text-xs font-bold text-slate-900">{lote.peso_projetado || '-'}</div>
               </div>
 
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Último consumo</div>
-                <div className="text-[8px] text-slate-500">(kg/cab/dia)</div>
-                <div className="text-sm font-bold text-slate-900">{lote.ultimo_consumo || '-'}</div>
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Último consumo (kg/cab/dia)</div>
+                <div className="text-xs font-bold text-slate-900">{lote.ultimo_consumo || '-'}</div>
               </div>
 
-              <div className="bg-white p-2 rounded text-center border border-slate-200">
-                <div className="text-[9px] text-emerald-700">Indivíduos</div>
-                <div className="text-sm font-bold text-slate-900">{lote.quantidade_cabecas || '-'}</div>
+              <div className="bg-white p-1.5 rounded text-center border border-slate-200">
+                <div className="text-[8px] text-emerald-700">Indivíduos</div>
+                <div className="text-xs font-bold text-slate-900">{lote.quantidade_cabecas || '-'}</div>
               </div>
             </div>
           </div>
@@ -512,50 +511,50 @@ export default function DetalhesLote({ lotes, onClose }) {
       <div className="grid grid-cols-6 gap-2 pt-3">
         <Button 
           onClick={() => setShowAbate(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">🥩</div>
-          <span className="text-xs font-semibold">Abate para consumo</span>
+          <div className="text-3xl">🥩</div>
+          <span className="text-[10px] font-semibold">Abate para consumo</span>
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">✕</div>
-          <span className="text-xs font-semibold">Morte</span>
+          <div className="text-3xl">✕</div>
+          <span className="text-[10px] font-semibold">Morte</span>
         </Button>
 
         <Button 
           onClick={() => setShowMovimentacao(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">⇄</div>
-          <span className="text-xs font-semibold">Movimentação</span>
+          <div className="text-3xl">⇄</div>
+          <span className="text-[10px] font-semibold">Movimentação</span>
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">🔄</div>
-          <span className="text-xs font-semibold">Mudança de categoria</span>
+          <div className="text-3xl">🔄</div>
+          <span className="text-[10px] font-semibold">Mudança de categoria</span>
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">⭐</div>
-          <span className="text-xs font-semibold">Nascimento</span>
+          <div className="text-3xl">⭐</div>
+          <span className="text-[10px] font-semibold">Nascimento</span>
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
-          className="h-24 flex-col gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          className="h-20 flex-col gap-1 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <div className="text-4xl">⚖</div>
-          <span className="text-xs font-semibold">Pesagem</span>
+          <div className="text-3xl">⚖</div>
+          <span className="text-[10px] font-semibold">Pesagem</span>
         </Button>
       </div>
 

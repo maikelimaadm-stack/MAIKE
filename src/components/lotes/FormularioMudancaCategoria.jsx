@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Save } from "lucide-react";
+import { X, Save, Plus } from "lucide-react";
 
 const CATEGORIAS = [
   "Bezerro 0 a 12 meses",
@@ -20,69 +20,65 @@ const CATEGORIAS = [
 
 export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
   const lotesArray = Array.isArray(lote) ? lote : [lote];
-  const categoriasAtuais = [...new Set(lotesArray.map(l => l.categoria).filter(Boolean))];
+  
+  // Agrupar lotes por categoria
+  const lotesPorCategoria = lotesArray.reduce((acc, l) => {
+    const cat = l.categoria || 'SEM CATEGORIA';
+    if (!acc[cat]) {
+      acc[cat] = {
+        categoria: cat,
+        lotes: [],
+        totalCabecas: 0
+      };
+    }
+    acc[cat].lotes.push(l);
+    acc[cat].totalCabecas += l.quantidade_cabecas || 0;
+    return acc;
+  }, {});
+
+  const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
 
   const [formData, setFormData] = useState({
     data_mudanca: new Date().toISOString().split('T')[0],
-    categorias_selecionadas: categoriasAtuais.length === 1 ? [categoriasAtuais[0]] : [],
-    categoria_nova: "",
+    mudancas: categoriasDisponiveis.map(cat => ({
+      categoria_atual: cat,
+      quantidade: lotesPorCategoria[cat].totalCabecas,
+      categoria_nova: ""
+    })),
     observacoes: ""
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.categorias_selecionadas.length === 0) {
-      alert("Selecione pelo menos uma categoria");
+    
+    const mudancasValidas = formData.mudancas.filter(m => m.categoria_nova && m.quantidade > 0);
+    if (mudancasValidas.length === 0) {
+      alert("Configure pelo menos uma mudança de categoria");
       return;
     }
-    if (!formData.categoria_nova) {
-      alert("Selecione a nova categoria");
-      return;
-    }
-    onSubmit(formData);
+
+    onSubmit({
+      ...formData,
+      mudancas: mudancasValidas
+    });
   };
 
-  const toggleCategoria = (cat) => {
-    const atual = formData.categorias_selecionadas;
-    if (atual.includes(cat)) {
-      setFormData({ ...formData, categorias_selecionadas: atual.filter(c => c !== cat) });
-    } else {
-      setFormData({ ...formData, categorias_selecionadas: [...atual, cat] });
-    }
+  const handleMudancaChange = (index, field, value) => {
+    const novasMudancas = [...formData.mudancas];
+    novasMudancas[index] = {
+      ...novasMudancas[index],
+      [field]: value
+    };
+    setFormData({ ...formData, mudancas: novasMudancas });
   };
-
-  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
 
   return (
     <Card>
       <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Mudança de Categoria - {nomeExibicao}</CardTitle>
+        <CardTitle className="text-sm font-semibold">Mudança de categoria</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="bg-slate-50 border rounded p-3 mb-3">
-            <div className="text-xs text-slate-600 mb-2">Categorias Atuais - Selecione quais deseja mudar:</div>
-            <div className="flex flex-wrap gap-2">
-              {categoriasAtuais.map(cat => {
-                const isSelected = formData.categorias_selecionadas.includes(cat);
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => toggleCategoria(cat)}
-                    className={`px-3 py-1 text-xs rounded border transition-all ${
-                      isSelected 
-                        ? 'bg-emerald-600 text-white border-emerald-600' 
-                        : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-600'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div className="space-y-1">
             <Label className="text-xs">Data da Mudança *</Label>
             <Input
@@ -94,22 +90,77 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
             />
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Nova Categoria *</Label>
-            <Select
-              value={formData.categoria_nova}
-              onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}
-              required
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Selecione a nova categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIAS.map(cat => (
-                  <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            {formData.mudancas.map((mudanca, index) => {
+              const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
+              const primeiroLote = infoCategoria.lotes[0];
+              
+              return (
+                <div key={index} className="border rounded-lg p-3 bg-slate-50">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-emerald-600 mb-2">
+                        {infoCategoria.totalCabecas} cabeças - {mudanca.categoria_atual}
+                      </div>
+                      <div className="text-[10px] text-slate-600 mb-3">
+                        {infoCategoria.lotes.map(l => l.nome).join(', ')}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quantidade *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={infoCategoria.totalCabecas}
+                            value={mudanca.quantidade}
+                            onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Categoria de manejo *</Label>
+                          <Select
+                            value={mudanca.categoria_nova}
+                            onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIAS.filter(c => c !== mudanca.categoria_atual).map(cat => (
+                                <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {primeiroLote && (() => {
+                      // Buscar ícone do lote
+                      return (
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <div className="w-10 h-10 bg-emerald-500 rounded flex items-center justify-center text-white text-xs font-bold">
+                            {mudanca.categoria_atual.substring(0, 2)}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs mt-2 w-full text-emerald-600 border-emerald-600"
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-1">
@@ -118,7 +169,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
               value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               className="text-xs"
-              rows={3}
+              rows={2}
               placeholder="Motivo da mudança de categoria..."
             />
           </div>
@@ -130,7 +181,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
             </Button>
             <Button type="submit" size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700">
               <Save className="w-3 h-3 mr-1" />
-              Confirmar Mudança
+              Confirmar Mudanças
             </Button>
           </div>
         </form>
