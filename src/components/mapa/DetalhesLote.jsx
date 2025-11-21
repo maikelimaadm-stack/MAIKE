@@ -3,8 +3,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 
 export default function DetalhesLote({ lotes, onClose }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   // Calcular total de cabeças
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
   
@@ -25,17 +38,28 @@ export default function DetalhesLote({ lotes, onClose }) {
                 <div className="text-emerald-600 font-semibold text-base mb-1">
                   {lote.quantidade_cabecas} cabeças - {lote.categoria?.toUpperCase() || 'SEM CATEGORIA'}
                 </div>
-                <div className="text-xs text-slate-600">{lote.nome}</div>
+                <div className="text-xs text-slate-600">LOTE {lote.numero_lote || lote.nome}</div>
                 <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center mt-2">
                   <Check className="w-5 h-5 text-white" />
                 </div>
               </div>
-              {index === 0 && (
-                <div className="text-slate-800">🐂</div>
-              )}
-              {index === 1 && (
-                <div className="text-red-600">🐄</div>
-              )}
+              {(() => {
+                const configIcone = iconesConfig.find(ic => 
+                  ic.tipo_entidade === 'Lote' && 
+                  ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
+                );
+                
+                if (configIcone?.icone_url) {
+                  return (
+                    <img 
+                      src={configIcone.icone_url} 
+                      alt={lote.categoria} 
+                      className="w-12 h-12 object-contain" 
+                    />
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             <div className="grid grid-cols-3 gap-2">
