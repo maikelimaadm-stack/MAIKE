@@ -266,9 +266,19 @@ export default function MapaGeral() {
     }
 
     if (showLotes) {
+      // Agrupar lotes por área
+      const lotesPorArea = {};
       lotes.forEach(lote => {
         if (!lote.area_atual_id) return;
-        const area = areas.find(a => a.id === lote.area_atual_id);
+        if (!lotesPorArea[lote.area_atual_id]) {
+          lotesPorArea[lote.area_atual_id] = [];
+        }
+        lotesPorArea[lote.area_atual_id].push(lote);
+      });
+
+      // Renderizar um marcador por área
+      Object.entries(lotesPorArea).forEach(([areaId, lotesNaArea]) => {
+        const area = areas.find(a => a.id === areaId);
         if (!area || !area.coordenadas?.coords || area.coordenadas.coords.length < 3) return;
 
         const paths = area.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
@@ -276,25 +286,46 @@ export default function MapaGeral() {
         paths.forEach(p => bounds.extend(p));
         const center = bounds.getCenter();
 
-        const configIcone = iconesConfig.find(ic => 
-          ic.tipo_entidade === 'Lote' && 
-          ic.categoria?.toUpperCase() === lote.categoria?.toUpperCase()
-        );
-        let markerIcon;
+        // Calcular total de cabeças
+        const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
 
+        // Detectar categorias únicas
+        const categorias = [...new Set(lotesNaArea.map(l => l.categoria?.toUpperCase()).filter(Boolean))];
+        
+        let configIcone;
+        let iconeKey = '';
+
+        // Definir ícone baseado nas categorias
+        if (categorias.length === 1) {
+          // Uma única categoria - usar ícone específico
+          configIcone = iconesConfig.find(ic => 
+            ic.tipo_entidade === 'Lote' && 
+            ic.categoria?.toUpperCase() === categorias[0]
+          );
+          iconeKey = categorias[0];
+        } else if (categorias.length > 1) {
+          // Múltiplas categorias - usar ícone "Misto"
+          configIcone = iconesConfig.find(ic => 
+            ic.tipo_entidade === 'Lote' && 
+            ic.categoria?.toUpperCase() === 'MISTO'
+          );
+          iconeKey = 'MISTO';
+        }
+
+        let markerIcon;
         if (configIcone?.icone_url) {
           markerIcon = {
             url: configIcone.icone_url,
             scaledSize: new google.maps.Size(70, 70),
             anchor: new google.maps.Point(35, 35),
-            labelOrigin: new google.maps.Point(35, 35)
+            labelOrigin: new google.maps.Point(35, 38)
           };
         } else {
           markerIcon = {
             url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/c3602d1e3_Designsemnome3.png',
             scaledSize: new google.maps.Size(70, 70),
             anchor: new google.maps.Point(35, 35),
-            labelOrigin: new google.maps.Point(35, 35)
+            labelOrigin: new google.maps.Point(35, 38)
           };
         }
 
@@ -303,12 +334,12 @@ export default function MapaGeral() {
           map: mapInstanceRef.current,
           icon: markerIcon,
           label: {
-            text: String(lote.quantidade_cabecas),
-            color: '#000000',
+            text: String(totalCabecas),
+            color: '#ffffff',
             fontSize: '18px',
             fontWeight: 'bold'
           },
-          title: lote.nome,
+          title: area.nome,
           zIndex: 1000
         });
 
@@ -316,7 +347,13 @@ export default function MapaGeral() {
 
         marker.addListener('click', (e) => {
           e.stop();
-          setSelectedLote(lote);
+          // Se houver múltiplos lotes, mostrar o primeiro ou criar um dialog específico
+          if (lotesNaArea.length === 1) {
+            setSelectedLote(lotesNaArea[0]);
+          } else {
+            // Mostrar o primeiro lote, mas você pode criar uma lógica diferente aqui
+            setSelectedLote(lotesNaArea[0]);
+          }
           setShowDetalhesLote(true);
         });
       });
