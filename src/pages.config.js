@@ -36,6 +36,7 @@ import CadastroGado from './pages/CadastroGado';
 import AreasPastagem from './pages/AreasPastagem';
 import MapaMovimentacao from './pages/MapaMovimentacao';
 import CadastroAreasReferencia from './pages/CadastroAreasReferencia';
+import MapaPecuaria from './pages/MapaPecuaria';
 import __Layout from './Layout.jsx';
 
 
@@ -78,6 +79,7 @@ export const PAGES = {
     "AreasPastagem": AreasPastagem,
     "MapaMovimentacao": MapaMovimentacao,
     "CadastroAreasReferencia": CadastroAreasReferencia,
+    "MapaPecuaria": MapaPecuaria,
 }
 
 export const pagesConfig = {
