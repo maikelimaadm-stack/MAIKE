@@ -35,6 +35,7 @@ import Backup from './pages/Backup';
 import CadastroGado from './pages/CadastroGado';
 import AreasPastagem from './pages/AreasPastagem';
 import MapaMovimentacao from './pages/MapaMovimentacao';
+import CadastroAreasReferencia from './pages/CadastroAreasReferencia';
 import __Layout from './Layout.jsx';
 
 
@@ -76,6 +77,7 @@ export const PAGES = {
     "CadastroGado": CadastroGado,
     "AreasPastagem": AreasPastagem,
     "MapaMovimentacao": MapaMovimentacao,
+    "CadastroAreasReferencia": CadastroAreasReferencia,
 }
 
 export const pagesConfig = {

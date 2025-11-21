@@ -55,8 +55,8 @@ const DEFAULT_MENU = [
     icon: "Package",
     submenu: [
       { id: "pec-gado", title: "Cadastro de Gado", url: "CadastroGado" },
-      { id: "pec-areas", title: "Areas e Pastagens", url: "AreasPastagem" },
-      { id: "pec-mapa", title: "Mapa de Movimentacao", url: "MapaMovimentacao" },
+      { id: "pec-areas", title: "Cadastro de Areas", url: "CadastroAreasReferencia" },
+      { id: "pec-mapa", title: "Mapa de Manejo", url: "MapaMovimentacao" },
     ],
   },
   {
