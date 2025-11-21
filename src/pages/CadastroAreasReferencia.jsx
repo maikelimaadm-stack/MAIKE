@@ -186,7 +186,7 @@ export default function CadastroAreasReferencia() {
 
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
-        zoom: 15,
+        zoom: 16,
         mapTypeId: 'satellite',
         mapTypeControl: true,
         mapTypeControlOptions: {
@@ -197,13 +197,16 @@ export default function CadastroAreasReferencia() {
         streetViewControl: false,
         fullscreenControl: true,
         clickableIcons: false,
-        disableDoubleClickZoom: false,
+        disableDoubleClickZoom: true,
       });
 
       mapInstanceRef.current = map;
-      console.log('✅ Mapa carregado com sucesso');
+      console.log('✅ Mapa Google carregado e pronto!');
 
       renderItems();
+    }).catch(err => {
+      console.error('❌ Erro ao carregar Google Maps:', err);
+      toast.error('Erro ao carregar o mapa');
     });
   }, []);
 
@@ -214,30 +217,38 @@ export default function CadastroAreasReferencia() {
   }, [areas, pontos, tipoEntidade]);
 
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current) {
+      console.log('⚠️ Mapa ainda não foi inicializado');
+      return;
+    }
 
-    console.log('🔄 Estado de desenho mudou:', { isDrawing, tipoEntidade });
+    console.log('🔄 Configurando listener - Estado:', { isDrawing, tipoEntidade });
 
     const handleMapClick = (e) => {
-      console.log('🖱️ Clique detectado no mapa!', { 
-        isDrawing, 
-        tipoEntidade, 
-        lat: e.latLng.lat(), 
-        lng: e.latLng.lng() 
-      });
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      
+      console.log('🖱️ CLIQUE NO MAPA!', { lat, lng, isDrawing, tipoEntidade });
 
-      if (isDrawing && tipoEntidade === 'area') {
-        const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      if (!isDrawing) {
+        console.log('⚠️ Modo desenho NÃO está ativo');
+        return;
+      }
+
+      if (tipoEntidade === 'area') {
+        const newPoint = { lat, lng };
         console.log('➕ Adicionando ponto à área:', newPoint);
+        
         setCurrentPoints(prev => {
           const updated = [...prev, newPoint];
-          console.log('📍 Total de pontos agora:', updated.length);
-          toast.success(`Ponto ${updated.length} adicionado!`);
+          console.log('📍 Total de pontos:', updated.length);
+          toast.success(`✅ Ponto ${updated.length} adicionado!`, { duration: 1000 });
           return updated;
         });
-      } else if (isDrawing && tipoEntidade === 'ponto') {
-        const position = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-        console.log('📌 Posicionando ponto de referência:', position);
+      } else if (tipoEntidade === 'ponto') {
+        const position = { lat, lng };
+        console.log('📌 Posicionando ponto de referência');
+        
         setCurrentMarker(position);
         
         if (tempMarkerRef.current) {
@@ -257,19 +268,18 @@ export default function CadastroAreasReferencia() {
           }
         });
 
-        toast.success('Ponto posicionado!');
+        toast.success('✅ Ponto posicionado!');
         setShowDialog(true);
-      } else {
-        console.log('⚠️ Clique ignorado - modo desenho não ativo');
       }
     };
 
-    const listener = mapInstanceRef.current.addListener('click', handleMapClick);
+    console.log('🎯 Adicionando listener ao mapa...');
+    const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
+    console.log('✅ Listener adicionado!');
 
     return () => {
-      if (listener) {
-        google.maps.event.removeListener(listener);
-      }
+      console.log('🗑️ Removendo listener...');
+      google.maps.event.removeListener(listener);
     };
   }, [isDrawing, tipoEntidade, corSelecionada]);
 
@@ -375,14 +385,24 @@ export default function CadastroAreasReferencia() {
 
   const handleStartDrawing = () => {
     if (!tipoEntidade) {
-      toast.error('Selecione o tipo (Área ou Ponto)!');
+      toast.error('❌ Selecione o tipo primeiro (Área ou Ponto)!');
       return;
     }
-    console.log('🎨 Iniciando desenho:', tipoEntidade);
+    if (!mapInstanceRef.current) {
+      toast.error('❌ Aguarde o mapa carregar!');
+      return;
+    }
+    
+    console.log('🎨 INICIANDO DESENHO:', tipoEntidade);
     setIsDrawing(true);
     setCurrentPoints([]);
     setCurrentMarker(null);
-    toast.success(tipoEntidade === 'area' ? '✅ Modo desenho ativado! Clique no mapa' : '✅ Modo ponto ativado! Clique no mapa');
+    
+    if (tipoEntidade === 'area') {
+      toast.success('🎯 CLIQUE NO MAPA para desenhar a área!', { duration: 5000 });
+    } else {
+      toast.success('🎯 CLIQUE NO MAPA para marcar o ponto!', { duration: 5000 });
+    }
   };
 
   const handleFinishArea = () => {
