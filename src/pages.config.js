@@ -33,9 +33,6 @@ import LivroCaixa from './pages/LivroCaixa';
 import AtivosFixos from './pages/AtivosFixos';
 import Backup from './pages/Backup';
 import AreasPastagem from './pages/AreasPastagem';
-import MapaMovimentacao from './pages/MapaMovimentacao';
-import CadastroAreasReferencia from './pages/CadastroAreasReferencia';
-import MapaPecuaria from './pages/MapaPecuaria';
 import CadastroLotes from './pages/CadastroLotes';
 import MapaGeral from './pages/MapaGeral';
 import __Layout from './Layout.jsx';
@@ -77,9 +74,6 @@ export const PAGES = {
     "AtivosFixos": AtivosFixos,
     "Backup": Backup,
     "AreasPastagem": AreasPastagem,
-    "MapaMovimentacao": MapaMovimentacao,
-    "CadastroAreasReferencia": CadastroAreasReferencia,
-    "MapaPecuaria": MapaPecuaria,
     "CadastroLotes": CadastroLotes,
     "MapaGeral": MapaGeral,
 }
