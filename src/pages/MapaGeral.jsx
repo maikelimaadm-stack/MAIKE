@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Map, Layers, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
@@ -529,19 +529,19 @@ export default function MapaGeral() {
         </Card>
       </div>
 
-      <Sheet open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Detalhes do Lote</SheetTitle>
-          </SheetHeader>
+      <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lote</DialogTitle>
+          </DialogHeader>
           {selectedLote && (
             <DetalhesLote
               lote={selectedLote}
               onClose={() => setShowDetalhesLote(false)}
             />
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
