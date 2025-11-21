@@ -295,6 +295,8 @@ export default function MapaGeral() {
         let configIcone;
         let iconeKey = '';
 
+        console.log('🔍 ÁREA:', area.nome, '| Categorias:', categorias);
+
         // Definir ícone baseado nas categorias
         if (categorias.length === 1) {
           // Uma única categoria - usar ícone específico
@@ -303,6 +305,7 @@ export default function MapaGeral() {
             ic.categoria?.toUpperCase().trim() === categorias[0]
           );
           iconeKey = categorias[0];
+          console.log('✅ Categoria única:', iconeKey, '| Config encontrado:', !!configIcone);
         } else if (categorias.length > 1) {
           // Múltiplas categorias - buscar MISTO
           const configsMisto = iconesConfig.filter(ic => 
@@ -312,17 +315,34 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          // Buscar config que tenha EXATAMENTE as mesmas categorias (mesmo tamanho)
-          for (const config of configsMisto) {
-            const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
+          console.log('📦 Total configs MISTO:', configsMisto.length);
 
-            // Match: mesmo número de categorias E todas as da área estão na config
-            if (categorias.length === categoriasConfig.length &&
-                categorias.every(cat => categoriasConfig.includes(cat))) {
-              configIcone = config;
-              iconeKey = 'MISTO';
-              break;
+          // Buscar configs que contenham TODAS as categorias da área
+          const configsValidos = [];
+          for (const config of configsMisto) {
+            const categoriasConfig = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim());
+
+            console.log(`   Testando "${config.descricao}" [${categoriasConfig.join(', ')}]`);
+
+            // Todas as categorias da área devem estar na config
+            const todasContidas = categorias.every(cat => categoriasConfig.includes(cat));
+
+            if (todasContidas) {
+              console.log(`   ✅ VÁLIDO - todas contidas`);
+              configsValidos.push({ config, tamanho: categoriasConfig.length });
+            } else {
+              console.log(`   ❌ Inválido - faltam categorias`);
             }
+          }
+
+          // Pegar a config com MENOR número de categorias (mais específica)
+          if (configsValidos.length > 0) {
+            configsValidos.sort((a, b) => a.tamanho - b.tamanho);
+            configIcone = configsValidos[0].config;
+            iconeKey = 'MISTO';
+            console.log(`🎯 ESCOLHIDO: "${configIcone.descricao}" com ${configsValidos[0].tamanho} categorias`);
+          } else {
+            console.log('❌ Nenhuma config MISTO válida encontrada');
           }
         }
 
