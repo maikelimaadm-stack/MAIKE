@@ -80,52 +80,54 @@ export default function HistoricoMovimentacoes({ lotesIds, areaId }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3">
+        <div className="max-h-[500px] overflow-y-auto pr-2 space-y-3">
           {movimentacoes.map((mov) => (
-            <div key={mov.id} className="bg-slate-50 border rounded-lg p-3 hover:bg-slate-100 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{ICONES_TIPO[mov.tipo] || "📋"}</span>
+            <div key={mov.id} className="bg-white border border-slate-300 rounded-lg p-4 hover:shadow-md transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl">
+                    {ICONES_TIPO[mov.tipo] || "📋"}
+                  </div>
                   <div>
-                    <Badge className={`text-xs ${CORES_TIPO[mov.tipo] || 'bg-slate-100 text-slate-800'}`}>
+                    <Badge className={`text-xs font-semibold ${CORES_TIPO[mov.tipo] || 'bg-slate-100 text-slate-800'}`}>
                       {mov.tipo}
                     </Badge>
-                    <div className="text-xs text-slate-600 mt-1">
+                    <div className="text-xs text-slate-600 mt-1 font-medium">
                       {new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-slate-900">
+                  <div className="text-lg font-bold text-emerald-600">
                     {mov.quantidade_animais} {mov.quantidade_animais === 1 ? 'animal' : 'animais'}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-2 space-y-1 text-xs">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <span className="font-semibold">Lote:</span>
-                  <span>{mov.lote}</span>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-semibold text-slate-700 min-w-[60px]">Lote:</span>
+                  <span className="text-xs text-slate-900 font-medium">{mov.lote}</span>
                 </div>
                 
                 {mov.tipo === 'Transferência de Área' && (
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <MapPin className="w-3 h-3" />
-                    <span>{mov.area_origem_nome}</span>
-                    <ArrowRight className="w-3 h-3" />
-                    <span className="font-semibold">{mov.area_destino_nome}</span>
+                  <div className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-200 rounded p-2">
+                    <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-700 font-medium">{mov.area_origem_nome}</span>
+                    <ArrowRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-900 font-bold">{mov.area_destino_nome}</span>
                   </div>
                 )}
 
                 {mov.peso_medio && (
-                  <div className="flex items-center gap-1 text-emerald-700">
-                    <TrendingUp className="w-3 h-3" />
-                    Peso: {mov.peso_medio} kg
+                  <div className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Peso médio: {mov.peso_medio} kg</span>
                   </div>
                 )}
 
                 {mov.observacoes && (
-                  <div className="text-slate-600 bg-white border rounded p-2 mt-1">
+                  <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 leading-relaxed">
                     {mov.observacoes}
                   </div>
                 )}
