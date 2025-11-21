@@ -295,12 +295,6 @@ export default function MapaGeral() {
         let configIcone;
         let iconeKey = '';
 
-        console.log('🔍 Categorias na área:', categorias);
-        console.log('🔧 Configs disponíveis:', iconesConfig.filter(ic => ic.tipo_entidade === 'Lote').map(ic => ({
-          categoria: ic.categoria,
-          categorias_misto: ic.categorias_misto
-        })));
-
         // Definir ícone baseado nas categorias
         if (categorias.length === 1) {
           // Uma única categoria - usar ícone específico
@@ -309,9 +303,8 @@ export default function MapaGeral() {
             ic.categoria?.toUpperCase() === categorias[0]
           );
           iconeKey = categorias[0];
-          console.log('✅ Usando ícone único:', configIcone?.categoria);
         } else if (categorias.length > 1) {
-          // Múltiplas categorias - buscar MISTO
+          // Múltiplas categorias - buscar MISTO com correspondência EXATA
           const configsMisto = iconesConfig.filter(ic => 
             ic.tipo_entidade === 'Lote' && 
             ic.categoria?.toUpperCase() === 'MISTO' &&
@@ -319,36 +312,28 @@ export default function MapaGeral() {
             ic.categorias_misto.length > 0
           );
 
-          console.log('🔍 Configs MISTO encontradas:', configsMisto.length);
-
-          // Verificar correspondência exata ou parcial
+          // Verificar correspondência EXATA
           for (const config of configsMisto) {
             const categoriasConfigSorted = [...(config.categorias_misto || [])].map(c => c.toUpperCase().trim()).sort();
             
-            console.log('🔍 Comparando:', {
-              categorias: categorias,
-              categoriasConfig: categoriasConfigSorted
-            });
-
-            // Verifica se TODAS as categorias da área estão na configuração MISTO
-            const todasIncluidas = categorias.every(cat => categoriasConfigSorted.includes(cat));
+            // Correspondência EXATA: mesmo comprimento e mesmos elementos
+            const matchExato = categorias.length === categoriasConfigSorted.length &&
+              categorias.every((cat, idx) => cat === categoriasConfigSorted[idx]);
             
-            if (todasIncluidas) {
+            if (matchExato) {
               configIcone = config;
               iconeKey = 'MISTO';
-              console.log('✅ Match encontrado com config MISTO');
               break;
             }
           }
 
-          // Se não encontrou match específico, usar qualquer MISTO genérico
+          // Se não encontrou match exato, usar qualquer MISTO genérico
           if (!configIcone) {
             configIcone = iconesConfig.find(ic => 
               ic.tipo_entidade === 'Lote' && 
               ic.categoria?.toUpperCase() === 'MISTO'
             );
             iconeKey = 'MISTO';
-            console.log('⚠️ Usando MISTO genérico (sem match específico)');
           }
         }
 
