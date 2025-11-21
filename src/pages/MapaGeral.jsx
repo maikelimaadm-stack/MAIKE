@@ -69,6 +69,8 @@ export default function MapaGeral() {
   const tempMarkerRef = useRef(null);
   const guideLineRef = useRef(null);
   const pointMarkersRef = useRef([]);
+  const lastClickTimeRef = useRef(0);
+  const lastClickPositionRef = useRef(null);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -251,30 +253,46 @@ export default function MapaGeral() {
     }
   }, [areas, pontos, linhas, lotes, showAreas, showPontos, showLinhas, showLotes, iconesConfig, mapReady]);
 
-  // Listener de clique no mapa para desenhar
+  // Listener de clique no mapa para desenhar com detecção de duplo clique
   useEffect(() => {
     if (!mapInstanceRef.current || !modoDesenho || !mapReady) return;
 
-    let clickTimeout = null;
-
     const handleMapClick = (e) => {
-      // Evitar múltiplos cliques rápidos
-      if (clickTimeout) return;
+      const now = Date.now();
+      const timeDiff = now - lastClickTimeRef.current;
       
-      clickTimeout = setTimeout(() => {
-        clickTimeout = null;
-      }, 300);
-
       let lat = e.latLng.lat();
       let lng = e.latLng.lng();
       
-      // Aplicar snapping com indicador visual
+      // Aplicar snapping
       const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
       if (snappedPoint) {
         lat = snappedPoint.lat;
         lng = snappedPoint.lng;
-        toast.success('🧲 Encaixado!', { duration: 800 });
+        toast.success('🧲 Encaixado!', { duration: 600 });
       }
+
+      // Detectar duplo clique (menos de 400ms entre cliques)
+      const isDoubleClick = timeDiff < 400 && lastClickPositionRef.current &&
+        Math.abs(lastClickPositionRef.current.lat - lat) < 0.0001 &&
+        Math.abs(lastClickPositionRef.current.lng - lng) < 0.0001;
+
+      if (isDoubleClick) {
+        // Duplo clique detectado - finalizar automaticamente
+        if (modoDesenho === 'poligono' && currentPoints.length >= 3) {
+          toast.success('🎯 Polígono finalizado! Arraste os pontos para ajustar', { duration: 2000 });
+          setTimeout(() => finalizarPoligono(), 100);
+        } else if (modoDesenho === 'linha' && currentPoints.length >= 2) {
+          toast.success('📏 Linha finalizada! Arraste os pontos para ajustar', { duration: 2000 });
+          setTimeout(() => finalizarLinha(), 100);
+        }
+        lastClickTimeRef.current = 0;
+        lastClickPositionRef.current = null;
+        return;
+      }
+
+      lastClickTimeRef.current = now;
+      lastClickPositionRef.current = { lat, lng };
       
       if (modoDesenho === 'ponto') {
         setCurrentMarker({ lat, lng });
@@ -291,7 +309,7 @@ export default function MapaGeral() {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
           const updated = [...prev, newPoint];
-          toast.success(`✅ Ponto ${updated.length} adicionado`, { duration: 800 });
+          toast.success(`✅ Ponto ${updated.length} - Duplo clique para finalizar`, { duration: 1000 });
           return updated;
         });
       }
@@ -300,9 +318,8 @@ export default function MapaGeral() {
     const listener = google.maps.event.addListener(mapInstanceRef.current, 'click', handleMapClick);
     return () => {
       google.maps.event.removeListener(listener);
-      if (clickTimeout) clearTimeout(clickTimeout);
     };
-  }, [modoDesenho, mapReady, snappingEnabled]);
+  }, [modoDesenho, mapReady, snappingEnabled, currentPoints]);
 
   // Listener para mostrar "setinha" (linha guia) ao mover o mouse
   useEffect(() => {
@@ -368,7 +385,7 @@ export default function MapaGeral() {
     pointMarkersRef.current.forEach(m => m.setMap(null));
     pointMarkersRef.current = [];
 
-    // Criar marcadores para cada ponto
+    // Criar marcadores editáveis para cada ponto
     currentPoints.forEach((point, index) => {
       const marker = new google.maps.Marker({
         position: point,
@@ -387,9 +404,22 @@ export default function MapaGeral() {
           strokeColor: '#ffffff',
           strokeWeight: 3
         },
-        draggable: false,
+        draggable: true,
         zIndex: 1000
       });
+
+      // Atualizar posição ao arrastar
+      marker.addListener('dragend', (e) => {
+        const newLat = e.latLng.lat();
+        const newLng = e.latLng.lng();
+        setCurrentPoints(prev => {
+          const updated = [...prev];
+          updated[index] = { lat: newLat, lng: newLng };
+          return updated;
+        });
+        toast.success(`Ponto ${index + 1} reposicionado`, { duration: 800 });
+      });
+
       pointMarkersRef.current.push(marker);
     });
 
@@ -500,17 +530,17 @@ export default function MapaGeral() {
         if (configIcone?.icone_url) {
           markerIcon = {
             url: configIcone.icone_url,
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20)
+            scaledSize: new google.maps.Size(70, 70),
+            anchor: new google.maps.Point(35, 35)
           };
         } else {
           markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 12,
+            scale: 18,
             fillColor: configIcone?.cor_padrao || ponto.cor || '#0066ff',
             fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 3
+            strokeWeight: 4
           };
         }
 
@@ -1030,9 +1060,9 @@ export default function MapaGeral() {
             )}
             {modoDesenho && mapReady && (
               <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-2xl font-bold text-sm border-2 border-white">
-                {modoDesenho === 'poligono' && `🎯 Clique no mapa para desenhar a área (${currentPoints.length} pontos)`}
+                {modoDesenho === 'poligono' && `🎯 Clique para adicionar pontos (${currentPoints.length}) • DUPLO CLIQUE para finalizar`}
                 {modoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
-                {modoDesenho === 'linha' && `➡️ Clique no mapa para desenhar a linha (${currentPoints.length} pontos)`}
+                {modoDesenho === 'linha' && `➡️ Clique para adicionar pontos (${currentPoints.length}) • DUPLO CLIQUE para finalizar`}
               </div>
             )}
             {modoEdicao && !modoDesenho && mapReady && (
