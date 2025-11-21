@@ -56,7 +56,7 @@ export default function DetalhesLote({ lotes, onClose }) {
                     <img 
                       src={iconeUrl} 
                       alt={lote.categoria} 
-                      className="w-12 h-12 object-contain" 
+                      className="w-20 h-20 object-contain" 
                     />
                   );
                 }
