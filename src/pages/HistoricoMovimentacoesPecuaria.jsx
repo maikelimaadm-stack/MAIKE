@@ -2,14 +2,19 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
-  TrendingUp, FileText, Filter
+  TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download
 } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -17,63 +22,114 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const tipoIcons = {
-  'Transferência de Área': ArrowRightLeft,
-  'Morte': X,
-  'Nascimento': TrendingUp,
-  'Abate': X,
-  'Mudança de Categoria': ArrowRightLeft,
-  'Pesagem': TrendingUp,
+const formatarNumero = (numero) => {
+  if (!numero && numero !== 0) return "0,00";
+  const numericValue = typeof numero === 'string' ? parseFloat(numero.replace('.', '').replace(',', '.')) : numero;
+  if (isNaN(numericValue)) return "0,00";
+  return numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatarData = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '-';
+  }
+};
+
+const formatarDataSimples = (dataString) => {
+  if (!dataString) return '-';
+  try {
+    const date = new Date(dataString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pt-BR');
+  } catch {
+    return '-';
+  }
+};
+
+const COLUNAS_DISPONIVEIS = [
+  { id: 'data', label: 'Data/Hora', default: true, sortable: true },
+  { id: 'tipo', label: 'Tipo', default: true, sortable: true },
+  { id: 'lote', label: 'Lote', default: true, sortable: true },
+  { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
+  { id: 'peso_medio', label: 'Peso Médio (kg)', default: true, sortable: false },
+  { id: 'area_origem', label: 'Área Origem', default: true, sortable: false },
+  { id: 'area_destino', label: 'Área Destino', default: true, sortable: false },
+  { id: 'observacoes', label: 'Observações', default: true, sortable: false },
+  { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
+];
+
+const ITEMS_PER_PAGE = 50;
+
 const tipoColors = {
-  'Transferência de Área': 'bg-blue-100 text-blue-800',
-  'Morte': 'bg-red-100 text-red-800',
-  'Nascimento': 'bg-green-100 text-green-800',
-  'Abate': 'bg-orange-100 text-orange-800',
-  'Mudança de Categoria': 'bg-purple-100 text-purple-800',
-  'Pesagem': 'bg-emerald-100 text-emerald-800',
+  'Transferência de Área': 'bg-blue-100 text-blue-800 border-blue-300',
+  'Morte': 'bg-red-100 text-red-800 border-red-300',
+  'Nascimento': 'bg-green-100 text-green-800 border-green-300',
+  'Abate': 'bg-orange-100 text-orange-800 border-orange-300',
+  'Mudança de Categoria': 'bg-purple-100 text-purple-800 border-purple-300',
+  'Pesagem': 'bg-emerald-100 text-emerald-800 border-emerald-300',
 };
 
 export default function HistoricoMovimentacoesPecuaria() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
   
-  const [filtros, setFiltros] = useState({
-    tipo: 'todos',
-    lote: '',
-    dataInicio: '',
-    dataFim: ''
-  });
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [editando, setEditando] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
+
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_movimentacoes_pecuaria');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_movimentacoes_pecuaria');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
+
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['movimentacoes-pecuaria', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-created_date');
       return all.filter(m => m.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: lotes = [] } = useQuery({
-    queryKey: ['lotes', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -108,15 +164,128 @@ export default function HistoricoMovimentacoesPecuaria() {
     }
   });
 
-  const movimentacoesFiltradas = movimentacoes.filter(mov => {
-    if (filtros.tipo !== 'todos' && mov.tipo !== filtros.tipo) return false;
-    if (filtros.lote && !mov.lote?.toLowerCase().includes(filtros.lote.toLowerCase())) return false;
-    if (filtros.dataInicio && new Date(mov.data_movimentacao) < new Date(filtros.dataInicio)) return false;
-    if (filtros.dataFim && new Date(mov.data_movimentacao) > new Date(filtros.dataFim)) return false;
-    return true;
+  const handleBulkDelete = async () => {
+    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} movimentação(ões). Esta ação não pode ser desfeita. Deseja continuar?`)) {
+      for (const id of selectedItems) {
+        try {
+          await base44.entities.MovimentacaoPecuaria.delete(id);
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      toast.success('Movimentações excluídas');
+      setSelectedItems([]);
+    }
+  };
+
+  const toggleColuna = (colunaId) => {
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId];
+      
+      localStorage.setItem('colunas_movimentacoes_pecuaria', JSON.stringify(novasColunas));
+      return novasColunas;
+    });
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_movimentacoes_pecuaria', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
+
+  const filteredMovimentacoes = movimentacoes.filter(mov => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      mov.tipo?.toLowerCase().includes(searchLower) ||
+      mov.lote?.toLowerCase().includes(searchLower) ||
+      mov.area_origem_nome?.toLowerCase().includes(searchLower) ||
+      mov.area_destino_nome?.toLowerCase().includes(searchLower) ||
+      mov.observacoes?.toLowerCase().includes(searchLower)
+    );
   });
 
-  const tiposDisponiveis = [...new Set(movimentacoes.map(m => m.tipo))].sort();
+  const sortedMovimentacoes = [...filteredMovimentacoes].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aValue, bValue;
+
+    switch (sortField) {
+      case 'data':
+        aValue = new Date(a.data_movimentacao).getTime();
+        bValue = new Date(b.data_movimentacao).getTime();
+        break;
+      case 'tipo':
+        aValue = a.tipo;
+        bValue = b.tipo;
+        break;
+      case 'lote':
+        aValue = a.lote;
+        bValue = b.lote;
+        break;
+      case 'quantidade':
+        aValue = a.quantidade_animais;
+        bValue = b.quantidade_animais;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedMovimentacoes.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedMovimentacoes = sortedMovimentacoes.slice(startIndex, endIndex);
+
+  const toggleSelectAll = () => {
+    if (selectedItems.length === paginatedMovimentacoes.length && paginatedMovimentacoes.length > 0) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(paginatedMovimentacoes.map(m => m.id));
+    }
+  };
+
+  const toggleSelectItem = (id) => {
+    setSelectedItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   const handleEdit = (mov) => {
     setEditando({ ...mov });
@@ -147,168 +316,312 @@ export default function HistoricoMovimentacoesPecuaria() {
     }
   };
 
-  const limparFiltros = () => {
-    setFiltros({ tipo: 'todos', lote: '', dataInicio: '', dataFim: '' });
+  const handleExport = () => {
+    const csvRows = [];
+    const headers = ['Data/Hora', 'Tipo', 'Lote', 'Quantidade', 'Peso Médio', 'Área Origem', 'Área Destino', 'Observações'];
+    csvRows.push(headers.join(';'));
+
+    movimentacoes.forEach(m => {
+      const row = [
+        formatarData(m.data_movimentacao),
+        m.tipo,
+        m.lote,
+        m.quantidade_animais,
+        m.peso_medio || '',
+        m.area_origem_nome || '',
+        m.area_destino_nome || '',
+        m.observacoes || ''
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `movimentacoes_pecuaria_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    toast.success('Exportado!');
+  };
+
+  const renderCell = (coluna, mov) => {
+    switch (coluna.id) {
+      case 'data':
+        return <TableCell className="text-xs border-r border-slate-200">{formatarData(mov.data_movimentacao)}</TableCell>;
+      case 'tipo':
+        return (
+          <TableCell className="border-r border-slate-200">
+            <Badge variant="outline" className={`${tipoColors[mov.tipo] || 'bg-slate-100 text-slate-800'} text-xs`}>
+              {mov.tipo}
+            </Badge>
+          </TableCell>
+        );
+      case 'lote':
+        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote}</TableCell>;
+      case 'quantidade':
+        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.quantidade_animais} cab</TableCell>;
+      case 'peso_medio':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? formatarNumero(mov.peso_medio) : '-'}</TableCell>;
+      case 'area_origem':
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_origem_nome || '-'}</TableCell>;
+      case 'area_destino':
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_destino_nome || '-'}</TableCell>;
+      case 'observacoes':
+        return <TableCell className="text-xs max-w-[200px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+      case 'responsavel':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
+      default:
+        return <TableCell className="text-xs border-r border-slate-200">-</TableCell>;
+    }
   };
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Histórico de Movimentações</h1>
-        <p className="text-sm text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Histórico de Movimentações</h1>
+          <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+            <Download className="w-3.5 h-3.5" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <Filter className="w-5 h-5 text-emerald-600" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo de Movimentação</Label>
-              <Select value={filtros.tipo} onValueChange={(v) => setFiltros({ ...filtros, tipo: v })}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {tiposDisponiveis.map(tipo => (
-                    <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Lote</Label>
-              <Input
-                value={filtros.lote}
-                onChange={(e) => setFiltros({ ...filtros, lote: e.target.value })}
-                placeholder="Buscar lote..."
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Data Início</Label>
-              <Input
-                type="date"
-                value={filtros.dataInicio}
-                onChange={(e) => setFiltros({ ...filtros, dataInicio: e.target.value })}
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Data Fim</Label>
-              <Input
-                type="date"
-                value={filtros.dataFim}
-                onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
-                className="h-8 text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end mt-3">
-            <Button onClick={limparFiltros} variant="outline" size="sm" className="h-8 text-xs">
-              Limpar Filtros
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <FileText className="w-5 h-5 text-slate-600" />
-              Movimentações ({movimentacoesFiltradas.length})
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Movimentações ({movimentacoes.length})
             </CardTitle>
+            <div className="flex gap-2 items-center">
+              {selectedItems.length > 0 && (
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
+                  <span className="text-xs font-semibold text-slate-800">
+                    {selectedItems.length} selecionado(s)
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                        Excluir Todos
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
+                        Limpar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+              </div>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
+                <Settings className="w-3.5 h-3.5" />
+                Colunas
+              </Button>
+            </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p className="text-sm text-slate-600">Carregando movimentações...</p>
-            </div>
-          ) : movimentacoesFiltradas.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-600">Nenhuma movimentação encontrada</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b">
-                  <tr>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Data</th>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Tipo</th>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Lote</th>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Quantidade</th>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Detalhes</th>
-                    <th className="text-left text-xs font-semibold text-slate-700 p-3">Observações</th>
-                    <th className="text-right text-xs font-semibold text-slate-700 p-3">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movimentacoesFiltradas.map((mov, index) => {
-                    const Icon = tipoIcons[mov.tipo] || FileText;
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-8 text-xs border-r border-slate-200">
+                    <Checkbox
+                      checked={selectedItems.length === paginatedMovimentacoes.length && paginatedMovimentacoes.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  {colunasOrdenadas.map((coluna) => {
                     return (
-                      <tr key={mov.id} className={`border-b hover:bg-slate-50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                        <td className="text-xs text-slate-700 p-3">
-                          {new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="p-3">
-                          <Badge className={`text-xs ${tipoColors[mov.tipo] || 'bg-slate-100 text-slate-800'}`}>
-                            <Icon className="w-3 h-3 mr-1" />
-                            {mov.tipo}
-                          </Badge>
-                        </td>
-                        <td className="text-xs font-medium text-slate-900 p-3">{mov.lote}</td>
-                        <td className="text-xs text-slate-700 p-3">{mov.quantidade_animais} cabeças</td>
-                        <td className="text-xs text-slate-600 p-3">
-                          {mov.area_origem_nome && mov.area_destino_nome && (
-                            <span>{mov.area_origem_nome} → {mov.area_destino_nome}</span>
-                          )}
-                          {mov.peso_medio && <span>Peso: {mov.peso_medio}kg</span>}
-                        </td>
-                        <td className="text-xs text-slate-600 p-3 max-w-xs truncate">
-                          {mov.observacoes || '-'}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(mov)}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Edit2 className="w-3 h-3 text-blue-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(mov.id)}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Trash2 className="w-3 h-3 text-red-600" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        onClick={() => coluna.sortable && handleSort(coluna.id)}
+                      >
+                        <div className="flex items-center">
+                          {coluna.label}
+                          {coluna.sortable && getSortIcon(coluna.id)}
+                        </div>
+                      </TableHead>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <AnimatePresence>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
+                    </TableRow>
+                  ) : paginatedMovimentacoes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={50} className="text-center py-12 text-slate-400 text-xs">Nenhuma movimentação</TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedMovimentacoes.map((mov) => (
+                      <motion.tr 
+                        key={mov.id}
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        className="hover:bg-slate-50 transition-colors border-b"
+                      >
+                        <TableCell className="border-r border-slate-200">
+                          <Checkbox
+                            checked={selectedItems.includes(mov.id)}
+                            onCheckedChange={() => toggleSelectItem(mov.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center border-r border-slate-200">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => handleEdit(mov)} className="text-xs">
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleDelete(mov.id)} className="text-xs text-red-600">
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        {colunasOrdenadas.map(coluna => (
+                          <React.Fragment key={coluna.id}>
+                            {renderCell(coluna, mov)}
+                          </React.Fragment>
+                        ))}
+                      </motion.tr>
+                    ))
+                  )}
+                </AnimatePresence>
+              </TableBody>
+            </Table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
+              <div className="text-xs text-slate-600">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedMovimentacoes.length)} de {sortedMovimentacoes.length} registros
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Anterior
+                </Button>
+                <span className="text-xs text-slate-600">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 text-xs"
+                >
+                  Próxima
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-3 gap-2">
+                {COLUNAS_DISPONIVEIS.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
         <DialogContent className="max-w-2xl">
