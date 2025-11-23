@@ -99,7 +99,7 @@ export default function RelatorioSuplementacao() {
     quantidade: eventosFiltrados.reduce((sum, e) => sum + e.quantidade_total_kg, 0),
     cabecas: eventosFiltrados.reduce((sum, e) => sum + e.total_cabecas_afetadas, 0) / (eventosFiltrados.length || 1),
     consumoMedio: eventosFiltrados.length > 0 
-      ? eventosFiltrados.reduce((sum, e) => sum + e.consumo_medio_por_cabeca_kg, 0) / eventosFiltrados.length
+      ? eventosFiltrados.reduce((sum, e) => sum + (e.consumo_medio_por_cabeca_kg || 0), 0) / eventosFiltrados.length
       : 0
   };
 
@@ -335,7 +335,7 @@ export default function RelatorioSuplementacao() {
                     <td className="py-2 text-slate-700">{evento.produto}</td>
                     <td className="text-right py-2 text-slate-700">{evento.quantidade_total_kg.toFixed(1)}</td>
                     <td className="text-right py-2 text-slate-700">{evento.total_cabecas_afetadas}</td>
-                    <td className="text-right py-2 text-slate-700">{evento.consumo_medio_por_cabeca_kg.toFixed(3)}</td>
+                    <td className="text-right py-2 text-slate-700">{(evento.consumo_medio_por_cabeca_kg || 0).toFixed(3)}</td>
                   </tr>
                 ))}
               </tbody>

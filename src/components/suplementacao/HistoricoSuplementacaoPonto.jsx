@@ -49,7 +49,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome }) {
     : 0;
   
   const mediaPorCabeca = eventosFiltrados.length > 0
-    ? (eventosFiltrados.reduce((sum, e) => sum + e.consumo_medio_por_cabeca_kg, 0) / eventosFiltrados.length).toFixed(3)
+    ? (eventosFiltrados.reduce((sum, e) => sum + (e.consumo_medio_por_cabeca_kg || 0), 0) / eventosFiltrados.length).toFixed(3)
     : 0;
 
   const ultimaData = eventosFiltrados.length > 0 
@@ -153,7 +153,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome }) {
                       Cabeças: <span className="font-semibold text-slate-900">{evento.total_cabecas_afetadas}</span>
                     </div>
                     <div className="text-slate-600">
-                      Por cabeça: <span className="font-semibold text-slate-900">{evento.consumo_medio_por_cabeca_kg.toFixed(3)} kg</span>
+                      Por cabeça: <span className="font-semibold text-slate-900">{(evento.consumo_medio_por_cabeca_kg || 0).toFixed(3)} kg</span>
                     </div>
                   </div>
                   {evento.observacoes && (

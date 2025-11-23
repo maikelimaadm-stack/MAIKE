@@ -117,8 +117,8 @@ export default function DashboardSuplementacao() {
     if (!p.consumo_ideal_por_cabeca_kg || !p.limite_minimo_consumo || !p.limite_maximo_consumo) return false;
     const eventosP = eventosFiltrados.filter(e => e.ponto_suplementacao_id === p.id);
     return eventosP.some(e => 
-      e.consumo_medio_por_cabeca_kg < p.limite_minimo_consumo || 
-      e.consumo_medio_por_cabeca_kg > p.limite_maximo_consumo
+      (e.consumo_medio_por_cabeca_kg || 0) < p.limite_minimo_consumo || 
+      (e.consumo_medio_por_cabeca_kg || 0) > p.limite_maximo_consumo
     );
   });
 
