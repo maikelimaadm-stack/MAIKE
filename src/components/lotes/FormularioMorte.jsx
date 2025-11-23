@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Save } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
@@ -33,27 +33,18 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
   }, {});
 
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
-  
-  console.log('📊 MORTE - Total de lotes recebidos:', lotesArray.length);
-  console.log('📊 MORTE - Categorias encontradas:', categoriasDisponiveis);
-  console.log('📊 MORTE - Detalhes por categoria:', lotesPorCategoria);
 
   const [formData, setFormData] = useState({
     data_ocorrencia: new Date().toISOString().split('T')[0],
-    mortes: categoriasDisponiveis.map(cat => ({
-      categoria: cat,
-      quantidade: "",
-      causa_morte: "",
-      selecionada: false
-    })),
+    mortes: [],
     observacoes: ""
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const mortesValidas = formData.mortes.filter(m => m.selecionada && parseInt(m.quantidade) > 0);
+    const mortesValidas = formData.mortes.filter(m => parseInt(m.quantidade) > 0 && m.causa_morte);
     if (mortesValidas.length === 0) {
-      alert("Selecione e configure pelo menos uma morte");
+      alert("Preencha pelo menos uma morte com quantidade e causa");
       return;
     }
     
@@ -66,6 +57,25 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
         observacoes: formData.observacoes
       });
     });
+  };
+
+  const adicionarCategoria = () => {
+    const primeiraCategoria = categoriasDisponiveis[0];
+    setFormData(prev => ({
+      ...prev,
+      mortes: [...prev.mortes, {
+        categoria: primeiraCategoria,
+        quantidade: "",
+        causa_morte: ""
+      }]
+    }));
+  };
+
+  const removerCategoria = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      mortes: prev.mortes.filter((_, i) => i !== index)
+    }));
   };
 
   const handleMorteChange = (index, field, value) => {
@@ -94,7 +104,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
             />
           </div>
 
-          <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+          <div className="space-y-2 max-h-[45vh] overflow-y-auto">
             {formData.mortes.map((morte, index) => {
               const infoCategoria = lotesPorCategoria[morte.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -104,47 +114,74 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
               return (
-                <div key={index} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold text-slate-900 mb-1.5">{morte.categoria}</div>
-                      <div className="text-xl font-bold text-slate-900 mb-2">{infoCategoria.totalCabecas} cab</div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex gap-2">
-                          <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
-                          <span className="font-semibold text-slate-900 break-words">{infoCategoria.lotes.map(l => l.nome).join(', ')}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {iconeUrl && (
-                      <img src={iconeUrl} alt={morte.categoria} className="w-12 h-12 object-contain flex-shrink-0" />
-                    )}
+                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-semibold">Categoria</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removerCategoria(index)}
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
 
-                  <div className="space-y-3 mt-3 pt-3 border-t">
+                  <Select
+                    value={morte.categoria}
+                    onValueChange={(v) => handleMorteChange(index, 'categoria', v)}
+                  >
+                    <SelectTrigger className="h-10 text-xs mb-3">
+                      <SelectValue>
+                        <div className="flex items-center gap-2">
+                          {iconeUrl && <img src={iconeUrl} alt="" className="w-5 h-5" />}
+                          <span>{infoCategoria.totalCabecas} cb - {morte.categoria}</span>
+                        </div>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDisponiveis.map(cat => {
+                        const info = lotesPorCategoria[cat];
+                        const icon = iconesConfig.find(ic => 
+                          ic.tipo_entidade === 'Lote' && 
+                          ic.categoria?.toUpperCase() === cat?.toUpperCase()
+                        );
+                        return (
+                          <SelectItem key={cat} value={cat} className="text-xs">
+                            <div className="flex items-center gap-2">
+                              {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
+                              <span>{info.totalCabecas} cb - {cat}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Quantidade *</Label>
+                      <Label className="text-xs text-slate-600">Quantidade *</Label>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
                         onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
-                        className="h-9 text-xs"
-                        disabled={!morte.selecionada}
+                        className="h-10 text-xs"
                         placeholder="0"
+                        required
                       />
                     </div>
 
                     <div>
-                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Causa</Label>
+                      <Label className="text-xs text-slate-600">Causa da Morte *</Label>
                       <Select
                         value={morte.causa_morte}
                         onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}
-                        disabled={!morte.selecionada}
                       >
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Causa" />
+                        <SelectTrigger className="h-10 text-xs">
+                          <SelectValue placeholder="Selecione a causa" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Doença" className="text-xs">Doença</SelectItem>
@@ -156,18 +193,20 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <Button
-                      type="button"
-                      onClick={() => handleMorteChange(index, 'selecionada', !morte.selecionada)}
-                      className={`h-8 text-[10px] w-full ${morte.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
-                    >
-                      {morte.selecionada ? 'Cancelar' : 'Selecionar'}
-                    </Button>
                   </div>
                 </div>
               );
             })}
+
+            <Button
+              type="button"
+              onClick={adicionarCategoria}
+              variant="outline"
+              className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Categoria
+            </Button>
           </div>
 
           <div className="space-y-1">
@@ -181,12 +220,10 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs gap-1.5">
-              <X className="w-3.5 h-3.5" />
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
-              <Save className="w-3.5 h-3.5" />
+            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
               Registrar Mortes
             </Button>
           </div>
