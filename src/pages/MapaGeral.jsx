@@ -445,7 +445,7 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="fixed inset-0 bg-white overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden" style={{ margin: 0, padding: 0 }}>
       <div
         ref={mapRef}
         style={{
@@ -454,8 +454,12 @@ export default function MapaGeral() {
           left: 0,
           right: 0,
           bottom: 0,
+          width: '100%',
+          height: '100%',
           backgroundColor: '#e5e7eb',
-          touchAction: 'manipulation'
+          touchAction: 'manipulation',
+          margin: 0,
+          padding: 0
         }}
       />
       
