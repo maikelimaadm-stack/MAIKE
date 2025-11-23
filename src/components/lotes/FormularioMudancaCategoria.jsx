@@ -8,16 +8,18 @@ import { X, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
-const CATEGORIAS = [
-  "Bezerro 0 a 12 meses",
-  "Bezerra 0 a 12 meses",
-  "Garrote 13 a 24 meses",
-  "Novilha 13 a 24 meses",
-  "Boi 25 a 36 meses",
-  "Vaca 25 a 36 meses",
-  "Touro + 36 meses",
-  "Vaca + 36 meses"
-];
+const CATEGORIAS_INFO = {
+  "Bezerro 0 a 12 meses": { sexo: "Macho", idade: 1 },
+  "Bezerra 0 a 12 meses": { sexo: "Fêmea", idade: 1 },
+  "Garrote 13 a 24 meses": { sexo: "Macho", idade: 2 },
+  "Novilha 13 a 24 meses": { sexo: "Fêmea", idade: 2 },
+  "Boi 25 a 36 meses": { sexo: "Macho", idade: 3 },
+  "Vaca 25 a 36 meses": { sexo: "Fêmea", idade: 3 },
+  "Touro + 36 meses": { sexo: "Macho", idade: 4 },
+  "Vaca + 36 meses": { sexo: "Fêmea", idade: 4 }
+};
+
+const CATEGORIAS = Object.keys(CATEGORIAS_INFO);
 
 export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -65,6 +67,25 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       return;
     }
 
+    // Verificar mudanças para categoria de idade menor
+    const mudancasComDowngrade = mudancasValidas.filter(m => {
+      const idadeAtual = CATEGORIAS_INFO[m.categoria_atual]?.idade || 0;
+      const idadeNova = CATEGORIAS_INFO[m.categoria_nova]?.idade || 0;
+      return idadeNova < idadeAtual;
+    });
+
+    if (mudancasComDowngrade.length > 0) {
+      const confirmacao = confirm(
+        `⚠️ ATENÇÃO: Você está mudando ${mudancasComDowngrade.length} categoria(s) para uma faixa etária menor.\n\n` +
+        `Isso não é recomendado pois não corresponde à idade real dos animais.\n\n` +
+        `Deseja continuar mesmo assim?`
+      );
+      
+      if (!confirmacao) {
+        return;
+      }
+    }
+
     onSubmit({
       ...formData,
       mudancas: mudancasValidas.map(m => ({...m, quantidade: parseInt(m.quantidade)}))
@@ -106,6 +127,17 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-xs">Data da Mudança *</Label>
+            <Input
+              type="date"
+              value={formData.data_mudanca}
+              onChange={(e) => setFormData({ ...formData, data_mudanca: e.target.value })}
+              className="h-8 text-xs"
+              required
+            />
+          </div>
+
           <div className="space-y-2 max-h-[40vh] overflow-y-auto">
             {formData.mudancas.map((mudanca, index) => {
               const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
@@ -186,9 +218,22 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                           <SelectValue placeholder="Selecione a nova categoria" />
                         </SelectTrigger>
                         <SelectContent>
-                          {CATEGORIAS.filter(c => c !== mudanca.categoria_atual).map(cat => (
-                            <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
-                          ))}
+                          {CATEGORIAS.filter(c => {
+                            if (c === mudanca.categoria_atual) return false;
+                            const sexoAtual = CATEGORIAS_INFO[mudanca.categoria_atual]?.sexo;
+                            const sexoNovo = CATEGORIAS_INFO[c]?.sexo;
+                            return sexoAtual === sexoNovo;
+                          }).map(cat => {
+                            const idadeAtual = CATEGORIAS_INFO[mudanca.categoria_atual]?.idade || 0;
+                            const idadeNova = CATEGORIAS_INFO[cat]?.idade || 0;
+                            const isDowngrade = idadeNova < idadeAtual;
+                            
+                            return (
+                              <SelectItem key={cat} value={cat} className="text-xs">
+                                {cat} {isDowngrade && '⚠️'}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
