@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [areaDetectada, setAreaDetectada] = React.useState(null);
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -39,6 +40,35 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  // Detectar automaticamente em qual área o ponto está sendo colocado
+  React.useEffect(() => {
+    if (!coordenadas || !areas.length) return;
+
+    for (const area of areas) {
+      const coords = area.coordenadas?.coords || [];
+      if (coords.length < 3) continue;
+
+      const polygon = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      
+      // Verificar se o ponto está dentro do polígono usando ray casting
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].lat, yi = polygon[i].lng;
+        const xj = polygon[j].lat, yj = polygon[j].lng;
+        
+        const intersect = ((yi > coordenadas.lng) !== (yj > coordenadas.lng))
+            && (coordenadas.lat < (xj - xi) * (coordenadas.lng - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      
+      if (inside) {
+        setAreaDetectada(area);
+        setFormData(prev => ({ ...prev, area_vinculada_id: area.id }));
+        break;
+      }
+    }
+  }, [coordenadas, areas]);
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
@@ -174,6 +204,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       {formData.tipo?.toUpperCase().includes('COCHO') && (
         <div className="space-y-3 border-t pt-3">
           <div className="text-xs font-semibold text-purple-700 mb-2">📦 Dados de Suplementação</div>
+          
+          {areaDetectada && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 mb-2">
+              <div className="text-xs font-semibold text-emerald-800">✓ Área detectada: {areaDetectada.nome}</div>
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-slate-700">Área Vinculada *</Label>

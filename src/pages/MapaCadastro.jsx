@@ -19,7 +19,7 @@ import {
 import TabelaAreasGeo from "../components/mapa/TabelaAreasGeo";
 import TabelaPontosGeo from "../components/mapa/TabelaPontosGeo";
 import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
-import TabelaCochosGeo from "../components/mapa/TabelaCochosGeo";
+
 import MapaDesenho from "../components/mapa/MapaDesenho";
 
 export default function MapaCadastro() {
