@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Map, Layers, Eye, X } from "lucide-react";
+import { Map, Layers, Eye, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -445,23 +445,34 @@ export default function MapaGeral() {
   };
 
   return (
-    <>
-      <div className="fixed inset-0 bg-white overflow-hidden">
-        <div
-          ref={mapRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#e5e7eb',
-            touchAction: 'manipulation'
-          }}
-        />
-        
-        {/* Controles flutuantes no topo direito */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+    <div className="fixed inset-0 bg-white overflow-hidden">
+      <div
+        ref={mapRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#e5e7eb',
+          touchAction: 'manipulation'
+        }}
+      />
+      
+      {/* Botão de voltar no topo esquerdo */}
+      <div className="absolute top-4 left-4 z-[1000]">
+        <Button
+          onClick={() => window.history.back()}
+          variant="secondary"
+          size="icon"
+          className="h-10 w-10 rounded-full bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
+        >
+          <ArrowLeft className="w-5 h-5 text-slate-700" />
+        </Button>
+      </div>
+
+      {/* Controles flutuantes no topo direito */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
@@ -481,7 +492,7 @@ export default function MapaGeral() {
         </div>
 
         {/* Controles de filtros no canto inferior esquerdo */}
-        <div className="absolute bottom-20 left-4 z-[1000] bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200 rounded-lg p-2 min-w-[140px]">
+      <div className="absolute bottom-20 left-4 z-[1000] bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200 rounded-lg p-2 min-w-[140px]">
           <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1 text-slate-700">
             <Layers className="w-3 h-3" />
             Filtros
@@ -526,15 +537,14 @@ export default function MapaGeral() {
           </div>
         </div>
 
-        {!mapReady && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white px-6 py-4 rounded-lg shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-              <span className="font-semibold text-slate-700">Carregando mapa...</span>
-            </div>
+      {!mapReady && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white px-6 py-4 rounded-lg shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+            <span className="font-semibold text-slate-700">Carregando mapa...</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -549,6 +559,6 @@ export default function MapaGeral() {
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
