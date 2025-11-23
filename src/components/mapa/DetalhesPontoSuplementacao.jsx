@@ -88,16 +88,16 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
   const handleLancamento = (data) => {
     if (!navigator.onLine) {
-      // Salvar offline
+      // Salvar offline - todos os dados
       const pending = JSON.parse(localStorage.getItem('pending_actions') || '[]');
       pending.push({
         id: Date.now(),
         type: 'suplementacao',
-        data: data.evento,
+        data: data, // Salvar objeto completo com evento, lotes, eventoAnterior, lotesAnteriores
         timestamp: new Date().toISOString()
       });
       localStorage.setItem('pending_actions', JSON.stringify(pending));
-      toast.success('Suplementação salva offline - será sincronizada quando conectar');
+      toast.success('Lançamento salvo offline - sincronizará quando conectar');
       setShowLancamento(false);
       return;
     }
