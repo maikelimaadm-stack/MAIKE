@@ -8,6 +8,7 @@ import {
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import PWAInstaller from "@/components/PWAInstaller";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -689,9 +690,11 @@ export default function Layout({ children, currentPageName }) {
       <main className="max-w-[1600px] mx-auto">
         {children}
       </main>
-    </div>
-  );
-}
+
+      <PWAInstaller />
+      </div>
+      );
+      }
 
 export const getEmpresaSelecionada = () => {
   return localStorage.getItem('empresa_selecionada_id');
