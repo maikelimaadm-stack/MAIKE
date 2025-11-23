@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
+import FormularioLancamentoSuplementacao from "../components/suplementacao/FormularioLancamentoSuplementacao";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
@@ -96,6 +97,15 @@ export default function MapaGeral() {
     queryFn: async () => {
       const all = await base44.entities.LinhaGeografica.list();
       return all.filter(l => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: pontosSuplementacao = [] } = useQuery({
+    queryKey: ['pontos-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
   });
