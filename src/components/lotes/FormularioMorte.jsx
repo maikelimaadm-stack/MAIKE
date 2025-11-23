@@ -42,7 +42,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
     data_ocorrencia: new Date().toISOString().split('T')[0],
     mortes: categoriasDisponiveis.map(cat => ({
       categoria: cat,
-      quantidade: 0,
+      quantidade: "",
       causa_morte: "",
       selecionada: false
     })),
@@ -51,7 +51,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const mortesValidas = formData.mortes.filter(m => m.selecionada && m.quantidade > 0);
+    const mortesValidas = formData.mortes.filter(m => m.selecionada && parseInt(m.quantidade) > 0);
     if (mortesValidas.length === 0) {
       alert("Selecione e configure pelo menos uma morte");
       return;
@@ -61,7 +61,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
       onSubmit({
         data_ocorrencia: formData.data_ocorrencia,
         categoria: morte.categoria,
-        quantidade: morte.quantidade,
+        quantidade: parseInt(morte.quantidade),
         causa_morte: morte.causa_morte,
         observacoes: formData.observacoes
       });
@@ -131,9 +131,10 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
-                        onChange={(e) => handleMorteChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
                         className="h-7 text-xs"
                         disabled={!morte.selecionada}
+                        placeholder="0"
                       />
                     </div>
 

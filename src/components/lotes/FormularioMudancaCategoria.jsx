@@ -55,7 +55,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     data_mudanca: new Date().toISOString().split('T')[0],
     mudancas: categoriasDisponiveis.map(cat => ({
       categoria_atual: cat,
-      quantidade: lotesPorCategoria[cat].totalCabecas,
+      quantidade: "",
       categoria_nova: "",
       selecionada: false
     })),
@@ -65,7 +65,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const mudancasValidas = formData.mudancas.filter(m => m.selecionada && m.categoria_nova && m.quantidade > 0);
+    const mudancasValidas = formData.mudancas.filter(m => m.selecionada && m.categoria_nova && parseInt(m.quantidade) > 0);
     if (mudancasValidas.length === 0) {
       alert("Selecione e configure pelo menos uma mudança de categoria");
       return;
@@ -73,7 +73,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
     onSubmit({
       ...formData,
-      mudancas: mudancasValidas
+      mudancas: mudancasValidas.map(m => ({...m, quantidade: parseInt(m.quantidade)}))
     });
   };
 
@@ -128,9 +128,9 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={mudanca.quantidade}
-                        onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleMudancaChange(index, 'quantidade', e.target.value)}
                         className="h-9 text-xs"
-                        placeholder="Quantidade"
+                        placeholder="0"
                         disabled={!mudanca.selecionada}
                       />
                     </div>

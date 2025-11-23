@@ -41,7 +41,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
     data_abate: new Date().toISOString().split('T')[0],
     abates: categoriasDisponiveis.map(cat => ({
       categoria: cat,
-      quantidade: 0,
+      quantidade: "",
       peso_vivo_total: "",
       peso_carcaca_total: "",
       destino: "",
@@ -52,7 +52,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const abatesValidos = formData.abates.filter(a => a.selecionada && a.quantidade > 0);
+    const abatesValidos = formData.abates.filter(a => a.selecionada && parseInt(a.quantidade) > 0);
     if (abatesValidos.length === 0) {
       alert("Selecione e configure pelo menos um abate");
       return;
@@ -62,7 +62,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
       onSubmit({
         data_abate: formData.data_abate,
         categoria: abate.categoria,
-        quantidade: abate.quantidade,
+        quantidade: parseInt(abate.quantidade),
         peso_vivo_total: abate.peso_vivo_total,
         peso_carcaca_total: abate.peso_carcaca_total,
         destino: abate.destino,
@@ -134,9 +134,10 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={abate.quantidade}
-                        onChange={(e) => handleAbateChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleAbateChange(index, 'quantidade', e.target.value)}
                         className="h-7 text-xs"
                         disabled={!abate.selecionada}
+                        placeholder="0"
                       />
                     </div>
 

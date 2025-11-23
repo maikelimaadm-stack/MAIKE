@@ -46,7 +46,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
     data_nascimento: new Date().toISOString().split('T')[0],
     nascimentos: categoriasDisponiveis.map(cat => ({
       categoria_mae: cat,
-      quantidade: 0,
+      quantidade: "",
       sexo: "Macho",
       peso_medio: "",
       selecionada: false
@@ -56,7 +56,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const nascimentosValidos = formData.nascimentos.filter(n => n.selecionada && n.quantidade > 0);
+    const nascimentosValidos = formData.nascimentos.filter(n => n.selecionada && parseInt(n.quantidade) > 0);
     if (nascimentosValidos.length === 0) {
       alert("Selecione e configure pelo menos um nascimento");
       return;
@@ -66,7 +66,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
       onSubmit({
         data_nascimento: formData.data_nascimento,
         categoria_mae: nasc.categoria_mae,
-        quantidade: nasc.quantidade,
+        quantidade: parseInt(nasc.quantidade),
         sexo: nasc.sexo,
         peso_medio: nasc.peso_medio,
         observacoes: formData.observacoes
@@ -142,9 +142,10 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                           type="number"
                           min="0"
                           value={nasc.quantidade}
-                          onChange={(e) => handleNascimentoChange(index, 'quantidade', parseInt(e.target.value) || 0)}
+                          onChange={(e) => handleNascimentoChange(index, 'quantidade', e.target.value)}
                           className="h-7 text-xs"
                           disabled={!nasc.selecionada}
+                          placeholder="0"
                         />
                       </div>
 

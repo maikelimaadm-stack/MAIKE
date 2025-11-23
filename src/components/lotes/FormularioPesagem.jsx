@@ -38,7 +38,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   console.log('⚖️ PESAGEM - Detalhes por categoria:', lotesPorCategoria);
 
   const [modoPesagem, setModoPesagem] = useState("categorias"); // "categorias" ou "todos"
-  const [pesoGeral, setPesoGeral] = useState(0);
+  const [pesoGeral, setPesoGeral] = useState("");
 
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],
@@ -54,7 +54,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
     e.preventDefault();
     
     if (modoPesagem === "todos") {
-      if (pesoGeral <= 0) {
+      if (!pesoGeral || parseFloat(pesoGeral) <= 0) {
         alert("Informe o peso para todos os animais");
         return;
       }
@@ -62,7 +62,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       onSubmit({
         data_pesagem: formData.data_pesagem,
         categorias_selecionadas: categoriasDisponiveis,
-        pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => ({ ...acc, [cat]: pesoGeral }), {}),
+        pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => ({ ...acc, [cat]: parseFloat(pesoGeral) }), {}),
         observacoes: formData.observacoes
       });
     } else {
@@ -134,7 +134,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 type="number"
                 step="0.1"
                 value={pesoGeral}
-                onChange={(e) => setPesoGeral(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setPesoGeral(e.target.value)}
                 className="h-10 text-sm font-semibold"
                 placeholder="Peso em kg"
               />
