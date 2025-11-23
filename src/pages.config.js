@@ -40,6 +40,7 @@ import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuar
 import DashboardSuplementacao from './pages/DashboardSuplementacao';
 import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
 import ConfiguracaoFatoresConsumo from './pages/ConfiguracaoFatoresConsumo';
+import CategoriasManejo from './pages/CategoriasManejo';
 import __Layout from './Layout.jsx';
 
 
@@ -86,6 +87,7 @@ export const PAGES = {
     "DashboardSuplementacao": DashboardSuplementacao,
     "RelatorioSuplementacao": RelatorioSuplementacao,
     "ConfiguracaoFatoresConsumo": ConfiguracaoFatoresConsumo,
+    "CategoriasManejo": CategoriasManejo,
 }
 
 export const pagesConfig = {
