@@ -87,6 +87,21 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   });
 
   const handleLancamento = (data) => {
+    if (!navigator.onLine) {
+      // Salvar offline
+      const pending = JSON.parse(localStorage.getItem('pending_actions') || '[]');
+      pending.push({
+        id: Date.now(),
+        type: 'suplementacao',
+        data: data.evento,
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('pending_actions', JSON.stringify(pending));
+      toast.success('Suplementação salva offline - será sincronizada quando conectar');
+      setShowLancamento(false);
+      return;
+    }
+    
     lancamentoMutation.mutate(data);
   };
 

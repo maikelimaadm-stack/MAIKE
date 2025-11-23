@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import PWAInstaller from "@/components/PWAInstaller";
+import OfflineManager from "@/components/offline/OfflineManager";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -692,6 +693,7 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       <PWAInstaller />
+      <OfflineManager />
       </div>
       );
       }
