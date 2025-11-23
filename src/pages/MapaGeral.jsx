@@ -541,9 +541,8 @@ export default function MapaGeral() {
           </div>
         )}
       </div>
-    </div>
 
-    <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
+      <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
       <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes do Lote</DialogTitle>
