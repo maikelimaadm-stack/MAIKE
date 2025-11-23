@@ -108,6 +108,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       return;
     }
 
+    // Criar novo evento (ainda sem período definido - será fechado no próximo)
     const dadosEvento = {
       empresa_id: empresaSelecionadaId,
       ponto_suplementacao_id: ponto.id,
@@ -118,19 +119,51 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       produto: formData.produto,
       quantidade_total_kg: parseFloat(formData.quantidade_total_kg),
       sobra_kg: parseFloat(formData.sobra_kg || 0),
-      dias_periodo: diasPeriodo || 1,
-      consumo_diario_grupo_kg: consumoDiarioGrupo,
+      dias_periodo: null, // Será calculado no próximo lançamento
+      consumo_diario_grupo_kg: null,
       total_cabecas_afetadas: totalCabecas,
       peso_total_consumo: pesoTotalConsumo,
       observacoes: formData.observacoes
     };
 
+    // Se existe evento anterior, recalcular seu período AGORA
+    let eventoAnteriorAtualizado = null;
+    let lotesAnterioresAtualizados = [];
+
+    if (ultimoEvento) {
+      const quantidadeConsumidaAnterior = ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0);
+      const consumoDiarioGrupoAnterior = quantidadeConsumidaAnterior / diasPeriodo;
+      const consumoUnitarioDiaAnterior = quantidadeConsumidaAnterior / (diasPeriodo * ultimoEvento.peso_total_consumo);
+
+      eventoAnteriorAtualizado = {
+        id: ultimoEvento.id,
+        dias_periodo: diasPeriodo,
+        consumo_diario_grupo_kg: consumoDiarioGrupoAnterior
+      };
+
+      // Recalcular lotes do evento anterior
+      lotesAnterioresAtualizados = lotes.map(lote => {
+        const categoriaLote = lote.categoria?.toUpperCase().trim();
+        const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
+        const pesoConsumoLote = lote.quantidade_cabecas * fator;
+        const consumoPorCabecaDia = consumoUnitarioDiaAnterior * fator;
+        const consumoTotalLotePeriodo = consumoPorCabecaDia * lote.quantidade_cabecas * diasPeriodo;
+
+        return {
+          lote_id: lote.id,
+          peso_consumo_lote: pesoConsumoLote,
+          dias_periodo: diasPeriodo,
+          consumo_unitario_dia: consumoUnitarioDiaAnterior,
+          consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
+          consumo_total_lote_periodo_kg: consumoTotalLotePeriodo
+        };
+      });
+    }
+
     const lotesAfetados = lotes.map(lote => {
       const categoriaLote = lote.categoria?.toUpperCase().trim();
       const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
       const pesoConsumoLote = lote.quantidade_cabecas * fator;
-      const consumoPorCabecaDia = consumoUnitarioDia * fator;
-      const consumoTotalLotePeriodo = consumoPorCabecaDia * lote.quantidade_cabecas * (diasPeriodo || 1);
 
       return {
         empresa_id: empresaSelecionadaId,
@@ -142,14 +175,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         produto: formData.produto,
         cabecas_na_area: lote.quantidade_cabecas,
         peso_consumo_lote: pesoConsumoLote,
-        dias_periodo: diasPeriodo || 1,
-        consumo_unitario_dia: consumoUnitarioDia,
-        consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
-        consumo_total_lote_periodo_kg: consumoTotalLotePeriodo
+        dias_periodo: null, // Será calculado no próximo lançamento
+        consumo_unitario_dia: null,
+        consumo_por_cabeca_dia_kg: null,
+        consumo_total_lote_periodo_kg: null
       };
     });
 
-    onSubmit({ evento: dadosEvento, lotes: lotesAfetados });
+    onSubmit({ 
+      evento: dadosEvento, 
+      lotes: lotesAfetados,
+      eventoAnterior: eventoAnteriorAtualizado,
+      lotesAnteriores: lotesAnterioresAtualizados
+    });
   };
 
   return (
@@ -256,48 +294,30 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
           </div>
 
-          {formData.quantidade_total_kg && totalCabecas > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-xs font-semibold text-blue-900 mb-2">📊 Cálculo Automático:</div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
+          {formData.quantidade_total_kg && totalCabecas > 0 && ultimoEvento && diasPeriodo && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+              <div className="text-xs font-semibold text-amber-900 mb-2">⚠️ Fechamento do Período Anterior:</div>
+              <div className="text-xs text-amber-800 mb-2">
+                O lançamento de <strong>{new Date(ultimoEvento.data_lancamento).toLocaleDateString()}</strong> será fechado com <strong>{diasPeriodo} dia(s)</strong> de duração.
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-blue-700">Quantidade consumida:</span>
-                  <span className="font-bold text-blue-900 ml-2">{quantidadeConsumida.toFixed(1)} kg</span>
+                  <span className="text-amber-700">Quantidade anterior:</span>
+                  <span className="font-bold text-amber-900 ml-2">{(ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0)).toFixed(1)} kg</span>
                 </div>
                 <div>
-                  <span className="text-blue-700">Consumo/dia do grupo:</span>
-                  <span className="font-bold text-blue-900 ml-2">{consumoDiarioGrupo.toFixed(2)} kg</span>
-                </div>
-                <div>
-                  <span className="text-blue-700">Peso total de consumo:</span>
-                  <span className="font-bold text-blue-900 ml-2">{pesoTotalConsumo.toFixed(2)}</span>
-                </div>
-                <div>
-                  <span className="text-blue-700">Consumo unitário/dia:</span>
-                  <span className="font-bold text-blue-900 ml-2">{consumoUnitarioDia.toFixed(4)} kg</span>
+                  <span className="text-amber-700">Consumo/dia calculado:</span>
+                  <span className="font-bold text-amber-900 ml-2">{((ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0)) / diasPeriodo).toFixed(2)} kg/dia</span>
                 </div>
               </div>
             </div>
           )}
 
-          {lotes.length > 0 && consumoUnitarioDia > 0 && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              <div className="text-xs font-semibold text-purple-900 mb-2">🐄 Consumo por Categoria:</div>
-              <div className="space-y-1">
-                {lotes.map(lote => {
-                  const categoriaLote = lote.categoria?.toUpperCase().trim();
-                  const fatorObj = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote);
-                  const fator = fatorObj?.fator || 1.0;
-                  const consumoPorCabeca = consumoUnitarioDia * fator;
-                  return (
-                    <div key={lote.id} className="flex justify-between text-xs">
-                      <span className="text-purple-700">
-                        {lote.categoria} ({lote.quantidade_cabecas} cab) - Fator: {fator}:
-                      </span>
-                      <span className="font-bold text-purple-900">{consumoPorCabeca.toFixed(4)} kg/cab/dia</span>
-                    </div>
-                  );
-                })}
+          {!ultimoEvento && formData.quantidade_total_kg && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-xs font-semibold text-blue-900 mb-2">ℹ️ Primeiro Lançamento</div>
+              <div className="text-xs text-blue-700">
+                Este é o primeiro lançamento neste ponto. O consumo será calculado quando o próximo abastecimento for registrado.
               </div>
             </div>
           )}

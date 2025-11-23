@@ -29,9 +29,33 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   });
 
   const lancamentoMutation = useMutation({
-    mutationFn: async ({ evento, lotes }) => {
+    mutationFn: async ({ evento, lotes, eventoAnterior, lotesAnteriores }) => {
+      // Se existe evento anterior, atualizar período dele primeiro
+      if (eventoAnterior) {
+        await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
+          dias_periodo: eventoAnterior.dias_periodo,
+          consumo_diario_grupo_kg: eventoAnterior.consumo_diario_grupo_kg
+        });
+
+        // Atualizar lotes do evento anterior
+        if (lotesAnteriores && lotesAnteriores.length > 0) {
+          const allLotesSupl = await base44.entities.SuplementacaoLote.list();
+          for (const loteUpdate of lotesAnteriores) {
+            const loteExistente = allLotesSupl.find(l => 
+              l.suplementacao_evento_id === eventoAnterior.id && 
+              l.lote_id === loteUpdate.lote_id
+            );
+            if (loteExistente) {
+              await base44.entities.SuplementacaoLote.update(loteExistente.id, loteUpdate);
+            }
+          }
+        }
+      }
+
+      // Criar novo evento
       const eventoCreated = await base44.entities.SuplementacaoEvento.create(evento);
       
+      // Criar lotes do novo evento
       for (const lote of lotes) {
         await base44.entities.SuplementacaoLote.create({
           ...lote,
@@ -42,6 +66,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eventos-ponto'] });
       queryClient.invalidateQueries({ queryKey: ['suplementacao-lote'] });
+      queryClient.invalidateQueries({ queryKey: ['eventos-suplementacao'] });
       toast.success('Suplementação registrada com sucesso');
       setShowLancamento(false);
     },
