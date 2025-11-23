@@ -183,28 +183,23 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     if (!formData.nome || !formData.tipo) {
       toast.error('Preencha nome e tipo!');
       return;
     }
+    
+    if (!coordenadasGPS && !coordenadas) {
+      toast.error('Coordenadas GPS não capturadas!');
+      return;
+    }
+    
     if (formData.tipo?.toUpperCase().includes('COCHO') && !formData.area_vinculada_id) {
       toast.error('Para cocho é necessário selecionar uma área!');
       return;
     }
-    createPontoMutation.mutate({
-      nome: formData.nome.toUpperCase(),
-      sigla: formData.sigla.toUpperCase(),
-      tipo: formData.tipo,
-      observacoes: formData.observacoes?.toUpperCase(),
-      produto_padrao: formData.produto_padrao,
-      capacidade_cocho_kg: formData.capacidade_cocho_kg,
-      area_vinculada_id: formData.area_vinculada_id,
-      consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg,
-      limite_minimo_consumo: formData.limite_minimo_consumo,
-      limite_maximo_consumo: formData.limite_maximo_consumo,
-      frequencia_esperada_dias: formData.frequencia_esperada_dias,
-      alerta_sem_lancamento_dias: formData.alerta_sem_lancamento_dias
-    });
+    
+    createPontoMutation.mutate(formData);
   };
 
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
