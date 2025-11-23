@@ -150,6 +150,12 @@ export default function Layout({ children, currentPageName }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
   const isChangingEmpresa = useRef(false);
+
+  // Prevenir tradução automática do navegador
+  React.useEffect(() => {
+    document.documentElement.setAttribute('translate', 'no');
+    document.documentElement.setAttribute('lang', 'pt-BR');
+  }, []);
   
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');

@@ -570,54 +570,60 @@ export default function DetalhesLote({ lotes, onClose }) {
           onClick={() => setShowMovimentacao(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <ArrowRightLeft className="w-4 h-4 text-slate-600" />
-          <span>Mover</span>
+          <span translate="no">Mover</span>
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <Scale className="w-4 h-4 text-slate-600" />
-          <span>Pesar</span>
+          <span translate="no">Pesar</span>
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <RefreshCw className="w-4 h-4 text-slate-600" />
-          <span>Mudar Cat.</span>
+          <span translate="no">Mudar Cat.</span>
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <Star className="w-4 h-4 text-slate-600" />
-          <span>Nascer</span>
+          <span translate="no">Nascer</span>
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <XCircle className="w-4 h-4 text-slate-600" />
-          <span>Morte</span>
+          <span translate="no">Morte</span>
         </Button>
 
         <Button 
           onClick={() => setShowAbate(true)}
           variant="outline"
           className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          translate="no"
         >
           <Package className="w-4 h-4 text-slate-600" />
-          <span>Abate</span>
+          <span translate="no">Abate</span>
         </Button>
       </div>
 
@@ -626,6 +632,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           onClick={() => setShowHistorico(true)}
           variant="outline"
           className="h-9 text-[11px] font-semibold border-slate-300"
+          translate="no"
         >
           Histórico Movimentações
         </Button>
@@ -633,6 +640,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           onClick={() => setShowHistoricoSupl(true)}
           variant="outline"
           className="h-9 text-[11px] font-semibold border-slate-300"
+          translate="no"
         >
           Histórico Suplementação
         </Button>
