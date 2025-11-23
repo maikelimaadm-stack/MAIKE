@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, ChevronDown, ChevronRight } from "lucide-react";
+import { X, ChevronDown, ChevronRight, Save } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
@@ -183,10 +183,12 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs gap-1.5">
+              <X className="w-3.5 h-3.5" />
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
+              <Save className="w-3.5 h-3.5" />
               Confirmar Mudanças
             </Button>
           </div>

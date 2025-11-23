@@ -94,7 +94,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto">
             {formData.mortes.map((morte, index) => {
               const infoCategoria = lotesPorCategoria[morte.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -104,48 +104,46 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
               return (
-                <div key={index} className={`border rounded-lg p-2 transition-all ${morte.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
-                  <div className="flex items-start gap-2 mb-2">
-                    <div className="flex-1">
-                      <div className="text-[10px] font-semibold text-emerald-600">
-                        {infoCategoria.totalCabecas} cabeças - {morte.categoria.split(' ')[0]}
-                      </div>
-                      <div className="text-[8px] text-slate-500 truncate">
-                        {infoCategoria.lotes[0]?.nome}
+                <div key={index} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-bold text-slate-900 mb-1.5">{morte.categoria}</div>
+                      <div className="text-xl font-bold text-emerald-600 mb-2">{infoCategoria.totalCabecas} cab</div>
+                      <div className="space-y-1.5 text-[10px]">
+                        <div className="flex gap-2">
+                          <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
+                          <span className="font-semibold text-slate-900 break-words">{infoCategoria.lotes.map(l => l.nome).join(', ')}</span>
+                        </div>
                       </div>
                     </div>
-                    {iconeUrl ? (
-                      <img src={iconeUrl} alt={morte.categoria} className="w-8 h-8 object-contain" />
-                    ) : (
-                      <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
-                        {morte.categoria.substring(0, 2)}
-                      </div>
+                    {iconeUrl && (
+                      <img src={iconeUrl} alt={morte.categoria} className="w-12 h-12 object-contain flex-shrink-0" />
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-3 mt-3 pt-3 border-t">
                     <div>
-                      <Label className="text-[10px] text-slate-600">Quantidade *</Label>
+                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Quantidade *</Label>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={morte.quantidade}
                         onChange={(e) => handleMorteChange(index, 'quantidade', e.target.value)}
-                        className="h-7 text-xs"
+                        className="h-9 text-xs"
                         disabled={!morte.selecionada}
                         placeholder="0"
                       />
                     </div>
 
                     <div>
-                      <Label className="text-[10px] text-slate-600">Causa</Label>
+                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Causa</Label>
                       <Select
                         value={morte.causa_morte}
                         onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}
                         disabled={!morte.selecionada}
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-9 text-xs">
                           <SelectValue placeholder="Causa" />
                         </SelectTrigger>
                         <SelectContent>
@@ -158,15 +156,15 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleMorteChange(index, 'selecionada', !morte.selecionada)}
-                    className={`h-6 text-[10px] mt-2 w-full ${morte.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
-                  >
-                    {morte.selecionada ? 'Cancelar' : 'Selecionar'}
-                  </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleMorteChange(index, 'selecionada', !morte.selecionada)}
+                      className={`h-8 text-[10px] w-full ${morte.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} text-white`}
+                    >
+                      {morte.selecionada ? 'Cancelar' : 'Selecionar'}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -183,10 +181,12 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs gap-1.5">
+              <X className="w-3.5 h-3.5" />
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-red-600 hover:bg-red-700">
+            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
+              <Save className="w-3.5 h-3.5" />
               Registrar Mortes
             </Button>
           </div>
