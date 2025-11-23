@@ -72,24 +72,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
-      const allPontos = await base44.entities.PontoReferencia.list();
-      const maxNum = allPontos.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
-      
-      const configIcone = iconesConfig.find(ic => ic.categoria === data.tipo);
-      
-      // Criar ponto de referência
-      const ponto = await base44.entities.PontoReferencia.create({
-        nome: data.nome,
-        tipo: data.tipo,
-        observacoes: data.observacoes,
-        empresa_id: empresaSelecionadaId,
-        numero_ponto: String(maxNum + 1),
-        ativo: true,
-        cor: configIcone?.cor_padrao || '#0066ff',
-        coordenadas: coordenadas
-      });
-
-      // Se for cocho, criar também ponto de suplementação
+      // Se for cocho, criar APENAS ponto de suplementação
       if (data.tipo?.toUpperCase().includes('COCHO') && data.area_vinculada_id) {
         const allPontosSuplementacao = await base44.entities.PontoSuplementacao.list();
         const pontosEmpresa = allPontosSuplementacao.filter(p => p.empresa_id === empresaSelecionadaId);
@@ -100,7 +83,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
 
         const areaVinculada = areas.find(a => a.id === data.area_vinculada_id);
 
-        await base44.entities.PontoSuplementacao.create({
+        return await base44.entities.PontoSuplementacao.create({
           empresa_id: empresaSelecionadaId,
           numero_ponto: `COCHO-${novoNumero}`,
           nome_ponto: data.nome,
@@ -115,8 +98,23 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           alerta_sem_lancamento_dias: 10
         });
       }
-
-      return ponto;
+      
+      // Se não for cocho, criar ponto de referência normal
+      const allPontos = await base44.entities.PontoReferencia.list();
+      const maxNum = allPontos.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
+      
+      const configIcone = iconesConfig.find(ic => ic.categoria === data.tipo);
+      
+      return await base44.entities.PontoReferencia.create({
+        nome: data.nome,
+        tipo: data.tipo,
+        observacoes: data.observacoes,
+        empresa_id: empresaSelecionadaId,
+        numero_ponto: String(maxNum + 1),
+        ativo: true,
+        cor: configIcone?.cor_padrao || '#0066ff',
+        coordenadas: coordenadas
+      });
     },
     onSuccess: () => {
       toast.success('✅ Ponto cadastrado!');
