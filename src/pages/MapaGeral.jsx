@@ -305,8 +305,9 @@ export default function MapaGeral() {
         const coords = ponto.coordenadas || {};
         if (!coords.lat || !coords.lng) return;
 
+        // Buscar configuração do ícone (tipo Ponto com categoria COCHO)
         const configIcone = iconesConfig.find(ic => 
-          ic.tipo_entidade === 'Cocho' && 
+          ic.categoria?.toUpperCase().trim() === 'COCHO' ||
           ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim()
         );
 
