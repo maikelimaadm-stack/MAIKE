@@ -3,11 +3,36 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Trash2, Check, X, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 
+const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
+
+const loadGoogleMapsScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry`;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
 export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar }) {
   const [pontos, setPontos] = useState([]);
   const [localizacaoAtual, setLocalizacaoAtual] = useState(null);
   const [rastreando, setRastreando] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const watchIdRef = useRef(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const userMarkerRef = useRef(null);
+  const pontosMarkersRef = useRef([]);
+  const polygonRef = useRef(null);
+  const polylineRef = useRef(null);
 
   const iniciarRastreamento = () => {
     if (!navigator.geolocation) {
@@ -45,9 +70,135 @@ export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar
   };
 
   useEffect(() => {
+    loadGoogleMapsScript().then(() => {
+      if (!mapRef.current || mapInstanceRef.current) return;
+
+      const map = new google.maps.Map(mapRef.current, {
+        center: { lat: -15.0067, lng: -59.9533 },
+        zoom: 18,
+        mapTypeId: 'satellite',
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        gestureHandling: 'greedy',
+        zoomControl: true,
+        disableDefaultUI: false
+      });
+
+      mapInstanceRef.current = map;
+      
+      google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
+        setMapReady(true);
+      });
+    });
+
     iniciarRastreamento();
     return () => pararRastreamento();
   }, []);
+
+  // Atualizar marcador do usuário no mapa
+  useEffect(() => {
+    if (!mapInstanceRef.current || !localizacaoAtual || !mapReady) return;
+
+    // Centralizar mapa na localização
+    mapInstanceRef.current.setCenter({ lat: localizacaoAtual.lat, lng: localizacaoAtual.lng });
+
+    // Atualizar marcador do usuário
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setPosition({ lat: localizacaoAtual.lat, lng: localizacaoAtual.lng });
+    } else {
+      userMarkerRef.current = new google.maps.Marker({
+        position: { lat: localizacaoAtual.lat, lng: localizacaoAtual.lng },
+        map: mapInstanceRef.current,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 12,
+          fillColor: '#4285F4',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 3
+        },
+        title: 'Sua localização',
+        zIndex: 10000
+      });
+
+      // Círculo de precisão
+      new google.maps.Circle({
+        map: mapInstanceRef.current,
+        center: { lat: localizacaoAtual.lat, lng: localizacaoAtual.lng },
+        radius: localizacaoAtual.accuracy,
+        fillColor: '#4285F4',
+        fillOpacity: 0.15,
+        strokeColor: '#4285F4',
+        strokeOpacity: 0.3,
+        strokeWeight: 1,
+        zIndex: 9999
+      });
+    }
+  }, [localizacaoAtual, mapReady]);
+
+  // Renderizar pontos e linhas no mapa
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady) return;
+
+    // Limpar marcadores antigos
+    pontosMarkersRef.current.forEach(m => m.setMap(null));
+    pontosMarkersRef.current = [];
+
+    // Adicionar marcadores dos pontos
+    pontos.forEach((ponto, idx) => {
+      const marker = new google.maps.Marker({
+        position: { lat: ponto.lat, lng: ponto.lng },
+        map: mapInstanceRef.current,
+        label: {
+          text: String(idx + 1),
+          color: '#ffffff',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: tipo === 'area' ? '#10b981' : '#f59e0b',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 3
+        },
+        zIndex: 5000
+      });
+      pontosMarkersRef.current.push(marker);
+    });
+
+    // Renderizar polígono ou linha
+    if (polygonRef.current) {
+      polygonRef.current.setMap(null);
+      polygonRef.current = null;
+    }
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
+
+    if (tipo === 'area' && pontos.length >= 3) {
+      polygonRef.current = new google.maps.Polygon({
+        paths: pontos,
+        strokeColor: '#10b981',
+        strokeOpacity: 1,
+        strokeWeight: 3,
+        fillColor: '#10b981',
+        fillOpacity: 0.3,
+        map: mapInstanceRef.current
+      });
+    } else if (tipo === 'linha' && pontos.length >= 2) {
+      polylineRef.current = new google.maps.Polyline({
+        path: pontos,
+        strokeColor: '#f59e0b',
+        strokeOpacity: 1,
+        strokeWeight: 4,
+        map: mapInstanceRef.current
+      });
+    }
+  }, [pontos, tipo, mapReady]);
 
   const adicionarPonto = () => {
     if (!localizacaoAtual) {
@@ -128,81 +279,79 @@ export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 p-4 shadow-lg">
+      <div className="bg-white border-b border-slate-200 p-3 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-base font-bold text-slate-900">
               {tipo === 'area' ? '📐 Captura de Área' : '📏 Captura de Linha'}
             </h3>
-            <p className="text-xs text-slate-600 mt-1">
-              Ande pelo perímetro e clique em "Marcar Ponto" em cada vértice
+            <p className="text-xs text-slate-600 mt-0.5">
+              Ande e marque pontos em cada vértice
             </p>
           </div>
-          <Button onClick={handleCancelar} variant="ghost" size="icon">
-            <X className="w-5 h-5" />
+          <Button onClick={handleCancelar} variant="ghost" size="icon" className="h-8 w-8">
+            <X className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-4">
-        {/* Status GPS */}
-        <div className={`px-6 py-4 rounded-xl shadow-lg ${rastreando ? 'bg-emerald-600' : 'bg-slate-600'} text-white`}>
-          <div className="flex items-center gap-3">
-            <Navigation className={`w-6 h-6 ${rastreando ? 'animate-pulse' : ''}`} />
-            <div>
-              <div className="font-bold">
+      {/* Mapa */}
+      <div className="flex-1 relative">
+        <div
+          ref={mapRef}
+          className="w-full h-full"
+        />
+
+        {!mapReady && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white px-6 py-4 rounded-lg shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
+              <span className="font-semibold text-slate-700">Carregando mapa...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Info Cards no mapa */}
+        <div className="absolute top-4 left-4 right-4 flex flex-col gap-2">
+          {/* Status GPS */}
+          <div className={`px-4 py-2 rounded-lg shadow-lg ${rastreando ? 'bg-emerald-600' : 'bg-slate-600'} text-white`}>
+            <div className="flex items-center gap-2">
+              <Navigation className={`w-4 h-4 ${rastreando ? 'animate-pulse' : ''}`} />
+              <div className="text-xs font-semibold">
                 {rastreando ? 'GPS Ativo' : 'GPS Inativo'}
+                {localizacaoAtual && ` • Precisão: ${localizacaoAtual.accuracy.toFixed(0)}m`}
               </div>
-              {localizacaoAtual && (
-                <div className="text-xs opacity-90 mt-1">
-                  Precisão: {localizacaoAtual.accuracy.toFixed(0)}m
+            </div>
+          </div>
+
+          {/* Contador de pontos */}
+          <div className="bg-white rounded-lg shadow-xl p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {pontos.length}
+                </div>
+                <div className="text-xs text-slate-600">
+                  {tipo === 'area' ? 'Pontos Marcados' : 'Pontos da Linha'}
+                </div>
+              </div>
+              
+              {tipo === 'area' && pontos.length >= 3 && (
+                <div className="text-right">
+                  <div className="text-xl font-bold text-emerald-600">{calcularArea()} ha</div>
+                  <div className="text-xs text-slate-600">Área</div>
+                </div>
+              )}
+              
+              {tipo === 'linha' && pontos.length >= 2 && (
+                <div className="text-right">
+                  <div className="text-xl font-bold text-blue-600">{calcularDistancia()} km</div>
+                  <div className="text-xs text-slate-600">Distância</div>
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        {/* Contador de pontos */}
-        <div className="bg-white rounded-xl shadow-2xl p-6 text-center min-w-[300px]">
-          <div className="text-6xl font-bold text-slate-900 mb-2">
-            {pontos.length}
-          </div>
-          <div className="text-sm text-slate-600">
-            {tipo === 'area' ? 'Pontos Marcados' : 'Pontos da Linha'}
-          </div>
-          
-          {tipo === 'area' && pontos.length >= 3 && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="text-xs text-slate-600 mb-1">Área Aproximada</div>
-              <div className="text-2xl font-bold text-emerald-600">{calcularArea()} ha</div>
-            </div>
-          )}
-          
-          {tipo === 'linha' && pontos.length >= 2 && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="text-xs text-slate-600 mb-1">Distância Total</div>
-              <div className="text-2xl font-bold text-blue-600">{calcularDistancia()} km</div>
-            </div>
-          )}
-        </div>
-
-        {/* Lista de pontos */}
-        {pontos.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-4 max-w-md w-full max-h-40 overflow-y-auto">
-            {pontos.map((ponto, idx) => (
-              <div key={idx} className="flex items-center justify-between py-2 border-b last:border-0">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-semibold">Ponto {idx + 1}</span>
-                </div>
-                <span className="text-xs text-slate-500 font-mono">
-                  {ponto.lat.toFixed(6)}, {ponto.lng.toFixed(6)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Botões de ação */}
