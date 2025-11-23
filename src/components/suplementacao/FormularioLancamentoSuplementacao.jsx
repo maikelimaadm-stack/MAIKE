@@ -16,6 +16,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     data_lancamento: new Date().toISOString().split('T')[0],
     produto: ponto?.produto_padrao || "",
     quantidade_total_kg: "",
+    sobra_kg: "0",
     observacoes: ""
   });
 
@@ -33,6 +34,29 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.area_vinculada_id,
   });
 
+  // Buscar fatores de consumo
+  const { data: fatores = [] } = useQuery({
+    queryKey: ['fatores-consumo', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.FatorConsumoCategoria.list();
+      return all.filter(f => f.empresa_id === empresaSelecionadaId && f.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Buscar último lançamento neste ponto para calcular período
+  const { data: ultimoEvento } = useQuery({
+    queryKey: ['ultimo-evento-ponto', ponto?.id],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoEvento.list();
+      const eventosPonto = all
+        .filter(e => e.ponto_suplementacao_id === ponto?.id)
+        .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
+      return eventosPonto[0] || null;
+    },
+    enabled: !!ponto?.id,
+  });
+
   // Buscar produtos de suplementação
   const { data: produtosSuplementacao = [] } = useQuery({
     queryKey: ['produtos-suplementacao', empresaSelecionadaId],
@@ -47,8 +71,27 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
-  const consumoPorCabeca = formData.quantidade_total_kg && totalCabecas > 0 
-    ? (parseFloat(formData.quantidade_total_kg) / totalCabecas).toFixed(3)
+
+  // Calcular dias do período
+  const diasPeriodo = ultimoEvento 
+    ? Math.max(1, Math.ceil((new Date(formData.data_lancamento) - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)))
+    : null;
+
+  // Calcular peso total de consumo (soma de cabeças x fator)
+  const pesoTotalConsumo = lotes.reduce((sum, lote) => {
+    const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+    return sum + (lote.quantidade_cabecas * fator);
+  }, 0);
+
+  // Calcular consumo diário do grupo (se houver período)
+  const quantidadeConsumida = parseFloat(formData.quantidade_total_kg || 0) - parseFloat(formData.sobra_kg || 0);
+  const consumoDiarioGrupo = diasPeriodo && quantidadeConsumida > 0
+    ? quantidadeConsumida / diasPeriodo
+    : quantidadeConsumida;
+
+  // Calcular consumo unitário por dia
+  const consumoUnitarioDia = diasPeriodo && pesoTotalConsumo > 0
+    ? quantidadeConsumida / (diasPeriodo * pesoTotalConsumo)
     : 0;
 
   const handleSubmit = (e) => {
@@ -56,6 +99,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     
     if (totalCabecas === 0) {
       alert("Não há lotes ativos na área deste ponto de suplementação");
+      return;
+    }
+
+    if (fatores.length === 0) {
+      alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
       return;
     }
 
@@ -68,22 +116,34 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       data_lancamento: formData.data_lancamento,
       produto: formData.produto,
       quantidade_total_kg: parseFloat(formData.quantidade_total_kg),
+      sobra_kg: parseFloat(formData.sobra_kg || 0),
+      dias_periodo: diasPeriodo || 1,
+      consumo_diario_grupo_kg: consumoDiarioGrupo,
       total_cabecas_afetadas: totalCabecas,
-      consumo_medio_por_cabeca_kg: parseFloat(consumoPorCabeca),
+      peso_total_consumo: pesoTotalConsumo,
       observacoes: formData.observacoes
     };
 
     const lotesAfetados = lotes.map(lote => {
-      const consumoLote = (parseFloat(consumoPorCabeca) * lote.quantidade_cabecas);
+      const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+      const pesoConsumoLote = lote.quantidade_cabecas * fator;
+      const consumoPorCabecaDia = consumoUnitarioDia * fator;
+      const consumoTotalLotePeriodo = consumoPorCabecaDia * lote.quantidade_cabecas * (diasPeriodo || 1);
+
       return {
         empresa_id: empresaSelecionadaId,
         lote_id: lote.id,
         lote_nome: lote.nome,
+        categoria: lote.categoria,
+        fator_consumo: fator,
         data_lancamento: formData.data_lancamento,
         produto: formData.produto,
         cabecas_na_area: lote.quantidade_cabecas,
-        consumo_lote_kg: consumoLote,
-        consumo_por_cabeca: parseFloat(consumoPorCabeca)
+        peso_consumo_lote: pesoConsumoLote,
+        dias_periodo: diasPeriodo || 1,
+        consumo_unitario_dia: consumoUnitarioDia,
+        consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
+        consumo_total_lote_periodo_kg: consumoTotalLotePeriodo
       };
     });
 
@@ -120,6 +180,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 </Badge>
               )}
             </div>
+            {ultimoEvento && diasPeriodo && (
+              <div className="pt-2 border-t border-slate-200">
+                <div className="text-xs text-blue-700">
+                  ⏱️ Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString()}
+                  <span className="font-bold ml-2">→ Período: {diasPeriodo} dia(s)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -159,31 +227,71 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Quantidade Total Fornecida (kg) *</Label>
-            <Input
-              type="number"
-              step="0.1"
-              value={formData.quantidade_total_kg}
-              onChange={(e) => setFormData({ ...formData, quantidade_total_kg: e.target.value })}
-              className="h-9 text-xs"
-              placeholder="0"
-              required
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Quantidade Total Fornecida (kg) *</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.quantidade_total_kg}
+                onChange={(e) => setFormData({ ...formData, quantidade_total_kg: e.target.value })}
+                className="h-9 text-xs"
+                placeholder="0"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Sobra no Cocho (kg)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.sobra_kg}
+                onChange={(e) => setFormData({ ...formData, sobra_kg: e.target.value })}
+                className="h-9 text-xs"
+                placeholder="0"
+              />
+            </div>
           </div>
 
           {formData.quantidade_total_kg && totalCabecas > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-xs font-semibold text-blue-900 mb-2">Cálculo Automático:</div>
+              <div className="text-xs font-semibold text-blue-900 mb-2">📊 Cálculo Automático:</div>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-blue-700">Consumo por cabeça:</span>
-                  <span className="font-bold text-blue-900 ml-2">{consumoPorCabeca} kg</span>
+                  <span className="text-blue-700">Quantidade consumida:</span>
+                  <span className="font-bold text-blue-900 ml-2">{quantidadeConsumida.toFixed(1)} kg</span>
                 </div>
                 <div>
-                  <span className="text-blue-700">Total de cabeças:</span>
-                  <span className="font-bold text-blue-900 ml-2">{totalCabecas}</span>
+                  <span className="text-blue-700">Consumo/dia do grupo:</span>
+                  <span className="font-bold text-blue-900 ml-2">{consumoDiarioGrupo.toFixed(2)} kg</span>
                 </div>
+                <div>
+                  <span className="text-blue-700">Peso total de consumo:</span>
+                  <span className="font-bold text-blue-900 ml-2">{pesoTotalConsumo.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-blue-700">Consumo unitário/dia:</span>
+                  <span className="font-bold text-blue-900 ml-2">{consumoUnitarioDia.toFixed(4)} kg</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {lotes.length > 0 && consumoUnitarioDia > 0 && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <div className="text-xs font-semibold text-purple-900 mb-2">🐄 Consumo por Categoria:</div>
+              <div className="space-y-1">
+                {lotes.map(lote => {
+                  const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+                  const consumoPorCabeca = consumoUnitarioDia * fator;
+                  return (
+                    <div key={lote.id} className="flex justify-between text-xs">
+                      <span className="text-purple-700">{lote.categoria} ({lote.quantidade_cabecas} cab):</span>
+                      <span className="font-bold text-purple-900">{consumoPorCabeca.toFixed(4)} kg/cab/dia</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
