@@ -33,7 +33,7 @@ const loadGoogleMapsScript = () => {
   });
 };
 
-export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCancelar }) {
+export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar }) {
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('satellite');
   const [snappingEnabled, setSnappingEnabled] = useState(true);
@@ -41,9 +41,9 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
   
-  const [showFormularioArea, setShowFormularioArea] = useState(false);
-  const [showFormularioPonto, setShowFormularioPonto] = useState(false);
-  const [showFormularioLinha, setShowFormularioLinha] = useState(false);
+  const [showFormularioArea, setShowFormularioArea] = useState(usarGPS && tipoDesenho === 'area');
+  const [showFormularioPonto, setShowFormularioPonto] = useState(usarGPS && tipoDesenho === 'ponto');
+  const [showFormularioLinha, setShowFormularioLinha] = useState(usarGPS && tipoDesenho === 'linha');
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -576,6 +576,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           </SheetHeader>
           <FormularioArea
             coordenadas={currentPoints}
+            usarGPS={usarGPS}
             item={itemEditando}
             onSave={() => {
               setShowFormularioArea(false);
@@ -595,6 +596,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           </SheetHeader>
           <FormularioPonto
             coordenadas={currentMarker}
+            usarGPS={usarGPS}
             item={itemEditando}
             onSave={() => {
               setShowFormularioPonto(false);
@@ -617,6 +619,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           </SheetHeader>
           <FormularioLinha
             coordenadas={currentPoints}
+            usarGPS={usarGPS}
             item={itemEditando}
             onSave={() => {
               setShowFormularioLinha(false);
