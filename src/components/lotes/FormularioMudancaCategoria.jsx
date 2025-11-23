@@ -106,6 +106,17 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-xs">Data da Mudança *</Label>
+            <Input
+              type="date"
+              value={formData.data_mudanca}
+              onChange={(e) => setFormData({ ...formData, data_mudanca: e.target.value })}
+              className="h-8 text-xs"
+              required
+            />
+          </div>
+
           <div className="space-y-2 max-h-[40vh] overflow-y-auto">
             {formData.mudancas.map((mudanca, index) => {
               const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
