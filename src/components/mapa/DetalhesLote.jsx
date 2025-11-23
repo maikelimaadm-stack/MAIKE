@@ -178,13 +178,17 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('Movimentação finalizada com sucesso!');
       toast.success('✅ Movimentação realizada com sucesso!');
       
-      // Invalidar queries
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      // Invalidar e aguardar recarregamento
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['lotes'] }),
+        queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] }),
+        queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] }),
+        queryClient.refetchQueries({ queryKey: ['lotes'], active: true })
+      ]);
       
       // Fechar modais
       setShowMovimentacao(false);
