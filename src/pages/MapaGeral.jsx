@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Map, Layers, Eye, X, ArrowLeft } from "lucide-react";
+import { Map, Layers, Eye, X, ArrowLeft, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -56,6 +56,9 @@ export default function MapaGeral() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
+  const [showMenuCocho, setShowMenuCocho] = useState(false);
+  const [cochoSelecionado, setCochoSelecionado] = useState(null);
+  const [showLancamentoSupl, setShowLancamentoSupl] = useState(false);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -302,20 +305,20 @@ export default function MapaGeral() {
         const coords = ponto.coordenadas || {};
         if (!coords.lat || !coords.lng) return;
 
-        const markerIcon = {
-          url: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png',
-          scaledSize: new google.maps.Size(40, 40),
-          anchor: new google.maps.Point(20, 40),
-          labelOrigin: new google.maps.Point(20, 15)
-        };
-
         const marker = new google.maps.Marker({
           position: { lat: coords.lat, lng: coords.lng },
           map: mapInstanceRef.current,
-          icon: markerIcon,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 14,
+            fillColor: '#10b981',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 3
+          },
           label: {
             text: '🥣',
-            fontSize: '18px',
+            fontSize: '20px',
             fontWeight: 'bold'
           },
           title: ponto.nome_ponto,
@@ -325,8 +328,8 @@ export default function MapaGeral() {
         markersRef.current.push(marker);
 
         marker.addListener('click', () => {
-          setSelectedPontoSupl(ponto);
-          setShowDetalhesPontoSupl(true);
+          setCochoSelecionado(ponto);
+          setShowMenuCocho(true);
         });
       });
     }
@@ -642,6 +645,75 @@ export default function MapaGeral() {
             <DetalhesPontoSuplementacao
               ponto={selectedPontoSupl}
               onClose={() => setShowDetalhesPontoSupl(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMenuCocho} onOpenChange={setShowMenuCocho}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Operações no cocho</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Button
+              onClick={() => {
+                setShowMenuCocho(false);
+                setSelectedPontoSupl(cochoSelecionado);
+                setShowDetalhesPontoSupl(true);
+              }}
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-3 hover:bg-slate-100"
+            >
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+                <Eye className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-sm font-semibold">Leitura de cocho</span>
+            </Button>
+            
+            <Button
+              onClick={() => {
+                setShowMenuCocho(false);
+                setCochoSelecionado(cochoSelecionado);
+                setShowLancamentoSupl(true);
+              }}
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-3 hover:bg-slate-100"
+            >
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+                <Package className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-sm font-semibold">Suplementação</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLancamentoSupl} onOpenChange={setShowLancamentoSupl}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Lançar Suplementação - {cochoSelecionado?.nome_ponto}</DialogTitle>
+          </DialogHeader>
+          {cochoSelecionado && (
+            <FormularioLancamentoSuplementacao
+              pontoSuplementacao={cochoSelecionado}
+              onSubmit={async (formData) => {
+                await base44.entities.SuplementacaoEvento.create({
+                  ...formData.evento
+                });
+                
+                for (const loteData of formData.lotes) {
+                  await base44.entities.SuplementacaoLote.create(loteData);
+                }
+                
+                toast.success('Suplementação lançada!');
+                setShowLancamentoSupl(false);
+                setCochoSelecionado(null);
+              }}
+              onCancel={() => {
+                setShowLancamentoSupl(false);
+                setCochoSelecionado(null);
+              }}
             />
           )}
         </DialogContent>
