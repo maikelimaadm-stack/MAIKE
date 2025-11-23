@@ -92,14 +92,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   // Detectar automaticamente em qual área o ponto está sendo colocado
   React.useEffect(() => {
-    const coords = coordenadasGPS || coordenadas;
-    if (!coords || !areas.length) return;
+    const pontoCoords = coordenadasGPS || coordenadas;
+    if (!pontoCoords || !areas.length) return;
 
     for (const area of areas) {
-      const coords = area.coordenadas?.coords || [];
-      if (coords.length < 3) continue;
+      const areaCoords = area.coordenadas?.coords || [];
+      if (areaCoords.length < 3) continue;
 
-      const polygon = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+      const polygon = areaCoords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       
       // Verificar se o ponto está dentro do polígono usando ray casting
       let inside = false;
@@ -107,14 +107,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         const xi = polygon[i].lat, yi = polygon[i].lng;
         const xj = polygon[j].lat, yj = polygon[j].lng;
         
-        const intersect = ((yi > coords.lng) !== (yj > coords.lng))
-            && (coords.lat < (xj - xi) * (coords.lng - yi) / (yj - yi) + xi);
+        const intersect = ((yi > pontoCoords.lng) !== (yj > pontoCoords.lng))
+            && (pontoCoords.lat < (xj - xi) * (pontoCoords.lng - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       
       if (inside) {
         setAreaDetectada(area);
         setFormData(prev => ({ ...prev, area_vinculada_id: area.id }));
+        toast.success(`Área detectada: ${area.nome}`);
         break;
       }
     }
