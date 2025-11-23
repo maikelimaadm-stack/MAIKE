@@ -12,9 +12,24 @@ export default function PWAInstaller() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((reg) => console.log('✅ Service Worker registrado', reg))
+        .then((reg) => {
+          console.log('✅ Service Worker registrado', reg);
+          
+          // Registrar sincronização em background
+          if ('sync' in reg) {
+            window.addEventListener('online', () => {
+              reg.sync.register('sync-data').catch(err => console.error('Erro sync:', err));
+            });
+          }
+        })
         .catch((err) => console.error('❌ Erro ao registrar SW:', err));
     }
+    
+    // Adicionar link do manifest no head
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/manifest.json';
+    document.head.appendChild(link);
 
     // Capturar evento de instalação
     const handler = (e) => {
