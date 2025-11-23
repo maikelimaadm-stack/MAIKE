@@ -305,22 +305,33 @@ export default function MapaGeral() {
         const coords = ponto.coordenadas || {};
         if (!coords.lat || !coords.lng) return;
 
-        const marker = new google.maps.Marker({
-          position: { lat: coords.lat, lng: coords.lng },
-          map: mapInstanceRef.current,
-          icon: {
+        const configIcone = iconesConfig.find(ic => 
+          ic.tipo_entidade === 'Cocho' && 
+          ic.categoria === ponto.tipo
+        );
+
+        let markerIcon;
+        if (configIcone?.icone_url) {
+          markerIcon = {
+            url: configIcone.icone_url,
+            scaledSize: new google.maps.Size(50, 50),
+            anchor: new google.maps.Point(25, 25)
+          };
+        } else {
+          markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 14,
             fillColor: '#10b981',
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 3
-          },
-          label: {
-            text: '🥣',
-            fontSize: '20px',
-            fontWeight: 'bold'
-          },
+          };
+        }
+
+        const marker = new google.maps.Marker({
+          position: { lat: coords.lat, lng: coords.lng },
+          map: mapInstanceRef.current,
+          icon: markerIcon,
           title: ponto.nome_ponto,
           zIndex: 2000
         });
