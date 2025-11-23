@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Combobox } from "@/components/ui/combobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -215,14 +215,18 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-1">
                   <Label className="text-xs">Categoria</Label>
                   <div className="flex gap-2">
-                    <Combobox
-                      options={categoriasOptions}
-                      value={formData.categoria}
-                      onValueChange={(value) => handleChange('categoria', value)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar..."
-                      className="flex-1 h-8 text-xs"
-                    />
+                    <Select value={formData.categoria} onValueChange={(value) => handleChange('categoria', value)}>
+                      <SelectTrigger className="flex-1 h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasOptions.map(cat => (
+                          <SelectItem key={cat.value} value={cat.value} className="text-xs">
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaCategoria(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
@@ -232,14 +236,18 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-1">
                   <Label className="text-xs">Unidade de Medida *</Label>
                   <div className="flex gap-2">
-                    <Combobox
-                      options={unidadesOptions}
-                      value={formData.unidade_medida}
-                      onValueChange={(value) => handleChange('unidade_medida', value)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar..."
-                      className="flex-1 h-8 text-xs"
-                    />
+                    <Select value={formData.unidade_medida} onValueChange={(value) => handleChange('unidade_medida', value)}>
+                      <SelectTrigger className="flex-1 h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unidadesOptions.map(un => (
+                          <SelectItem key={un.value} value={un.value} className="text-xs">
+                            {un.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowNovaUnidade(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
@@ -249,14 +257,18 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
                 <div className="space-y-1">
                   <Label className="text-xs">Local de Estoque</Label>
                   <div className="flex gap-2">
-                    <Combobox
-                      options={locaisOptions}
-                      value={formData.local_estoque}
-                      onValueChange={(value) => handleChange('local_estoque', value)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Buscar..."
-                      className="flex-1 h-8 text-xs"
-                    />
+                    <Select value={formData.local_estoque} onValueChange={(value) => handleChange('local_estoque', value)}>
+                      <SelectTrigger className="flex-1 h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locaisOptions.map(loc => (
+                          <SelectItem key={loc.value} value={loc.value} className="text-xs">
+                            {loc.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowNovoLocal(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
