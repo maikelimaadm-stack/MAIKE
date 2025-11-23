@@ -79,7 +79,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   // Calcular peso total de consumo (soma de cabeças x fator)
   const pesoTotalConsumo = lotes.reduce((sum, lote) => {
-    const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+    const categoriaLote = lote.categoria?.toUpperCase().trim();
+    const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
     return sum + (lote.quantidade_cabecas * fator);
   }, 0);
 
@@ -125,7 +126,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     };
 
     const lotesAfetados = lotes.map(lote => {
-      const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+      const categoriaLote = lote.categoria?.toUpperCase().trim();
+      const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
       const pesoConsumoLote = lote.quantidade_cabecas * fator;
       const consumoPorCabecaDia = consumoUnitarioDia * fator;
       const consumoTotalLotePeriodo = consumoPorCabecaDia * lote.quantidade_cabecas * (diasPeriodo || 1);
@@ -283,11 +285,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="text-xs font-semibold text-purple-900 mb-2">🐄 Consumo por Categoria:</div>
               <div className="space-y-1">
                 {lotes.map(lote => {
-                  const fator = fatores.find(f => f.categoria === lote.categoria)?.fator || 1.0;
+                  const categoriaLote = lote.categoria?.toUpperCase().trim();
+                  const fatorObj = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote);
+                  const fator = fatorObj?.fator || 1.0;
                   const consumoPorCabeca = consumoUnitarioDia * fator;
                   return (
                     <div key={lote.id} className="flex justify-between text-xs">
-                      <span className="text-purple-700">{lote.categoria} ({lote.quantidade_cabecas} cab):</span>
+                      <span className="text-purple-700">
+                        {lote.categoria} ({lote.quantidade_cabecas} cab) - Fator: {fator}:
+                      </span>
                       <span className="font-bold text-purple-900">{consumoPorCabeca.toFixed(4)} kg/cab/dia</span>
                     </div>
                   );
