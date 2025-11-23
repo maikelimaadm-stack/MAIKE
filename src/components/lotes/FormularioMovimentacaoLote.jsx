@@ -19,7 +19,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       data_movimentacao: new Date().toISOString().split('T')[0],
       mover_todos: 'sim',
       area_saida_id: areaOrigem?.id || '',
-      areas_entrada: areaDestino ? [areaDestino] : [],
+      area_entrada_id: areaDestino || '',
       movimentacoes: [],
       unir_lotes: {}
     };
@@ -70,32 +70,24 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   const categorias = Object.values(categoriasPorLote);
 
-  // Verificar se há lotes com mesma categoria nas áreas de destino
+  // Verificar se há lotes com mesma categoria na área de destino
   const categoriasComLotesExistentes = React.useMemo(() => {
-    if (formData.areas_entrada.length === 0) return {};
+    if (!formData.area_entrada_id) return {};
     
+    const lotesNaArea = todosLotes.filter(l => l.area_atual_id === formData.area_entrada_id);
     const resultado = {};
-    formData.areas_entrada.forEach(areaId => {
-      if (!areaId) return;
-      
-      const lotesNaArea = todosLotes.filter(l => l.area_atual_id === areaId);
-      
-      categorias.forEach(cat => {
-        const loteExistente = lotesNaArea.find(l => l.categoria?.toUpperCase() === cat.categoria);
-        if (loteExistente) {
-          if (!resultado[cat.categoria]) {
-            resultado[cat.categoria] = [];
-          }
-          resultado[cat.categoria].push({
-            area_nome: areas.find(a => a.id === areaId)?.nome || '',
-            lote: loteExistente
-          });
-        }
-      });
+    
+    categorias.forEach(cat => {
+      const loteExistente = lotesNaArea.find(l => l.categoria?.toUpperCase() === cat.categoria);
+      if (loteExistente) {
+        resultado[cat.categoria] = {
+          lote: loteExistente
+        };
+      }
     });
     
     return resultado;
-  }, [formData.areas_entrada, todosLotes, areas, categorias]);
+  }, [formData.area_entrada_id, todosLotes, categorias]);
 
   const adicionarMovimentacao = () => {
     const primeiraCategoria = categorias[0];
@@ -111,26 +103,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   const categoriasDisponiveis = categorias.map(c => c.categoria);
-
-  const handleAddAreaEntrada = () => {
-    if (formData.areas_entrada.length < 5) {
-      setFormData({
-        ...formData,
-        areas_entrada: [...formData.areas_entrada, '']
-      });
-    }
-  };
-
-  const handleRemoveAreaEntrada = (index) => {
-    const novasAreas = formData.areas_entrada.filter((_, i) => i !== index);
-    setFormData({ ...formData, areas_entrada: novasAreas });
-  };
-
-  const handleAreaEntradaChange = (index, valor) => {
-    const novasAreas = [...formData.areas_entrada];
-    novasAreas[index] = valor;
-    setFormData({ ...formData, areas_entrada: novasAreas });
-  };
 
   const handleMovimentacaoChange = (index, field, value) => {
     const novasMovimentacoes = [...formData.movimentacoes];
@@ -154,8 +126,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       return;
     }
 
-    if (formData.areas_entrada.length === 0 || formData.areas_entrada.some(a => !a)) {
-      alert('Adicione pelo menos uma área de entrada válida');
+    if (!formData.area_entrada_id) {
+      alert('Selecione a área de entrada');
       return;
     }
 
@@ -241,49 +213,23 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
             <div className="space-y-1">
               <Label className="text-xs">Área e módulo de entrada *</Label>
-              <div className="space-y-2">
-                {formData.areas_entrada.map((areaId, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Select
-                      value={areaId}
-                      onValueChange={(v) => handleAreaEntradaChange(index, v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs flex-1">
-                        <SelectValue placeholder="Selecione a área" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {areas
-                          .filter(a => a.id !== formData.area_saida_id)
-                          .map(area => (
-                            <SelectItem key={area.id} value={area.id} className="text-xs">
-                              {area.nome}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveAreaEntrada(index)}
-                      className="h-8 w-8 text-red-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddAreaEntrada}
-                  className="h-7 text-xs w-full"
-                  disabled={formData.areas_entrada.length >= 5}
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Adicionar Área de Entrada
-                </Button>
-              </div>
+              <Select
+                value={formData.area_entrada_id}
+                onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v })}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione a área de entrada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas
+                    .filter(a => a.id !== formData.area_saida_id)
+                    .map(area => (
+                      <SelectItem key={area.id} value={area.id} className="text-xs">
+                        {area.nome}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -401,17 +347,15 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             <div className="border border-amber-300 rounded p-3 bg-amber-50">
               <div className="text-xs font-semibold text-amber-800 mb-3 flex items-center gap-2">
                 <span className="text-lg">⚠️</span>
-                Existem lotes com mesma categoria na(s) área(s) de destino
+                Existem lotes com mesma categoria na área de destino
               </div>
               <div className="space-y-3">
-                {Object.entries(categoriasComLotesExistentes).map(([categoria, lotes]) => (
+                {Object.entries(categoriasComLotesExistentes).map(([categoria, info]) => (
                   <div key={categoria} className="bg-white border rounded p-3">
                     <div className="text-xs font-semibold text-slate-700 mb-2">{categoria}</div>
-                    {lotes.map((item, idx) => (
-                      <div key={idx} className="text-[10px] text-slate-600 mb-2">
-                        • {item.area_nome}: {item.lote.nome} ({item.lote.quantidade_cabecas} cabeças)
-                      </div>
-                    ))}
+                    <div className="text-[10px] text-slate-600 mb-2">
+                      • {info.lote.nome} ({info.lote.quantidade_cabecas} cabeças)
+                    </div>
                     <div className="mt-2">
                       <Label className="text-xs mb-2 block">Deseja unir ao lote existente?</Label>
                       <RadioGroup
