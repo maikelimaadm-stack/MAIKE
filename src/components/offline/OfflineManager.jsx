@@ -50,17 +50,33 @@ export default function OfflineManager() {
 
     for (const action of pending) {
       try {
-        if (action.type === 'suplementacao') {
+        // Sistema genérico para qualquer entidade
+        if (action.type === 'entity_operation') {
+          const { entityName, operation, data } = action;
+          
+          if (operation === 'create') {
+            await base44.entities[entityName].create({
+              ...data,
+              empresa_id: empresaId
+            });
+          } else if (operation === 'update') {
+            await base44.entities[entityName].update(data.id, data);
+          } else if (operation === 'delete') {
+            await base44.entities[entityName].delete(data.id);
+          }
+          
+          successCount++;
+        } 
+        // Manter suporte legado para suplementação complexa
+        else if (action.type === 'suplementacao') {
           const { evento, lotes, eventoAnterior, lotesAnteriores } = action.data;
           
-          // Atualizar evento anterior se existir
           if (eventoAnterior) {
             await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
               dias_periodo: eventoAnterior.dias_periodo,
               consumo_diario_grupo_kg: eventoAnterior.consumo_diario_grupo_kg
             });
 
-            // Atualizar lotes do evento anterior
             if (lotesAnteriores && lotesAnteriores.length > 0) {
               const allLotesSupl = await base44.entities.SuplementacaoLote.list();
               for (const loteUpdate of lotesAnteriores) {
@@ -75,13 +91,11 @@ export default function OfflineManager() {
             }
           }
 
-          // Criar novo evento
           const eventoCreated = await base44.entities.SuplementacaoEvento.create({
             ...evento,
             empresa_id: empresaId
           });
           
-          // Criar lotes do novo evento
           for (const lote of lotes) {
             await base44.entities.SuplementacaoLote.create({
               ...lote,
@@ -91,7 +105,8 @@ export default function OfflineManager() {
           }
           
           successCount++;
-        } else if (action.type === 'movimentacao') {
+        } 
+        else if (action.type === 'movimentacao') {
           await base44.entities.MovimentacaoPecuaria.create({
             ...action.data,
             empresa_id: empresaId
@@ -105,9 +120,12 @@ export default function OfflineManager() {
     }
 
     if (successCount > 0) {
-      toast.success(`${successCount} ação(ões) sincronizada(s)`);
+      toast.success(`✅ ${successCount} ação(ões) sincronizada(s)`);
       localStorage.setItem('pending_actions', JSON.stringify(failedActions));
       loadPendingActions();
+      
+      // Recarregar página para atualizar dados
+      window.location.reload();
     } else if (failedActions.length > 0) {
       toast.error('Erro ao sincronizar algumas ações');
     }
