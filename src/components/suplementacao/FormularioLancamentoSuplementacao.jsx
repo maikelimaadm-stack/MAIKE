@@ -130,10 +130,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     let eventoAnteriorAtualizado = null;
     let lotesAnterioresAtualizados = [];
 
-    if (ultimoEvento) {
+    if (ultimoEvento && diasPeriodo > 0) {
       const quantidadeConsumidaAnterior = ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0);
       const consumoDiarioGrupoAnterior = quantidadeConsumidaAnterior / diasPeriodo;
-      const consumoUnitarioDiaAnterior = quantidadeConsumidaAnterior / (diasPeriodo * ultimoEvento.peso_total_consumo);
+      const pesoTotalConsumoAnterior = ultimoEvento.peso_total_consumo || pesoTotalConsumo;
+      const consumoUnitarioDiaAnterior = pesoTotalConsumoAnterior > 0 
+        ? quantidadeConsumidaAnterior / (diasPeriodo * pesoTotalConsumoAnterior)
+        : 0;
 
       eventoAnteriorAtualizado = {
         id: ultimoEvento.id,
