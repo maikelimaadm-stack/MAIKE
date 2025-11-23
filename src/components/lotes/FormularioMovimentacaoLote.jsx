@@ -15,12 +15,36 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   const [formData, setFormData] = useState(() => {
     const areaDestino = window.areaDestinoArrastada;
+    
+    // Agrupar lotes por categoria e pré-preencher movimentações
+    const categoriasPorLote = lotesOriginais.reduce((acc, lote) => {
+      const cat = lote.categoria?.toUpperCase() || 'SEM CATEGORIA';
+      if (!acc[cat]) {
+        acc[cat] = {
+          categoria: cat,
+          quantidade_total: 0,
+          peso_medio: lote.peso_medio_kg || 0,
+          lotes: []
+        };
+      }
+      acc[cat].quantidade_total += lote.quantidade_cabecas || 0;
+      acc[cat].lotes.push(lote);
+      return acc;
+    }, {});
+    
+    const movimentacoesPre = Object.values(categoriasPorLote).map(cat => ({
+      categoria: cat.categoria,
+      quantidade: cat.quantidade_total,
+      peso_medio: cat.peso_medio,
+      quantidade_maxima: cat.quantidade_total
+    }));
+    
     return {
       data_movimentacao: new Date().toISOString().split('T')[0],
       mover_todos: 'sim',
       area_saida_id: areaOrigem?.id || '',
       area_entrada_id: areaDestino || '',
-      movimentacoes: [],
+      movimentacoes: movimentacoesPre,
       unir_lotes: {}
     };
   });
@@ -386,8 +410,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
-              {loading ? 'Movimentando...' : 'Avançar'}
+            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800" disabled={loading}>
+              {loading ? 'Movimentando...' : 'Confirmar Movimentação'}
             </Button>
           </div>
         </form>
