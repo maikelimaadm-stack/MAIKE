@@ -21,6 +21,64 @@ import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 
+function ResumoSuplementacaoLote({ lotesIds }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  
+  const { data: consumosLote = [] } = useQuery({
+    queryKey: ['suplementacao-resumo-lote', lotesIds],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoLote.list();
+      return all.filter(s => 
+        s.empresa_id === empresaSelecionadaId && 
+        lotesIds.includes(s.lote_id)
+      );
+    },
+    enabled: !!empresaSelecionadaId && lotesIds.length > 0,
+  });
+
+  if (consumosLote.length === 0) return null;
+
+  // Últimos 30 dias
+  const dataLimite = new Date();
+  dataLimite.setDate(dataLimite.getDate() - 30);
+  const consumosRecentes = consumosLote.filter(c => new Date(c.data_lancamento) >= dataLimite);
+
+  const consumoTotalKg = consumosRecentes.reduce((sum, c) => sum + (c.consumo_lote_kg || 0), 0);
+  const consumoMedioPorCabeca = consumosRecentes.length > 0
+    ? consumosRecentes.reduce((sum, c) => sum + (c.consumo_por_cabeca || 0), 0) / consumosRecentes.length
+    : 0;
+  const ultimoLancamento = consumosLote.length > 0 
+    ? consumosLote.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0]
+    : null;
+
+  return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-3">
+      <div className="text-xs font-semibold text-emerald-900 mb-2">📊 Suplementação (últimos 30 dias)</div>
+      <div className="grid grid-cols-3 gap-3 text-[10px]">
+        <div>
+          <div className="text-emerald-700 mb-0.5">Total consumido</div>
+          <div className="text-sm font-bold text-emerald-900">{consumoTotalKg.toFixed(1)} kg</div>
+        </div>
+        <div>
+          <div className="text-emerald-700 mb-0.5">Média/cabeça/dia</div>
+          <div className="text-sm font-bold text-emerald-900">{consumoMedioPorCabeca.toFixed(3)} kg</div>
+        </div>
+        <div>
+          <div className="text-emerald-700 mb-0.5">Último lançamento</div>
+          <div className="text-[11px] font-semibold text-emerald-900">
+            {ultimoLancamento ? new Date(ultimoLancamento.data_lancamento).toLocaleDateString() : '-'}
+          </div>
+        </div>
+      </div>
+      {ultimoLancamento && (
+        <div className="mt-2 pt-2 border-t border-emerald-200 text-[10px] text-emerald-800">
+          <strong>Último produto:</strong> {ultimoLancamento.produto}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showMovimentacao, setShowMovimentacao] = useState(false);
@@ -504,6 +562,8 @@ export default function DetalhesLote({ lotes, onClose }) {
           </div>
         </div>
       </div>
+
+      <ResumoSuplementacaoLote lotesIds={lotes.map(l => l.id)} />
 
       <div className="grid grid-cols-3 gap-2">
         <Button 
