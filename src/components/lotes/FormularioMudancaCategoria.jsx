@@ -93,7 +93,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
             {formData.mudancas.map((mudanca, index) => {
               const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
               const configIcone = iconesConfig.find(ic => 
