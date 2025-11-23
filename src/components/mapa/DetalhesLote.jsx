@@ -440,7 +440,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] font-bold text-slate-900 mb-1.5">{categoria}</div>
-                  <div className="text-2xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
+                  <div className="text-xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
                   <div className="space-y-1.5 text-[10px]">
                     <div className="flex gap-2">
                       <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
