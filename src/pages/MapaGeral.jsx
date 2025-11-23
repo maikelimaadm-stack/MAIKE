@@ -101,15 +101,6 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: pontosSuplementacao = [] } = useQuery({
-    queryKey: ['pontos-suplementacao', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
