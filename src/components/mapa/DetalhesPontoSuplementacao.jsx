@@ -30,59 +30,66 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
 
   const lancamentoMutation = useMutation({
     mutationFn: async ({ evento, lotes, eventoAnterior, lotesAnteriores }) => {
-      console.log('🔍 Dados recebidos:', { evento, lotes, eventoAnterior, lotesAnteriores });
-      
-      // Se existe evento anterior, atualizar período dele primeiro
-      if (eventoAnterior) {
-        console.log('📝 Atualizando evento anterior:', eventoAnterior);
-        await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
-          dias_periodo: eventoAnterior.dias_periodo,
-          consumo_diario_grupo_kg: eventoAnterior.consumo_diario_grupo_kg
-        });
+      try {
+        console.log('🔍 MUTATION INICIADA');
+        console.log('Evento:', evento);
+        console.log('Lotes:', lotes);
+        
+        // Se existe evento anterior, atualizar período dele primeiro
+        if (eventoAnterior) {
+          console.log('📝 Atualizando evento anterior:', eventoAnterior);
+          await base44.entities.SuplementacaoEvento.update(eventoAnterior.id, {
+            dias_periodo: eventoAnterior.dias_periodo,
+            consumo_diario_grupo_kg: eventoAnterior.consumo_diario_grupo_kg
+          });
 
-        // Atualizar lotes do evento anterior
-        if (lotesAnteriores && lotesAnteriores.length > 0) {
-          console.log('📦 Atualizando lotes anteriores:', lotesAnteriores.length);
-          const allLotesSupl = await base44.entities.SuplementacaoLote.list();
-          for (const loteUpdate of lotesAnteriores) {
-            const loteExistente = allLotesSupl.find(l => 
-              l.suplementacao_evento_id === eventoAnterior.id && 
-              l.lote_id === loteUpdate.lote_id
-            );
-            if (loteExistente) {
-              console.log('✏️ Atualizando lote:', loteExistente.id);
-              await base44.entities.SuplementacaoLote.update(loteExistente.id, loteUpdate);
+          // Atualizar lotes do evento anterior
+          if (lotesAnteriores && lotesAnteriores.length > 0) {
+            console.log('📦 Atualizando lotes anteriores:', lotesAnteriores.length);
+            const allLotesSupl = await base44.entities.SuplementacaoLote.list();
+            for (const loteUpdate of lotesAnteriores) {
+              const loteExistente = allLotesSupl.find(l => 
+                l.suplementacao_evento_id === eventoAnterior.id && 
+                l.lote_id === loteUpdate.lote_id
+              );
+              if (loteExistente) {
+                console.log('✏️ Atualizando lote:', loteExistente.id);
+                await base44.entities.SuplementacaoLote.update(loteExistente.id, loteUpdate);
+              }
             }
           }
         }
-      }
 
-      // Criar novo evento
-      console.log('➕ Criando novo evento:', evento);
-      const eventoCreated = await base44.entities.SuplementacaoEvento.create(evento);
-      console.log('✅ Evento criado:', eventoCreated.id);
-      
-      // Criar lotes do novo evento
-      console.log('📦 Criando lotes para o novo evento:', lotes.length);
-      for (const lote of lotes) {
-        await base44.entities.SuplementacaoLote.create({
-          ...lote,
-          suplementacao_evento_id: eventoCreated.id
-        });
+        // Criar novo evento
+        console.log('➕ Criando evento...');
+        const eventoCreated = await base44.entities.SuplementacaoEvento.create(evento);
+        console.log('✅ Evento criado:', eventoCreated.id);
+        
+        // Criar lotes do novo evento
+        console.log('📦 Criando lotes...');
+        for (const lote of lotes) {
+          await base44.entities.SuplementacaoLote.create({
+            ...lote,
+            suplementacao_evento_id: eventoCreated.id
+          });
+        }
+        console.log('✅ MUTATION COMPLETA');
+      } catch (err) {
+        console.error('❌ ERRO NA MUTATION:', err);
+        throw err;
       }
-      console.log('✅ Todos os lotes criados');
     },
     onSuccess: () => {
-      console.log('🎉 Sucesso total!');
+      console.log('🎉 onSuccess');
       queryClient.invalidateQueries({ queryKey: ['eventos-ponto'] });
       queryClient.invalidateQueries({ queryKey: ['suplementacao-lote'] });
       queryClient.invalidateQueries({ queryKey: ['eventos-suplementacao'] });
-      toast.success('Suplementação registrada com sucesso');
+      toast.success('✅ Suplementação registrada!');
       setShowLancamento(false);
     },
     onError: (error) => {
-      console.error('❌ Erro ao registrar suplementação:', error);
-      toast.error('Erro ao registrar suplementação: ' + error.message);
+      console.error('❌ onError:', error);
+      alert('ERRO: ' + error.message);
     },
   });
 

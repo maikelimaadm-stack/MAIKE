@@ -95,35 +95,36 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     ? quantidadeConsumida / (diasPeriodo * pesoTotalConsumo)
     : 0;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('🚀 Iniciando handleSubmit');
-    console.log('📊 Total cabeças:', totalCabecas);
-    console.log('⚙️ Fatores:', fatores.length);
     
-    if (!formData.produto || formData.produto === 'NENHUM') {
-      alert("Selecione um produto");
-      return;
-    }
+    try {
+      console.log('🚀 INICIANDO SUBMIT');
+      console.log('Form data:', formData);
+      console.log('Total cabeças:', totalCabecas);
+      console.log('Fatores:', fatores.length);
+      
+      if (!formData.produto || formData.produto === 'NENHUM') {
+        alert("Selecione um produto");
+        return;
+      }
 
-    if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
-      alert("Informe a quantidade fornecida");
-      return;
-    }
-    
-    if (totalCabecas === 0) {
-      console.log('❌ Sem lotes na área');
-      alert("Não há lotes ativos na área deste ponto de suplementação");
-      return;
-    }
+      if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
+        alert("Informe a quantidade fornecida");
+        return;
+      }
+      
+      if (totalCabecas === 0) {
+        alert("Não há lotes ativos na área deste ponto de suplementação");
+        return;
+      }
 
-    if (fatores.length === 0) {
-      console.log('❌ Sem fatores configurados');
-      alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
-      return;
-    }
-    
-    console.log('✅ Validações OK, montando dados...');
+      if (fatores.length === 0) {
+        alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
+        return;
+      }
+      
+      console.log('✅ Validações OK');
 
     // Criar novo evento (ainda sem período definido - será fechado no próximo)
     const dadosEvento = {
@@ -202,21 +203,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       };
     });
 
-    console.log('📤 Chamando onSubmit com:', { 
-      evento: dadosEvento, 
-      lotes: lotesAfetados,
-      eventoAnterior: eventoAnteriorAtualizado,
-      lotesAnteriores: lotesAnterioresAtualizados
-    });
-    
-    onSubmit({ 
-      evento: dadosEvento, 
-      lotes: lotesAfetados,
-      eventoAnterior: eventoAnteriorAtualizado,
-      lotesAnteriores: lotesAnterioresAtualizados
-    });
-    
-    console.log('✅ onSubmit chamado');
+      console.log('📤 Chamando onSubmit');
+      
+      await onSubmit({ 
+        evento: dadosEvento, 
+        lotes: lotesAfetados,
+        eventoAnterior: eventoAnteriorAtualizado,
+        lotesAnteriores: lotesAnterioresAtualizados
+      });
+      
+      console.log('✅ onSubmit retornou');
+    } catch (error) {
+      console.error('❌ ERRO NO SUBMIT:', error);
+      alert('Erro: ' + error.message);
+    }
   };
 
   return (
