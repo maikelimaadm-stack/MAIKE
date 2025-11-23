@@ -19,6 +19,7 @@ export default function CategoriasManejo() {
 
   const [formData, setFormData] = useState({
     nome: "",
+    sigla: "",
     especie: "Bovinos",
     categoria_oficial: "",
     ganho_peso_anual_kg: "",
@@ -83,6 +84,7 @@ export default function CategoriasManejo() {
   const resetForm = () => {
     setFormData({
       nome: "",
+      sigla: "",
       especie: "Bovinos",
       categoria_oficial: "",
       ganho_peso_anual_kg: "",
@@ -106,6 +108,7 @@ export default function CategoriasManejo() {
   const handleEdit = (cat) => {
     setFormData({
       nome: cat.nome || "",
+      sigla: cat.sigla || "",
       especie: cat.especie || "Bovinos",
       categoria_oficial: cat.categoria_oficial || "",
       ganho_peso_anual_kg: cat.ganho_peso_anual_kg || "",
@@ -137,6 +140,7 @@ export default function CategoriasManejo() {
     const data = {
       empresa_id: empresaSelecionadaId,
       nome: formData.nome.toUpperCase(),
+      sigla: formData.sigla.toUpperCase(),
       especie: formData.especie,
       categoria_oficial: formData.categoria_oficial,
       ganho_peso_anual_kg: formData.ganho_peso_anual_kg ? parseFloat(formData.ganho_peso_anual_kg) : null,
@@ -249,20 +253,32 @@ export default function CategoriasManejo() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Nome da Categoria *</Label>
-                <Input
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  placeholder="AA, TESTE..."
-                  className="h-8 text-xs uppercase"
-                  required
-                />
-              </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome da Categoria *</Label>
+              <Input
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder="AA, TESTE..."
+                className="h-8 text-xs uppercase"
+                required
+              />
+            </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Espécie *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Sigla *</Label>
+              <Input
+                value={formData.sigla}
+                onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+                placeholder="AA, TST..."
+                className="h-8 text-xs uppercase"
+                required
+                maxLength={10}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Espécie *</Label>
                 <Select value={formData.especie} onValueChange={(v) => setFormData({ ...formData, especie: v })}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
