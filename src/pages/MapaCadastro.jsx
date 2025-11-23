@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Plus } from "lucide-react";
+import { Map, Plus, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -25,6 +25,7 @@ import MapaDesenho from "../components/mapa/MapaDesenho";
 export default function MapaCadastro() {
   const [modo, setModo] = useState('listagem');
   const [tipoDesenho, setTipoDesenho] = useState(null);
+  const [usarGPS, setUsarGPS] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [itemExcluir, setItemExcluir] = useState(null);
 
@@ -89,8 +90,9 @@ export default function MapaCadastro() {
 
 
 
-  const handleNovoItem = (tipo) => {
+  const handleNovoItem = (tipo, gps = false) => {
     setTipoDesenho(tipo);
+    setUsarGPS(gps);
     setItemEditando(null);
     setModo('mapa');
   };
@@ -120,12 +122,14 @@ export default function MapaCadastro() {
   const handleSalvarMapa = () => {
     setModo('listagem');
     setTipoDesenho(null);
+    setUsarGPS(false);
     setItemEditando(null);
   };
 
   const handleCancelarMapa = () => {
     setModo('listagem');
     setTipoDesenho(null);
+    setUsarGPS(false);
     setItemEditando(null);
   };
 
@@ -133,6 +137,7 @@ export default function MapaCadastro() {
     return (
       <MapaDesenho
         tipoDesenho={tipoDesenho}
+        usarGPS={usarGPS}
         itemEditando={itemEditando}
         onSalvar={handleSalvarMapa}
         onCancelar={handleCancelarMapa}
@@ -157,13 +162,21 @@ export default function MapaCadastro() {
         </TabsList>
 
         <TabsContent value="areas" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button
-              onClick={() => handleNovoItem('area')}
+              onClick={() => handleNovoItem('area', false)}
+              variant="outline"
+              className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+            >
+              <Map className="w-4 h-4 mr-2" />
+              Desenhar no Mapa
+            </Button>
+            <Button
+              onClick={() => handleNovoItem('area', true)}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Área
+              <Navigation className="w-4 h-4 mr-2" />
+              Usar GPS
             </Button>
           </div>
           <TabelaAreasGeo
@@ -174,13 +187,21 @@ export default function MapaCadastro() {
         </TabsContent>
 
         <TabsContent value="pontos" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button
-              onClick={() => handleNovoItem('ponto')}
+              onClick={() => handleNovoItem('ponto', false)}
+              variant="outline"
+              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              <Map className="w-4 h-4 mr-2" />
+              Marcar no Mapa
+            </Button>
+            <Button
+              onClick={() => handleNovoItem('ponto', true)}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Ponto
+              <Navigation className="w-4 h-4 mr-2" />
+              Usar GPS
             </Button>
           </div>
           <TabelaPontosGeo
@@ -191,13 +212,21 @@ export default function MapaCadastro() {
         </TabsContent>
 
         <TabsContent value="linhas" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button
-              onClick={() => handleNovoItem('linha')}
+              onClick={() => handleNovoItem('linha', false)}
+              variant="outline"
+              className="border-orange-600 text-orange-600 hover:bg-orange-50"
+            >
+              <Map className="w-4 h-4 mr-2" />
+              Desenhar no Mapa
+            </Button>
+            <Button
+              onClick={() => handleNovoItem('linha', true)}
               className="bg-orange-600 hover:bg-orange-700"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Linha
+              <Navigation className="w-4 h-4 mr-2" />
+              Usar GPS
             </Button>
           </div>
           <TabelaLinhasGeo
