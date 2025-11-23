@@ -142,11 +142,11 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
                         <div className="text-xs font-semibold text-slate-900">
                           {new Date(evento.data_lancamento).toLocaleDateString('pt-BR')}
                         </div>
-                        <Badge className={
+                        <Badge className={`text-xs ${
                           evento.status === 'baixo' ? 'bg-red-100 text-red-800' :
                           evento.status === 'alto' ? 'bg-orange-100 text-orange-800' :
                           'bg-amber-100 text-amber-800'
-                        } className="text-xs">
+                        }`}>
                           {evento.consumo_medio_por_cabeca_kg.toFixed(3)} kg/cab
                         </Badge>
                       </div>

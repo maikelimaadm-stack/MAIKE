@@ -6,14 +6,12 @@ import { Package, Edit, TrendingUp, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import FormularioPontoSuplementacao from "../suplementacao/FormularioPontoSuplementacao";
 import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancamentoSuplementacao";
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import { toast } from "sonner";
 
 export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-  const [showEdit, setShowEdit] = useState(false);
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const queryClient = useQueryClient();
@@ -28,15 +26,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       ).sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
     },
     enabled: !!empresaSelecionadaId && !!ponto.id,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.PontoSuplementacao.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pontos-suplementacao'] });
-      toast.success('Ponto atualizado');
-      setShowEdit(false);
-    },
   });
 
   const lancamentoMutation = useMutation({
@@ -57,10 +46,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       setShowLancamento(false);
     },
   });
-
-  const handleUpdate = (data) => {
-    updateMutation.mutate({ id: ponto.id, data });
-  };
 
   const handleLancamento = (data) => {
     lancamentoMutation.mutate(data);
@@ -141,22 +126,13 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button
           onClick={() => setShowLancamento(true)}
           className="h-11 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 gap-1 flex-col py-1.5"
         >
           <Package className="w-4 h-4" />
           <span>Lançar</span>
-        </Button>
-
-        <Button
-          onClick={() => setShowEdit(true)}
-          variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
-        >
-          <Edit className="w-4 h-4 text-slate-600" />
-          <span>Editar</span>
         </Button>
 
         <Button
@@ -168,16 +144,6 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
           <span>Histórico</span>
         </Button>
       </div>
-
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="max-w-2xl">
-          <FormularioPontoSuplementacao
-            ponto={ponto}
-            onSubmit={handleUpdate}
-            onCancel={() => setShowEdit(false)}
-          />
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
         <DialogContent className="max-w-2xl">
