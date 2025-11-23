@@ -486,62 +486,62 @@ export default function DetalhesLote({ lotes, onClose }) {
         <Button 
           onClick={() => setShowMovimentacao(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600" />
-          Movimentação
+          <ArrowRightLeft className="w-4 h-4 text-slate-600" />
+          <span>Mover</span>
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <Scale className="w-3.5 h-3.5 text-slate-600" />
-          Pesagem
+          <Scale className="w-4 h-4 text-slate-600" />
+          <span>Pesar</span>
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
-          Mudança Categ.
+          <RefreshCw className="w-4 h-4 text-slate-600" />
+          <span>Mudar Cat.</span>
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <Star className="w-3.5 h-3.5 text-slate-600" />
-          Nascimento
+          <Star className="w-4 h-4 text-slate-600" />
+          <span>Nascer</span>
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <XCircle className="w-3.5 h-3.5 text-slate-600" />
-          Morte
+          <XCircle className="w-4 h-4 text-slate-600" />
+          <span>Morte</span>
         </Button>
 
         <Button 
           onClick={() => setShowAbate(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <Package className="w-3.5 h-3.5 text-slate-600" />
-          Abate
+          <Package className="w-4 h-4 text-slate-600" />
+          <span>Abate</span>
         </Button>
       </div>
 
       <Button 
         onClick={() => setShowHistorico(true)}
         variant="outline"
-        className="w-full h-8 text-[11px] font-semibold mt-2 border-slate-300"
+        className="w-full h-9 text-[11px] font-semibold mt-3 border-slate-300"
       >
         Ver Histórico Completo
       </Button>
