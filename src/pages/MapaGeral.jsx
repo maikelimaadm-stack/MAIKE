@@ -59,12 +59,15 @@ export default function MapaGeral() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showUserLocation, setShowUserLocation] = useState(true);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polygonsRef = useRef([]);
   const markersRef = useRef([]);
   const polylinesRef = useRef([]);
+  const userMarkerRef = useRef(null);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -233,6 +236,28 @@ export default function MapaGeral() {
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         setTimeout(() => setMapReady(true), 100);
       });
+
+      // Obter localização do usuário
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const pos = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setUserLocation(pos);
+            
+            // Centralizar mapa na localização
+            if (areas.length === 0) {
+              map.setCenter(pos);
+              map.setZoom(17);
+            }
+          },
+          () => {
+            console.log('Não foi possível obter localização');
+          }
+        );
+      }
     }).catch((error) => {
       console.error('Erro ao carregar mapa:', error);
       toast.error('Erro ao carregar mapa.');
@@ -249,7 +274,7 @@ export default function MapaGeral() {
     if (mapInstanceRef.current && mapReady) {
       renderMap();
     }
-  }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas]);
+  }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas, userLocation, showUserLocation]);
 
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
@@ -257,9 +282,43 @@ export default function MapaGeral() {
     polygonsRef.current.forEach(p => p.setMap(null));
     markersRef.current.forEach(m => m.setMap(null));
     polylinesRef.current.forEach(l => l.setMap(null));
+    if (userMarkerRef.current) userMarkerRef.current.setMap(null);
     polygonsRef.current = [];
     markersRef.current = [];
     polylinesRef.current = [];
+
+    // Renderizar localização do usuário
+    if (showUserLocation && userLocation) {
+      const userMarker = new google.maps.Marker({
+        position: userLocation,
+        map: mapInstanceRef.current,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 12,
+          fillColor: '#4285F4',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 3
+        },
+        title: 'Sua localização',
+        zIndex: 10000
+      });
+
+      // Círculo de precisão
+      new google.maps.Circle({
+        map: mapInstanceRef.current,
+        center: userLocation,
+        radius: 20,
+        fillColor: '#4285F4',
+        fillOpacity: 0.15,
+        strokeColor: '#4285F4',
+        strokeOpacity: 0.3,
+        strokeWeight: 1,
+        zIndex: 9999
+      });
+
+      userMarkerRef.current = userMarker;
+    }
 
     if (showAreas) {
       areas.forEach(area => {
@@ -693,6 +752,15 @@ export default function MapaGeral() {
                     type="checkbox"
                     checked={showAlertas}
                     onChange={() => setShowAlertas(!showAlertas)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Minha Localização</span>
+                  <input
+                    type="checkbox"
+                    checked={showUserLocation}
+                    onChange={() => setShowUserLocation(!showUserLocation)}
                     className="w-4 h-4 rounded border-slate-300"
                   />
                 </label>
