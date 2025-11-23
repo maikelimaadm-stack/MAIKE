@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Plus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
@@ -37,48 +38,34 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   console.log('⚖️ PESAGEM - Categorias encontradas:', categoriasDisponiveis);
   console.log('⚖️ PESAGEM - Detalhes por categoria:', lotesPorCategoria);
 
-  const [modoPesagem, setModoPesagem] = useState("categorias"); // "categorias" ou "todos"
-  const [pesoGeral, setPesoGeral] = useState("");
-
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],
-    pesagens: categoriasDisponiveis.map(cat => ({
-      categoria: cat,
-      peso: lotesPorCategoria[cat].pesoAnterior,
-      selecionada: false
-    })),
+    pesagens: [],
     observacoes: ""
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (modoPesagem === "todos") {
-      if (!pesoGeral || parseFloat(pesoGeral) <= 0) {
-        alert("Informe o peso para todos os animais");
-        return;
-      }
-      
-      onSubmit({
-        data_pesagem: formData.data_pesagem,
-        categorias_selecionadas: categoriasDisponiveis,
-        pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => ({ ...acc, [cat]: parseFloat(pesoGeral) }), {}),
-        observacoes: formData.observacoes
-      });
-    } else {
-      const pesagensValidas = formData.pesagens.filter(p => p.selecionada && p.peso > 0);
-      if (pesagensValidas.length === 0) {
-        alert("Selecione e configure pelo menos uma pesagem");
-        return;
-      }
-      
-      onSubmit({
-        data_pesagem: formData.data_pesagem,
-        categorias_selecionadas: pesagensValidas.map(p => p.categoria),
-        pesos_por_categoria: pesagensValidas.reduce((acc, p) => ({ ...acc, [p.categoria]: p.peso }), {}),
-        observacoes: formData.observacoes
-      });
+    if (formData.pesagens.length === 0) {
+      alert("Adicione pelo menos uma categoria para pesar");
+      return;
     }
+    
+    const pesagensValidas = formData.pesagens.filter(p => p.peso && parseFloat(p.peso) > 0);
+    if (pesagensValidas.length === 0) {
+      alert("Preencha o peso de pelo menos uma categoria");
+      return;
+    }
+    
+    onSubmit({
+      data_pesagem: formData.data_pesagem,
+      categorias_selecionadas: pesagensValidas.map(p => p.categoria),
+      pesos_por_categoria: pesagensValidas.reduce((acc, p) => {
+        acc[p.categoria] = parseFloat(p.peso);
+        return acc;
+      }, {}),
+      observacoes: formData.observacoes
+    });
   };
 
   const adicionarCategoria = () => {
@@ -114,55 +101,19 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
         <CardTitle className="text-sm font-semibold">Registrar Pesagem - {nomeExibicao}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data da Pesagem *</Label>
             <Input
               type="date"
               value={formData.data_pesagem}
               onChange={(e) => setFormData({ ...formData, data_pesagem: e.target.value })}
-              className="h-8 text-xs"
+              className="h-9 text-xs"
               required
             />
           </div>
 
-          <div className="space-y-2 border-b pb-3">
-            <Label className="text-xs font-semibold">Modo de Pesagem</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                onClick={() => setModoPesagem("categorias")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "categorias" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-              >
-                Pesar por Categoria
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setModoPesagem("todos")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "todos" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-              >
-                Pesar Todos (Mesmo Peso)
-              </Button>
-            </div>
-          </div>
-
-          {modoPesagem === "todos" ? (
-            <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
-              <Label className="text-xs font-semibold">Peso para Todos os Animais</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={pesoGeral}
-                onChange={(e) => setPesoGeral(e.target.value)}
-                className="h-10 text-sm font-semibold"
-                placeholder="Peso em kg"
-              />
-              <div className="text-[10px] text-slate-600 mt-2">
-                Este peso será aplicado a todas as {categoriasDisponiveis.length} categoria(s) selecionada(s)
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
+          <div className="space-y-2">
             {formData.pesagens.map((pesagem, index) => {
               const infoCategoria = lotesPorCategoria[pesagem.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -170,63 +121,81 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 ic.categoria?.toUpperCase() === pesagem.categoria?.toUpperCase()
               );
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
-              const ganho = pesagem.peso - infoCategoria.pesoAnterior;
 
               return (
-                <div key={index} className="bg-white border border-slate-200 rounded p-2 text-xs">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[9px] font-bold text-slate-900 truncate">{pesagem.categoria}</div>
-                      <div className="text-sm font-bold text-slate-900">{infoCategoria.totalCabecas} cab</div>
-                    </div>
-                    {iconeUrl && (
-                      <img src={iconeUrl} alt={pesagem.categoria} className="w-8 h-8 object-contain flex-shrink-0" />
-                    )}
+                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-semibold">Categoria</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removerCategoria(index)}
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div>
-                      <Label className="text-[8px] text-slate-500 mb-0.5 block">Peso anterior</Label>
-                      <Input
-                        value={infoCategoria.pesoAnterior}
-                        disabled
-                        className="h-7 text-[11px] bg-slate-50 border-slate-200"
-                      />
-                    </div>
+                  <Select
+                    value={pesagem.categoria}
+                    onValueChange={(v) => handlePesagemChange(index, 'categoria', v)}
+                  >
+                    <SelectTrigger className="h-10 text-xs mb-3">
+                      <SelectValue>
+                        <div className="flex items-center gap-2">
+                          {iconeUrl && <img src={iconeUrl} alt="" className="w-5 h-5" />}
+                          <span>{infoCategoria.totalCabecas} cb - {pesagem.categoria}</span>
+                        </div>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDisponiveis.map(cat => {
+                        const info = lotesPorCategoria[cat];
+                        const icon = iconesConfig.find(ic => 
+                          ic.tipo_entidade === 'Lote' && 
+                          ic.categoria?.toUpperCase() === cat?.toUpperCase()
+                        );
+                        return (
+                          <SelectItem key={cat} value={cat} className="text-xs">
+                            <div className="flex items-center gap-2">
+                              {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
+                              <span>{info.totalCabecas} cb - {cat}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
 
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-[8px] text-slate-500 mb-0.5 block">Peso atual (kg) *</Label>
+                      <Label className="text-xs text-slate-600">Peso Atual (kg) *</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={pesagem.peso}
-                        onChange={(e) => handlePesagemChange(index, 'peso', parseFloat(e.target.value) || 0)}
-                        className="h-7 text-[11px]"
-                        disabled={!pesagem.selecionada}
+                        onChange={(e) => handlePesagemChange(index, 'peso', e.target.value)}
                         placeholder="0"
+                        className="h-10 text-xs"
+                        required
                       />
                     </div>
-
-                    {pesagem.selecionada && ganho !== 0 && (
-                      <div className="text-[8px] text-slate-600">
-                        Ganho: <span className={ganho > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                          {ganho > 0 ? '+' : ''}{ganho.toFixed(1)} kg
-                        </span>
-                      </div>
-                    )}
-
-                    <Button
-                      type="button"
-                      onClick={() => handlePesagemChange(index, 'selecionada', !pesagem.selecionada)}
-                      className={`h-7 text-[9px] w-full ${pesagem.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
-                    >
-                      {pesagem.selecionada ? 'Cancelar' : 'Selecionar'}
-                    </Button>
                   </div>
                 </div>
               );
             })}
-            </div>
+
+            <Button
+              type="button"
+              onClick={adicionarCategoria}
+              variant="outline"
+              className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Categoria
+            </Button>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Observações Gerais</Label>
             <Textarea
