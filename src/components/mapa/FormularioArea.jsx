@@ -24,6 +24,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
   
   const [formData, setFormData] = useState({
     nome: "",
+    sigla: "",
     tipo_pastagem: "Pasto/Piquete",
     capacidade_maxima: "",
     cor: CORES_DISPONIVEIS[0],
@@ -87,6 +88,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
 
     createAreaMutation.mutate({
       nome: formData.nome.toUpperCase(),
+      sigla: formData.sigla.toUpperCase(),
       tipo_pastagem: formData.tipo_pastagem,
       tamanho_hectares: tamanhoHectares,
       capacidade_maxima: parseFloat(formData.capacidade_maxima) || 0,
@@ -97,15 +99,28 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Nome da Área *</Label>
-        <Input
-          value={formData.nome}
-          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-          placeholder="PIQUETE 01, LAVOURA A..."
-          className="h-9 text-xs uppercase"
-          required
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Nome da Área *</Label>
+          <Input
+            value={formData.nome}
+            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+            placeholder="PIQUETE 01, LAVOURA A..."
+            className="h-9 text-xs uppercase"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Sigla</Label>
+          <Input
+            value={formData.sigla}
+            onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+            placeholder="A1, PQ01..."
+            className="h-9 text-xs uppercase"
+            maxLength={10}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">
