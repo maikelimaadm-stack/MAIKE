@@ -147,19 +147,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
       
-      // ATUALIZAÇÃO OTIMISTA - Atualizar cache IMEDIATAMENTE
-      const lotesAtuais = queryClient.getQueryData(['lotes', empresaSelecionadaId]) || [];
-      
       if (formData.mover_todos === 'sim') {
-        const lotesAtualizados = lotesAtuais.map(l => {
-          if (lotes.some(lote => lote.id === l.id)) {
-            return { ...l, area_atual_id: formData.area_entrada_id, area_atual_nome: areaEntrada?.nome || '' };
-          }
-          return l;
-        });
-        queryClient.setQueryData(['lotes', empresaSelecionadaId], lotesAtualizados);
-        
-        // Agora fazer a requisição real
         for (const lote of lotes) {
           await base44.entities.Lote.update(lote.id, {
             area_atual_id: formData.area_entrada_id,
@@ -180,8 +168,6 @@ export default function DetalhesLote({ lotes, onClose }) {
           });
         }
       } else {
-        let lotesAtualizados = [...lotesAtuais];
-        
         for (const mov of formData.movimentacoes) {
           if (mov.quantidade <= 0) continue;
 
@@ -194,34 +180,12 @@ export default function DetalhesLote({ lotes, onClose }) {
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
             
             if (quantidadeMover === lote.quantidade_cabecas) {
-              lotesAtualizados = lotesAtualizados.map(l => 
-                l.id === lote.id ? { ...l, area_atual_id: formData.area_entrada_id, area_atual_nome: areaEntrada?.nome || '', peso_medio_kg: mov.peso_medio } : l
-              );
-              
               await base44.entities.Lote.update(lote.id, {
                 area_atual_id: formData.area_entrada_id,
                 area_atual_nome: areaEntrada?.nome || '',
                 peso_medio_kg: mov.peso_medio
               });
             } else {
-              const novoLote = {
-                id: `temp-${Date.now()}`,
-                empresa_id: empresaSelecionadaId,
-                nome: `${lote.nome} (MOVIDO)`,
-                quantidade_cabecas: quantidadeMover,
-                categoria: lote.categoria,
-                sexo: lote.sexo,
-                peso_medio_kg: mov.peso_medio,
-                idade_media_meses: lote.idade_media_meses,
-                area_atual_id: formData.area_entrada_id,
-                area_atual_nome: areaEntrada?.nome || '',
-                status: 'Ativo'
-              };
-              lotesAtualizados.push(novoLote);
-              lotesAtualizados = lotesAtualizados.map(l => 
-                l.id === lote.id ? { ...l, quantidade_cabecas: l.quantidade_cabecas - quantidadeMover } : l
-              );
-              
               await base44.entities.Lote.create({
                 empresa_id: empresaSelecionadaId,
                 nome: `${lote.nome} (MOVIDO)`,
@@ -260,20 +224,18 @@ export default function DetalhesLote({ lotes, onClose }) {
             quantidadeRestante -= quantidadeMover;
           }
         }
-        
-        queryClient.setQueryData(['lotes', empresaSelecionadaId], lotesAtualizados);
       }
+      
+      await queryClient.refetchQueries({ queryKey: ['lotes'], exact: false });
     },
     onSuccess: () => {
-      toast.success('✅ Movimentação realizada!');
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      toast.success('✅ Gado movido!');
       setShowMovimentacao(false);
       onClose();
     },
     onError: (error) => {
-      console.error('❌ Erro na movimentação:', error);
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      toast.error('❌ Erro ao realizar movimentação');
+      console.error('❌ Erro:', error);
+      toast.error('❌ Erro ao mover gado');
     }
   });
 
