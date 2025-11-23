@@ -504,8 +504,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           <X className="w-6 h-6 text-slate-700" />
         </Button>
 
-        {/* Controles de tipo de mapa no topo direito */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+        {/* Controles do mapa no topo */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
@@ -544,6 +544,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               }
             }}
             className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
+            title="Minha localização"
           >
             <Target className="w-4 h-4" />
           </Button>
@@ -552,6 +553,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             size="sm"
             onClick={() => setSnappingEnabled(!snappingEnabled)}
             className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg hidden md:flex"
+            title="Snap nos pontos"
           >
             🧲
           </Button>
