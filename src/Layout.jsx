@@ -57,7 +57,6 @@ const DEFAULT_MENU = [
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
       { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
       { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
-      { id: "pec-suplementacao", title: "Gestao de Suplementacao", url: "GestaoPontosSuplementacao" },
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
     ],
   },
