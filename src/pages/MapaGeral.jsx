@@ -107,6 +107,8 @@ export default function MapaGeral() {
       return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const { data: iconesConfig = [] } = useQuery({

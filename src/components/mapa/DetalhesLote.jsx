@@ -226,7 +226,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
       
-      await queryClient.refetchQueries({ queryKey: ['lotes'], exact: false });
+      await queryClient.refetchQueries({ queryKey: ['lotes', empresaSelecionadaId] });
     },
     onSuccess: () => {
       toast.success('✅ Gado movido!');
