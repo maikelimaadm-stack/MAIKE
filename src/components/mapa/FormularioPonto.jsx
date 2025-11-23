@@ -120,12 +120,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       </div>
 
       <div className="flex justify-end gap-2 pt-3 border-t mt-4">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs">
-          <X className="w-3.5 h-3.5 mr-1.5" />
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
+          <X className="w-3.5 h-3.5" />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-9 text-xs bg-blue-600 hover:bg-blue-700">
-          <Save className="w-3.5 h-3.5 mr-1.5" />
+        <Button type="submit" size="sm" className="h-9 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
+          <Save className="w-3.5 h-3.5" />
           Salvar Ponto
         </Button>
       </div>

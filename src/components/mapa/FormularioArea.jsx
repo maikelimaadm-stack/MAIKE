@@ -123,9 +123,9 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
       </div>
 
       {formData.area_total && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-          <div className="text-xs text-emerald-700 mb-1 font-medium">Área Calculada</div>
-          <div className="text-2xl font-bold text-emerald-900">{formData.area_total} ha</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <div className="text-xs text-slate-600 mb-1 font-medium">Área Calculada</div>
+          <div className="text-2xl font-bold text-slate-900">{formData.area_total} ha</div>
         </div>
       )}
 
@@ -167,12 +167,12 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
       </div>
 
       <div className="flex justify-end gap-2 pt-3 border-t mt-4">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs">
-          <X className="w-3.5 h-3.5 mr-1.5" />
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
+          <X className="w-3.5 h-3.5" />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-9 text-xs bg-emerald-600 hover:bg-emerald-700">
-          <Save className="w-3.5 h-3.5 mr-1.5" />
+        <Button type="submit" size="sm" className="h-9 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
+          <Save className="w-3.5 h-3.5" />
           Salvar Área
         </Button>
       </div>
