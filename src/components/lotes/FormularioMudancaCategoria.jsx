@@ -152,26 +152,15 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                   >
                     <SelectTrigger className="h-10 text-xs mb-3">
                       <SelectValue>
-                        <div className="flex items-center gap-2">
-                          {iconeUrl && <img src={iconeUrl} alt="" className="w-5 h-5" />}
-                          <span>{infoCategoria.totalCabecas} cb - {mudanca.categoria_atual}</span>
-                        </div>
+                        {infoCategoria.totalCabecas} cb - {mudanca.categoria_atual}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasDisponiveis.map(cat => {
                         const info = lotesPorCategoria[cat];
-                        const icon = iconesConfig.find(ic => 
-                          ic.tipo_entidade === 'Lote' && 
-                          ic.categoria?.toUpperCase() === cat?.toUpperCase()
-                        );
-                        const iconUrl = icon?.sub_icone_url || icon?.icone_url;
                         return (
                           <SelectItem key={cat} value={cat} className="text-xs">
-                            <div className="flex items-center gap-2">
-                              {iconUrl && <img src={iconUrl} alt="" className="w-5 h-5" />}
-                              <span>{info.totalCabecas} cb - {cat}</span>
-                            </div>
+                            {info.totalCabecas} cb - {cat}
                           </SelectItem>
                         );
                       })}
