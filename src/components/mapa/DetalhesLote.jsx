@@ -19,6 +19,7 @@ import FormularioAbate from "../lotes/FormularioAbate";
 import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
 import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
+import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 
 export default function DetalhesLote({ lotes, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -29,6 +30,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showMudancaCategoria, setShowMudancaCategoria] = useState(false);
   const [showPesagem, setShowPesagem] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [showHistoricoSupl, setShowHistoricoSupl] = useState(false);
   const queryClient = useQueryClient();
 
   // Listener para abrir movimentação via drag-and-drop
@@ -559,13 +561,22 @@ export default function DetalhesLote({ lotes, onClose }) {
         </Button>
       </div>
 
-      <Button 
-        onClick={() => setShowHistorico(true)}
-        variant="outline"
-        className="w-full h-9 text-[11px] font-semibold mt-3 border-slate-300"
-      >
-        Ver Histórico Completo
-      </Button>
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <Button 
+          onClick={() => setShowHistorico(true)}
+          variant="outline"
+          className="h-9 text-[11px] font-semibold border-slate-300"
+        >
+          Histórico Movimentações
+        </Button>
+        <Button 
+          onClick={() => setShowHistoricoSupl(true)}
+          variant="outline"
+          className="h-9 text-[11px] font-semibold border-slate-300"
+        >
+          Histórico Suplementação
+        </Button>
+      </div>
 
       <Dialog open={showMovimentacao} onOpenChange={setShowMovimentacao}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -642,6 +653,29 @@ export default function DetalhesLote({ lotes, onClose }) {
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <HistoricoMovimentacoes lotesIds={lotes.map(l => l.nome)} areaId={areaAtual?.id} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showHistoricoSupl} onOpenChange={setShowHistoricoSupl}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {lotes.length === 1 ? (
+            <HistoricoSuplementacaoLote
+              loteId={lotes[0].id}
+              loteNome={lotes[0].nome}
+            />
+          ) : (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-900">Histórico de Suplementação</h3>
+              {lotes.map(lote => (
+                <div key={lote.id} className="border-t pt-4">
+                  <HistoricoSuplementacaoLote
+                    loteId={lote.id}
+                    loteNome={lote.nome}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       </div>
