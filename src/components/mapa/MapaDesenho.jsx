@@ -14,6 +14,7 @@ import {
 import FormularioArea from "./FormularioArea";
 import FormularioPonto from "./FormularioPonto";
 import FormularioLinha from "./FormularioLinha";
+import FormularioCocho from "./FormularioCocho";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
@@ -44,6 +45,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
   const [showFormularioArea, setShowFormularioArea] = useState(false);
   const [showFormularioPonto, setShowFormularioPonto] = useState(false);
   const [showFormularioLinha, setShowFormularioLinha] = useState(false);
+  const [showFormularioCocho, setShowFormularioCocho] = useState(false);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -173,6 +175,8 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
       setCurrentPoints(coords);
     } else if (itemEditando && tipoDesenho === 'ponto' && itemEditando.coordenadas) {
       setCurrentMarker(itemEditando.coordenadas);
+    } else if (itemEditando && tipoDesenho === 'cocho' && itemEditando.coordenadas) {
+      setCurrentMarker(itemEditando.coordenadas);
     }
   }, [itemEditando, tipoDesenho]);
 
@@ -251,6 +255,28 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           setCurrentMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() });
         });
         setShowFormularioPonto(true);
+      } else if (tipoDesenho === 'cocho') {
+        setCurrentMarker({ lat, lng });
+        if (tempMarkerRef.current) {
+          tempMarkerRef.current.setMap(null);
+        }
+        tempMarkerRef.current = new google.maps.Marker({
+          position: { lat, lng },
+          map: mapInstanceRef.current,
+          draggable: true,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12,
+            fillColor: '#9333ea',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 3
+          }
+        });
+        tempMarkerRef.current.addListener('dragend', (e) => {
+          setCurrentMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+        });
+        setShowFormularioCocho(true);
       } else if (tipoDesenho === 'area' || tipoDesenho === 'linha') {
         const newPoint = { lat, lng };
         setCurrentPoints(prev => {
@@ -545,6 +571,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
             <div className="bg-blue-600/95 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-2xl font-semibold text-xs text-center border-2 border-white">
               {tipoDesenho === 'area' && `🎯 Pontos: ${currentPoints.length}`}
               {tipoDesenho === 'ponto' && '📍 Toque no mapa'}
+              {tipoDesenho === 'cocho' && '🥣 Toque no mapa para colocar o cocho'}
               {tipoDesenho === 'linha' && `➡️ Pontos: ${currentPoints.length}`}
             </div>
             {tipoDesenho === 'area' && currentPoints.length >= 3 && (
@@ -625,6 +652,28 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
               onSalvar();
             }}
             onCancel={() => setShowFormularioLinha(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={showFormularioCocho} onOpenChange={setShowFormularioCocho}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{itemEditando ? 'Editar Cocho' : 'Cadastrar Cocho'}</SheetTitle>
+          </SheetHeader>
+          <FormularioCocho
+            coordenadas={currentMarker}
+            item={itemEditando}
+            onSave={() => {
+              setShowFormularioCocho(false);
+              cancelarDesenho();
+              queryClient.invalidateQueries({ queryKey: ['pontos-suplementacao'] });
+              onSalvar();
+            }}
+            onCancel={() => {
+              setShowFormularioCocho(false);
+              cancelarDesenho();
+            }}
           />
         </SheetContent>
       </Sheet>
