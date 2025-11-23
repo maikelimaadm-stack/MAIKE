@@ -543,17 +543,18 @@ export default function MapaGeral() {
       </div>
 
       <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Detalhes do Lote</DialogTitle>
-        </DialogHeader>
-        {selectedLote && (
-          <DetalhesLote
-            lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
-            onClose={() => setShowDetalhesLote(false)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lote</DialogTitle>
+          </DialogHeader>
+          {selectedLote && (
+            <DetalhesLote
+              lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
+              onClose={() => setShowDetalhesLote(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
