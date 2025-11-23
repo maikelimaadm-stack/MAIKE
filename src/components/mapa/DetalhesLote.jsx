@@ -238,12 +238,12 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('✅ Movimentação realizada com sucesso!');
       
-      // Invalidar imediatamente para forçar atualização
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      // Forçar atualização imediata
+      await queryClient.refetchQueries({ queryKey: ['lotes'] });
+      await queryClient.refetchQueries({ queryKey: ['movimentacoes-pecuaria'] });
       
       // Fechar modais
       setShowMovimentacao(false);
@@ -289,8 +289,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Morte registrada');
     setShowMorte(false);
     onClose();
@@ -353,8 +353,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Nascimento registrado');
     setShowNascimento(false);
     onClose();
@@ -387,8 +387,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Abate registrado');
     setShowAbate(false);
     onClose();
@@ -452,8 +452,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Categorias atualizadas');
     setShowMudancaCategoria(false);
     onClose();
@@ -489,8 +489,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
