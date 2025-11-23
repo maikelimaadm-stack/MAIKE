@@ -87,6 +87,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
   });
 
   const handleLancamento = (data) => {
+    console.log('🎯 handleLancamento chamado com:', data);
+    
     if (!navigator.onLine) {
       // Salvar offline - todos os dados
       const pending = JSON.parse(localStorage.getItem('pending_actions') || '[]');
@@ -102,6 +104,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       return;
     }
     
+    console.log('🚀 Iniciando mutation...');
     lancamentoMutation.mutate(data);
   };
 
