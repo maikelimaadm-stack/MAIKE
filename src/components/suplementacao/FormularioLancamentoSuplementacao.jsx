@@ -178,7 +178,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             <Button 
               type="submit" 
               size="sm" 
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+              className="h-8 text-xs bg-slate-800 hover:bg-slate-900"
               disabled={totalCabecas === 0}
             >
               Registrar Suplementação
