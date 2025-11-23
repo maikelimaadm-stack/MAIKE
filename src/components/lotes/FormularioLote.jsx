@@ -30,6 +30,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
     nome: "",
     quantidade_cabecas: "",
     categoria: "",
+    categoria_manejo_id: "",
     sexo: "",
     peso_medio_kg: "",
     idade_media_meses: "",
@@ -52,8 +53,25 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: categoriasManejo = [] } = useQuery({
+    queryKey: ['categorias-manejo', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CategoriaManejo.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };
+    
+    // Se mudou categoria de manejo, atualizar categoria oficial automaticamente
+    if (field === 'categoria_manejo_id') {
+      const catManejo = categoriasManejo.find(c => c.id === value);
+      if (catManejo) {
+        newData.categoria = catManejo.categoria_oficial;
+      }
+    }
     
     // Calcular valor por cabeça automaticamente
     if (field === 'quantidade_cabecas' || field === 'valor_total_compra') {
@@ -127,14 +145,16 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Categoria Oficial *</Label>
-                <Select value={formData.categoria} onValueChange={(v) => handleChange('categoria', v)}>
+                <Label className="text-xs">Categoria de Manejo *</Label>
+                <Select value={formData.categoria_manejo_id} onValueChange={(v) => handleChange('categoria_manejo_id', v)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIAS.map(cat => (
-                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    {categoriasManejo.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                        {cat.nome} ({cat.categoria_oficial})
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
