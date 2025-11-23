@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Map, Layers, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -50,6 +51,9 @@ export default function MapaGeral() {
   const [showLinhas, setShowLinhas] = useState(true);
   const [showLotes, setShowLotes] = useState(true);
   const [showPontosSuplementacao, setShowPontosSuplementacao] = useState(true);
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [showAlertas, setShowAlertas] = useState(true);
   
   const [showDetalhesLote, setShowDetalhesLote] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
@@ -120,6 +124,58 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: eventosSupl = [] } = useQuery({
+    queryKey: ['eventos-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoEvento.list();
+      return all.filter(e => e.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: pontosSupl = [] } = useQuery({
+    queryKey: ['pontos-supl-config', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Calcular alertas
+  const lotesComAlerta = lotes.map(lote => {
+    const alertas = [];
+    
+    // Verificar alerta de suplementação (sem lançamento há mais de 10 dias)
+    const eventosPonto = eventosSupl.filter(e => e.area_id === lote.area_atual_id);
+    if (eventosPonto.length > 0) {
+      const ultimoEvento = eventosPonto.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0];
+      const diasSemLancamento = Math.floor((new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24));
+      if (diasSemLancamento > 10) {
+        alertas.push({ tipo: 'suplementacao', dias: diasSemLancamento });
+      }
+    }
+    
+    // Verificar se tem peso baixo (menos de 50kg para categorias jovens)
+    if (lote.peso_medio_kg && lote.peso_medio_kg < 50 && 
+        (lote.categoria?.includes('Bezerr') || lote.categoria?.includes('0 a 12'))) {
+      alertas.push({ tipo: 'peso_baixo', peso: lote.peso_medio_kg });
+    }
+    
+    return { ...lote, alertas };
+  });
+
+  // Extrair categorias únicas
+  const categorias = [...new Set(lotes.map(l => l.categoria).filter(Boolean))].sort();
+  
+  // Filtrar lotes
+  const lotesFiltrados = lotesComAlerta.filter(lote => {
+    if (filtroCategoria !== 'todas' && lote.categoria !== filtroCategoria) return false;
+    if (filtroStatus === 'com_alerta' && lote.alertas.length === 0) return false;
+    if (filtroStatus === 'sem_alerta' && lote.alertas.length > 0) return false;
+    return true;
+  });
+
   useEffect(() => {
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
@@ -163,7 +219,7 @@ export default function MapaGeral() {
     if (mapInstanceRef.current && mapReady) {
       renderMap();
     }
-  }, [areas, pontos, linhas, lotes, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady]);
+  }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas]);
 
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
@@ -347,7 +403,7 @@ export default function MapaGeral() {
     if (showLotes) {
       // Agrupar lotes por área
       const lotesPorArea = {};
-      lotes.forEach(lote => {
+      lotesFiltrados.forEach(lote => {
         if (!lote.area_atual_id) return;
         if (!lotesPorArea[lote.area_atual_id]) {
           lotesPorArea[lote.area_atual_id] = [];
@@ -446,19 +502,23 @@ export default function MapaGeral() {
           };
         }
 
+        // Verificar alertas
+        const totalAlertas = lotesNaArea.reduce((sum, l) => sum + (l.alertas?.length || 0), 0);
+        const temAlerta = totalAlertas > 0;
+
         const marker = new google.maps.Marker({
           position: center,
           map: mapInstanceRef.current,
           icon: markerIcon,
           label: {
-            text: String(totalCabecas),
-            color: '#ffffff',
+            text: String(totalCabecas) + (showAlertas && temAlerta ? ' ⚠️' : ''),
+            color: temAlerta && showAlertas ? '#fbbf24' : '#ffffff',
             fontSize: '11px',
             fontWeight: 'bold',
             className: 'marker-label'
           },
           title: area.nome,
-          zIndex: 1000,
+          zIndex: temAlerta ? 2000 : 1000,
           draggable: true
         });
 
@@ -597,9 +657,53 @@ export default function MapaGeral() {
                     className="w-4 h-4 rounded border-slate-300"
                   />
                 </label>
-              </div>
-            </SheetContent>
-          </Sheet>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Mostrar Alertas</span>
+                  <input
+                    type="checkbox"
+                    checked={showAlertas}
+                    onChange={() => setShowAlertas(!showAlertas)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+
+                <div className="pt-4 border-t">
+                  <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-3">Filtros</div>
+
+                  <div className="space-y-3 px-3">
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">Categoria</label>
+                      <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas" className="text-xs">Todas</SelectItem>
+                          {categorias.map(cat => (
+                            <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">Status</label>
+                      <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                          <SelectItem value="com_alerta" className="text-xs">Com Alerta</SelectItem>
+                          <SelectItem value="sem_alerta" className="text-xs">Sem Alerta</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                </div>
+                </SheetContent>
+                </Sheet>
         </div>
 
         {/* Controles de tipo de mapa no topo direito */}
