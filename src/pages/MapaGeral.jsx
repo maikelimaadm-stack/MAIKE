@@ -22,6 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
+import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
@@ -48,9 +49,12 @@ export default function MapaGeral() {
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
   const [showLotes, setShowLotes] = useState(true);
+  const [showPontosSuplementacao, setShowPontosSuplementacao] = useState(true);
   
   const [showDetalhesLote, setShowDetalhesLote] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
+  const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
+  const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -74,6 +78,15 @@ export default function MapaGeral() {
     queryFn: async () => {
       const all = await base44.entities.PontoReferencia.list();
       return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: pontosSuplementacao = [] } = useQuery({
+    queryKey: ['pontos-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -148,7 +161,7 @@ export default function MapaGeral() {
     if (mapInstanceRef.current && mapReady) {
       renderMap();
     }
-  }, [areas, pontos, linhas, lotes, showAreas, showPontos, showLinhas, showLotes, iconesConfig, mapReady]);
+  }, [areas, pontos, linhas, lotes, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady]);
 
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
@@ -279,6 +292,40 @@ export default function MapaGeral() {
           paths.forEach(p => bounds.extend(p));
           infoWindow.setPosition(bounds.getCenter());
           infoWindow.open(mapInstanceRef.current);
+        });
+      });
+    }
+
+    if (showPontosSuplementacao) {
+      pontosSuplementacao.forEach(ponto => {
+        const coords = ponto.coordenadas || {};
+        if (!coords.lat || !coords.lng) return;
+
+        const markerIcon = {
+          url: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png',
+          scaledSize: new google.maps.Size(40, 40),
+          anchor: new google.maps.Point(20, 40),
+          labelOrigin: new google.maps.Point(20, 15)
+        };
+
+        const marker = new google.maps.Marker({
+          position: { lat: coords.lat, lng: coords.lng },
+          map: mapInstanceRef.current,
+          icon: markerIcon,
+          label: {
+            text: '🥣',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          },
+          title: ponto.nome_ponto,
+          zIndex: 2000
+        });
+
+        markersRef.current.push(marker);
+
+        marker.addListener('click', () => {
+          setSelectedPontoSupl(ponto);
+          setShowDetalhesPontoSupl(true);
         });
       });
     }
@@ -527,6 +574,15 @@ export default function MapaGeral() {
                     className="w-4 h-4 rounded border-slate-300"
                   />
                 </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Pontos Suplementação</span>
+                  <input
+                    type="checkbox"
+                    checked={showPontosSuplementacao}
+                    onChange={() => setShowPontosSuplementacao(!showPontosSuplementacao)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
               </div>
             </SheetContent>
           </Sheet>
@@ -571,6 +627,20 @@ export default function MapaGeral() {
             <DetalhesLote
               lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
               onClose={() => setShowDetalhesLote(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetalhesPontoSupl} onOpenChange={setShowDetalhesPontoSupl}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ponto de Suplementação</DialogTitle>
+          </DialogHeader>
+          {selectedPontoSupl && (
+            <DetalhesPontoSuplementacao
+              ponto={selectedPontoSupl}
+              onClose={() => setShowDetalhesPontoSupl(false)}
             />
           )}
         </DialogContent>

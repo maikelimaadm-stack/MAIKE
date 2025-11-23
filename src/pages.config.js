@@ -38,6 +38,7 @@ import MapaGeral from './pages/MapaGeral';
 import MapaCadastro from './pages/MapaCadastro';
 import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuaria';
 import GestaoPontosSuplementacao from './pages/GestaoPontosSuplementacao';
+import DashboardSuplementacao from './pages/DashboardSuplementacao';
 import __Layout from './Layout.jsx';
 
 
@@ -82,6 +83,7 @@ export const PAGES = {
     "MapaCadastro": MapaCadastro,
     "HistoricoMovimentacoesPecuaria": HistoricoMovimentacoesPecuaria,
     "GestaoPontosSuplementacao": GestaoPontosSuplementacao,
+    "DashboardSuplementacao": DashboardSuplementacao,
 }
 
 export const pagesConfig = {
