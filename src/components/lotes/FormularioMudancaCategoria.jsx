@@ -93,7 +93,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-3 max-h-[40vh] overflow-y-auto">
             {formData.mudancas.map((mudanca, index) => {
               const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
               const configIcone = iconesConfig.find(ic => 
@@ -107,7 +107,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-bold text-slate-900 mb-1.5">{mudanca.categoria_atual}</div>
-                      <div className="text-xl font-bold text-emerald-600 mb-2">{infoCategoria.totalCabecas} cab</div>
+                      <div className="text-xl font-bold text-slate-900 mb-2">{infoCategoria.totalCabecas} cab</div>
                       <div className="space-y-1.5 text-[10px]">
                         <div className="flex gap-2">
                           <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
@@ -156,7 +156,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                     <Button
                       type="button"
                       onClick={() => handleMudancaChange(index, 'selecionada', !mudanca.selecionada)}
-                      className={`h-8 text-[10px] w-full ${mudanca.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} text-white`}
+                      className={`h-8 text-[10px] w-full ${mudanca.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
                     >
                       {mudanca.selecionada ? 'Cancelar' : 'Selecionar'}
                     </Button>

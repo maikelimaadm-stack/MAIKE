@@ -113,14 +113,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               <Button
                 type="button"
                 onClick={() => setModoPesagem("categorias")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "categorias" ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                className={`flex-1 h-9 text-xs ${modoPesagem === "categorias" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
               >
                 Pesar por Categoria
               </Button>
               <Button
                 type="button"
                 onClick={() => setModoPesagem("todos")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "todos" ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                className={`flex-1 h-9 text-xs ${modoPesagem === "todos" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
               >
                 Pesar Todos (Mesmo Peso)
               </Button>
@@ -128,7 +128,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
           </div>
 
           {modoPesagem === "todos" ? (
-            <div className="space-y-2 bg-emerald-50 border border-emerald-300 rounded-lg p-4">
+            <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
               <Label className="text-xs font-semibold">Peso para Todos os Animais</Label>
               <Input
                 type="number"
@@ -143,7 +143,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto">
             {formData.pesagens.map((pesagem, index) => {
               const infoCategoria = lotesPorCategoria[pesagem.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -158,7 +158,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-bold text-slate-900 mb-1.5">{pesagem.categoria}</div>
-                      <div className="text-xl font-bold text-emerald-600 mb-2">{infoCategoria.totalCabecas} cab</div>
+                      <div className="text-xl font-bold text-slate-900 mb-2">{infoCategoria.totalCabecas} cab</div>
                       <div className="space-y-1.5 text-[10px]">
                         <div className="flex gap-2">
                           <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
@@ -205,7 +205,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                     <Button
                       type="button"
                       onClick={() => handlePesagemChange(index, 'selecionada', !pesagem.selecionada)}
-                      className={`h-8 text-[10px] w-full ${pesagem.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} text-white`}
+                      className={`h-8 text-[10px] w-full ${pesagem.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
                     >
                       {pesagem.selecionada ? 'Cancelar' : 'Selecionar'}
                     </Button>

@@ -97,7 +97,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
             />
           </div>
 
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-3 max-h-[40vh] overflow-y-auto">
             {formData.abates.map((abate, index) => {
               const infoCategoria = lotesPorCategoria[abate.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -111,7 +111,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-bold text-slate-900 mb-1.5">{abate.categoria}</div>
-                      <div className="text-xl font-bold text-emerald-600 mb-2">{infoCategoria.totalCabecas} cab</div>
+                      <div className="text-xl font-bold text-slate-900 mb-2">{infoCategoria.totalCabecas} cab</div>
                       <div className="space-y-1.5 text-[10px]">
                         <div className="flex gap-2">
                           <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
@@ -179,7 +179,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                     <Button
                       type="button"
                       onClick={() => handleAbateChange(index, 'selecionada', !abate.selecionada)}
-                      className={`h-8 text-[10px] w-full ${abate.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} text-white`}
+                      className={`h-8 text-[10px] w-full ${abate.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
                     >
                       {abate.selecionada ? 'Cancelar' : 'Selecionar'}
                     </Button>
