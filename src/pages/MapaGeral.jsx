@@ -230,7 +230,7 @@ export default function MapaGeral() {
         } else {
           markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 18,
+            scale: 30,
             fillColor: configIcone?.cor_padrao || ponto.cor || '#0066ff',
             fillOpacity: 1,
             strokeColor: '#ffffff',
