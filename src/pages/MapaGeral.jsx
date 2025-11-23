@@ -71,6 +71,11 @@ export default function MapaGeral() {
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_areas');
+        if (cached) return JSON.parse(cached).filter(a => a.empresa_id === empresaSelecionadaId);
+        return [];
+      }
       const all = await base44.entities.AreaPastagem.list();
       return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
@@ -80,6 +85,11 @@ export default function MapaGeral() {
   const { data: pontos = [] } = useQuery({
     queryKey: ['pontos', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_pontos_referencia');
+        if (cached) return JSON.parse(cached).filter(p => p.empresa_id === empresaSelecionadaId);
+        return [];
+      }
       const all = await base44.entities.PontoReferencia.list();
       return all.filter(p => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
     },
@@ -89,6 +99,11 @@ export default function MapaGeral() {
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ['pontos-suplementacao', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_pontos_suplementacao');
+        if (cached) return JSON.parse(cached).filter(p => p.empresa_id === empresaSelecionadaId);
+        return [];
+      }
       const all = await base44.entities.PontoSuplementacao.list();
       return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');
     },
@@ -112,6 +127,11 @@ export default function MapaGeral() {
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_lotes');
+        if (cached) return JSON.parse(cached).filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
+        return [];
+      }
       const all = await base44.entities.Lote.list();
       return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
