@@ -570,7 +570,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
       </div>
 
       <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{itemEditando ? 'Editar Área' : 'Cadastrar Área'}</SheetTitle>
           </SheetHeader>
@@ -589,7 +589,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
       </Sheet>
 
       <Sheet open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{itemEditando ? 'Editar Ponto' : 'Cadastrar Ponto'}</SheetTitle>
           </SheetHeader>
@@ -611,7 +611,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
       </Sheet>
 
       <Sheet open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{itemEditando ? 'Editar Linha' : 'Cadastrar Linha'}</SheetTitle>
           </SheetHeader>
