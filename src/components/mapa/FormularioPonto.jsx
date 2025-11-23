@@ -68,23 +68,23 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-      <div className="space-y-1">
-        <Label className="text-xs">Nome do Ponto *</Label>
+    <form onSubmit={handleSubmit} className="space-y-3 mt-4">
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Nome do Ponto *</Label>
         <Input
           value={formData.nome}
           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
           placeholder="COCHO 01, AGUADA 02..."
-          className="h-8 text-xs uppercase"
+          className="h-9 text-xs uppercase"
           required
         />
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">Tipo *</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Tipo *</Label>
         {tiposDisponiveis.length > 0 ? (
           <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-9 text-xs">
               <SelectValue placeholder="Selecione o tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -94,36 +94,38 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
             </SelectContent>
           </Select>
         ) : (
-          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg">
             Configure ícones de pontos em Configurações → Parâmetros
           </div>
         )}
-        <Input
-          value={formData.tipo}
-          onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-          placeholder="OU DIGITE UM NOVO TIPO"
-          className="h-8 text-xs uppercase mt-1"
-        />
+        <div className="pt-1">
+          <Input
+            value={formData.tipo}
+            onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+            placeholder="OU DIGITE UM NOVO TIPO"
+            className="h-9 text-xs uppercase"
+          />
+        </div>
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">Observações</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Observações</Label>
         <Textarea
           value={formData.observacoes}
           onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
           placeholder="OBSERVAÇÕES..."
           className="text-xs uppercase"
-          rows={2}
+          rows={3}
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-          <X className="w-3 h-3 mr-1" />
+      <div className="flex justify-end gap-2 pt-3 border-t mt-4">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs">
+          <X className="w-3.5 h-3.5 mr-1.5" />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700">
-          <Save className="w-3 h-3 mr-1" />
+        <Button type="submit" size="sm" className="h-9 text-xs bg-blue-600 hover:bg-blue-700">
+          <Save className="w-3.5 h-3.5 mr-1.5" />
           Salvar Ponto
         </Button>
       </div>

@@ -74,22 +74,22 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-      <div className="space-y-1">
-        <Label className="text-xs">Nome da Linha *</Label>
+    <form onSubmit={handleSubmit} className="space-y-3 mt-4">
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Nome da Linha *</Label>
         <Input
           value={formData.nome}
           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
           placeholder="ESTRADA PRINCIPAL, CERCA SUL..."
-          className="h-8 text-xs uppercase"
+          className="h-9 text-xs uppercase"
           required
         />
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">Tipo *</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Tipo *</Label>
         <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-          <SelectTrigger className="h-8 text-xs">
+          <SelectTrigger className="h-9 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -100,39 +100,39 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
         </Select>
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">Cor da Linha</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Cor da Linha</Label>
         <div className="grid grid-cols-5 gap-2">
           {CORES_DISPONIVEIS.map(cor => (
             <button
               key={cor}
               type="button"
               onClick={() => setFormData({ ...formData, cor })}
-              className={`w-full h-10 rounded border-2 transition-all ${formData.cor === cor ? 'border-slate-900 scale-110' : 'border-slate-200'}`}
+              className={`w-full h-10 rounded-lg border-2 transition-all ${formData.cor === cor ? 'border-slate-900 scale-110 shadow-md' : 'border-slate-300 hover:border-slate-400'}`}
               style={{ backgroundColor: cor }}
             />
           ))}
         </div>
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">Observações</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-slate-700">Observações</Label>
         <Textarea
           value={formData.observacoes}
           onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
           placeholder="OBSERVAÇÕES..."
           className="text-xs uppercase"
-          rows={2}
+          rows={3}
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-          <X className="w-3 h-3 mr-1" />
+      <div className="flex justify-end gap-2 pt-3 border-t mt-4">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs">
+          <X className="w-3.5 h-3.5 mr-1.5" />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-8 text-xs bg-orange-600 hover:bg-orange-700">
-          <Save className="w-3 h-3 mr-1" />
+        <Button type="submit" size="sm" className="h-9 text-xs bg-orange-600 hover:bg-orange-700">
+          <Save className="w-3.5 h-3.5 mr-1.5" />
           Salvar Linha
         </Button>
       </div>
