@@ -57,6 +57,8 @@ const DEFAULT_MENU = [
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
       { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
       { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
+      { id: "pec-suplementacao", title: "Gestao de Suplementacao", url: "GestaoPontosSuplementacao" },
+      { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
     ],
   },
   {
@@ -111,6 +113,7 @@ const DEFAULT_MENU = [
       { id: "rel-financeiro", title: "Relatorio Financeiro", url: "RelatorioFinanceiro" },
       { id: "rel-fornecedores", title: "Lista de Fornecedores", url: "RelatorioFornecedores" },
       { id: "rel-produtos", title: "Lista de Produtos", url: "RelatorioProdutos" },
+      { id: "rel-suplementacao", title: "Relatorio de Suplementacao", url: "RelatorioSuplementacao" },
     ],
   },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
