@@ -100,13 +100,25 @@ export default function MapaGeral() {
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
 
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
         zoom: 15,
         mapTypeId: mapType,
-        mapTypeControl: true,
+        mapTypeControl: false,
         streetViewControl: false,
-        fullscreenControl: true,
+        fullscreenControl: false,
+        gestureHandling: 'greedy',
+        zoomControl: true,
+        zoomControlOptions: {
+          position: google.maps.ControlPosition.RIGHT_CENTER
+        },
+        disableDoubleClickZoom: false,
+        draggable: true,
+        scrollwheel: true,
+        disableDefaultUI: isMobile,
+        clickableIcons: false
       });
 
       mapInstanceRef.current = map;
@@ -433,165 +445,116 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Mapa Geral - Manejo</h1>
-        <p className="text-sm text-slate-600">Visualize lotes, movimentações e informações da fazenda</p>
+    <div className="fixed inset-0 z-40 bg-white flex">
+      {/* Mapa em tela cheia */}
+      <div className="flex-1 relative">
+        <div
+          ref={mapRef}
+          style={{
+            height: '100%',
+            width: '100%',
+            backgroundColor: '#e5e7eb',
+            touchAction: 'manipulation'
+          }}
+        />
+        
+        {/* Controles flutuantes no topo direito */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+          <Button
+            variant={mapType === 'roadmap' ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setMapType('roadmap')}
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            Mapa
+          </Button>
+          <Button
+            variant={mapType === 'satellite' ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setMapType('satellite')}
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            Satélite
+          </Button>
+        </div>
+
+        {/* Controles de camadas no topo esquerdo */}
+        <div className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-3 max-w-[200px]">
+          <div className="text-xs font-semibold mb-2 flex items-center gap-1">
+            <Layers className="w-3 h-3" />
+            Camadas
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium">Áreas</span>
+              <Button
+                variant={showAreas ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowAreas(!showAreas)}
+                className="h-6 w-6 p-0"
+              >
+                {showAreas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium">Pontos</span>
+              <Button
+                variant={showPontos ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowPontos(!showPontos)}
+                className="h-6 w-6 p-0"
+              >
+                {showPontos ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium">Linhas</span>
+              <Button
+                variant={showLinhas ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowLinhas(!showLinhas)}
+                className="h-6 w-6 p-0"
+              >
+                {showLinhas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium">Lotes</span>
+              <Button
+                variant={showLotes ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowLotes(!showLotes)}
+                className="h-6 w-6 p-0"
+              >
+                {showLotes ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {!mapReady && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="font-semibold text-slate-700">Carregando mapa...</span>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-6 gap-4">
-        <Card className="xl:col-span-5">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Map className="w-5 h-5 text-blue-600" />
-                Mapa de Manejo
-              </CardTitle>
-
-              <div className="flex gap-1 bg-white border rounded-lg p-1">
-                <Button
-                  variant={mapType === 'roadmap' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMapType('roadmap')}
-                  className="h-8 text-xs"
-                >
-                  Mapa
-                </Button>
-                <Button
-                  variant={mapType === 'satellite' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMapType('satellite')}
-                  className="h-8 text-xs"
-                >
-                  Satélite
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-0 relative">
-            <div
-              ref={mapRef}
-              style={{
-                height: '750px',
-                width: '100%',
-                backgroundColor: '#e5e7eb'
-              }}
-            />
-            {!mapReady && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-                  <span className="font-semibold text-slate-700">Carregando mapa...</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="bg-slate-50 border-b py-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Layers className="w-4 h-4" />
-              Camadas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-              <div className="text-xs font-semibold text-blue-900 mb-1">ℹ️ Modo Visualização</div>
-              <div className="text-[10px] text-blue-700">
-                Clique nos elementos para ver detalhes
-              </div>
-            </div>
-
-            <div className="border-t pt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">Áreas ({areas.length})</span>
-                <Button
-                  variant={showAreas ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setShowAreas(!showAreas)}
-                  className="h-7 text-xs"
-                >
-                  {showAreas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                </Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">Pontos ({pontos.length})</span>
-                <Button
-                  variant={showPontos ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setShowPontos(!showPontos)}
-                  className="h-7 text-xs"
-                >
-                  {showPontos ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                </Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">Linhas ({linhas.length})</span>
-                <Button
-                  variant={showLinhas ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setShowLinhas(!showLinhas)}
-                  className="h-7 text-xs"
-                >
-                  {showLinhas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                </Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">Lotes ({lotes.length})</span>
-                <Button
-                  variant={showLotes ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setShowLotes(!showLotes)}
-                  className="h-7 text-xs"
-                >
-                  {showLotes ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                </Button>
-              </div>
-            </div>
-
-            {showLotes && lotes.length > 0 && (
-              <div className="border-t pt-3 space-y-2">
-                <div className="text-xs font-semibold text-slate-700 mb-2">Lotes Ativos</div>
-                {lotes.map(lote => {
-                  const area = areas.find(a => a.id === lote.area_atual_id);
-                  return (
-                    <button
-                      key={lote.id}
-                      onClick={() => {
-                        setSelectedLote([lote]);
-                        setShowDetalhesLote(true);
-                      }}
-                      className="w-full text-left p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="text-xs font-semibold text-slate-900">{lote.nome}</div>
-                      <div className="text-[10px] text-slate-600 flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">{lote.quantidade_cabecas} cabeças</Badge>
-                        <span>{area?.nome || '-'}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Lote</DialogTitle>
-          </DialogHeader>
-          {selectedLote && (
-            <DetalhesLote
-              lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
-              onClose={() => setShowDetalhesLote(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
+
+    <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Detalhes do Lote</DialogTitle>
+        </DialogHeader>
+        {selectedLote && (
+          <DetalhesLote
+            lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
+            onClose={() => setShowDetalhesLote(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
