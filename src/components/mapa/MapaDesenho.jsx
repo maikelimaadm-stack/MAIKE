@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft } from "lucide-react";
+import { Map, Square, MapPin, Minus, Layers, X, Edit, Eye, ArrowLeft, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -521,6 +521,31 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
           >
             Satélite
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const pos = {
+                      lat: position.coords.latitude,
+                      lng: position.coords.longitude
+                    };
+                    if (mapInstanceRef.current) {
+                      mapInstanceRef.current.setCenter(pos);
+                      mapInstanceRef.current.setZoom(18);
+                      toast.success('📍 Centralizado na sua localização');
+                    }
+                  },
+                  () => toast.error('Erro ao obter localização')
+                );
+              }
+            }}
+            className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            <Target className="w-4 h-4" />
           </Button>
           <Button
             variant={snappingEnabled ? 'default' : 'secondary'}

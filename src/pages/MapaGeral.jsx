@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, Layers, X, ArrowLeft } from "lucide-react";
+import { Map, Layers, X, ArrowLeft, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -821,6 +821,32 @@ export default function MapaGeral() {
             className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
           >
             Satélite
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const pos = {
+                      lat: position.coords.latitude,
+                      lng: position.coords.longitude
+                    };
+                    setUserLocation(pos);
+                    if (mapInstanceRef.current) {
+                      mapInstanceRef.current.setCenter(pos);
+                      mapInstanceRef.current.setZoom(18);
+                      toast.success('📍 Centralizado na sua localização');
+                    }
+                  },
+                  () => toast.error('Erro ao obter localização')
+                );
+              }
+            }}
+            className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            <Target className="w-4 h-4" />
           </Button>
         </div>
 
