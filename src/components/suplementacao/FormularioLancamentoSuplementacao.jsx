@@ -79,7 +79,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     return sum + (lote.quantidade_cabecas * fator);
   }, 0);
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
+    // Validações
     if (!formData.produto) {
       toast.error("Selecione um produto");
       return;
@@ -95,91 +96,79 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       return;
     }
 
-    if (fatores.length === 0) {
-      toast.error("Configure os fatores de consumo primeiro");
-      return;
-    }
-
-    const dadosEvento = {
-      empresa_id: empresaSelecionadaId,
-      ponto_suplementacao_id: ponto.id,
-      ponto_nome: ponto.nome_ponto,
-      area_id: ponto.area_vinculada_id,
-      area_nome: ponto.area_vinculada_nome,
-      data_lancamento: formData.data_lancamento,
-      produto: formData.produto,
-      quantidade_total_kg: parseFloat(formData.quantidade_total_kg),
-      sobra_kg: parseFloat(formData.sobra_kg || 0),
-      dias_periodo: null,
-      consumo_diario_grupo_kg: null,
-      total_cabecas_afetadas: totalCabecas,
-      peso_total_consumo: pesoTotalConsumo,
-      observacoes: formData.observacoes
-    };
-
-    let eventoAnteriorAtualizado = null;
-    let lotesAnterioresAtualizados = [];
-
-    if (ultimoEvento && diasPeriodo > 0) {
-      const quantidadeConsumidaAnterior = ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0);
-      const consumoDiarioGrupoAnterior = quantidadeConsumidaAnterior / diasPeriodo;
-      const pesoTotalConsumoAnterior = ultimoEvento.peso_total_consumo || pesoTotalConsumo;
-      const consumoUnitarioDiaAnterior = pesoTotalConsumoAnterior > 0 
-        ? quantidadeConsumidaAnterior / (diasPeriodo * pesoTotalConsumoAnterior)
-        : 0;
-
-      eventoAnteriorAtualizado = {
-        id: ultimoEvento.id,
-        dias_periodo: diasPeriodo,
-        consumo_diario_grupo_kg: consumoDiarioGrupoAnterior
+    try {
+      // 1. Criar o evento de suplementação
+      const eventoData = {
+        empresa_id: empresaSelecionadaId,
+        ponto_suplementacao_id: ponto.id,
+        ponto_nome: ponto.nome_ponto,
+        area_id: ponto.area_vinculada_id,
+        area_nome: ponto.area_vinculada_nome,
+        data_lancamento: formData.data_lancamento,
+        produto: formData.produto,
+        quantidade_total_kg: parseFloat(formData.quantidade_total_kg),
+        sobra_kg: parseFloat(formData.sobra_kg || 0),
+        total_cabecas_afetadas: totalCabecas,
+        peso_total_consumo: pesoTotalConsumo,
+        observacoes: formData.observacoes
       };
 
-      lotesAnterioresAtualizados = lotes.map(lote => {
+      const evento = await base44.entities.SuplementacaoEvento.create(eventoData);
+
+      // 2. Criar registros de lotes
+      for (const lote of lotes) {
         const categoriaLote = lote.categoria?.toUpperCase().trim();
         const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
         const pesoConsumoLote = lote.quantidade_cabecas * fator;
-        const consumoPorCabecaDia = consumoUnitarioDiaAnterior * fator;
-        const consumoTotalLotePeriodo = consumoPorCabecaDia * lote.quantidade_cabecas * diasPeriodo;
 
-        return {
+        await base44.entities.SuplementacaoLote.create({
+          empresa_id: empresaSelecionadaId,
+          suplementacao_evento_id: evento.id,
           lote_id: lote.id,
-          peso_consumo_lote: pesoConsumoLote,
+          lote_nome: lote.nome,
+          categoria: lote.categoria,
+          fator_consumo: fator,
+          data_lancamento: formData.data_lancamento,
+          produto: formData.produto,
+          cabecas_na_area: lote.quantidade_cabecas,
+          peso_consumo_lote: pesoConsumoLote
+        });
+      }
+
+      // 3. Se existe evento anterior, atualizar período
+      if (ultimoEvento && diasPeriodo > 0) {
+        const quantidadeConsumida = ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0);
+        const consumoDiario = quantidadeConsumida / diasPeriodo;
+
+        await base44.entities.SuplementacaoEvento.update(ultimoEvento.id, {
           dias_periodo: diasPeriodo,
-          consumo_unitario_dia: consumoUnitarioDiaAnterior,
-          consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
-          consumo_total_lote_periodo_kg: consumoTotalLotePeriodo
-        };
-      });
+          consumo_diario_grupo_kg: consumoDiario
+        });
+
+        // Atualizar lotes do evento anterior
+        const lotesAnteriores = await base44.entities.SuplementacaoLote.list();
+        const lotesDoEvento = lotesAnteriores.filter(l => l.suplementacao_evento_id === ultimoEvento.id);
+
+        for (const loteAnterior of lotesDoEvento) {
+          const consumoPorCabeca = loteAnterior.peso_consumo_lote > 0 
+            ? (consumoDiario * loteAnterior.peso_consumo_lote / ultimoEvento.peso_total_consumo)
+            : 0;
+
+          await base44.entities.SuplementacaoLote.update(loteAnterior.id, {
+            dias_periodo: diasPeriodo,
+            consumo_por_cabeca_dia_kg: consumoPorCabeca,
+            consumo_total_lote_periodo_kg: consumoPorCabeca * loteAnterior.cabecas_na_area * diasPeriodo
+          });
+        }
+      }
+
+      toast.success("Suplementação registrada com sucesso!");
+      onCancel();
+      
+    } catch (error) {
+      console.error('Erro ao registrar:', error);
+      toast.error("Erro ao registrar suplementação: " + error.message);
     }
-
-    const lotesAfetados = lotes.map(lote => {
-      const categoriaLote = lote.categoria?.toUpperCase().trim();
-      const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
-      const pesoConsumoLote = lote.quantidade_cabecas * fator;
-
-      return {
-        empresa_id: empresaSelecionadaId,
-        lote_id: lote.id,
-        lote_nome: lote.nome,
-        categoria: lote.categoria,
-        fator_consumo: fator,
-        data_lancamento: formData.data_lancamento,
-        produto: formData.produto,
-        cabecas_na_area: lote.quantidade_cabecas,
-        peso_consumo_lote: pesoConsumoLote,
-        dias_periodo: null,
-        consumo_unitario_dia: null,
-        consumo_por_cabeca_dia_kg: null,
-        consumo_total_lote_periodo_kg: null
-      };
-    });
-
-    onSubmit({ 
-      evento: dadosEvento, 
-      lotes: lotesAfetados,
-      eventoAnterior: eventoAnteriorAtualizado,
-      lotesAnteriores: lotesAnterioresAtualizados
-    });
   };
 
   const botaoHabilitado = totalCabecas > 0 && formData.produto && formData.quantidade_total_kg;
