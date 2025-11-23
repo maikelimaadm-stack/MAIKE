@@ -324,30 +324,32 @@ export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar
             </div>
           </div>
 
-          {/* Contador de pontos */}
-          <div className="bg-white rounded-lg shadow-xl p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {pontos.length}
-                </div>
-                <div className="text-xs text-slate-600">
-                  {tipo === 'area' ? 'Pontos Marcados' : 'Pontos da Linha'}
-                </div>
+          {/* Contador de pontos - versão compacta */}
+          <div className="bg-white/95 backdrop-blur rounded-lg shadow-xl px-4 py-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="text-xl font-bold text-slate-900">{pontos.length}</div>
+                <div className="text-xs text-slate-600">pontos</div>
               </div>
               
               {tipo === 'area' && pontos.length >= 3 && (
-                <div className="text-right">
-                  <div className="text-xl font-bold text-emerald-600">{calcularArea()} ha</div>
-                  <div className="text-xs text-slate-600">Área</div>
-                </div>
+                <>
+                  <div className="h-4 w-px bg-slate-300"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xl font-bold text-emerald-600">{calcularArea()}</div>
+                    <div className="text-xs text-slate-600">ha</div>
+                  </div>
+                </>
               )}
               
               {tipo === 'linha' && pontos.length >= 2 && (
-                <div className="text-right">
-                  <div className="text-xl font-bold text-blue-600">{calcularDistancia()} km</div>
-                  <div className="text-xs text-slate-600">Distância</div>
-                </div>
+                <>
+                  <div className="h-4 w-px bg-slate-300"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xl font-bold text-blue-600">{calcularDistancia()}</div>
+                    <div className="text-xs text-slate-600">km</div>
+                  </div>
+                </>
               )}
             </div>
           </div>
