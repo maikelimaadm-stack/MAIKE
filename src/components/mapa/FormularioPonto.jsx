@@ -123,8 +123,10 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
-      // Se for cocho, criar APENAS ponto de suplementação
-      if (data.tipo?.toUpperCase().includes('COCHO') && data.area_vinculada_id) {
+      // Se for cocho E tiver área vinculada, criar ponto de suplementação
+      const ehCocho = data.area_vinculada_id && data.tipo?.toUpperCase().includes('COCHO');
+      
+      if (ehCocho) {
         const allPontosSuplementacao = await base44.entities.PontoSuplementacao.list();
         const pontosEmpresa = allPontosSuplementacao.filter(p => p.empresa_id === empresaSelecionadaId);
         const ultimoNumero = pontosEmpresa.length > 0
@@ -194,12 +196,27 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       return;
     }
     
-    if (formData.tipo?.toUpperCase().includes('COCHO') && !formData.area_vinculada_id) {
+    const ehCocho = formData.tipo?.toUpperCase().includes('COCHO');
+    
+    if (ehCocho && !formData.area_vinculada_id) {
       toast.error('Para cocho é necessário selecionar uma área!');
       return;
     }
     
-    createPontoMutation.mutate(formData);
+    createPontoMutation.mutate({
+      nome: formData.nome.toUpperCase(),
+      sigla: formData.sigla.toUpperCase(),
+      tipo: formData.tipo,
+      observacoes: formData.observacoes?.toUpperCase(),
+      produto_padrao: ehCocho ? formData.produto_padrao : null,
+      capacidade_cocho_kg: ehCocho ? formData.capacidade_cocho_kg : null,
+      area_vinculada_id: ehCocho ? formData.area_vinculada_id : null,
+      consumo_ideal_por_cabeca_kg: ehCocho ? formData.consumo_ideal_por_cabeca_kg : null,
+      limite_minimo_consumo: ehCocho ? formData.limite_minimo_consumo : null,
+      limite_maximo_consumo: ehCocho ? formData.limite_maximo_consumo : null,
+      frequencia_esperada_dias: ehCocho ? formData.frequencia_esperada_dias : null,
+      alerta_sem_lancamento_dias: ehCocho ? formData.alerta_sem_lancamento_dias : null
+    });
   };
 
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
