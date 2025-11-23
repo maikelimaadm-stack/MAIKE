@@ -20,7 +20,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     // Campos específicos para cocho
     produto_padrao: "",
     capacidade_cocho_kg: "",
-    area_vinculada_id: ""
+    area_vinculada_id: "",
+    consumo_ideal_por_cabeca_kg: "",
+    limite_minimo_consumo: "",
+    limite_maximo_consumo: "",
+    frequencia_esperada_dias: "7",
+    alerta_sem_lancamento_dias: "10"
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -94,8 +99,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           area_vinculada_nome: areaVinculada?.nome || '',
           coordenadas: coordenadas,
           status: 'Ativo',
-          frequencia_esperada_dias: 7,
-          alerta_sem_lancamento_dias: 10
+          consumo_ideal_por_cabeca_kg: data.consumo_ideal_por_cabeca_kg ? parseFloat(data.consumo_ideal_por_cabeca_kg) : null,
+          limite_minimo_consumo: data.limite_minimo_consumo ? parseFloat(data.limite_minimo_consumo) : null,
+          limite_maximo_consumo: data.limite_maximo_consumo ? parseFloat(data.limite_maximo_consumo) : null,
+          frequencia_esperada_dias: data.frequencia_esperada_dias ? parseInt(data.frequencia_esperada_dias) : 7,
+          alerta_sem_lancamento_dias: data.alerta_sem_lancamento_dias ? parseInt(data.alerta_sem_lancamento_dias) : 10
         });
       }
       
@@ -141,7 +149,12 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       observacoes: formData.observacoes?.toUpperCase(),
       produto_padrao: formData.produto_padrao,
       capacidade_cocho_kg: formData.capacidade_cocho_kg,
-      area_vinculada_id: formData.area_vinculada_id
+      area_vinculada_id: formData.area_vinculada_id,
+      consumo_ideal_por_cabeca_kg: formData.consumo_ideal_por_cabeca_kg,
+      limite_minimo_consumo: formData.limite_minimo_consumo,
+      limite_maximo_consumo: formData.limite_maximo_consumo,
+      frequencia_esperada_dias: formData.frequencia_esperada_dias,
+      alerta_sem_lancamento_dias: formData.alerta_sem_lancamento_dias
     });
   };
 
@@ -243,8 +256,72 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
               className="h-9 text-xs"
             />
           </div>
-        </div>
-      )}
+
+          <div className="border-t pt-3 mt-3">
+            <div className="text-xs font-semibold text-purple-700 mb-3">📊 Parâmetros de Consumo</div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Consumo Ideal (kg/cab/dia)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={formData.consumo_ideal_por_cabeca_kg}
+                  onChange={(e) => setFormData({ ...formData, consumo_ideal_por_cabeca_kg: e.target.value })}
+                  className="h-9 text-xs"
+                  placeholder="0.150"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Limite Mínimo (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={formData.limite_minimo_consumo}
+                  onChange={(e) => setFormData({ ...formData, limite_minimo_consumo: e.target.value })}
+                  className="h-9 text-xs"
+                  placeholder="0.100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Limite Máximo (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={formData.limite_maximo_consumo}
+                  onChange={(e) => setFormData({ ...formData, limite_maximo_consumo: e.target.value })}
+                  className="h-9 text-xs"
+                  placeholder="0.200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Frequência Esperada (dias)</Label>
+                <Input
+                  type="number"
+                  value={formData.frequencia_esperada_dias}
+                  onChange={(e) => setFormData({ ...formData, frequencia_esperada_dias: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Alerta sem Lançamento (dias)</Label>
+                <Input
+                  type="number"
+                  value={formData.alerta_sem_lancamento_dias}
+                  onChange={(e) => setFormData({ ...formData, alerta_sem_lancamento_dias: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+          </div>
+          )}
 
       <div className="flex justify-end gap-2 pt-3 border-t mt-4">
         <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
