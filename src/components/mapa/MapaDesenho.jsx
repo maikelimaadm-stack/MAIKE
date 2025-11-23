@@ -180,6 +180,8 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
     loadGoogleMapsScript().then(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
 
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: -15.0067, lng: -59.9533 },
         zoom: 15,
@@ -191,7 +193,12 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
         zoomControl: true,
         zoomControlOptions: {
           position: google.maps.ControlPosition.RIGHT_CENTER
-        }
+        },
+        disableDoubleClickZoom: false,
+        draggable: true,
+        scrollwheel: true,
+        disableDefaultUI: isMobile,
+        clickableIcons: false
       });
 
       mapInstanceRef.current = map;
@@ -534,7 +541,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
             width: '100%',
             backgroundColor: '#e5e7eb',
             cursor: (tipoDesenho && mapReady && !itemEditando) ? 'crosshair' : 'default',
-            touchAction: 'pan-x pan-y'
+            touchAction: 'manipulation'
           }}
           className={(tipoDesenho && mapReady && !itemEditando) ? '[&_*]:cursor-crosshair' : ''}
         />
