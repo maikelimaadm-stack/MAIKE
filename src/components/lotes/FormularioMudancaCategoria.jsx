@@ -103,13 +103,13 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
               
               return (
-                <div key={index} className={`border rounded-lg p-2 transition-all ${mudanca.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
-                  <div className="flex items-start gap-2 mb-2">
+                <div key={index} className={`border rounded-lg p-3 transition-all ${mudanca.selecionada ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
+                  <div className="flex items-start gap-2 mb-3">
                     <div className="flex-1">
-                      <div className="text-[10px] font-semibold text-emerald-600">
+                      <div className="text-[11px] font-semibold text-emerald-600 mb-1">
                         {infoCategoria.totalCabecas} cabeças - {mudanca.categoria_atual.split(' ')[0]}
                       </div>
-                      <div className="text-[8px] text-slate-500 truncate">
+                      <div className="text-[9px] text-slate-500 truncate">
                         {infoCategoria.lotes[0]?.nome}
                       </div>
                     </div>
@@ -117,38 +117,38 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                       <img 
                         src={iconeUrl} 
                         alt={mudanca.categoria_atual} 
-                        className="w-8 h-8 object-contain" 
+                        className="w-10 h-10 object-contain" 
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                      <div className="w-10 h-10 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
                         {mudanca.categoria_atual.substring(0, 2)}
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-3">
                     <div>
-                      <Label className="text-[10px] text-slate-600">Quantidade *</Label>
+                      <Label className="text-[10px] text-slate-600 mb-1.5 block">Quantidade *</Label>
                       <Input
                         type="number"
                         min="0"
                         max={infoCategoria.totalCabecas}
                         value={mudanca.quantidade}
                         onChange={(e) => handleMudancaChange(index, 'quantidade', parseInt(e.target.value) || 0)}
-                        className="h-7 text-xs"
+                        className="h-8 text-xs"
                         placeholder="Quantidade"
                         disabled={!mudanca.selecionada}
                       />
                     </div>
 
                     <div>
-                      <Label className="text-[10px] text-slate-600">Categoria de manejo *</Label>
+                      <Label className="text-[10px] text-slate-600 mb-1.5 block">Categoria de manejo *</Label>
                       <Select
                         value={mudanca.categoria_nova}
                         onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
                         disabled={!mudanca.selecionada}
                       >
-                        <SelectTrigger className="h-7 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
@@ -163,7 +163,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                   <Button
                     type="button"
                     onClick={() => handleMudancaChange(index, 'selecionada', !mudanca.selecionada)}
-                    className={`h-6 text-[10px] mt-2 w-full ${mudanca.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
+                    className={`h-7 text-[10px] mt-3 w-full ${mudanca.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}
                   >
                     {mudanca.selecionada ? 'Cancelar' : 'Selecionar'}
                   </Button>
