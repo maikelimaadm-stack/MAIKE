@@ -108,7 +108,9 @@ export default function MapaGeral() {
     },
     enabled: !!empresaSelecionadaId,
     refetchOnWindowFocus: true,
-    refetchInterval: 5000,
+    refetchInterval: 2000,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const { data: iconesConfig = [] } = useQuery({

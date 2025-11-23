@@ -144,21 +144,19 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
-      console.log('Iniciando movimentação...', formData);
+      console.log('🔄 Iniciando movimentação...', formData);
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       
       if (formData.mover_todos === 'sim') {
-        // Mover todos os lotes para a área de entrada
         const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
         
         for (const lote of lotes) {
-          // Atualizar lote com nova área
+          console.log('📦 Atualizando lote:', lote.nome);
           await base44.entities.Lote.update(lote.id, {
             area_atual_id: formData.area_entrada_id,
             area_atual_nome: areaEntrada?.nome || ''
           });
 
-          // Registrar movimentação
           await base44.entities.MovimentacaoPecuaria.create({
             empresa_id: empresaSelecionadaId,
             data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
@@ -173,7 +171,6 @@ export default function DetalhesLote({ lotes, onClose }) {
           });
         }
       } else {
-        // Movimentação parcial por categoria
         const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
         
         for (const mov of formData.movimentacoes) {
@@ -188,14 +185,12 @@ export default function DetalhesLote({ lotes, onClose }) {
             const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
             
             if (quantidadeMover === lote.quantidade_cabecas) {
-              // Mover lote completo
               await base44.entities.Lote.update(lote.id, {
                 area_atual_id: formData.area_entrada_id,
                 area_atual_nome: areaEntrada?.nome || '',
                 peso_medio_kg: mov.peso_medio
               });
             } else {
-              // Dividir lote - criar novo lote na área de destino
               await base44.entities.Lote.create({
                 empresa_id: empresaSelecionadaId,
                 nome: `${lote.nome} (MOVIDO)`,
@@ -213,13 +208,11 @@ export default function DetalhesLote({ lotes, onClose }) {
                 status: 'Ativo'
               });
 
-              // Atualizar lote original
               await base44.entities.Lote.update(lote.id, {
                 quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
               });
             }
 
-            // Registrar movimentação
             await base44.entities.MovimentacaoPecuaria.create({
               empresa_id: empresaSelecionadaId,
               data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
@@ -237,20 +230,30 @@ export default function DetalhesLote({ lotes, onClose }) {
           }
         }
       }
+      
+      console.log('✅ Movimentação concluída no banco');
     },
     onSuccess: async () => {
-      toast.success('✅ Movimentação realizada com sucesso!');
+      console.log('🔄 Atualizando cache...');
       
-      // Forçar atualização imediata
-      await queryClient.refetchQueries({ queryKey: ['lotes'] });
-      await queryClient.refetchQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      // Invalidar TODOS os caches relacionados
+      queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
       
-      // Fechar modais
+      // Forçar refetch imediato
+      await queryClient.refetchQueries({ queryKey: ['lotes'], type: 'active' });
+      
+      console.log('✅ Cache atualizado');
+      toast.success('✅ Movimentação realizada!');
+      
+      // Aguardar um pouco antes de fechar
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setShowMovimentacao(false);
       onClose();
     },
     onError: (error) => {
-      console.error('Erro na movimentação:', error);
+      console.error('❌ Erro na movimentação:', error);
       toast.error('❌ Erro ao realizar movimentação');
     }
   });
