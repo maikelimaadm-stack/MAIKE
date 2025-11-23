@@ -155,7 +155,8 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     onSubmit(data);
   };
 
-  const categoriasOptions = categorias.map(c => ({ value: c.nome, label: c.nome }));
+  const categoriasFixas = [{ value: 'SUPLEMENTAÇÃO', label: 'SUPLEMENTAÇÃO' }];
+  const categoriasOptions = [...categoriasFixas, ...categorias.map(c => ({ value: c.nome, label: c.nome }))];
   const unidadesOptions = unidades.map(u => ({ value: u.sigla, label: `${u.sigla} - ${u.descricao}` }));
   const locaisOptions = locais.map(l => ({ value: l.nome, label: l.nome }));
 

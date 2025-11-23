@@ -9,6 +9,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 
+function ProdutoSuplementacaoSelect({ value, onChange }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  
+  const { data: produtos = [] } = useQuery({
+    queryKey: ['produtos-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter(p => 
+        p.empresa_id === empresaSelecionadaId && 
+        p.categoria?.toUpperCase() === 'SUPLEMENTAÇÃO'
+      );
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-9 text-xs">
+        <SelectValue placeholder="Selecione o produto" />
+      </SelectTrigger>
+      <SelectContent>
+        {produtos.map(produto => (
+          <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
+            {produto.nome_produto}
+          </SelectItem>
+        ))}
+        <SelectItem value="OUTRO" className="text-xs italic">
+          Outro (digite manualmente)
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [areaDetectada, setAreaDetectada] = React.useState(null);
@@ -238,12 +272,18 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
 
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-slate-700">Produto Padrão</Label>
-            <Input
+            <ProdutoSuplementacaoSelect 
               value={formData.produto_padrao}
-              onChange={(e) => setFormData({ ...formData, produto_padrao: e.target.value })}
-              placeholder="SAL MINERAL..."
-              className="h-9 text-xs uppercase"
+              onChange={(v) => setFormData({ ...formData, produto_padrao: v })}
             />
+            {formData.produto_padrao === 'OUTRO' && (
+              <Input
+                value={formData.produto_padrao}
+                onChange={(e) => setFormData({ ...formData, produto_padrao: e.target.value })}
+                placeholder="DIGITE O PRODUTO..."
+                className="h-9 text-xs uppercase mt-2"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
