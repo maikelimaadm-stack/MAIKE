@@ -95,38 +95,29 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     ? quantidadeConsumida / (diasPeriodo * pesoTotalConsumo)
     : 0;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
-    try {
-      console.log('🚀 INICIANDO SUBMIT');
-      console.log('Form data:', formData);
-      console.log('Total cabeças:', totalCabecas);
-      console.log('Fatores:', fatores.length);
-      
-      if (!formData.produto || formData.produto === 'NENHUM') {
-        alert("Selecione um produto");
-        return;
-      }
+    if (!formData.produto || formData.produto === 'NENHUM') {
+      alert("Selecione um produto");
+      return;
+    }
 
-      if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
-        alert("Informe a quantidade fornecida");
-        return;
-      }
-      
-      if (totalCabecas === 0) {
-        alert("Não há lotes ativos na área deste ponto de suplementação");
-        return;
-      }
+    if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
+      alert("Informe a quantidade fornecida");
+      return;
+    }
+    
+    if (totalCabecas === 0) {
+      alert("Não há lotes ativos na área deste ponto de suplementação");
+      return;
+    }
 
-      if (fatores.length === 0) {
-        alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
-        return;
-      }
-      
-      console.log('✅ Validações OK');
+    if (fatores.length === 0) {
+      alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
+      return;
+    }
 
-    // Criar novo evento (ainda sem período definido - será fechado no próximo)
     const dadosEvento = {
       empresa_id: empresaSelecionadaId,
       ponto_suplementacao_id: ponto.id,
@@ -137,14 +128,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       produto: formData.produto,
       quantidade_total_kg: parseFloat(formData.quantidade_total_kg),
       sobra_kg: parseFloat(formData.sobra_kg || 0),
-      dias_periodo: null, // Será calculado no próximo lançamento
+      dias_periodo: null,
       consumo_diario_grupo_kg: null,
       total_cabecas_afetadas: totalCabecas,
       peso_total_consumo: pesoTotalConsumo,
       observacoes: formData.observacoes
     };
 
-    // Se existe evento anterior, recalcular seu período AGORA
     let eventoAnteriorAtualizado = null;
     let lotesAnterioresAtualizados = [];
 
@@ -162,7 +152,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_diario_grupo_kg: consumoDiarioGrupoAnterior
       };
 
-      // Recalcular lotes do evento anterior
       lotesAnterioresAtualizados = lotes.map(lote => {
         const categoriaLote = lote.categoria?.toUpperCase().trim();
         const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
@@ -196,27 +185,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         produto: formData.produto,
         cabecas_na_area: lote.quantidade_cabecas,
         peso_consumo_lote: pesoConsumoLote,
-        dias_periodo: null, // Será calculado no próximo lançamento
+        dias_periodo: null,
         consumo_unitario_dia: null,
         consumo_por_cabeca_dia_kg: null,
         consumo_total_lote_periodo_kg: null
       };
     });
 
-      console.log('📤 Chamando onSubmit');
-      
-      await onSubmit({ 
-        evento: dadosEvento, 
-        lotes: lotesAfetados,
-        eventoAnterior: eventoAnteriorAtualizado,
-        lotesAnteriores: lotesAnterioresAtualizados
-      });
-      
-      console.log('✅ onSubmit retornou');
-    } catch (error) {
-      console.error('❌ ERRO NO SUBMIT:', error);
-      alert('Erro: ' + error.message);
-    }
+    onSubmit({ 
+      evento: dadosEvento, 
+      lotes: lotesAfetados,
+      eventoAnterior: eventoAnteriorAtualizado,
+      lotesAnteriores: lotesAnterioresAtualizados
+    });
   };
 
   return (
