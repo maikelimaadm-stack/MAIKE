@@ -33,10 +33,6 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   }, {});
 
   const categoriasDisponiveis = Object.keys(lotesPorCategoria).sort();
-  
-  console.log('⚖️ PESAGEM - Total de lotes recebidos:', lotesArray.length);
-  console.log('⚖️ PESAGEM - Categorias encontradas:', categoriasDisponiveis);
-  console.log('⚖️ PESAGEM - Detalhes por categoria:', lotesPorCategoria);
 
   const [formData, setFormData] = useState({
     data_pesagem: new Date().toISOString().split('T')[0],
@@ -70,7 +66,6 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
 
   const adicionarCategoria = () => {
     const primeiraCategoria = categoriasDisponiveis[0];
-    const infoCategoria = lotesPorCategoria[primeiraCategoria];
     setFormData(prev => ({
       ...prev,
       pesagens: [...prev.pesagens, {
@@ -196,6 +191,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               Adicionar Categoria
             </Button>
           </div>
+
           <div className="space-y-1">
             <Label className="text-xs">Observações Gerais</Label>
             <Textarea
