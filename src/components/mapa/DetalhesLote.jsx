@@ -365,9 +365,35 @@ export default function DetalhesLote({ lotes, onClose }) {
           observacoes: `De ${mudanca.categoria_atual} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
         });
 
-        await base44.entities.Lote.update(lote.id, {
-          categoria: mudanca.categoria_nova
-        });
+        if (qtdMudar === lote.quantidade_cabecas) {
+          // Mudar categoria do lote todo
+          await base44.entities.Lote.update(lote.id, {
+            categoria: mudanca.categoria_nova
+          });
+        } else {
+          // Mudança parcial - criar novo lote com nova categoria
+          await base44.entities.Lote.create({
+            empresa_id: empresaSelecionadaId,
+            nome: `${lote.nome} (${mudanca.categoria_nova.split(' ')[0].toUpperCase()})`,
+            quantidade_cabecas: qtdMudar,
+            categoria: mudanca.categoria_nova,
+            sexo: lote.sexo,
+            peso_medio_kg: lote.peso_medio_kg,
+            idade_media_meses: lote.idade_media_meses,
+            area_atual_id: areaAtualId,
+            area_atual_nome: areaMudanca?.nome || '',
+            raca_predominante: lote.raca_predominante,
+            sistema_produtivo: lote.sistema_produtivo,
+            data_entrada: formData.data_mudanca,
+            origem: 'Mudança de Categoria',
+            status: 'Ativo'
+          });
+
+          // Diminuir quantidade do lote original
+          await base44.entities.Lote.update(lote.id, {
+            quantidade_cabecas: lote.quantidade_cabecas - qtdMudar
+          });
+        }
 
         quantidadeRestante -= qtdMudar;
       }
