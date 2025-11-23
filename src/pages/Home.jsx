@@ -2,7 +2,9 @@ import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, AlertTriangle, Package, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, subMonths } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +59,51 @@ export default function Home() {
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  const { data: pontosSuplementacao = [] } = useQuery({
+    queryKey: ['pontos-supl-dash', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.PontoSuplementacao.list();
+      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: eventosSuplementacao = [] } = useQuery({
+    queryKey: ['eventos-supl-dash', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoEvento.list();
+      return all.filter(e => e.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const dadosSuplementacao = useMemo(() => {
+    const pontosAtivos = pontosSuplementacao.filter(p => p.status === 'Ativo').length;
+    const eventosUltimos30 = eventosSuplementacao.filter(e => {
+      const diasAtras = Math.floor((new Date() - new Date(e.data_lancamento)) / (1000 * 60 * 60 * 24));
+      return diasAtras <= 30;
+    });
+    const totalFornecido = eventosUltimos30.reduce((sum, e) => sum + e.quantidade_total_kg, 0);
+
+    const pontosComAlerta = pontosSuplementacao.filter(p => {
+      if (p.status !== 'Ativo') return false;
+      const eventosP = eventosSuplementacao.filter(e => e.ponto_suplementacao_id === p.id);
+      if (eventosP.length === 0) return true;
+      
+      const ultimoEvento = eventosP.sort((a, b) => 
+        new Date(b.data_lancamento) - new Date(a.data_lancamento)
+      )[0];
+      
+      const diasSemLancamento = Math.floor(
+        (new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)
+      );
+      
+      return diasSemLancamento > (p.alerta_sem_lancamento_dias || 10);
+    });
+
+    return { pontosAtivos, totalFornecido, alertas: pontosComAlerta.length, eventosCount: eventosUltimos30.length };
+  }, [pontosSuplementacao, eventosSuplementacao]);
 
   const dadosGraficos = useMemo(() => {
     const movimentacoesMes = [];
@@ -113,6 +160,51 @@ export default function Home() {
           </Button>
         </div>
       </div>
+
+      {dadosSuplementacao.pontosAtivos > 0 && (
+        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-slate-900">Suplementação (30 dias)</CardTitle>
+              <Link to={createPageUrl("DashboardSuplementacao")}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs">Ver detalhes</Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-lg font-bold text-slate-900">{dadosSuplementacao.pontosAtivos}</div>
+                <div className="text-xs text-slate-600">Pontos</div>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  <Package className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="text-lg font-bold text-slate-900">{dadosSuplementacao.totalFornecido.toFixed(0)} kg</div>
+                <div className="text-xs text-slate-600">Fornecido</div>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  <Package className="w-4 h-4 text-purple-600" />
+                </div>
+                <div className="text-lg font-bold text-slate-900">{dadosSuplementacao.eventosCount}</div>
+                <div className="text-xs text-slate-600">Lançamentos</div>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                </div>
+                <div className="text-lg font-bold text-amber-600">{dadosSuplementacao.alertas}</div>
+                <div className="text-xs text-slate-600">Alertas</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {graficosVisiveis.includes('movimentacoes_mes') && (
