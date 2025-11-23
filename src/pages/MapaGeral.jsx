@@ -445,9 +445,9 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-white flex">
+    <div className="fixed inset-0 z-40 bg-white">
       {/* Mapa em tela cheia */}
-      <div className="flex-1 relative">
+      <div className="w-full h-full relative">
         <div
           ref={mapRef}
           style={{
@@ -478,57 +478,49 @@ export default function MapaGeral() {
           </Button>
         </div>
 
-        {/* Controles de camadas no topo esquerdo */}
-        <div className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-3 max-w-[200px]">
-          <div className="text-xs font-semibold mb-2 flex items-center gap-1">
+        {/* Controles de camadas flutuantes no canto inferior esquerdo */}
+        <div className="absolute bottom-4 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-2 max-w-[160px]">
+          <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1 text-slate-700">
             <Layers className="w-3 h-3" />
-            Camadas
+            Filtros
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium">Áreas</span>
-              <Button
-                variant={showAreas ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowAreas(!showAreas)}
-                className="h-6 w-6 p-0"
-              >
-                {showAreas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium">Pontos</span>
-              <Button
-                variant={showPontos ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowPontos(!showPontos)}
-                className="h-6 w-6 p-0"
-              >
-                {showPontos ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium">Linhas</span>
-              <Button
-                variant={showLinhas ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowLinhas(!showLinhas)}
-                className="h-6 w-6 p-0"
-              >
-                {showLinhas ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium">Lotes</span>
-              <Button
-                variant={showLotes ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowLotes(!showLotes)}
-                className="h-6 w-6 p-0"
-              >
-                {showLotes ? <Eye className="w-3 h-3" /> : <X className="w-3 h-3" />}
-              </Button>
-            </div>
+          <div className="space-y-1.5">
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+              <span className="text-[10px] font-medium text-slate-700">Áreas</span>
+              <input
+                type="checkbox"
+                checked={showAreas}
+                onChange={() => setShowAreas(!showAreas)}
+                className="w-3 h-3 rounded border-slate-300"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+              <span className="text-[10px] font-medium text-slate-700">Pontos</span>
+              <input
+                type="checkbox"
+                checked={showPontos}
+                onChange={() => setShowPontos(!showPontos)}
+                className="w-3 h-3 rounded border-slate-300"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+              <span className="text-[10px] font-medium text-slate-700">Linhas</span>
+              <input
+                type="checkbox"
+                checked={showLinhas}
+                onChange={() => setShowLinhas(!showLinhas)}
+                className="w-3 h-3 rounded border-slate-300"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+              <span className="text-[10px] font-medium text-slate-700">Lotes</span>
+              <input
+                type="checkbox"
+                checked={showLotes}
+                onChange={() => setShowLotes(!showLotes)}
+                className="w-3 h-3 rounded border-slate-300"
+              />
+            </label>
           </div>
         </div>
 
