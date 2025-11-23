@@ -311,17 +311,17 @@ export default function MapaGeral() {
         if (configIcone?.icone_url) {
           markerIcon = {
             url: configIcone.icone_url,
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20)
+            scaledSize: new google.maps.Size(70, 70),
+            anchor: new google.maps.Point(35, 35)
           };
         } else {
           markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 14,
+            scale: 30,
             fillColor: configIcone?.cor_padrao || '#10b981',
             fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 3
+            strokeWeight: 4
           };
         }
 

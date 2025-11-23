@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       );
     },
     enabled: !!empresaSelecionadaId && !!ponto?.area_vinculada_id,
+  });
+
+  // Buscar produtos de suplementação
+  const { data: produtosSuplementacao = [] } = useQuery({
+    queryKey: ['produtos-suplementacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Produto.list();
+      return all.filter(p => 
+        p.empresa_id === empresaSelecionadaId && 
+        p.categoria?.toUpperCase() === 'SUPLEMENTAÇÃO'
+      );
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
@@ -122,13 +136,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             <div className="space-y-1">
               <Label className="text-xs">Produto *</Label>
-              <Input
-                value={formData.produto}
-                onChange={(e) => setFormData({ ...formData, produto: e.target.value })}
-                className="h-9 text-xs"
-                placeholder="Ex: Sal Proteinado 18%"
-                required
-              />
+              <Select 
+                value={formData.produto} 
+                onValueChange={(v) => setFormData({ ...formData, produto: v })}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione o produto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {produtosSuplementacao.map(produto => (
+                    <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
+                      {produto.nome_produto}
+                    </SelectItem>
+                  ))}
+                  {produtosSuplementacao.length === 0 && (
+                    <SelectItem value="NENHUM" disabled className="text-xs italic">
+                      Nenhum produto cadastrado
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
