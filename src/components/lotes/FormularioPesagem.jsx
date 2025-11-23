@@ -162,7 +162,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
               {formData.pesagens.map((pesagem, index) => {
                 const infoCategoria = lotesPorCategoria[pesagem.categoria];
                 const configIcone = iconesConfig.find(ic => 
