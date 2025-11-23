@@ -100,17 +100,13 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: lotes = [], refetch: refetchLotes } = useQuery({
+  const { data: lotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
       return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
-    refetchOnWindowFocus: true,
-    refetchInterval: 2000,
-    staleTime: 0,
-    cacheTime: 0,
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -634,12 +630,7 @@ export default function MapaGeral() {
         )}
       </div>
 
-      <Dialog open={showDetalhesLote} onOpenChange={(open) => {
-        setShowDetalhesLote(open);
-        if (!open) {
-          refetchLotes();
-        }
-      }}>
+      <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle translate="no">Detalhes do Lote</DialogTitle>
@@ -647,10 +638,7 @@ export default function MapaGeral() {
           {selectedLote && (
             <DetalhesLote
               lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
-              onClose={() => {
-                setShowDetalhesLote(false);
-                refetchLotes();
-              }}
+              onClose={() => setShowDetalhesLote(false)}
             />
           )}
         </DialogContent>

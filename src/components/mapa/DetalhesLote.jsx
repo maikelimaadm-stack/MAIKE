@@ -144,14 +144,12 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
-      console.log('🔄 Iniciando movimentação...', formData);
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       
       if (formData.mover_todos === 'sim') {
         const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
         
         for (const lote of lotes) {
-          console.log('📦 Atualizando lote:', lote.nome);
           await base44.entities.Lote.update(lote.id, {
             area_atual_id: formData.area_entrada_id,
             area_atual_nome: areaEntrada?.nome || ''
@@ -230,27 +228,14 @@ export default function DetalhesLote({ lotes, onClose }) {
           }
         }
       }
-      
-      console.log('✅ Movimentação concluída no banco');
     },
     onSuccess: async () => {
-      console.log('🔄 Atualizando cache...');
-      
-      // Invalidar TODOS os caches relacionados
-      queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      
-      // Forçar refetch imediato
-      await queryClient.refetchQueries({ queryKey: ['lotes'], type: 'active' });
-      
-      console.log('✅ Cache atualizado');
       toast.success('✅ Movimentação realizada!');
-      
-      // Aguardar um pouco antes de fechar
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      queryClient.removeQueries({ queryKey: ['lotes'] });
       setShowMovimentacao(false);
+      await new Promise(resolve => setTimeout(resolve, 100));
       onClose();
+      window.location.reload();
     },
     onError: (error) => {
       console.error('❌ Erro na movimentação:', error);
