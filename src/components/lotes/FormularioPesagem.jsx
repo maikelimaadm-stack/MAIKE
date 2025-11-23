@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Save } from "lucide-react";
+import { X, Save, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
@@ -79,6 +79,25 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
         observacoes: formData.observacoes
       });
     }
+  };
+
+  const adicionarCategoria = () => {
+    const primeiraCategoria = categoriasDisponiveis[0];
+    const infoCategoria = lotesPorCategoria[primeiraCategoria];
+    setFormData(prev => ({
+      ...prev,
+      pesagens: [...prev.pesagens, {
+        categoria: primeiraCategoria,
+        peso: ""
+      }]
+    }));
+  };
+
+  const removerCategoria = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      pesagens: prev.pesagens.filter((_, i) => i !== index)
+    }));
   };
 
   const handlePesagemChange = (index, field, value) => {
@@ -208,8 +227,6 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               );
             })}
             </div>
-          )}
-
           <div className="space-y-1">
             <Label className="text-xs">Observações Gerais</Label>
             <Textarea
