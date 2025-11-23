@@ -440,7 +440,7 @@ export default function DetalhesLote({ lotes, onClose }) {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0 mr-3">
                   <div className="text-xs font-bold text-slate-900 mb-2">{categoria}</div>
-                  <div className="text-3xl font-bold text-emerald-600">{totalCabecasCategoria} <span className="text-lg">cab</span></div>
+                  <div className="text-xl font-bold text-emerald-600">{totalCabecasCategoria} <span className="text-sm">cab</span></div>
                 </div>
                 {iconeUrl && (
                   <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
@@ -484,65 +484,65 @@ export default function DetalhesLote({ lotes, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button 
           onClick={() => setShowMovimentacao(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-          Movimentação
+          <ArrowRightLeft className="w-4 h-4" />
+          <span>Mover</span>
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <Scale className="w-3.5 h-3.5 mr-1" />
-          Pesagem
+          <Scale className="w-4 h-4" />
+          <span>Pesar</span>
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <RefreshCw className="w-3.5 h-3.5 mr-1" />
-          Categoria
+          <RefreshCw className="w-4 h-4" />
+          <span>Categoria</span>
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <Star className="w-3.5 h-3.5 mr-1" />
-          Nascimento
+          <Star className="w-4 h-4" />
+          <span>Nascimento</span>
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <XCircle className="w-3.5 h-3.5 mr-1" />
-          Morte
+          <XCircle className="w-4 h-4" />
+          <span>Morte</span>
         </Button>
 
         <Button 
           onClick={() => setShowAbate(true)}
           variant="outline"
           size="sm"
-          className="h-9 text-xs font-medium"
+          className="h-10 text-xs font-medium flex-col gap-1 py-2"
         >
-          <Package className="w-3.5 h-3.5 mr-1" />
-          Abate
+          <Package className="w-4 h-4" />
+          <span>Abate</span>
         </Button>
       </div>
 
