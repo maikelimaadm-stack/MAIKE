@@ -143,7 +143,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {formData.pesagens.map((pesagem, index) => {
               const infoCategoria = lotesPorCategoria[pesagem.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -154,48 +154,45 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               const ganho = pesagem.peso - infoCategoria.pesoAnterior;
 
               return (
-                <div key={index} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-                  <div className="flex items-start gap-3">
+                <div key={index} className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
+                  <div className="flex items-start gap-2 mb-2">
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold text-slate-900 mb-1.5">{pesagem.categoria}</div>
-                      <div className="text-xl font-bold text-slate-900 mb-2">{infoCategoria.totalCabecas} cab</div>
-                      <div className="space-y-1.5 text-[10px]">
-                        <div className="flex gap-2">
-                          <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
-                          <span className="font-semibold text-slate-900 break-words">{infoCategoria.lotes.map(l => l.nome).join(', ')}</span>
-                        </div>
+                      <div className="text-[10px] font-bold text-slate-900 mb-1">{pesagem.categoria}</div>
+                      <div className="text-lg font-bold text-slate-900 mb-1">{infoCategoria.totalCabecas} cab</div>
+                      <div className="text-[9px] text-slate-600 truncate">
+                        {infoCategoria.lotes.map(l => l.nome).join(', ')}
                       </div>
                     </div>
                     {iconeUrl && (
-                      <img src={iconeUrl} alt={pesagem.categoria} className="w-12 h-12 object-contain flex-shrink-0" />
+                      <img src={iconeUrl} alt={pesagem.categoria} className="w-10 h-10 object-contain flex-shrink-0" />
                     )}
                   </div>
 
-                  <div className="space-y-3 mt-3 pt-3 border-t">
+                  <div className="space-y-2 mt-2 pt-2 border-t">
                     <div>
-                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Peso anterior</Label>
+                      <Label className="text-[9px] font-medium text-slate-600 mb-1 block">Peso anterior</Label>
                       <Input
                         value={infoCategoria.pesoAnterior}
                         disabled
-                        className="h-9 text-xs bg-slate-100"
+                        className="h-8 text-xs bg-slate-100"
                       />
                     </div>
 
                     <div>
-                      <Label className="text-[10px] font-medium text-slate-600 mb-1.5 block">Peso atual (kg) *</Label>
+                      <Label className="text-[9px] font-medium text-slate-600 mb-1 block">Peso atual (kg) *</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={pesagem.peso}
                         onChange={(e) => handlePesagemChange(index, 'peso', parseFloat(e.target.value) || 0)}
-                        className="h-9 text-xs"
+                        className="h-8 text-xs"
                         disabled={!pesagem.selecionada}
                         placeholder="0"
                       />
                     </div>
 
                     {pesagem.selecionada && ganho !== 0 && (
-                      <div className="text-[10px] text-slate-600">
+                      <div className="text-[9px] text-slate-600">
                         Ganho: <span className={ganho > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
                           {ganho > 0 ? '+' : ''}{ganho.toFixed(1)} kg
                         </span>
@@ -205,7 +202,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                     <Button
                       type="button"
                       onClick={() => handlePesagemChange(index, 'selecionada', !pesagem.selecionada)}
-                      className={`h-8 text-[10px] w-full ${pesagem.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
+                      className={`h-7 text-[9px] w-full ${pesagem.selecionada ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-600 hover:bg-slate-700'} text-white`}
                     >
                       {pesagem.selecionada ? 'Cancelar' : 'Selecionar'}
                     </Button>
