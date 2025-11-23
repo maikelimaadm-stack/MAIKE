@@ -27,7 +27,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === 'Ponto' && i.ativo !== false);
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && (i.tipo_entidade === 'Ponto' || i.tipo_entidade === 'Cocho') && i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -87,7 +87,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           empresa_id: empresaSelecionadaId,
           numero_ponto: `COCHO-${novoNumero}`,
           nome_ponto: data.nome,
-          tipo: data.produto_padrao ? 'Sal Mineral' : 'Sal Mineral',
+          tipo: data.tipo,
           produto_padrao: data.produto_padrao || null,
           capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
           area_vinculada_id: data.area_vinculada_id,
