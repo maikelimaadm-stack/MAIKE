@@ -61,7 +61,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
     (diasSemLancamento === null || diasSemLancamento > (ponto.alerta_sem_lancamento_dias || 10));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" translate="no">
       <div className="flex items-start justify-between pb-2 border-b">
         <div>
           <div className="text-sm font-bold text-slate-900 mb-1">{ponto.nome_ponto}</div>

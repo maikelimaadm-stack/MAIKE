@@ -497,7 +497,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" translate="no">
       <div className="text-sm font-bold text-slate-900 pb-2 border-b">
         {tituloLotes}
       </div>

@@ -55,9 +55,14 @@ const DEFAULT_MENU = [
     icon: "Package",
     submenu: [
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
-      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
+      { id: "pec-categorias", title: "categorias", url: "CategoriasManejo" },
+      { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
+      { id: "pec-fatores", title: "Configuracao Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
+      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
+      { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
+      { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" },
     ],
   },
   {
@@ -320,7 +325,7 @@ export default function Layout({ children, currentPageName }) {
   }, {});
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50" translate="no">
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">

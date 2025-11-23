@@ -512,7 +512,7 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 bg-white" translate="no">
       {/* Mapa em tela cheia */}
       <div className="w-full h-full relative">
         <div
