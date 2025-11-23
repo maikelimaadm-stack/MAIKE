@@ -21,6 +21,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
   
   const [formData, setFormData] = useState({
     nome: "",
+    sigla: "",
     tipo: "Estrada",
     cor: CORES_DISPONIVEIS[0],
     observacoes: ""
@@ -39,7 +40,10 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
       }
 
       return base44.entities.LinhaGeografica.create({
-        ...data,
+        nome: data.nome,
+        sigla: data.sigla,
+        tipo: data.tipo,
+        observacoes: data.observacoes,
         empresa_id: empresaSelecionadaId,
         numero_linha: String(maxNum + 1),
         ativo: true,
@@ -67,6 +71,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
     }
     createLinhaMutation.mutate({
       nome: formData.nome.toUpperCase(),
+      sigla: formData.sigla.toUpperCase(),
       tipo: formData.tipo,
       cor: formData.cor,
       observacoes: formData.observacoes?.toUpperCase()
@@ -75,15 +80,28 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Nome da Linha *</Label>
-        <Input
-          value={formData.nome}
-          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-          placeholder="ESTRADA PRINCIPAL, CERCA SUL..."
-          className="h-9 text-xs uppercase"
-          required
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Nome da Linha *</Label>
+          <Input
+            value={formData.nome}
+            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+            placeholder="ESTRADA PRINCIPAL, CERCA SUL..."
+            className="h-9 text-xs uppercase"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Sigla</Label>
+          <Input
+            value={formData.sigla}
+            onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+            placeholder="E1, CE01..."
+            className="h-9 text-xs uppercase"
+            maxLength={10}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">

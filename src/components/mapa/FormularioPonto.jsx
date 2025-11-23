@@ -49,6 +49,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   
   const [formData, setFormData] = useState({
     nome: "",
+    sigla: "",
     tipo: "",
     observacoes: "",
     // Campos específicos para cocho
@@ -126,6 +127,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           empresa_id: empresaSelecionadaId,
           numero_ponto: `COCHO-${novoNumero}`,
           nome_ponto: data.nome,
+          sigla: data.sigla,
           tipo: data.tipo,
           produto_padrao: data.produto_padrao || null,
           capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
@@ -149,6 +151,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       
       return await base44.entities.PontoReferencia.create({
         nome: data.nome,
+        sigla: data.sigla,
         tipo: data.tipo,
         observacoes: data.observacoes,
         empresa_id: empresaSelecionadaId,
@@ -179,6 +182,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     }
     createPontoMutation.mutate({
       nome: formData.nome.toUpperCase(),
+      sigla: formData.sigla.toUpperCase(),
       tipo: formData.tipo,
       observacoes: formData.observacoes?.toUpperCase(),
       produto_padrao: formData.produto_padrao,
@@ -196,15 +200,28 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Nome do Ponto *</Label>
-        <Input
-          value={formData.nome}
-          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-          placeholder="COCHO 01, AGUADA 02..."
-          className="h-9 text-xs uppercase"
-          required
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Nome do Ponto *</Label>
+          <Input
+            value={formData.nome}
+            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+            placeholder="COCHO 01, AGUADA 02..."
+            className="h-9 text-xs uppercase"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-slate-700">Sigla</Label>
+          <Input
+            value={formData.sigla}
+            onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+            placeholder="CO1, AG01..."
+            className="h-9 text-xs uppercase"
+            maxLength={10}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">
