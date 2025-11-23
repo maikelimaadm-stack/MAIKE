@@ -550,8 +550,8 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
             {tipoDesenho === 'area' && currentPoints.length >= 3 && (
               <Button
                 onClick={finalizarDesenho}
-                size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl h-12 px-8 text-sm w-full"
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg h-9 px-4 text-xs"
               >
                 ✓ FINALIZAR ÁREA
               </Button>
@@ -559,8 +559,8 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
             {tipoDesenho === 'linha' && currentPoints.length >= 2 && (
               <Button
                 onClick={finalizarDesenho}
-                size="lg"
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl h-12 px-8 text-sm w-full"
+                size="sm"
+                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-lg h-9 px-4 text-xs"
               >
                 ✓ FINALIZAR LINHA
               </Button>
