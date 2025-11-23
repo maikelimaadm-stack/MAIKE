@@ -97,16 +97,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('🚀 Iniciando handleSubmit');
+    console.log('📊 Total cabeças:', totalCabecas);
+    console.log('⚙️ Fatores:', fatores.length);
     
     if (totalCabecas === 0) {
+      console.log('❌ Sem lotes na área');
       alert("Não há lotes ativos na área deste ponto de suplementação");
       return;
     }
 
     if (fatores.length === 0) {
+      console.log('❌ Sem fatores configurados');
       alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
       return;
     }
+    
+    console.log('✅ Validações OK, montando dados...');
 
     // Criar novo evento (ainda sem período definido - será fechado no próximo)
     const dadosEvento = {
@@ -185,12 +192,21 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       };
     });
 
+    console.log('📤 Chamando onSubmit com:', { 
+      evento: dadosEvento, 
+      lotes: lotesAfetados,
+      eventoAnterior: eventoAnteriorAtualizado,
+      lotesAnteriores: lotesAnterioresAtualizados
+    });
+    
     onSubmit({ 
       evento: dadosEvento, 
       lotes: lotesAfetados,
       eventoAnterior: eventoAnteriorAtualizado,
       lotesAnteriores: lotesAnterioresAtualizados
     });
+    
+    console.log('✅ onSubmit chamado');
   };
 
   return (
