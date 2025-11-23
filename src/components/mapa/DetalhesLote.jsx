@@ -423,7 +423,7 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="space-y-3 mb-4">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
@@ -436,21 +436,23 @@ export default function DetalhesLote({ lotes, onClose }) {
           const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
           return (
-            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-bold text-slate-900 truncate flex-1">{categoria}</div>
+            <div key={categoria} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0 mr-3">
+                  <div className="text-xs font-bold text-slate-900 mb-2">{categoria}</div>
+                  <div className="text-3xl font-bold text-emerald-600">{totalCabecasCategoria} <span className="text-lg">cab</span></div>
+                </div>
                 {iconeUrl && (
-                  <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0 ml-2" />
+                  <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
                 )}
               </div>
-              <div className="text-2xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
-              <div className="space-y-1 text-[10px] text-slate-600">
-                <div className="flex justify-between gap-2">
-                  <span className="font-medium">Lotes:</span>
-                  <span className="font-semibold text-slate-900 truncate">{lotesCategoria.map(l => l.nome).join(', ')}</span>
+              <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 font-medium">Lotes:</span>
+                  <span className="font-semibold text-slate-900">{lotesCategoria.map(l => l.nome).join(', ')}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Peso:</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 font-medium">Peso médio:</span>
                   <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
                 </div>
               </div>
@@ -486,54 +488,60 @@ export default function DetalhesLote({ lotes, onClose }) {
         <Button 
           onClick={() => setShowMovimentacao(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600" />
+          <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
           Movimentação
         </Button>
 
         <Button 
           onClick={() => setShowPesagem(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <Scale className="w-3.5 h-3.5 text-slate-600" />
+          <Scale className="w-3.5 h-3.5 mr-1" />
           Pesagem
         </Button>
 
         <Button 
           onClick={() => setShowMudancaCategoria(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
-          Mudança Categ.
+          <RefreshCw className="w-3.5 h-3.5 mr-1" />
+          Categoria
         </Button>
 
         <Button 
           onClick={() => setShowNascimento(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <Star className="w-3.5 h-3.5 text-slate-600" />
+          <Star className="w-3.5 h-3.5 mr-1" />
           Nascimento
         </Button>
 
         <Button 
           onClick={() => setShowMorte(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <XCircle className="w-3.5 h-3.5 text-slate-600" />
+          <XCircle className="w-3.5 h-3.5 mr-1" />
           Morte
         </Button>
 
         <Button 
           onClick={() => setShowAbate(true)}
           variant="outline"
-          className="h-10 text-[11px] font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 gap-1.5"
+          size="sm"
+          className="h-9 text-xs font-medium"
         >
-          <Package className="w-3.5 h-3.5 text-slate-600" />
+          <Package className="w-3.5 h-3.5 mr-1" />
           Abate
         </Button>
       </div>
@@ -541,7 +549,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       <Button 
         onClick={() => setShowHistorico(true)}
         variant="outline"
-        className="w-full h-8 text-[11px] font-semibold mt-2 border-slate-300"
+        size="sm"
+        className="w-full h-9 text-xs font-medium mt-3"
       >
         Ver Histórico Completo
       </Button>
