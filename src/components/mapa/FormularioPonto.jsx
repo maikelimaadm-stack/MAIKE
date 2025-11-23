@@ -15,7 +15,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "",
-    observacoes: ""
+    observacoes: "",
+    // Campos específicos para cocho
+    produto_padrao: "",
+    capacidade_cocho_kg: "",
+    area_vinculada_id: ""
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -27,6 +31,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
       const allPontos = await base44.entities.PontoReferencia.list();
@@ -34,14 +47,46 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       
       const configIcone = iconesConfig.find(ic => ic.categoria === data.tipo);
       
-      return base44.entities.PontoReferencia.create({
-        ...data,
+      // Criar ponto de referência
+      const ponto = await base44.entities.PontoReferencia.create({
+        nome: data.nome,
+        tipo: data.tipo,
+        observacoes: data.observacoes,
         empresa_id: empresaSelecionadaId,
         numero_ponto: String(maxNum + 1),
         ativo: true,
         cor: configIcone?.cor_padrao || '#0066ff',
         coordenadas: coordenadas
       });
+
+      // Se for cocho, criar também ponto de suplementação
+      if (data.tipo?.toUpperCase().includes('COCHO') && data.area_vinculada_id) {
+        const allPontosSuplementacao = await base44.entities.PontoSuplementacao.list();
+        const pontosEmpresa = allPontosSuplementacao.filter(p => p.empresa_id === empresaSelecionadaId);
+        const ultimoNumero = pontosEmpresa.length > 0
+          ? Math.max(...pontosEmpresa.map(p => parseInt(p.numero_ponto?.replace(/\D/g, '')) || 0))
+          : 0;
+        const novoNumero = String(ultimoNumero + 1).padStart(4, '0');
+
+        const areaVinculada = areas.find(a => a.id === data.area_vinculada_id);
+
+        await base44.entities.PontoSuplementacao.create({
+          empresa_id: empresaSelecionadaId,
+          numero_ponto: `COCHO-${novoNumero}`,
+          nome_ponto: data.nome,
+          tipo: data.produto_padrao ? 'Sal Mineral' : 'Sal Mineral',
+          produto_padrao: data.produto_padrao || null,
+          capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
+          area_vinculada_id: data.area_vinculada_id,
+          area_vinculada_nome: areaVinculada?.nome || '',
+          coordenadas: coordenadas,
+          status: 'Ativo',
+          frequencia_esperada_dias: 7,
+          alerta_sem_lancamento_dias: 10
+        });
+      }
+
+      return ponto;
     },
     onSuccess: () => {
       toast.success('✅ Ponto cadastrado!');
@@ -58,10 +103,17 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
       toast.error('Preencha nome e tipo!');
       return;
     }
+    if (formData.tipo?.toUpperCase().includes('COCHO') && !formData.area_vinculada_id) {
+      toast.error('Para cocho é necessário selecionar uma área!');
+      return;
+    }
     createPontoMutation.mutate({
       nome: formData.nome.toUpperCase(),
       tipo: formData.tipo,
-      observacoes: formData.observacoes?.toUpperCase()
+      observacoes: formData.observacoes?.toUpperCase(),
+      produto_padrao: formData.produto_padrao,
+      capacidade_cocho_kg: formData.capacidade_cocho_kg,
+      area_vinculada_id: formData.area_vinculada_id
     });
   };
 
@@ -118,6 +170,47 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           rows={3}
         />
       </div>
+
+      {formData.tipo?.toUpperCase().includes('COCHO') && (
+        <div className="space-y-3 border-t pt-3">
+          <div className="text-xs font-semibold text-purple-700 mb-2">📦 Dados de Suplementação</div>
+          
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-slate-700">Área Vinculada *</Label>
+            <Select value={formData.area_vinculada_id} onValueChange={(v) => setFormData({ ...formData, area_vinculada_id: v })}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Selecione a área" />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map(area => (
+                  <SelectItem key={area.id} value={area.id} className="text-xs">{area.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-slate-700">Produto Padrão</Label>
+            <Input
+              value={formData.produto_padrao}
+              onChange={(e) => setFormData({ ...formData, produto_padrao: e.target.value })}
+              placeholder="SAL MINERAL..."
+              className="h-9 text-xs uppercase"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-slate-700">Capacidade do Cocho (kg)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.capacidade_cocho_kg}
+              onChange={(e) => setFormData({ ...formData, capacidade_cocho_kg: e.target.value })}
+              className="h-9 text-xs"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-3 border-t mt-4">
         <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
