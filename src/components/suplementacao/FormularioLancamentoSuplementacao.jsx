@@ -223,7 +223,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {ultimoEvento && diasPeriodo && (
               <div className="pt-2 border-t border-slate-200">
                 <div className="text-xs text-blue-700">
-                  Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString()}
+                  ⏱️ Último lançamento: {new Date(ultimoEvento.data_lancamento).toLocaleDateString()}
                   <span className="font-bold ml-2">→ Período: {diasPeriodo} dia(s)</span>
                 </div>
               </div>
@@ -296,7 +296,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
           {formData.quantidade_total_kg && totalCabecas > 0 && ultimoEvento && diasPeriodo && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
-              <div className="text-xs font-semibold text-amber-900 mb-2">Fechamento do Período Anterior:</div>
+              <div className="text-xs font-semibold text-amber-900 mb-2">⚠️ Fechamento do Período Anterior:</div>
               <div className="text-xs text-amber-800 mb-2">
                 O lançamento de <strong>{new Date(ultimoEvento.data_lancamento).toLocaleDateString()}</strong> será fechado com <strong>{diasPeriodo} dia(s)</strong> de duração.
               </div>
@@ -315,7 +315,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
           {!ultimoEvento && formData.quantidade_total_kg && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-xs font-semibold text-blue-900 mb-2">Primeiro Lançamento</div>
+              <div className="text-xs font-semibold text-blue-900 mb-2">ℹ️ Primeiro Lançamento</div>
               <div className="text-xs text-blue-700">
                 Este é o primeiro lançamento neste ponto. O consumo será calculado quando o próximo abastecimento for registrado.
               </div>
