@@ -67,7 +67,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
     onSubmit({
       ...formData,
-      mudancas: mudancasValidas.map(m => ({...m, quantidade: parseInt(m.quantidade)}))
+      mudancas: mudancasValidas.map(m => ({
+        ...m, 
+        quantidade: parseInt(m.quantidade),
+        peso_medio: m.peso_medio ? parseFloat(m.peso_medio) : null
+      }))
     });
   };
 
@@ -78,7 +82,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       mudancas: [...prev.mudancas, {
         categoria_atual: primeiraCategoria,
         quantidade: "",
-        categoria_nova: ""
+        categoria_nova: "",
+        peso_medio: ""
       }]
     }));
   };
@@ -160,10 +165,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                           ic.tipo_entidade === 'Lote' && 
                           ic.categoria?.toUpperCase() === cat?.toUpperCase()
                         );
+                        const iconUrl = icon?.sub_icone_url || icon?.icone_url;
                         return (
                           <SelectItem key={cat} value={cat} className="text-xs">
                             <div className="flex items-center gap-2">
-                              {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
+                              {iconUrl && <img src={iconUrl} alt="" className="w-5 h-5" />}
                               <span>{info.totalCabecas} cb - {cat}</span>
                             </div>
                           </SelectItem>
@@ -202,6 +208,18 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-slate-600">Peso Médio (kg)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={mudanca.peso_medio || ""}
+                        onChange={(e) => handleMudancaChange(index, 'peso_medio', e.target.value)}
+                        className="h-10 text-xs"
+                        placeholder="0"
+                      />
                     </div>
                   </div>
                 </div>

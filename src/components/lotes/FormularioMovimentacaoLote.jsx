@@ -336,10 +336,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                             ic.tipo_entidade === 'Lote' && 
                             ic.categoria?.toUpperCase() === cat?.toUpperCase()
                           );
+                          const iconUrl = icon?.sub_icone_url || icon?.icone_url;
                           return (
                             <SelectItem key={cat} value={cat} className="text-xs">
                               <div className="flex items-center gap-2">
-                                {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
+                                {iconUrl && <img src={iconUrl} alt="" className="w-5 h-5" />}
                                 <span>{info.quantidade_total} cb - {cat}</span>
                               </div>
                             </SelectItem>
