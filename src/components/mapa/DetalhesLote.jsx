@@ -423,37 +423,37 @@ export default function DetalhesLote({ lotes, onClose }) {
         {tituloLotes}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {categorias.map(categoria => {
           const lotesCategoria = lotesPorCategoria[categoria];
           const totalCabecasCategoria = lotesCategoria.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
           const pesoMedio = lotesCategoria[0]?.peso_medio_kg || 0;
-          
+
           const configIcone = iconesConfig.find(ic => 
             ic.tipo_entidade === 'Lote' && 
             ic.categoria?.toUpperCase() === categoria?.toUpperCase()
           );
           const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
-          
+
           return (
-            <div key={categoria} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-bold text-slate-900 mb-0.5 truncate">{categoria}</div>
-                <div className="text-base font-bold text-emerald-600 mb-1">{totalCabecasCategoria} cab</div>
-                <div className="space-y-0.5 text-[9px]">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Lotes:</span>
-                    <span className="font-semibold truncate ml-1">{lotesCategoria.map(l => l.nome).join(', ')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Peso:</span>
-                    <span className="font-semibold">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
-                  </div>
+            <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[11px] font-bold text-slate-900 truncate flex-1">{categoria}</div>
+                {iconeUrl && (
+                  <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0 ml-2" />
+                )}
+              </div>
+              <div className="text-2xl font-bold text-emerald-600 mb-2">{totalCabecasCategoria} cab</div>
+              <div className="space-y-1 text-[10px] text-slate-600">
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium">Lotes:</span>
+                  <span className="font-semibold text-slate-900 truncate">{lotesCategoria.map(l => l.nome).join(', ')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Peso:</span>
+                  <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
                 </div>
               </div>
-              {iconeUrl && (
-                <img src={iconeUrl} alt={categoria} className="w-8 h-8 object-contain flex-shrink-0" />
-              )}
             </div>
           );
         })}
