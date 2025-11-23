@@ -483,57 +483,9 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col">
-      {/* Header com botão voltar */}
-      <div className="flex items-center justify-between p-3 md:p-4 bg-white border-b shadow-sm">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={onCancelar} size="sm" className="h-9">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
-          </Button>
-          <div>
-            <h1 className="text-base md:text-lg font-bold text-slate-900">
-              {itemEditando ? `Editar ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}` : `Nova ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}`}
-            </h1>
-            <p className="text-xs text-slate-600 hidden md:block">
-              {itemEditando ? 'Edite os pontos no mapa' : 'Desenhe no mapa e finalize para salvar'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          <div className="flex gap-1 bg-white border rounded-lg p-1">
-            <Button
-              variant={mapType === 'roadmap' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setMapType('roadmap')}
-              className="h-7 text-xs px-2"
-            >
-              Mapa
-            </Button>
-            <Button
-              variant={mapType === 'satellite' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setMapType('satellite')}
-              className="h-7 text-xs px-2"
-            >
-              Satélite
-            </Button>
-          </div>
-
-          <Button
-            variant={snappingEnabled ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSnappingEnabled(!snappingEnabled)}
-            className="h-7 text-xs px-2 hidden md:flex"
-          >
-            🧲 Snap {snappingEnabled ? 'ON' : 'OFF'}
-          </Button>
-        </div>
-      </div>
-
+    <div className="fixed inset-0 z-50 bg-white">
       {/* Mapa em tela cheia */}
-      <div className="flex-1 relative">
+      <div className="w-full h-full relative">
         <div
           ref={mapRef}
           style={{
@@ -545,6 +497,44 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           }}
           className={(tipoDesenho && mapReady && !itemEditando) ? '[&_*]:cursor-crosshair' : ''}
         />
+        {/* Botão fechar/voltar no topo esquerdo */}
+        <Button
+          onClick={onCancelar}
+          variant="secondary"
+          size="icon"
+          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+        >
+          <X className="w-6 h-6 text-slate-700" />
+        </Button>
+
+        {/* Controles de tipo de mapa no topo direito */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+          <Button
+            variant={mapType === 'roadmap' ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setMapType('roadmap')}
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            Mapa
+          </Button>
+          <Button
+            variant={mapType === 'satellite' ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setMapType('satellite')}
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            Satélite
+          </Button>
+          <Button
+            variant={snappingEnabled ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setSnappingEnabled(!snappingEnabled)}
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg hidden md:flex"
+          >
+            🧲
+          </Button>
+        </div>
+
         {!mapReady && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
@@ -554,27 +544,17 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
           </div>
         )}
         {tipoDesenho && mapReady && !itemEditando && (
-          <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-2 md:gap-3 px-4 w-full max-w-2xl">
-            <div className="bg-blue-600 text-white px-4 md:px-8 py-2 md:py-4 rounded-lg md:rounded-xl shadow-2xl font-bold text-xs md:text-base border-2 md:border-4 border-white text-center">
-              {tipoDesenho === 'area' && (
-                <>
-                  <span className="md:hidden">🎯 Adicionar pontos ({currentPoints.length})</span>
-                  <span className="hidden md:inline">🎯 Clique no mapa para adicionar pontos ({currentPoints.length}) • Arraste os pontos para editar</span>
-                </>
-              )}
-              {tipoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
-              {tipoDesenho === 'linha' && (
-                <>
-                  <span className="md:hidden">➡️ Adicionar pontos ({currentPoints.length})</span>
-                  <span className="hidden md:inline">➡️ Clique no mapa para adicionar pontos ({currentPoints.length}) • Arraste os pontos para editar</span>
-                </>
-              )}
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2 px-4 w-full max-w-md">
+            <div className="bg-blue-600/95 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-2xl font-semibold text-xs text-center border-2 border-white">
+              {tipoDesenho === 'area' && `🎯 Pontos: ${currentPoints.length}`}
+              {tipoDesenho === 'ponto' && '📍 Toque no mapa'}
+              {tipoDesenho === 'linha' && `➡️ Pontos: ${currentPoints.length}`}
             </div>
             {tipoDesenho === 'area' && currentPoints.length >= 3 && (
               <Button
                 onClick={finalizarDesenho}
                 size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-12 md:h-14 px-6 md:px-10 text-sm md:text-lg w-full md:w-auto"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl h-12 px-8 text-sm w-full"
               >
                 ✓ FINALIZAR ÁREA
               </Button>
@@ -583,7 +563,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
               <Button
                 onClick={finalizarDesenho}
                 size="lg"
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-12 md:h-14 px-6 md:px-10 text-sm md:text-lg w-full md:w-auto"
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl h-12 px-8 text-sm w-full"
               >
                 ✓ FINALIZAR LINHA
               </Button>
