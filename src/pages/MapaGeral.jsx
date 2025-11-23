@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
@@ -112,10 +119,7 @@ export default function MapaGeral() {
         streetViewControl: false,
         fullscreenControl: false,
         gestureHandling: 'greedy',
-        zoomControl: true,
-        zoomControlOptions: {
-          position: google.maps.ControlPosition.RIGHT_CENTER
-        },
+        zoomControl: false,
         disableDoubleClickZoom: false,
         draggable: true,
         scrollwheel: true,
@@ -460,16 +464,73 @@ export default function MapaGeral() {
           }}
         />
 
-        {/* Botão voltar no topo esquerdo */}
-        <Link to={createPageUrl("Home")}>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
-          >
-            <X className="w-6 h-6 text-slate-700" />
-          </Button>
-        </Link>
+        {/* Botões no topo esquerdo */}
+        <div className="absolute top-4 left-4 z-20 flex gap-2">
+          <Link to={createPageUrl("Home")}>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+            >
+              <X className="w-6 h-6 text-slate-700" />
+            </Button>
+          </Link>
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+              >
+                <Layers className="w-6 h-6 text-slate-700" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px]">
+              <SheetHeader>
+                <SheetTitle>Filtros do Mapa</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 space-y-4">
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Áreas</span>
+                  <input
+                    type="checkbox"
+                    checked={showAreas}
+                    onChange={() => setShowAreas(!showAreas)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Pontos</span>
+                  <input
+                    type="checkbox"
+                    checked={showPontos}
+                    onChange={() => setShowPontos(!showPontos)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Linhas</span>
+                  <input
+                    type="checkbox"
+                    checked={showLinhas}
+                    onChange={() => setShowLinhas(!showLinhas)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-3 py-2 rounded">
+                  <span className="text-sm font-medium text-slate-700">Lotes</span>
+                  <input
+                    type="checkbox"
+                    checked={showLotes}
+                    onChange={() => setShowLotes(!showLotes)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                </label>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
 
         {/* Controles de tipo de mapa no topo direito */}
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -489,52 +550,6 @@ export default function MapaGeral() {
           >
             Satélite
           </Button>
-        </div>
-
-        {/* Controles de filtros no canto inferior esquerdo */}
-        <div className="absolute bottom-6 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-2 min-w-[140px]">
-          <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1 text-slate-700">
-            <Layers className="w-3 h-3" />
-            Filtros
-          </div>
-          <div className="space-y-1">
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
-              <span className="text-[10px] font-medium text-slate-700">Áreas</span>
-              <input
-                type="checkbox"
-                checked={showAreas}
-                onChange={() => setShowAreas(!showAreas)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
-              <span className="text-[10px] font-medium text-slate-700">Pontos</span>
-              <input
-                type="checkbox"
-                checked={showPontos}
-                onChange={() => setShowPontos(!showPontos)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
-              <span className="text-[10px] font-medium text-slate-700">Linhas</span>
-              <input
-                type="checkbox"
-                checked={showLinhas}
-                onChange={() => setShowLinhas(!showLinhas)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-            </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
-              <span className="text-[10px] font-medium text-slate-700">Lotes</span>
-              <input
-                type="checkbox"
-                checked={showLotes}
-                onChange={() => setShowLotes(!showLotes)}
-                className="w-3.5 h-3.5 rounded border-slate-300"
-              />
-            </label>
-          </div>
         </div>
 
         {!mapReady && (

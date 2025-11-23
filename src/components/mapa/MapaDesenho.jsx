@@ -190,10 +190,7 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
         streetViewControl: false,
         fullscreenControl: false,
         gestureHandling: 'greedy',
-        zoomControl: true,
-        zoomControlOptions: {
-          position: google.maps.ControlPosition.RIGHT_CENTER
-        },
+        zoomControl: false,
         disableDoubleClickZoom: false,
         draggable: true,
         scrollwheel: true,
