@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Map, Layers, Eye, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import {
   Dialog,
   DialogContent,
@@ -459,14 +461,15 @@ export default function MapaGeral() {
         />
 
         {/* Botão voltar no topo esquerdo */}
-        <Button
-          onClick={() => window.history.back()}
-          variant="secondary"
-          size="icon"
-          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
-        >
-          <X className="w-6 h-6 text-slate-700" />
-        </Button>
+        <Link to={createPageUrl("Home")}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+          >
+            <X className="w-6 h-6 text-slate-700" />
+          </Button>
+        </Link>
 
         {/* Controles de tipo de mapa no topo direito */}
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
