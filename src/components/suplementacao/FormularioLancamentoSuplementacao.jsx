@@ -101,6 +101,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     console.log('📊 Total cabeças:', totalCabecas);
     console.log('⚙️ Fatores:', fatores.length);
     
+    if (!formData.produto || formData.produto === 'NENHUM') {
+      alert("Selecione um produto");
+      return;
+    }
+
+    if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
+      alert("Informe a quantidade fornecida");
+      return;
+    }
+    
     if (totalCabecas === 0) {
       console.log('❌ Sem lotes na área');
       alert("Não há lotes ativos na área deste ponto de suplementação");
