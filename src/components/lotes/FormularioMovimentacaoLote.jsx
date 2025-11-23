@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { X, Plus, Save } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
@@ -23,6 +23,15 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       movimentacoes: [],
       unir_lotes: {}
     };
+  });
+
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   const { data: areas = [] } = useQuery({
@@ -88,20 +97,20 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     return resultado;
   }, [formData.areas_entrada, todosLotes, areas, categorias]);
 
-  // Inicializar movimentações quando mudar para "não"
-  React.useEffect(() => {
-    if (formData.mover_todos === 'nao' && formData.movimentacoes.length === 0) {
-      const novasMovimentacoes = categorias.map(cat => ({
-        categoria: cat.categoria,
-        quantidade: cat.quantidade_total,
-        peso_medio: cat.peso_medio,
-        quantidade_maxima: cat.quantidade_total
-      }));
-      setFormData({ ...formData, movimentacoes: novasMovimentacoes });
-    } else if (formData.mover_todos === 'sim') {
-      setFormData({ ...formData, movimentacoes: [] });
-    }
-  }, [formData.mover_todos]);
+  const adicionarMovimentacao = () => {
+    const primeiraCategoria = categorias[0];
+    setFormData(prev => ({
+      ...prev,
+      movimentacoes: [...prev.movimentacoes, {
+        categoria: primeiraCategoria.categoria,
+        quantidade: "",
+        peso_medio: primeiraCategoria.peso_medio,
+        quantidade_maxima: primeiraCategoria.quantidade_total
+      }]
+    }));
+  };
+
+  const categoriasDisponiveis = categorias.map(c => c.categoria);
 
   const handleAddAreaEntrada = () => {
     if (formData.areas_entrada.length < 5) {
@@ -279,16 +288,69 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
 
           {formData.mover_todos === 'nao' && (
-            <div className="border rounded p-3 bg-slate-50">
-              <div className="text-xs font-semibold text-slate-700 mb-3">
-                Selecione quantidade por categoria
-              </div>
-              <div className="space-y-3">
-                {formData.movimentacoes.map((mov, index) => (
-                  <div key={index} className="bg-white border rounded p-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-start">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Quantidade *</Label>
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+              {formData.movimentacoes.map((mov, index) => {
+                const infoCategoria = categoriasPorLote[mov.categoria];
+                const configIcone = iconesConfig.find(ic => 
+                  ic.tipo_entidade === 'Lote' && 
+                  ic.categoria?.toUpperCase() === mov.categoria?.toUpperCase()
+                );
+                const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+
+                return (
+                  <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-xs font-semibold">Categoria</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveMovimentacao(index)}
+                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <Select
+                      value={mov.categoria}
+                      onValueChange={(v) => {
+                        const cat = categoriasPorLote[v];
+                        handleMovimentacaoChange(index, 'categoria', v);
+                        handleMovimentacaoChange(index, 'quantidade_maxima', cat.quantidade_total);
+                        handleMovimentacaoChange(index, 'peso_medio', cat.peso_medio);
+                      }}
+                    >
+                      <SelectTrigger className="h-10 text-xs mb-3">
+                        <SelectValue>
+                          <div className="flex items-center gap-2">
+                            {iconeUrl && <img src={iconeUrl} alt="" className="w-5 h-5" />}
+                            <span>{infoCategoria.quantidade_total} cb - {mov.categoria}</span>
+                          </div>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasDisponiveis.map(cat => {
+                          const info = categoriasPorLote[cat];
+                          const icon = iconesConfig.find(ic => 
+                            ic.tipo_entidade === 'Lote' && 
+                            ic.categoria?.toUpperCase() === cat?.toUpperCase()
+                          );
+                          return (
+                            <SelectItem key={cat} value={cat} className="text-xs">
+                              <div className="flex items-center gap-2">
+                                {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
+                                <span>{info.quantidade_total} cb - {cat}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs text-slate-600">Quantidade *</Label>
                         <Input
                           type="number"
                           value={mov.quantidade}
@@ -299,47 +361,38 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                             }
                           }}
                           max={mov.quantidade_maxima}
-                          className="h-8 text-xs"
+                          className="h-10 text-xs"
+                          placeholder="0"
                           required
                         />
                         <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Categoria de Manejo</Label>
-                        <Input
-                          value={mov.categoria}
-                          disabled
-                          className="h-8 text-xs bg-slate-100 font-semibold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Peso (kg)</Label>
+
+                      <div>
+                        <Label className="text-xs text-slate-600">Peso Médio (kg)</Label>
                         <Input
                           type="number"
                           step="0.1"
                           value={mov.peso_medio}
                           onChange={(e) => handleMovimentacaoChange(index, 'peso_medio', e.target.value)}
-                          className="h-8 text-xs"
-                          placeholder="Peso médio"
+                          className="h-10 text-xs"
+                          placeholder="0"
                         />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs opacity-0">.</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveMovimentacao(index)}
-                          className="h-8 text-xs text-red-600 w-full"
-                        >
-                          <X className="w-3 h-3 mr-1" />
-                          Remover
-                        </Button>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+
+              <Button
+                type="button"
+                onClick={adicionarMovimentacao}
+                variant="outline"
+                className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Categoria
+              </Button>
             </div>
           )}
 
@@ -389,7 +442,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               Cancelar
             </Button>
             <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
-              <Save className="w-3 h-3 mr-1" />
               {loading ? 'Movimentando...' : 'Avançar'}
             </Button>
           </div>
