@@ -88,16 +88,76 @@ export default function DetalhesLote({ lotes, onClose }) {
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       
       if (formData.mover_todos === 'sim') {
-        // Mover todos os lotes para as áreas de entrada
-        for (const areaEntradaId of formData.areas_entrada) {
-          const areaEntrada = areas.find(a => a.id === areaEntradaId);
+        // Mover todos os lotes para a área de entrada
+        const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
+        
+        for (const lote of lotes) {
+          // Atualizar lote com nova área
+          await base44.entities.Lote.update(lote.id, {
+            area_atual_id: formData.area_entrada_id,
+            area_atual_nome: areaEntrada?.nome || ''
+          });
+
+          // Registrar movimentação
+          await base44.entities.MovimentacaoPecuaria.create({
+            empresa_id: empresaSelecionadaId,
+            data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
+            tipo: 'Transferência de Área',
+            lote: lote.nome,
+            quantidade_animais: lote.quantidade_cabecas,
+            area_origem_id: formData.area_saida_id,
+            area_origem_nome: areaSaida?.nome || '',
+            area_destino_id: formData.area_entrada_id,
+            area_destino_nome: areaEntrada?.nome || '',
+            observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
+          });
+        }
+      } else {
+        // Movimentação parcial por categoria
+        const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
+        
+        for (const mov of formData.movimentacoes) {
+          if (mov.quantidade <= 0) continue;
+
+          const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
+          let quantidadeRestante = mov.quantidade;
           
-          for (const lote of lotes) {
-            // Atualizar lote com nova área
-            await base44.entities.Lote.update(lote.id, {
-              area_atual_id: areaEntradaId,
-              area_atual_nome: areaEntrada?.nome || ''
-            });
+          for (const lote of lotesCategoria) {
+            if (quantidadeRestante <= 0) break;
+            
+            const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
+            
+            if (quantidadeMover === lote.quantidade_cabecas) {
+              // Mover lote completo
+              await base44.entities.Lote.update(lote.id, {
+                area_atual_id: formData.area_entrada_id,
+                area_atual_nome: areaEntrada?.nome || '',
+                peso_medio_kg: mov.peso_medio
+              });
+            } else {
+              // Dividir lote - criar novo lote na área de destino
+              await base44.entities.Lote.create({
+                empresa_id: empresaSelecionadaId,
+                nome: `${lote.nome} (MOVIDO)`,
+                quantidade_cabecas: quantidadeMover,
+                categoria: lote.categoria,
+                sexo: lote.sexo,
+                peso_medio_kg: mov.peso_medio,
+                idade_media_meses: lote.idade_media_meses,
+                area_atual_id: formData.area_entrada_id,
+                area_atual_nome: areaEntrada?.nome || '',
+                raca_predominante: lote.raca_predominante,
+                sistema_produtivo: lote.sistema_produtivo,
+                data_entrada: formData.data_movimentacao,
+                origem: 'MOVIMENTAÇÃO',
+                status: 'Ativo'
+              });
+
+              // Atualizar lote original
+              await base44.entities.Lote.update(lote.id, {
+                quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
+              });
+            }
 
             // Registrar movimentação
             await base44.entities.MovimentacaoPecuaria.create({
@@ -105,81 +165,15 @@ export default function DetalhesLote({ lotes, onClose }) {
               data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
               tipo: 'Transferência de Área',
               lote: lote.nome,
-              quantidade_animais: lote.quantidade_cabecas,
+              quantidade_animais: quantidadeMover,
               area_origem_id: formData.area_saida_id,
               area_origem_nome: areaSaida?.nome || '',
-              area_destino_id: areaEntradaId,
+              area_destino_id: formData.area_entrada_id,
               area_destino_nome: areaEntrada?.nome || '',
-              observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
+              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria} - Peso médio: ${mov.peso_medio}kg`
             });
-          }
-        }
-      } else {
-        // Movimentação parcial por categoria
-        for (const mov of formData.movimentacoes) {
-          if (mov.quantidade <= 0) continue;
 
-          const lotesCategoria = lotes.filter(l => l.categoria?.toUpperCase() === mov.categoria);
-          
-          for (const areaEntradaId of formData.areas_entrada) {
-            const areaEntrada = areas.find(a => a.id === areaEntradaId);
-            
-            // Calcular quantidade proporcional para cada lote
-            let quantidadeRestante = mov.quantidade;
-            
-            for (const lote of lotesCategoria) {
-              if (quantidadeRestante <= 0) break;
-              
-              const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas);
-              
-              if (quantidadeMover === lote.quantidade_cabecas) {
-                // Mover lote completo
-                await base44.entities.Lote.update(lote.id, {
-                  area_atual_id: areaEntradaId,
-                  area_atual_nome: areaEntrada?.nome || '',
-                  peso_medio_kg: mov.peso_medio
-                });
-              } else {
-                // Dividir lote - criar novo lote na área de destino
-                await base44.entities.Lote.create({
-                  empresa_id: empresaSelecionadaId,
-                  nome: `${lote.nome} (MOVIDO)`,
-                  quantidade_cabecas: quantidadeMover,
-                  categoria: lote.categoria,
-                  sexo: lote.sexo,
-                  peso_medio_kg: mov.peso_medio,
-                  idade_media_meses: lote.idade_media_meses,
-                  area_atual_id: areaEntradaId,
-                  area_atual_nome: areaEntrada?.nome || '',
-                  raca_predominante: lote.raca_predominante,
-                  sistema_produtivo: lote.sistema_produtivo,
-                  data_entrada: formData.data_movimentacao,
-                  origem: 'MOVIMENTAÇÃO',
-                  status: 'Ativo'
-                });
-
-                // Atualizar lote original
-                await base44.entities.Lote.update(lote.id, {
-                  quantidade_cabecas: lote.quantidade_cabecas - quantidadeMover
-                });
-              }
-
-              // Registrar movimentação
-              await base44.entities.MovimentacaoPecuaria.create({
-                empresa_id: empresaSelecionadaId,
-                data_movimentacao: new Date(formData.data_movimentacao).toISOString(),
-                tipo: 'Transferência de Área',
-                lote: lote.nome,
-                quantidade_animais: quantidadeMover,
-                area_origem_id: formData.area_saida_id,
-                area_origem_nome: areaSaida?.nome || '',
-                area_destino_id: areaEntradaId,
-                area_destino_nome: areaEntrada?.nome || '',
-                observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria} - Peso médio: ${mov.peso_medio}kg`
-              });
-
-              quantidadeRestante -= quantidadeMover;
-            }
+            quantidadeRestante -= quantidadeMover;
           }
         }
       }
