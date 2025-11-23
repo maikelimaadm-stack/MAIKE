@@ -445,43 +445,36 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="fixed inset-0 overflow-hidden" style={{ margin: 0, padding: 0 }}>
-      <div
-        ref={mapRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: '#e5e7eb',
-          touchAction: 'manipulation',
-          margin: 0,
-          padding: 0
-        }}
-      />
-      
-      {/* Botão de voltar no topo esquerdo */}
-      <div className="absolute top-4 left-4 z-[1000]">
+    <div className="fixed inset-0 z-50 bg-white">
+      {/* Mapa em tela cheia */}
+      <div className="w-full h-full relative">
+        <div
+          ref={mapRef}
+          style={{
+            height: '100%',
+            width: '100%',
+            backgroundColor: '#e5e7eb',
+            touchAction: 'manipulation'
+          }}
+        />
+
+        {/* Botão voltar no topo esquerdo */}
         <Button
           onClick={() => window.history.back()}
           variant="secondary"
           size="icon"
-          className="h-10 w-10 rounded-full bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
+          className="absolute top-4 left-4 z-20 h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
         >
-          <ArrowLeft className="w-5 h-5 text-slate-700" />
+          <X className="w-6 h-6 text-slate-700" />
         </Button>
-      </div>
 
-      {/* Controles flutuantes no topo direito */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+        {/* Controles de tipo de mapa no topo direito */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('roadmap')}
-            className="h-9 px-3 text-xs bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
           >
             Mapa
           </Button>
@@ -489,14 +482,14 @@ export default function MapaGeral() {
             variant={mapType === 'satellite' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('satellite')}
-            className="h-9 px-3 text-xs bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
+            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
           >
             Satélite
           </Button>
         </div>
 
         {/* Controles de filtros no canto inferior esquerdo */}
-      <div className="absolute bottom-20 left-4 z-[1000] bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200 rounded-lg p-2 min-w-[140px]">
+        <div className="absolute bottom-6 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-2 min-w-[140px]">
           <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1 text-slate-700">
             <Layers className="w-3 h-3" />
             Filtros
@@ -541,14 +534,15 @@ export default function MapaGeral() {
           </div>
         </div>
 
-      {!mapReady && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white px-6 py-4 rounded-lg shadow-2xl">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-            <span className="font-semibold text-slate-700">Carregando mapa...</span>
+        {!mapReady && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
+              <span className="font-semibold text-slate-700">Carregando mapa...</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
