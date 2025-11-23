@@ -10,6 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import PWAInstaller from "@/components/PWAInstaller";
 import OfflineManager from "@/components/offline/OfflineManager";
+import CacheManager from "@/components/offline/CacheManager";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -694,6 +695,7 @@ export default function Layout({ children, currentPageName }) {
 
       <PWAInstaller />
       <OfflineManager />
+      <CacheManager />
       </div>
       );
       }

@@ -98,6 +98,11 @@ export default function MapaGeral() {
   const { data: linhas = [] } = useQuery({
     queryKey: ['linhas', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_linhas');
+        if (cached) return JSON.parse(cached).filter(l => l.empresa_id === empresaSelecionadaId);
+        return [];
+      }
       const all = await base44.entities.LinhaGeografica.list();
       return all.filter(l => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
     },
@@ -118,6 +123,11 @@ export default function MapaGeral() {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem('cache_icones');
+        if (cached) return JSON.parse(cached).filter(i => i.empresa_id === empresaSelecionadaId);
+        return [];
+      }
       const all = await base44.entities.ConfiguracaoIcone.list();
       return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
     },
