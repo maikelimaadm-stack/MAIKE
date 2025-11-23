@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
+import { AnimatePresence } from "framer-motion";
 
 export default function CategoriasManejo() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -132,8 +133,8 @@ export default function CategoriasManejo() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.nome || !formData.categoria_oficial) {
-      toast.error('Preencha nome e categoria oficial!');
+    if (!formData.nome || !formData.sigla || !formData.categoria_oficial) {
+      toast.error('Preencha nome, sigla e categoria oficial!');
       return;
     }
 
@@ -166,7 +167,11 @@ export default function CategoriasManejo() {
     }
   };
 
-  const categoriasOficiaisDisponiveis = iconesConfig.map(ic => ic.categoria).filter(Boolean);
+
+
+  const categoriasOficiaisDisponiveis = iconesConfig
+    .map(ic => ic.categoria)
+    .filter(cat => cat && cat.toUpperCase() !== 'MISTO');
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -181,70 +186,20 @@ export default function CategoriasManejo() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categorias.map(cat => {
-          const configIcone = iconesConfig.find(ic => ic.categoria === cat.categoria_oficial);
-          return (
-            <Card key={cat.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="text-sm font-bold text-slate-900 mb-1">{cat.nome}</div>
-                    <Badge className="text-xs">{cat.especie}</Badge>
-                  </div>
-                  {configIcone?.icone_url && (
-                    <img src={configIcone.icone_url} alt="" className="w-10 h-10 object-contain" />
-                  )}
-                </div>
-
-                <div className="space-y-2 text-xs mb-3">
-                  <div>
-                    <span className="text-slate-600">Categoria oficial:</span>
-                    <span className="font-semibold text-slate-900 ml-2">{cat.categoria_oficial}</span>
-                  </div>
-                  {cat.ganho_peso_anual_kg && (
-                    <div>
-                      <span className="text-slate-600">Ganho anual:</span>
-                      <span className="font-semibold text-slate-900 ml-2">{cat.ganho_peso_anual_kg} kg</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => handleEdit(cat)} 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-xs flex-1"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Editar
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      if (window.confirm('Excluir categoria?')) {
-                        deleteMutation.mutate(cat.id);
-                      }
-                    }}
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-xs text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {categorias.length === 0 && (
-          <div className="col-span-full text-center py-12 text-slate-500">
-            <p className="text-sm">Nenhuma categoria cadastrada</p>
-            <p className="text-xs">Clique em "Nova Categoria" para começar</p>
-          </div>
+      <AnimatePresence mode="wait">
+        {!showForm && (
+          <TabelaCategoriasManejo
+            categorias={categorias}
+            onEdit={handleEdit}
+            onDelete={(id) => {
+              if (window.confirm('Excluir categoria?')) {
+                deleteMutation.mutate(id);
+              }
+            }}
+            iconesConfig={iconesConfig}
+          />
         )}
-      </div>
+      </AnimatePresence>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

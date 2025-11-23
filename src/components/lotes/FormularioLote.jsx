@@ -89,10 +89,13 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
     e.preventDefault();
     
     const area = areas.find(a => a.id === formData.area_atual_id);
+    const catManejo = categoriasManejo.find(c => c.id === formData.categoria_manejo_id);
+    
     const dataToSave = {
       ...formData,
       nome: formData.nome.toUpperCase(),
       area_atual_nome: area?.nome || '',
+      categoria_manejo_nome: catManejo?.nome || '',
       origem: formData.origem?.toUpperCase(),
       observacoes: formData.observacoes?.toUpperCase(),
       quantidade_cabecas: parseInt(formData.quantidade_cabecas) || 0,
