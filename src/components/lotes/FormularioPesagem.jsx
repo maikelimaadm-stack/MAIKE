@@ -192,25 +192,15 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                     >
                       <SelectTrigger className="h-10 text-xs mb-3">
                         <SelectValue>
-                          <div className="flex items-center gap-2">
-                            {iconeUrl && <img src={iconeUrl} alt="" className="w-5 h-5" />}
-                            <span>{infoCategoria.totalCabecas} cb - {pesagem.categoria}</span>
-                          </div>
+                          {infoCategoria.totalCabecas} cb - {pesagem.categoria}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {categoriasDisponiveis.map(cat => {
                           const info = lotesPorCategoria[cat];
-                          const icon = iconesConfig.find(ic => 
-                            ic.tipo_entidade === 'Lote' && 
-                            ic.categoria?.toUpperCase() === cat?.toUpperCase()
-                          );
                           return (
                             <SelectItem key={cat} value={cat} className="text-xs">
-                              <div className="flex items-center gap-2">
-                                {icon?.icone_url && <img src={icon.icone_url} alt="" className="w-5 h-5" />}
-                                <span>{info.totalCabecas} cb - {cat}</span>
-                              </div>
+                              {info.totalCabecas} cb - {cat}
                             </SelectItem>
                           );
                         })}
