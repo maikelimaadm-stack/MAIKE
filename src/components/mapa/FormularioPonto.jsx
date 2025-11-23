@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, X } from "lucide-react";
+import { Save, X, Navigation } from "lucide-react";
 import { toast } from "sonner";
+import CapturaGPSPonto from "./CapturaGPSPonto";
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -43,9 +44,11 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
   );
 }
 
-export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
+export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [areaDetectada, setAreaDetectada] = React.useState(null);
+  const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
+  const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -81,9 +84,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  const handleCapturaGPS = (localizacao) => {
+    setCoordenadasGPS(localizacao);
+    setMostrarCapturaGPS(false);
+    toast.success('Localização GPS capturada!');
+  };
+
   // Detectar automaticamente em qual área o ponto está sendo colocado
   React.useEffect(() => {
-    if (!coordenadas || !areas.length) return;
+    const coords = coordenadasGPS || coordenadas;
+    if (!coords || !areas.length) return;
 
     for (const area of areas) {
       const coords = area.coordenadas?.coords || [];
@@ -97,8 +107,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
         const xi = polygon[i].lat, yi = polygon[i].lng;
         const xj = polygon[j].lat, yj = polygon[j].lng;
         
-        const intersect = ((yi > coordenadas.lng) !== (yj > coordenadas.lng))
-            && (coordenadas.lat < (xj - xi) * (coordenadas.lng - yi) / (yj - yi) + xi);
+        const intersect = ((yi > coords.lng) !== (yj > coords.lng))
+            && (coords.lat < (xj - xi) * (coords.lng - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       
@@ -108,7 +118,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
         break;
       }
     }
-  }, [coordenadas, areas]);
+  }, [coordenadasGPS, coordenadas, areas]);
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
@@ -133,7 +143,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
           capacidade_cocho_kg: data.capacidade_cocho_kg ? parseFloat(data.capacidade_cocho_kg) : null,
           area_vinculada_id: data.area_vinculada_id,
           area_vinculada_nome: areaVinculada?.nome || '',
-          coordenadas: coordenadas,
+          coordenadas: coordenadasGPS || coordenadas,
           status: 'Ativo',
           consumo_ideal_por_cabeca_kg: data.consumo_ideal_por_cabeca_kg ? parseFloat(data.consumo_ideal_por_cabeca_kg) : null,
           limite_minimo_consumo: data.limite_minimo_consumo ? parseFloat(data.limite_minimo_consumo) : null,
@@ -158,7 +168,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
         numero_ponto: String(maxNum + 1),
         ativo: true,
         cor: configIcone?.cor_padrao || '#0066ff',
-        coordenadas: coordenadas
+        coordenadas: coordenadasGPS || coordenadas
       });
     },
     onSuccess: () => {
@@ -197,6 +207,18 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel }) {
   };
 
   const tiposDisponiveis = [...new Set(iconesConfig.map(ic => ic.categoria))];
+
+  if (mostrarCapturaGPS) {
+    return (
+      <CapturaGPSPonto
+        onCapturar={handleCapturaGPS}
+        onCancelar={() => {
+          setMostrarCapturaGPS(false);
+          if (usarGPS) onCancel();
+        }}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">

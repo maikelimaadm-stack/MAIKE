@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import CapturaGPSPoligono from "./CapturaGPSPoligono";
 
 const TIPOS_USO = [
   "Pasto/Piquete", "Lavoura", "Reserva Legal", "APP", 
@@ -19,8 +20,10 @@ const CORES_DISPONIVEIS = [
   "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
 ];
 
-export default function FormularioArea({ coordenadas, onSave, onCancel }) {
+export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
+  const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -58,17 +61,24 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
     }
   });
 
+  const handleCapturaGPS = (pontos) => {
+    setCoordenadasGPS(pontos);
+    setMostrarCapturaGPS(false);
+    toast.success(`${pontos.length} pontos capturados via GPS!`);
+  };
+
   // Calcular área automaticamente quando o componente carrega
   React.useEffect(() => {
-    if (window.google?.maps?.geometry && coordenadas && coordenadas.length >= 3) {
+    const coords = coordenadasGPS || coordenadas;
+    if (window.google?.maps?.geometry && coords && coords.length >= 3) {
       const polygon = new google.maps.Polygon({ 
-        paths: coordenadas.map(c => new google.maps.LatLng(c.lat, c.lng))
+        paths: coords.map(c => new google.maps.LatLng(c.lat, c.lng))
       });
       const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
       const areaHa = (areaM2 / 10000).toFixed(2);
       setFormData(prev => ({ ...prev, area_total: areaHa }));
     }
-  }, [coordenadas]);
+  }, [coordenadasGPS, coordenadas]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -77,10 +87,11 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
       return;
     }
     // Calcular área
+    const coords = coordenadasGPS || coordenadas;
     let tamanhoHectares = 0;
-    if (window.google?.maps?.geometry && coordenadas && coordenadas.length >= 3) {
+    if (window.google?.maps?.geometry && coords && coords.length >= 3) {
       const polygon = new google.maps.Polygon({ 
-        paths: coordenadas.map(c => new google.maps.LatLng(c.lat, c.lng))
+        paths: coords.map(c => new google.maps.LatLng(c.lat, c.lng))
       });
       const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
       tamanhoHectares = parseFloat((areaM2 / 10000).toFixed(2));
@@ -96,6 +107,19 @@ export default function FormularioArea({ coordenadas, onSave, onCancel }) {
       cor: formData.cor
     });
   };
+
+  if (mostrarCapturaGPS) {
+    return (
+      <CapturaGPSPoligono
+        tipo="area"
+        onSalvar={handleCapturaGPS}
+        onCancelar={() => {
+          setMostrarCapturaGPS(false);
+          if (usarGPS) onCancel();
+        }}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">
