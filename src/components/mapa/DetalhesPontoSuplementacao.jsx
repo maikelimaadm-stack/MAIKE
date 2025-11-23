@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -130,18 +130,17 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
         <Button
           onClick={() => setShowLancamento(true)}
           variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          className="h-9 text-xs font-semibold border-slate-300 hover:bg-slate-50"
         >
-          <span>Lançar</span>
+          Lançar
         </Button>
 
         <Button
           onClick={() => setShowHistorico(true)}
           variant="outline"
-          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
+          className="h-9 text-xs font-semibold border-slate-300 hover:bg-slate-50"
         >
-          <TrendingUp className="w-4 h-4 text-slate-600" />
-          <span>Histórico</span>
+          Histórico
         </Button>
       </div>
 
