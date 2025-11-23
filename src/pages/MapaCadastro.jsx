@@ -58,14 +58,7 @@ export default function MapaCadastro() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: pontosSuplementacao = [] } = useQuery({
-    queryKey: ['pontos-suplementacao', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status !== 'Inativo');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
+
 
   const deleteAreaMutation = useMutation({
     mutationFn: (id) => base44.entities.AreaPastagem.update(id, { ativo: false }),
@@ -94,14 +87,7 @@ export default function MapaCadastro() {
     },
   });
 
-  const deletePontoSuplMutation = useMutation({
-    mutationFn: (id) => base44.entities.PontoSuplementacao.update(id, { status: 'Inativo' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pontos-suplementacao'] });
-      toast.success('Ponto de suplementação excluído!');
-      setItemExcluir(null);
-    },
-  });
+
 
   const handleNovoItem = (tipo) => {
     setTipoDesenho(tipo);
@@ -128,8 +114,6 @@ export default function MapaCadastro() {
       deletePontoMutation.mutate(itemExcluir.item.id);
     } else if (itemExcluir.tipo === 'linha') {
       deleteLinhaMutation.mutate(itemExcluir.item.id);
-    } else if (itemExcluir.tipo === 'cocho') {
-      deletePontoSuplMutation.mutate(itemExcluir.item.id);
     }
   };
 
@@ -166,11 +150,10 @@ export default function MapaCadastro() {
       </div>
 
       <Tabs defaultValue="areas" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="areas">Áreas</TabsTrigger>
           <TabsTrigger value="pontos">Pontos</TabsTrigger>
           <TabsTrigger value="linhas">Linhas</TabsTrigger>
-          <TabsTrigger value="cochos">Cochos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="areas" className="space-y-4">
@@ -224,22 +207,6 @@ export default function MapaCadastro() {
           />
         </TabsContent>
 
-        <TabsContent value="cochos" className="space-y-4">
-          <div className="flex justify-end">
-            <Button
-              onClick={() => handleNovoItem('cocho')}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Cocho
-            </Button>
-          </div>
-          <TabelaCochosGeo
-            cochos={pontosSuplementacao}
-            onEdit={(cocho) => handleEditarItem(cocho, 'cocho')}
-            onDelete={(cocho) => handleExcluirItem(cocho, 'cocho')}
-          />
-        </TabsContent>
       </Tabs>
 
       <AlertDialog open={!!itemExcluir} onOpenChange={() => setItemExcluir(null)}>
