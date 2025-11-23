@@ -307,21 +307,21 @@ export default function MapaGeral() {
 
         const configIcone = iconesConfig.find(ic => 
           ic.tipo_entidade === 'Cocho' && 
-          ic.categoria === ponto.tipo
+          ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim()
         );
 
         let markerIcon;
         if (configIcone?.icone_url) {
           markerIcon = {
             url: configIcone.icone_url,
-            scaledSize: new google.maps.Size(50, 50),
-            anchor: new google.maps.Point(25, 25)
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 20)
           };
         } else {
           markerIcon = {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 14,
-            fillColor: '#10b981',
+            fillColor: configIcone?.cor_padrao || '#10b981',
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 3
