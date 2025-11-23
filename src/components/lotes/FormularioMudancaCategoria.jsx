@@ -152,7 +152,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                   >
                     <SelectTrigger className="h-10 text-xs mb-3">
                       <SelectValue>
-                        {infoCategoria.totalCabecas} cb - {mudanca.categoria_atual}
+                        {infoCategoria?.totalCabecas || 0} cb - {mudanca.categoria_atual}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

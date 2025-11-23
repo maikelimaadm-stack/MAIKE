@@ -138,7 +138,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
                   >
                     <SelectTrigger className="h-10 text-xs mb-3">
                       <SelectValue>
-                        {infoCategoria.totalCabecas} cb - {abate.categoria}
+                        {infoCategoria?.totalCabecas || 0} cb - {abate.categoria}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

@@ -134,7 +134,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
                   >
                     <SelectTrigger className="h-10 text-xs mb-3">
                       <SelectValue>
-                        {infoCategoria.totalCabecas} cb - {morte.categoria}
+                        {infoCategoria?.totalCabecas || 0} cb - {morte.categoria}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

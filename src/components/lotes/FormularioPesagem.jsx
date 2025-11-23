@@ -192,7 +192,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                     >
                       <SelectTrigger className="h-10 text-xs mb-3">
                         <SelectValue>
-                          {infoCategoria.totalCabecas} cb - {pesagem.categoria}
+                          {infoCategoria?.totalCabecas || 0} cb - {pesagem.categoria}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>

@@ -293,7 +293,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                     >
                       <SelectTrigger className="h-10 text-xs mb-3">
                         <SelectValue>
-                          {infoCategoria.quantidade_total} cb - {mov.categoria}
+                          {infoCategoria?.quantidade_total || 0} cb - {mov.categoria}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
