@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -20,7 +21,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     observacoes: ""
   });
 
-  // Buscar lotes na área do ponto
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ['lotes-area', ponto?.area_vinculada_id],
     queryFn: async () => {
@@ -34,7 +34,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.area_vinculada_id,
   });
 
-  // Buscar fatores de consumo
   const { data: fatores = [] } = useQuery({
     queryKey: ['fatores-consumo', empresaSelecionadaId],
     queryFn: async () => {
@@ -44,7 +43,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId,
   });
 
-  // Buscar último lançamento neste ponto para calcular período
   const { data: ultimoEvento } = useQuery({
     queryKey: ['ultimo-evento-ponto', ponto?.id],
     queryFn: async () => {
@@ -57,7 +55,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!ponto?.id,
   });
 
-  // Buscar produtos de suplementação
   const { data: produtosSuplementacao = [] } = useQuery({
     queryKey: ['produtos-suplementacao', empresaSelecionadaId],
     queryFn: async () => {
@@ -72,49 +69,34 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
 
-  // Calcular dias do período
   const diasPeriodo = ultimoEvento 
     ? Math.max(1, Math.ceil((new Date(formData.data_lancamento) - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)))
     : null;
 
-  // Calcular peso total de consumo (soma de cabeças x fator)
   const pesoTotalConsumo = lotes.reduce((sum, lote) => {
     const categoriaLote = lote.categoria?.toUpperCase().trim();
     const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
     return sum + (lote.quantidade_cabecas * fator);
   }, 0);
 
-  // Calcular consumo diário do grupo (se houver período)
-  const quantidadeConsumida = parseFloat(formData.quantidade_total_kg || 0) - parseFloat(formData.sobra_kg || 0);
-  const consumoDiarioGrupo = diasPeriodo && quantidadeConsumida > 0
-    ? quantidadeConsumida / diasPeriodo
-    : quantidadeConsumida;
-
-  // Calcular consumo unitário por dia
-  const consumoUnitarioDia = diasPeriodo && pesoTotalConsumo > 0
-    ? quantidadeConsumida / (diasPeriodo * pesoTotalConsumo)
-    : 0;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!formData.produto || formData.produto === 'NENHUM') {
-      alert("Selecione um produto");
+  const handleSalvar = () => {
+    if (!formData.produto) {
+      toast.error("Selecione um produto");
       return;
     }
 
     if (!formData.quantidade_total_kg || parseFloat(formData.quantidade_total_kg) <= 0) {
-      alert("Informe a quantidade fornecida");
+      toast.error("Informe a quantidade fornecida");
       return;
     }
     
     if (totalCabecas === 0) {
-      alert("Não há lotes ativos na área deste ponto de suplementação");
+      toast.error("Não há lotes ativos na área");
       return;
     }
 
     if (fatores.length === 0) {
-      alert("Configure os fatores de consumo por categoria antes de lançar suplementação");
+      toast.error("Configure os fatores de consumo primeiro");
       return;
     }
 
@@ -200,6 +182,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     });
   };
 
+  const botaoHabilitado = totalCabecas > 0 && formData.produto && formData.quantidade_total_kg;
+
   return (
     <Card>
       <CardHeader className="bg-emerald-50 border-b py-3">
@@ -208,7 +192,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
@@ -248,7 +232,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 value={formData.data_lancamento}
                 onChange={(e) => setFormData({ ...formData, data_lancamento: e.target.value })}
                 className="h-9 text-xs"
-                required
               />
             </div>
 
@@ -267,11 +250,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                       {produto.nome_produto}
                     </SelectItem>
                   ))}
-                  {produtosSuplementacao.length === 0 && (
-                    <SelectItem value="NENHUM" disabled className="text-xs italic">
-                      Nenhum produto cadastrado
-                    </SelectItem>
-                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -287,7 +265,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 onChange={(e) => setFormData({ ...formData, quantidade_total_kg: e.target.value })}
                 className="h-9 text-xs"
                 placeholder="0"
-                required
               />
             </div>
 
@@ -310,16 +287,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="text-xs text-amber-800 mb-2">
                 O lançamento de <strong>{new Date(ultimoEvento.data_lancamento).toLocaleDateString()}</strong> será fechado com <strong>{diasPeriodo} dia(s)</strong> de duração.
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-amber-700">Quantidade anterior:</span>
-                  <span className="font-bold text-amber-900 ml-2">{(ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0)).toFixed(1)} kg</span>
-                </div>
-                <div>
-                  <span className="text-amber-700">Consumo/dia calculado:</span>
-                  <span className="font-bold text-amber-900 ml-2">{((ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0)) / diasPeriodo).toFixed(2)} kg/dia</span>
-                </div>
-              </div>
             </div>
           )}
 
@@ -327,7 +294,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="text-xs font-semibold text-blue-900 mb-2">ℹ️ Primeiro Lançamento</div>
               <div className="text-xs text-blue-700">
-                Este é o primeiro lançamento neste ponto. O consumo será calculado quando o próximo abastecimento for registrado.
+                Este é o primeiro lançamento neste ponto.
               </div>
             </div>
           )}
@@ -347,15 +314,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               Cancelar
             </Button>
             <Button 
-              type="submit" 
+              type="button"
+              onClick={handleSalvar}
               size="sm" 
               className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-              disabled={totalCabecas === 0 || !formData.produto || !formData.quantidade_total_kg}
+              disabled={!botaoHabilitado}
             >
-              Registrar Suplementação
+              Registrar ({botaoHabilitado ? 'OK' : 'Faltam dados'})
             </Button>
           </div>
-        </form>
+        </div>
       </CardContent>
     </Card>
   );
