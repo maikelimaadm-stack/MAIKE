@@ -445,26 +445,28 @@ export default function MapaGeral() {
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-white">
-      {/* Mapa em tela cheia */}
-      <div className="w-full h-full relative">
+    <>
+      <div className="fixed inset-0 bg-white overflow-hidden">
         <div
           ref={mapRef}
           style={{
-            height: '100%',
-            width: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             backgroundColor: '#e5e7eb',
             touchAction: 'manipulation'
           }}
         />
         
         {/* Controles flutuantes no topo direito */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('roadmap')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+            className="h-9 px-3 text-xs bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
           >
             Mapa
           </Button>
@@ -472,60 +474,60 @@ export default function MapaGeral() {
             variant={mapType === 'satellite' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => setMapType('satellite')}
-            className="h-9 px-3 text-xs bg-white/90 backdrop-blur-sm shadow-lg"
+            className="h-9 px-3 text-xs bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200"
           >
             Satélite
           </Button>
         </div>
 
-        {/* Controles de camadas flutuantes no canto inferior esquerdo */}
-        <div className="absolute bottom-4 left-4 z-20 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-2 max-w-[160px]">
+        {/* Controles de filtros no canto inferior esquerdo */}
+        <div className="absolute bottom-20 left-4 z-[1000] bg-white/95 backdrop-blur-sm shadow-xl border border-slate-200 rounded-lg p-2 min-w-[140px]">
           <div className="text-[10px] font-semibold mb-1.5 flex items-center gap-1 text-slate-700">
             <Layers className="w-3 h-3" />
             Filtros
           </div>
-          <div className="space-y-1.5">
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+          <div className="space-y-1">
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
               <span className="text-[10px] font-medium text-slate-700">Áreas</span>
               <input
                 type="checkbox"
                 checked={showAreas}
                 onChange={() => setShowAreas(!showAreas)}
-                className="w-3 h-3 rounded border-slate-300"
+                className="w-3.5 h-3.5 rounded border-slate-300"
               />
             </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
               <span className="text-[10px] font-medium text-slate-700">Pontos</span>
               <input
                 type="checkbox"
                 checked={showPontos}
                 onChange={() => setShowPontos(!showPontos)}
-                className="w-3 h-3 rounded border-slate-300"
+                className="w-3.5 h-3.5 rounded border-slate-300"
               />
             </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
               <span className="text-[10px] font-medium text-slate-700">Linhas</span>
               <input
                 type="checkbox"
                 checked={showLinhas}
                 onChange={() => setShowLinhas(!showLinhas)}
-                className="w-3 h-3 rounded border-slate-300"
+                className="w-3.5 h-3.5 rounded border-slate-300"
               />
             </label>
-            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+            <label className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded">
               <span className="text-[10px] font-medium text-slate-700">Lotes</span>
               <input
                 type="checkbox"
                 checked={showLotes}
                 onChange={() => setShowLotes(!showLotes)}
-                className="w-3 h-3 rounded border-slate-300"
+                className="w-3.5 h-3.5 rounded border-slate-300"
               />
             </label>
           </div>
         </div>
 
         {!mapReady && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[2000] bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
               <span className="font-semibold text-slate-700">Carregando mapa...</span>
@@ -547,6 +549,6 @@ export default function MapaGeral() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
