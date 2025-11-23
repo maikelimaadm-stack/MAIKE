@@ -184,9 +184,14 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
         center: { lat: -15.0067, lng: -59.9533 },
         zoom: 15,
         mapTypeId: mapType,
-        mapTypeControl: true,
+        mapTypeControl: false,
         streetViewControl: false,
-        fullscreenControl: true,
+        fullscreenControl: false,
+        gestureHandling: 'greedy',
+        zoomControl: true,
+        zoomControlOptions: {
+          position: google.maps.ControlPosition.RIGHT_CENTER
+        }
       });
 
       mapInstanceRef.current = map;
@@ -471,110 +476,114 @@ export default function MapaDesenho({ tipoDesenho, itemEditando, onSalvar, onCan
   };
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {itemEditando ? `Editar ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}` : `Nova ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}`}
-          </h1>
-          <p className="text-sm text-slate-600">
-            {itemEditando ? 'Edite os pontos no mapa' : 'Desenhe no mapa e finalize para salvar'}
-          </p>
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+      {/* Header com botão voltar */}
+      <div className="flex items-center justify-between p-3 md:p-4 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={onCancelar} size="sm" className="h-9">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
+          <div>
+            <h1 className="text-base md:text-lg font-bold text-slate-900">
+              {itemEditando ? `Editar ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}` : `Nova ${tipoDesenho === 'area' ? 'Área' : tipoDesenho === 'ponto' ? 'Ponto' : 'Linha'}`}
+            </h1>
+            <p className="text-xs text-slate-600 hidden md:block">
+              {itemEditando ? 'Edite os pontos no mapa' : 'Desenhe no mapa e finalize para salvar'}
+            </p>
+          </div>
         </div>
-        <Button variant="outline" onClick={onCancelar}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
-        </Button>
+
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1 bg-white border rounded-lg p-1">
+            <Button
+              variant={mapType === 'roadmap' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setMapType('roadmap')}
+              className="h-7 text-xs px-2"
+            >
+              Mapa
+            </Button>
+            <Button
+              variant={mapType === 'satellite' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setMapType('satellite')}
+              className="h-7 text-xs px-2"
+            >
+              Satélite
+            </Button>
+          </div>
+
+          <Button
+            variant={snappingEnabled ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSnappingEnabled(!snappingEnabled)}
+            className="h-7 text-xs px-2 hidden md:flex"
+          >
+            🧲 Snap {snappingEnabled ? 'ON' : 'OFF'}
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="bg-gradient-to-r from-emerald-50 to-blue-50 border-b">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Map className="w-5 h-5 text-emerald-600" />
-              Mapa de Desenho
-            </CardTitle>
-
-            <div className="flex gap-2 flex-wrap">
-              <div className="flex gap-1 bg-white border rounded-lg p-1">
-                <Button
-                  variant={mapType === 'roadmap' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMapType('roadmap')}
-                  className="h-8 text-xs"
-                >
-                  Mapa
-                </Button>
-                <Button
-                  variant={mapType === 'satellite' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMapType('satellite')}
-                  className="h-8 text-xs"
-                >
-                  Satélite
-                </Button>
-              </div>
-
-              <Button
-                variant={snappingEnabled ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSnappingEnabled(!snappingEnabled)}
-                className="h-8 text-xs"
-              >
-                🧲 Snap {snappingEnabled ? 'ON' : 'OFF'}
-              </Button>
+      {/* Mapa em tela cheia */}
+      <div className="flex-1 relative">
+        <div
+          ref={mapRef}
+          style={{
+            height: '100%',
+            width: '100%',
+            backgroundColor: '#e5e7eb',
+            cursor: (tipoDesenho && mapReady && !itemEditando) ? 'crosshair' : 'default',
+            touchAction: 'pan-x pan-y'
+          }}
+          className={(tipoDesenho && mapReady && !itemEditando) ? '[&_*]:cursor-crosshair' : ''}
+        />
+        {!mapReady && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
+              <span className="font-semibold text-slate-700">Carregando mapa...</span>
             </div>
           </div>
-        </CardHeader>
-
-        <CardContent className="p-0 relative">
-          <div
-            ref={mapRef}
-            style={{
-              height: '750px',
-              width: '100%',
-              backgroundColor: '#e5e7eb',
-              cursor: (tipoDesenho && mapReady && !itemEditando) ? 'crosshair' : 'default'
-            }}
-            className={(tipoDesenho && mapReady && !itemEditando) ? '[&_*]:cursor-crosshair' : ''}
-          />
-          {!mapReady && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full"></div>
-                <span className="font-semibold text-slate-700">Carregando mapa...</span>
-              </div>
-            </div>
-          )}
-          {tipoDesenho && mapReady && !itemEditando && (
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-3">
-              <div className="bg-blue-600 text-white px-8 py-4 rounded-xl shadow-2xl font-bold text-base border-4 border-white">
-                {tipoDesenho === 'area' && `🎯 Clique no mapa para adicionar pontos (${currentPoints.length}) • Arraste os pontos para editar`}
-                {tipoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
-                {tipoDesenho === 'linha' && `➡️ Clique no mapa para adicionar pontos (${currentPoints.length}) • Arraste os pontos para editar`}
-              </div>
-              {tipoDesenho === 'area' && currentPoints.length >= 3 && (
-                <Button
-                  onClick={finalizarDesenho}
-                  size="lg"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-14 px-10 text-lg"
-                >
-                  ✓ FINALIZAR ÁREA
-                </Button>
+        )}
+        {tipoDesenho && mapReady && !itemEditando && (
+          <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-2 md:gap-3 px-4 w-full max-w-2xl">
+            <div className="bg-blue-600 text-white px-4 md:px-8 py-2 md:py-4 rounded-lg md:rounded-xl shadow-2xl font-bold text-xs md:text-base border-2 md:border-4 border-white text-center">
+              {tipoDesenho === 'area' && (
+                <>
+                  <span className="md:hidden">🎯 Adicionar pontos ({currentPoints.length})</span>
+                  <span className="hidden md:inline">🎯 Clique no mapa para adicionar pontos ({currentPoints.length}) • Arraste os pontos para editar</span>
+                </>
               )}
-              {tipoDesenho === 'linha' && currentPoints.length >= 2 && (
-                <Button
-                  onClick={finalizarDesenho}
-                  size="lg"
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-14 px-10 text-lg"
-                >
-                  ✓ FINALIZAR LINHA
-                </Button>
+              {tipoDesenho === 'ponto' && '📍 Clique no mapa para posicionar o ponto'}
+              {tipoDesenho === 'linha' && (
+                <>
+                  <span className="md:hidden">➡️ Adicionar pontos ({currentPoints.length})</span>
+                  <span className="hidden md:inline">➡️ Clique no mapa para adicionar pontos ({currentPoints.length}) • Arraste os pontos para editar</span>
+                </>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {tipoDesenho === 'area' && currentPoints.length >= 3 && (
+              <Button
+                onClick={finalizarDesenho}
+                size="lg"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xl animate-pulse h-12 md:h-14 px-6 md:px-10 text-sm md:text-lg w-full md:w-auto"
+              >
+                ✓ FINALIZAR ÁREA
+              </Button>
+            )}
+            {tipoDesenho === 'linha' && currentPoints.length >= 2 && (
+              <Button
+                onClick={finalizarDesenho}
+                size="lg"
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-2xl animate-pulse h-12 md:h-14 px-6 md:px-10 text-sm md:text-lg w-full md:w-auto"
+              >
+                ✓ FINALIZAR LINHA
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
 
       <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
         <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
