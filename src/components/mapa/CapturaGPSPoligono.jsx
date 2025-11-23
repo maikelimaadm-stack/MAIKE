@@ -145,11 +145,12 @@ export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar
     pontosMarkersRef.current.forEach(m => m.setMap(null));
     pontosMarkersRef.current = [];
 
-    // Adicionar marcadores dos pontos
+    // Adicionar marcadores dos pontos (draggable)
     pontos.forEach((ponto, idx) => {
       const marker = new google.maps.Marker({
         position: { lat: ponto.lat, lng: ponto.lng },
         map: mapInstanceRef.current,
+        draggable: true,
         label: {
           text: String(idx + 1),
           color: '#ffffff',
@@ -166,6 +167,25 @@ export default function CapturaGPSPoligono({ tipo = 'area', onSalvar, onCancelar
         },
         zIndex: 5000
       });
+
+      // Atualizar posição ao arrastar
+      marker.addListener('dragend', (event) => {
+        const novaPosicao = {
+          lat: event.latLng.lat(),
+          lng: event.latLng.lng(),
+          accuracy: ponto.accuracy,
+          timestamp: ponto.timestamp
+        };
+        
+        setPontos(prevPontos => {
+          const novosPontos = [...prevPontos];
+          novosPontos[idx] = novaPosicao;
+          return novosPontos;
+        });
+        
+        toast.success(`Ponto ${idx + 1} reposicionado`);
+      });
+
       pontosMarkersRef.current.push(marker);
     });
 
