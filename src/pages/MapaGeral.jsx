@@ -330,7 +330,7 @@ export default function MapaGeral() {
           map: mapInstanceRef.current,
           icon: markerIcon,
           title: ponto.nome_ponto,
-          zIndex: 2000
+          zIndex: 500
         });
 
         markersRef.current.push(marker);

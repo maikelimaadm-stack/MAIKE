@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, Edit, TrendingUp, AlertCircle } from "lucide-react";
+import { TrendingUp, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -129,9 +129,9 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose }) {
       <div className="grid grid-cols-2 gap-2">
         <Button
           onClick={() => setShowLancamento(true)}
-          className="h-11 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 gap-1 flex-col py-1.5"
+          variant="outline"
+          className="h-11 text-[10px] font-semibold border-slate-300 hover:bg-slate-50 gap-1 flex-col py-1.5"
         >
-          <Package className="w-4 h-4" />
           <span>Lançar</span>
         </Button>
 
