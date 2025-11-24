@@ -182,7 +182,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">

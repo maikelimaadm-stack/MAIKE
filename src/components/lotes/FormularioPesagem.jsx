@@ -113,7 +113,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Registrar Pesagem - {nomeExibicao}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Data da Pesagem *</Label>

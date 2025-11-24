@@ -120,7 +120,7 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
             {initialData ? 'Editar Lote' : 'Cadastrar Novo Lote'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
