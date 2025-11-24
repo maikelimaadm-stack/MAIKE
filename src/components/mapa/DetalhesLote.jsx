@@ -276,13 +276,14 @@ export default function DetalhesLote({ lotes, onClose }) {
       
       },
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-        await queryClient.invalidateQueries({ queryKey: ['areas'] });
-        await queryClient.refetchQueries({ queryKey: ['lotes'] });
-        await queryClient.refetchQueries({ queryKey: ['areas'] });
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
         onClose();
+
+        // Forçar reload da página após 500ms
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
