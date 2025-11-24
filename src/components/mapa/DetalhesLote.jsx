@@ -274,11 +274,9 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
       
-      await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-      await queryClient.invalidateQueries({ queryKey: ['areas'] });
-      await queryClient.refetchQueries({ queryKey: ['lotes', empresaSelecionadaId] });
-      await queryClient.refetchQueries({ queryKey: ['areas', empresaSelecionadaId] });
-      console.log('✅ MOVIMENTAÇÃO CONCLUÍDA - QUERIES INVALIDADAS');
+      await queryClient.resetQueries({ queryKey: ['lotes'] });
+      await queryClient.resetQueries({ queryKey: ['areas'] });
+      console.log('✅ MOVIMENTAÇÃO CONCLUÍDA - QUERIES RESETADAS');
       },
       onSuccess: () => {
       toast.success('✅ Gado movido!');
