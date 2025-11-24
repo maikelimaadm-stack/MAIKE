@@ -134,17 +134,20 @@ export default function MapaGeral() {
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
+      console.log('🔄 BUSCANDO LOTES DO SERVIDOR');
       if (!navigator.onLine) {
         const cached = localStorage.getItem('cache_lotes');
         if (cached) return JSON.parse(cached).filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
         return [];
       }
       const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
+      const filtrados = all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
+      console.log('✅ LOTES CARREGADOS:', filtrados.length);
+      return filtrados;
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
@@ -887,11 +890,10 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesLote} onOpenChange={(open) => {
         setShowDetalhesLote(open);
         if (!open) {
-          setTimeout(() => {
-            refetchLotes();
-            refetchEventosSupl();
-            refetchAreas();
-          }, 300);
+          console.log('🔄 DIALOG FECHADO - FORÇANDO REFETCH');
+          refetchLotes();
+          refetchEventosSupl();
+          refetchAreas();
         }
       }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
