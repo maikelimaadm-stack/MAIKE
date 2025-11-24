@@ -43,9 +43,9 @@ function ResumoSuplementacaoLote({ lotesIds }) {
   dataLimite.setDate(dataLimite.getDate() - 30);
   const consumosRecentes = consumosLote.filter(c => new Date(c.data_lancamento) >= dataLimite);
 
-  const consumoTotalKg = consumosRecentes.reduce((sum, c) => sum + (c.consumo_lote_kg || 0), 0);
+  const consumoTotalKg = consumosRecentes.reduce((sum, c) => sum + (c.consumo_total_lote_periodo_kg || 0), 0);
   const consumoMedioPorCabeca = consumosRecentes.length > 0
-    ? consumosRecentes.reduce((sum, c) => sum + (c.consumo_por_cabeca || 0), 0) / consumosRecentes.length
+    ? consumosRecentes.reduce((sum, c) => sum + (c.consumo_por_cabeca_dia_kg || 0), 0) / consumosRecentes.length
     : 0;
   const ultimoLancamento = consumosLote.length > 0 
     ? consumosLote.sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0]
@@ -75,6 +75,50 @@ function ResumoSuplementacaoLote({ lotesIds }) {
           <strong>Último produto:</strong> {ultimoLancamento.produto}
         </div>
       )}
+    </div>
+  );
+}
+
+function ResumoSuplementacaoCategoria({ lotesIds }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  
+  const { data: consumosLote = [] } = useQuery({
+    queryKey: ['suplementacao-resumo-categoria', lotesIds],
+    queryFn: async () => {
+      const all = await base44.entities.SuplementacaoLote.list();
+      return all.filter(s => 
+        s.empresa_id === empresaSelecionadaId && 
+        lotesIds.includes(s.lote_id)
+      );
+    },
+    enabled: !!empresaSelecionadaId && lotesIds.length > 0,
+  });
+
+  if (consumosLote.length === 0) return null;
+
+  // Últimos 30 dias
+  const dataLimite = new Date();
+  dataLimite.setDate(dataLimite.getDate() - 30);
+  const consumosRecentes = consumosLote.filter(c => new Date(c.data_lancamento) >= dataLimite);
+
+  const consumoTotalKg = consumosRecentes.reduce((sum, c) => sum + (c.consumo_total_lote_periodo_kg || 0), 0);
+  const consumoMedioPorCabeca = consumosRecentes.length > 0
+    ? consumosRecentes.reduce((sum, c) => sum + (c.consumo_por_cabeca_dia_kg || 0), 0) / consumosRecentes.length
+    : 0;
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mt-2">
+      <div className="text-[10px] font-semibold text-blue-900 mb-1">📊 Suplementação (30d)</div>
+      <div className="grid grid-cols-2 gap-2 text-[9px]">
+        <div>
+          <div className="text-blue-700">Total</div>
+          <div className="text-xs font-bold text-blue-900">{consumoTotalKg.toFixed(1)} kg</div>
+        </div>
+        <div>
+          <div className="text-blue-700">Média/cab/dia</div>
+          <div className="text-xs font-bold text-blue-900">{consumoMedioPorCabeca.toFixed(3)} kg</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -500,24 +544,27 @@ export default function DetalhesLote({ lotes, onClose }) {
 
           return (
             <div key={categoria} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-bold text-slate-900 mb-1.5">{categoria}</div>
-                  <div className="text-xl font-bold text-slate-900 mb-2">{totalCabecasCategoria} cab</div>
-                  <div className="space-y-1.5 text-[10px]">
-                    <div className="flex gap-2">
-                      <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
-                      <span className="font-semibold text-slate-900 break-words">{lotesCategoria.map(l => l.nome).join(', ')}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="font-medium text-slate-600">Peso:</span>
-                      <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] font-bold text-slate-900 mb-1.5">{categoria}</div>
+                    <div className="text-xl font-bold text-slate-900 mb-2">{totalCabecasCategoria} cab</div>
+                    <div className="space-y-1.5 text-[10px]">
+                      <div className="flex gap-2">
+                        <span className="font-medium text-slate-600 whitespace-nowrap">Lotes:</span>
+                        <span className="font-semibold text-slate-900 break-words">{lotesCategoria.map(l => l.nome).join(', ')}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="font-medium text-slate-600">Peso:</span>
+                        <span className="font-semibold text-slate-900">{pesoMedio ? pesoMedio.toFixed(0) + ' kg' : '-'}</span>
+                      </div>
                     </div>
                   </div>
+                  {iconeUrl && (
+                    <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
+                  )}
                 </div>
-                {iconeUrl && (
-                  <img src={iconeUrl} alt={categoria} className="w-12 h-12 object-contain flex-shrink-0" />
-                )}
+                <ResumoSuplementacaoCategoria lotesIds={lotesCategoria.map(l => l.id)} />
               </div>
             </div>
           );
