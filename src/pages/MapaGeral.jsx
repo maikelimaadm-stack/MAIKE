@@ -127,7 +127,7 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: lotes = [] } = useQuery({
+  const { data: lotes = [], refetch: refetchLotes } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
       if (!navigator.onLine) {
@@ -141,6 +141,7 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
     staleTime: 0,
     cacheTime: 0,
+    refetchInterval: 5000,
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -157,13 +158,14 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: eventosSupl = [] } = useQuery({
+  const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({
     queryKey: ['eventos-suplementacao', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list();
       return all.filter(e => e.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
+    refetchInterval: 5000,
   });
 
   const { data: pontosSupl = [] } = useQuery({
@@ -861,7 +863,13 @@ export default function MapaGeral() {
         )}
       </div>
 
-      <Dialog open={showDetalhesLote} onOpenChange={setShowDetalhesLote}>
+      <Dialog open={showDetalhesLote} onOpenChange={(open) => {
+        setShowDetalhesLote(open);
+        if (!open) {
+          refetchLotes();
+          refetchEventosSupl();
+        }
+      }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle translate="no">Detalhes do Lote</DialogTitle>
@@ -869,13 +877,23 @@ export default function MapaGeral() {
           {selectedLote && (
             <DetalhesLote
               lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
-              onClose={() => setShowDetalhesLote(false)}
+              onClose={() => {
+                setShowDetalhesLote(false);
+                refetchLotes();
+                refetchEventosSupl();
+              }}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDetalhesPontoSupl} onOpenChange={setShowDetalhesPontoSupl}>
+      <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {
+        setShowDetalhesPontoSupl(open);
+        if (!open) {
+          refetchEventosSupl();
+          refetchLotes();
+        }
+      }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ponto de Suplementação</DialogTitle>
@@ -883,7 +901,11 @@ export default function MapaGeral() {
           {selectedPontoSupl && (
             <DetalhesPontoSuplementacao
               ponto={selectedPontoSupl}
-              onClose={() => setShowDetalhesPontoSupl(false)}
+              onClose={() => {
+                setShowDetalhesPontoSupl(false);
+                refetchEventosSupl();
+                refetchLotes();
+              }}
             />
           )}
         </DialogContent>
