@@ -288,6 +288,73 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
           )}
 
+          {formData.quantidade_total_kg && totalCabecas > 0 && lotes.length > 0 && (
+            <div className="bg-slate-50 border border-slate-300 rounded-lg p-3">
+              <div className="text-xs font-semibold text-slate-900 mb-3">📊 Consumo por Lote</div>
+              <div className="space-y-2">
+                {lotes.map(lote => {
+                  const categoriaLote = lote.categoria?.toUpperCase().trim();
+                  const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
+                  const pesoConsumoLote = lote.quantidade_cabecas * fator;
+                  const percentualConsumo = pesoTotalConsumo > 0 ? (pesoConsumoLote / pesoTotalConsumo * 100) : 0;
+                  
+                  let consumoPorCabecaDia = null;
+                  let consumoTotalLote = null;
+                  
+                  if (ultimoEvento && diasPeriodo > 0) {
+                    const quantidadeConsumida = parseFloat(formData.quantidade_total_kg) - parseFloat(formData.sobra_kg || 0);
+                    const consumoUnitario = pesoTotalConsumo > 0 ? quantidadeConsumida / (diasPeriodo * pesoTotalConsumo) : 0;
+                    consumoPorCabecaDia = consumoUnitario * fator;
+                    consumoTotalLote = consumoPorCabecaDia * lote.quantidade_cabecas * diasPeriodo;
+                  }
+
+                  return (
+                    <div key={lote.id} className="bg-white border border-slate-200 rounded-md p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-semibold text-xs text-slate-900">{lote.nome}</div>
+                        <Badge variant="outline" className="text-[10px]">{lote.categoria}</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-[10px]">
+                        <div>
+                          <div className="text-slate-500">Cabeças</div>
+                          <div className="font-bold text-slate-900">{lote.quantidade_cabecas}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">Fator</div>
+                          <div className="font-bold text-slate-900">{fator.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">% Consumo</div>
+                          <div className="font-bold text-emerald-700">{percentualConsumo.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                      {consumoPorCabecaDia !== null && (
+                        <div className="mt-2 pt-2 border-t border-slate-200">
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <div className="text-slate-500">kg/cab/dia</div>
+                              <div className="font-bold text-blue-700">{consumoPorCabecaDia.toFixed(3)}</div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500">Total período</div>
+                              <div className="font-bold text-blue-700">{consumoTotalLote.toFixed(1)} kg</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 pt-2 border-t border-slate-300">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700">Peso Total de Consumo:</span>
+                  <span className="font-bold text-slate-900">{pesoTotalConsumo.toFixed(2)} UA</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1">
             <Label className="text-xs">Observações</Label>
             <Textarea
