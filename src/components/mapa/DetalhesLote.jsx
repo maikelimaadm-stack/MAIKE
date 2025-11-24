@@ -20,6 +20,8 @@ import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
 import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
+import { Dialog as ProgressDialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 function ResumoSuplementacaoLote({ lotesIds }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -778,6 +780,19 @@ export default function DetalhesLote({ lotes, onClose }) {
           )}
         </DialogContent>
       </Dialog>
-      </div>
-      );
-      }
+    </div>
+
+    <ProgressDialog open={progresso.show} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Processando...</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+          <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+        </div>
+      </DialogContent>
+    </ProgressDialog>
+    </>
+  );
+}

@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, X, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import CapturaGPSPonto from "./CapturaGPSPonto";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -123,7 +125,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
-      // Sempre criar ponto de referência
+      setProgresso({ show: true, atual: 1, total: 2, mensagem: 'Criando ponto de referência...' });
+      
       const allPontos = await base44.entities.PontoReferencia.list();
       const maxNum = allPontos.reduce((max, p) => Math.max(max, parseInt(p.numero_ponto) || 0), 0);
       
@@ -141,10 +144,11 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         coordenadas: coordenadasGPS || coordenadas
       });
 
-      // Se for cocho COM área vinculada, criar TAMBÉM ponto de suplementação
       const ehCocho = data.area_vinculada_id && data.tipo?.toUpperCase().includes('COCHO');
       
       if (ehCocho) {
+        setProgresso({ show: true, atual: 2, total: 2, mensagem: 'Criando ponto de suplementação...' });
+        
         const allPontosSuplementacao = await base44.entities.PontoSuplementacao.list();
         const pontosEmpresa = allPontosSuplementacao.filter(p => p.empresa_id === empresaSelecionadaId);
         const ultimoNumero = pontosEmpresa.length > 0
@@ -174,13 +178,18 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         });
       }
 
+      setProgresso({ show: true, atual: 2, total: 2, mensagem: 'Concluído!' });
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       return pontoReferencia;
     },
     onSuccess: () => {
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
       toast.success('✅ Ponto cadastrado!');
       onSave();
     },
     onError: () => {
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
       toast.error('❌ Erro ao cadastrar ponto');
     }
   });
@@ -418,15 +427,27 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           )}
 
       <div className="flex justify-end gap-2 pt-3 border-t mt-4">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5" disabled={progresso.show}>
           <X className="w-3.5 h-3.5" />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-9 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
+        <Button type="submit" size="sm" className="h-9 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5" disabled={progresso.show}>
           <Save className="w-3.5 h-3.5" />
-          Salvar Ponto
+          {progresso.show ? 'Salvando...' : 'Salvar Ponto'}
         </Button>
       </div>
-    </form>
-  );
-}
+      </form>
+
+      <Dialog open={progresso.show} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Salvando...</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+          <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+        </div>
+      </DialogContent>
+      </Dialog>
+      );
+      }

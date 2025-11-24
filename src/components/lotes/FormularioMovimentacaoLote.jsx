@@ -8,6 +8,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -397,7 +400,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading || progresso.show}>
                 Cancelar
               </Button>
               <Button 
@@ -405,13 +408,25 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                 onClick={handleFecharEventos}
                 size="sm" 
                 className="h-8 text-xs bg-amber-600 hover:bg-amber-700" 
-                disabled={loading}
+                disabled={loading || progresso.show}
               >
-                {loading ? 'Fechando...' : 'Fechar Consumos e Continuar'}
+                {loading || progresso.show ? 'Fechando...' : 'Fechar Consumos e Continuar'}
               </Button>
             </div>
           </div>
         </CardContent>
+
+        <Dialog open={progresso.show} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Processando...</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+              <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+            </div>
+          </DialogContent>
+        </Dialog>
       </Card>
     );
   }
@@ -644,6 +659,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
         </form>
       </CardContent>
+
+      <Dialog open={progresso.show} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Processando...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+            <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
