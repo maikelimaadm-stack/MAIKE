@@ -72,19 +72,18 @@ export default function MapaGeral() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
-    queryKey: ['areas', empresaSelecionadaId],
+    queryKey: ['areas', empresaSelecionadaId, Date.now()],
     queryFn: async () => {
-      if (!navigator.onLine) {
-        const cached = localStorage.getItem('cache_areas');
-        if (cached) return JSON.parse(cached).filter(a => a.empresa_id === empresaSelecionadaId);
-        return [];
-      }
+      console.log('🔄 BUSCANDO ÁREAS DO SERVIDOR');
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      const filtradas = all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      console.log('✅ ÁREAS CARREGADAS:', filtradas.length);
+      return filtradas;
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 0,
-    refetchOnMount: 'always',
+    gcTime: 0,
+    networkMode: 'always',
   });
 
   const { data: pontos = [] } = useQuery({
@@ -132,24 +131,18 @@ export default function MapaGeral() {
   });
 
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
-    queryKey: ['lotes', empresaSelecionadaId],
+    queryKey: ['lotes', empresaSelecionadaId, Date.now()],
     queryFn: async () => {
-      console.log('🔄 BUSCANDO LOTES DO SERVIDOR');
-      if (!navigator.onLine) {
-        const cached = localStorage.getItem('cache_lotes');
-        if (cached) return JSON.parse(cached).filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
-        return [];
-      }
+      console.log('🔄 BUSCANDO LOTES DO SERVIDOR - TIMESTAMP:', Date.now());
       const all = await base44.entities.Lote.list();
       const filtrados = all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
-      console.log('✅ LOTES CARREGADOS:', filtrados.length);
+      console.log('✅ LOTES CARREGADOS:', filtrados.length, filtrados.map(l => `${l.nome} em ${l.area_atual_nome}`));
       return filtrados;
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    networkMode: 'always',
   });
 
   const { data: iconesConfig = [] } = useQuery({
