@@ -190,7 +190,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           Lançar Suplementação - {ponto?.nome_ponto}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
             <div className="grid grid-cols-2 gap-3 text-xs">
