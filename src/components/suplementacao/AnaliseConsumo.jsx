@@ -37,11 +37,11 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   const limiteMax = ponto?.limite_maximo_consumo || 0;
 
   const analises = eventosFiltrados.map(e => {
-    const consumo = e.consumo_medio_por_cabeca_kg;
+    const consumo = e.consumo_medio_por_cabeca_kg || 0;
     let status = 'normal';
     let alerta = null;
 
-    if (consumoIdeal > 0) {
+    if (consumoIdeal > 0 && consumo > 0) {
       const variacao = ((consumo - consumoIdeal) / consumoIdeal) * 100;
       
       if (limiteMin > 0 && consumo < limiteMin) {
@@ -65,7 +65,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
   // Dados para gráfico
   const dadosGrafico = ultimosEventos.map(e => ({
     data: new Date(e.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    consumo: parseFloat(e.consumo_medio_por_cabeca_kg).toFixed(3),
+    consumo: parseFloat(e.consumo_medio_por_cabeca_kg || 0).toFixed(3),
     ideal: consumoIdeal,
     minimo: limiteMin,
     maximo: limiteMax
@@ -73,7 +73,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
 
   // Estatísticas
   const consumoMedio = eventosFiltrados.length > 0
-    ? (eventosFiltrados.reduce((sum, e) => sum + e.consumo_medio_por_cabeca_kg, 0) / eventosFiltrados.length)
+    ? (eventosFiltrados.reduce((sum, e) => sum + (e.consumo_medio_por_cabeca_kg || 0), 0) / eventosFiltrados.length)
     : 0;
 
   const desvio = consumoIdeal > 0 ? ((consumoMedio - consumoIdeal) / consumoIdeal) * 100 : 0;
@@ -147,7 +147,7 @@ export default function AnaliseConsumo({ pontoId, pontoNome, ponto }) {
                           evento.status === 'alto' ? 'bg-orange-100 text-orange-800' :
                           'bg-amber-100 text-amber-800'
                         }`}>
-                          {evento.consumo_medio_por_cabeca_kg.toFixed(3)} kg/cab
+                          {(evento.consumo_medio_por_cabeca_kg || 0).toFixed(3)} kg/cab
                         </Badge>
                       </div>
                       <div className="text-xs text-amber-700">

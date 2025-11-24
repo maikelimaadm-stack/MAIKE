@@ -119,7 +119,7 @@ export default function RelatorioSuplementacao() {
       e.produto,
       e.quantidade_total_kg.toFixed(2),
       e.total_cabecas_afetadas,
-      e.consumo_medio_por_cabeca_kg.toFixed(3)
+      (e.consumo_medio_por_cabeca_kg || 0).toFixed(3)
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
