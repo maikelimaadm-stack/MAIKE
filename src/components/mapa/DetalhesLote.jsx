@@ -190,6 +190,7 @@ export default function DetalhesLote({ lotes, onClose }) {
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
+      console.log('🔄 INICIANDO MOVIMENTAÇÃO');
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
       
@@ -273,13 +274,17 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
       
+      await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      await queryClient.invalidateQueries({ queryKey: ['areas'] });
       await queryClient.refetchQueries({ queryKey: ['lotes', empresaSelecionadaId] });
-    },
-    onSuccess: () => {
+      await queryClient.refetchQueries({ queryKey: ['areas', empresaSelecionadaId] });
+      console.log('✅ MOVIMENTAÇÃO CONCLUÍDA - QUERIES INVALIDADAS');
+      },
+      onSuccess: () => {
       toast.success('✅ Gado movido!');
       setShowMovimentacao(false);
       onClose();
-    },
+      },
     onError: (error) => {
       console.error('❌ Erro:', error);
       toast.error('❌ Erro ao mover gado');
@@ -320,6 +325,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Morte registrada');
@@ -384,6 +390,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Nascimento registrado');
@@ -418,6 +425,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Abate registrado');
@@ -483,6 +491,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Categorias atualizadas');
@@ -520,6 +529,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['lotes'] });
     await queryClient.refetchQueries({ queryKey: ['historico-movimentacoes'] });
     toast.success('Pesagens registradas');

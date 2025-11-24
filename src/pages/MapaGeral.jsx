@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Map, Layers, X, ArrowLeft, Target } from "lucide-react";
+import { Map, Layers, X, ArrowLeft, Target, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -814,6 +814,21 @@ export default function MapaGeral() {
 
         {/* Controles do mapa no topo */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => {
+              refetchLotes();
+              refetchAreas();
+              refetchEventosSupl();
+              refetchPontos();
+              toast.success('🔄 Mapa atualizado');
+            }}
+            className="h-9 w-9 bg-white/90 backdrop-blur-sm shadow-lg"
+            title="Atualizar mapa"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <Button
             variant={mapType === 'roadmap' ? 'default' : 'secondary'}
             size="sm"
