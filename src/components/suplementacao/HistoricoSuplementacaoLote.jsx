@@ -35,7 +35,7 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
     .reverse()
     .map(h => ({
       data: new Date(h.data_lancamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      consumo: parseFloat(h.consumo_por_cabeca).toFixed(3),
+      consumo: parseFloat(h.consumo_por_cabeca_dia_kg || 0).toFixed(3),
       produto: h.produto
     }));
 
@@ -45,17 +45,17 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
     if (!acc[mes]) {
       acc[mes] = { mes, total: 0 };
     }
-    acc[mes].total += h.consumo_lote_kg;
+    acc[mes].total += (h.consumo_total_lote_periodo_kg || 0);
     return acc;
   }, {});
 
   const dadosGraficoMensal = Object.values(consumoPorMes).reverse();
 
   const consumoMedio = historicoFiltrado.length > 0
-    ? (historicoFiltrado.reduce((sum, h) => sum + h.consumo_por_cabeca, 0) / historicoFiltrado.length).toFixed(3)
+    ? (historicoFiltrado.reduce((sum, h) => sum + (h.consumo_por_cabeca_dia_kg || 0), 0) / historicoFiltrado.length).toFixed(3)
     : 0;
 
-  const consumoTotal = historicoFiltrado.reduce((sum, h) => sum + h.consumo_lote_kg, 0).toFixed(1);
+  const consumoTotal = historicoFiltrado.reduce((sum, h) => sum + (h.consumo_total_lote_periodo_kg || 0), 0).toFixed(1);
 
   return (
     <div className="space-y-4">
@@ -156,7 +156,7 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                       </div>
                     </div>
                     <Badge className="bg-emerald-100 text-emerald-800 text-xs">
-                      {item.consumo_por_cabeca.toFixed(3)} kg/cab
+                      {(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -164,7 +164,7 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                       Cabeças: <span className="font-semibold text-slate-900">{item.cabecas_na_area}</span>
                     </div>
                     <div className="text-slate-600">
-                      Total lote: <span className="font-semibold text-slate-900">{item.consumo_lote_kg.toFixed(1)} kg</span>
+                      Total lote: <span className="font-semibold text-slate-900">{(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg</span>
                     </div>
                   </div>
                 </div>
