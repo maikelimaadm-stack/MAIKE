@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   
   const [formData, setFormData] = useState({
     data_lancamento: new Date().toISOString().split('T')[0],
@@ -97,22 +98,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     try {
+      const totalPassos = ultimoEvento ? 2 + lotes.length : 1 + lotes.length;
+      let passoAtual = 0;
+
+      setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: 'Iniciando registro...' });
+
       // PASSO 1: Se existe evento anterior, fechar o período dele
       if (ultimoEvento && diasPeriodo > 0) {
-        // Calcular consumo do evento anterior
+        setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: 'Fechando período anterior...' });
+        
         const quantidadeConsumidaAnterior = ultimoEvento.quantidade_total_kg - (ultimoEvento.sobra_kg || 0);
         const consumoDiarioAnterior = quantidadeConsumidaAnterior / diasPeriodo;
         const consumoUnitarioAnterior = ultimoEvento.peso_total_consumo > 0 
           ? quantidadeConsumidaAnterior / (diasPeriodo * ultimoEvento.peso_total_consumo)
           : 0;
 
-        // Atualizar evento anterior
         await base44.entities.SuplementacaoEvento.update(ultimoEvento.id, {
           dias_periodo: diasPeriodo,
           consumo_diario_grupo_kg: consumoDiarioAnterior
         });
 
-        // Atualizar lotes do evento anterior
         const todosLotes = await base44.entities.SuplementacaoLote.list();
         const lotesDoEventoAnterior = todosLotes.filter(l => l.suplementacao_evento_id === ultimoEvento.id);
 
@@ -130,7 +135,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         }
       }
 
-      // PASSO 2: Criar novo evento (sem dias_periodo ainda)
+      // PASSO 2: Criar novo evento
+      setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: 'Criando novo evento...' });
+      
       const novoEvento = await base44.entities.SuplementacaoEvento.create({
         empresa_id: empresaSelecionadaId,
         ponto_suplementacao_id: ponto.id,
@@ -148,8 +155,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         observacoes: formData.observacoes
       });
 
-      // PASSO 3: Criar registros de lotes do novo evento (sem consumos ainda)
-      for (const lote of lotes) {
+      // PASSO 3: Criar registros de lotes
+      for (let i = 0; i < lotes.length; i++) {
+        const lote = lotes[i];
+        setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: `Registrando lote ${i+1}/${lotes.length}...` });
+        
         const categoriaLote = lote.categoria?.toUpperCase().trim();
         const fator = fatores.find(f => f.categoria?.toUpperCase().trim() === categoriaLote)?.fator || 1.0;
         const pesoConsumoLote = lote.quantidade_cabecas * fator;
@@ -172,11 +182,17 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         });
       }
 
+      setProgresso({ show: true, atual: totalPassos, total: totalPassos, mensagem: 'Concluído!' });
       toast.success("✅ Suplementação registrada!");
-      onCancel();
+      
+      setTimeout(() => {
+        setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
+        onCancel();
+      }, 500);
       
     } catch (error) {
       console.error('Erro ao registrar:', error);
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
       toast.error("❌ Erro: " + error.message);
     }
   };
@@ -191,6 +207,20 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+        {progresso.show && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-blue-900">{progresso.mensagem}</span>
+              <span className="text-xs text-blue-700">{progresso.atual}/{progresso.total}</span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progresso.atual / progresso.total) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -384,9 +414,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               onClick={handleSalvar}
               size="sm" 
               className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-              disabled={!botaoHabilitado}
+              disabled={!botaoHabilitado || progresso.show}
             >
-              Registrar ({botaoHabilitado ? 'OK' : 'Faltam dados'})
+              {progresso.show ? 'Registrando...' : `Registrar (${botaoHabilitado ? 'OK' : 'Faltam dados'})`}
             </Button>
           </div>
         </div>

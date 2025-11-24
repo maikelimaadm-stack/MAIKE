@@ -14,6 +14,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const [loading, setLoading] = useState(false);
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'fechamento_consumo', 'movimentacao'
   const [eventosAbertos, setEventosAbertos] = useState([]);
+  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
 
   const [formData, setFormData] = useState(() => {
     const areaDestino = window.areaDestinoArrastada;
@@ -201,8 +202,18 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const handleFecharEventos = async () => {
     setLoading(true);
     try {
-      // Fechar cada evento com a sobra informada
-      for (const evento of eventosAbertos) {
+      const totalPassos = eventosAbertos.reduce((sum, ev) => {
+        const todosLotesSupl = [];
+        return sum + 1 + todosLotesSupl.length;
+      }, 0);
+      let passoAtual = 0;
+
+      setProgresso({ show: true, atual: 0, total: eventosAbertos.length * 2, mensagem: 'Iniciando fechamento...' });
+
+      for (let i = 0; i < eventosAbertos.length; i++) {
+        const evento = eventosAbertos[i];
+        setProgresso({ show: true, atual: i * 2 + 1, total: eventosAbertos.length * 2, mensagem: `Fechando evento ${i+1}/${eventosAbertos.length}...` });
+        
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
         const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(evento.data_lancamento)) / (1000 * 60 * 60 * 24)));
         const quantidadeConsumida = evento.quantidade_total_kg - sobra;
@@ -214,7 +225,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           consumo_diario_grupo_kg: consumoDiario
         });
 
-        // Atualizar lotes do evento
+        setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i+1}/${eventosAbertos.length}...` });
+        
         const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
         const lotesDoEvento = todosLotesSupl.filter(l => l.suplementacao_evento_id === evento.id);
 
@@ -234,9 +246,16 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         }
       }
 
-      setEtapa('movimentacao');
+      setProgresso({ show: true, atual: eventosAbertos.length * 2, total: eventosAbertos.length * 2, mensagem: 'Concluído!' });
+      
+      setTimeout(() => {
+        setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
+        setEtapa('movimentacao');
+      }, 500);
+      
     } catch (error) {
       console.error('Erro ao fechar eventos:', error);
+      setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
       alert('Erro ao fechar períodos de consumo');
     } finally {
       setLoading(false);
@@ -302,6 +321,20 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
         </CardHeader>
         <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           <div className="space-y-4">
+            {progresso.show && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-blue-900">{progresso.mensagem}</span>
+                  <span className="text-xs text-blue-700">{progresso.atual}/{progresso.total}</span>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(progresso.atual / progresso.total) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
               <p className="text-xs text-amber-900 mb-2">
                 <strong>Atenção:</strong> Existem {eventosAbertos.length} evento(s) de suplementação em aberto na área de origem.
