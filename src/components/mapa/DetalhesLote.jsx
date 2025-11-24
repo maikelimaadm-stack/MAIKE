@@ -274,10 +274,11 @@ export default function DetalhesLote({ lotes, onClose }) {
         }
       }
       
-      console.log('✅ MOVIMENTAÇÃO CONCLUÍDA - LIMPANDO CACHE TOTAL');
+      console.log('✅ MOVIMENTAÇÃO CONCLUÍDA');
       },
       onSuccess: async () => {
-      await queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+      await queryClient.invalidateQueries({ queryKey: ['areas'] });
       toast.success('✅ Gado movido!');
       setShowMovimentacao(false);
       onClose();
@@ -322,7 +323,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    await queryClient.clear();
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     toast.success('Morte registrada');
     setShowMorte(false);
     onClose();
@@ -385,7 +386,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
-    await queryClient.clear();
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     toast.success('Nascimento registrado');
     setShowNascimento(false);
     onClose();
@@ -418,7 +419,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    await queryClient.clear();
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     toast.success('Abate registrado');
     setShowAbate(false);
     onClose();
@@ -482,7 +483,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    await queryClient.clear();
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     toast.success('Categorias atualizadas');
     setShowMudancaCategoria(false);
     onClose();
@@ -518,7 +519,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    await queryClient.clear();
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
     toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
