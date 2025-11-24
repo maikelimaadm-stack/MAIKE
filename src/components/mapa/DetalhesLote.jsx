@@ -275,9 +275,11 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
       
       },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['lotes'] });
-        queryClient.invalidateQueries({ queryKey: ['areas'] });
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+        await queryClient.invalidateQueries({ queryKey: ['areas'] });
+        await queryClient.refetchQueries({ queryKey: ['lotes'] });
+        await queryClient.refetchQueries({ queryKey: ['areas'] });
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
         onClose();
@@ -322,7 +324,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Morte registrada');
     setShowMorte(false);
     onClose();
@@ -385,7 +388,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Nascimento registrado');
     setShowNascimento(false);
     onClose();
@@ -418,7 +422,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Abate registrado');
     setShowAbate(false);
     onClose();
@@ -482,7 +487,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Categorias atualizadas');
     setShowMudancaCategoria(false);
     onClose();
@@ -518,7 +524,8 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
+    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
