@@ -275,15 +275,11 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
       
       },
-      onSuccess: async () => {
+      onSuccess: () => {
         toast.success('✅ Gado movido!');
         setShowMovimentacao(false);
         onClose();
-
-        // Forçar reload da página após 500ms
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       },
     onError: (error) => {
       console.error('❌ Erro:', error);
@@ -325,11 +321,10 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Morte registrada');
     setShowMorte(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
   const handleNascimento = async (formData) => {
@@ -389,11 +384,10 @@ export default function DetalhesLote({ lotes, onClose }) {
       observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
     });
 
-    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Nascimento registrado');
     setShowNascimento(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
   const handleAbate = async (formData) => {
@@ -423,11 +417,10 @@ export default function DetalhesLote({ lotes, onClose }) {
       if (formData.quantidade <= 0) break;
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Abate registrado');
     setShowAbate(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
   const handleMudancaCategoria = async (formData) => {
@@ -488,11 +481,10 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Categorias atualizadas');
     setShowMudancaCategoria(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
   const handlePesagem = async (formData) => {
@@ -525,11 +517,10 @@ export default function DetalhesLote({ lotes, onClose }) {
       }
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['lotes'] });
-    await queryClient.refetchQueries({ queryKey: ['lotes'] });
     toast.success('Pesagens registradas');
     setShowPesagem(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
   return (

@@ -287,6 +287,17 @@ export default function MapaGeral() {
     }
   }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas, userLocation, showUserLocation]);
 
+  useEffect(() => {
+    const handleAtualizarMapa = () => {
+      setForceUpdate(prev => prev + 1);
+      refetchLotes();
+      refetchAreas();
+    };
+
+    window.addEventListener('atualizar-mapa', handleAtualizarMapa);
+    return () => window.removeEventListener('atualizar-mapa', handleAtualizarMapa);
+  }, []);
+
   const renderMap = () => {
     if (!mapInstanceRef.current) return;
 
