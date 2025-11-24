@@ -191,56 +191,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       const areaSaida = areas.find(a => a.id === formData.area_saida_id);
       const areaEntrada = areas.find(a => a.id === formData.area_entrada_id);
       
-      // PASSO 1: Fechar períodos de suplementação abertos na área de origem
-      const todosPontosSuplementacao = await base44.entities.PontoSuplementacao.list();
-      const pontosAreaOrigem = todosPontosSuplementacao.filter(p => 
-        p.empresa_id === empresaSelecionadaId && 
-        p.area_vinculada_id === formData.area_saida_id &&
-        p.status === 'Ativo'
-      );
-
-      for (const ponto of pontosAreaOrigem) {
-        const todosEventos = await base44.entities.SuplementacaoEvento.list();
-        const eventosAbertos = todosEventos
-          .filter(e => 
-            e.ponto_suplementacao_id === ponto.id && 
-            e.dias_periodo === null
-          )
-          .sort((a, b) => new Date(a.data_lancamento) - new Date(b.data_lancamento));
-
-        if (eventosAbertos.length > 0) {
-          const eventoAberto = eventosAbertos[0];
-          const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(eventoAberto.data_lancamento)) / (1000 * 60 * 60 * 24)));
-          const quantidadeConsumida = eventoAberto.quantidade_total_kg - (eventoAberto.sobra_kg || 0);
-          const consumoDiario = quantidadeConsumida / diasPeriodo;
-
-          await base44.entities.SuplementacaoEvento.update(eventoAberto.id, {
-            dias_periodo: diasPeriodo,
-            consumo_diario_grupo_kg: consumoDiario
-          });
-
-          // Atualizar lotes do evento
-          const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
-          const lotesDoEvento = todosLotesSupl.filter(l => l.suplementacao_evento_id === eventoAberto.id);
-
-          for (const loteSupl of lotesDoEvento) {
-            const consumoUnitario = eventoAberto.peso_total_consumo > 0 
-              ? quantidadeConsumida / (diasPeriodo * eventoAberto.peso_total_consumo)
-              : 0;
-            const consumoPorCabecaDia = consumoUnitario * (loteSupl.fator_consumo || 1.0);
-            const consumoTotalPeriodo = consumoPorCabecaDia * loteSupl.cabecas_na_area * diasPeriodo;
-
-            await base44.entities.SuplementacaoLote.update(loteSupl.id, {
-              dias_periodo: diasPeriodo,
-              consumo_unitario_dia: consumoUnitario,
-              consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
-              consumo_total_lote_periodo_kg: consumoTotalPeriodo
-            });
-          }
-        }
-      }
-
-      // PASSO 2: Executar movimentação
+      // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
         for (const lote of lotes) {
           await base44.entities.Lote.update(lote.id, {
