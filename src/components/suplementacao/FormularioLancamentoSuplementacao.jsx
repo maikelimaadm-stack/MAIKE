@@ -200,6 +200,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const botaoHabilitado = totalCabecas > 0 && formData.produto && formData.quantidade_total_kg;
 
   return (
+    <>
     <Card>
       <CardHeader className="bg-emerald-50 border-b py-3">
         <CardTitle className="text-sm font-semibold text-emerald-900">
@@ -207,20 +208,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-        {progresso.show && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-blue-900">{progresso.mensagem}</span>
-              <span className="text-xs text-blue-700">{progresso.atual}/{progresso.total}</span>
-            </div>
-            <div className="w-full bg-blue-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(progresso.atual / progresso.total) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -422,5 +409,18 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={progresso.show} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Salvando...</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+          <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
