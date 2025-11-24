@@ -134,6 +134,7 @@ export default function DetalhesLote({ lotes, onClose }) {
   const [showPesagem, setShowPesagem] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [showHistoricoSupl, setShowHistoricoSupl] = useState(false);
+  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const queryClient = useQueryClient();
 
   // Listener para abrir movimentação via drag-and-drop
@@ -525,8 +526,6 @@ export default function DetalhesLote({ lotes, onClose }) {
     setShowPesagem(false);
     onClose();
   };
-
-  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
 
   return (
     <>
