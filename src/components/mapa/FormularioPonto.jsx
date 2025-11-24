@@ -51,6 +51,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const [areaDetectada, setAreaDetectada] = React.useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
+  const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -245,6 +246,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-3 mt-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
@@ -439,15 +441,16 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       </form>
 
       <Dialog open={progresso.show} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Salvando...</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2">
-          <p className="text-xs text-slate-600">{progresso.mensagem}</p>
-          <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
-        </div>
-      </DialogContent>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Salvando...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-600">{progresso.mensagem}</p>
+            <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
+          </div>
+        </DialogContent>
       </Dialog>
-      );
-      }
+    </>
+  );
+}
