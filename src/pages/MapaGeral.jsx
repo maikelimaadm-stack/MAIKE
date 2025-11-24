@@ -158,7 +158,9 @@ export default function MapaGeral() {
         return [];
       }
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const filtered = all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      console.log('🎨 ÍCONES CARREGADOS:', filtered.length, filtered);
+      return filtered;
     },
     enabled: !!empresaSelecionadaId,
   });
