@@ -12,6 +12,8 @@ import { base44 } from "@/api/base44Client";
 export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
+  const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'fechamento_consumo', 'movimentacao'
+  const [eventosAbertos, setEventosAbertos] = useState([]);
 
   const [formData, setFormData] = useState(() => {
     const areaDestino = window.areaDestinoArrastada;
@@ -45,9 +47,63 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       area_saida_id: areaOrigem?.id || '',
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
-      unir_lotes: {}
+      unir_lotes: {},
+      sobras_cocho: {}
     };
   });
+
+  // Verificar eventos abertos ao carregar
+  React.useEffect(() => {
+    const verificarEventosAbertos = async () => {
+      if (!areaOrigem?.id) return;
+      
+      try {
+        const todosPontos = await base44.entities.PontoSuplementacao.list();
+        const pontosArea = todosPontos.filter(p => 
+          p.empresa_id === empresaSelecionadaId && 
+          p.area_vinculada_id === areaOrigem.id &&
+          p.status === 'Ativo'
+        );
+
+        const todosEventos = await base44.entities.SuplementacaoEvento.list();
+        const abertos = [];
+
+        for (const ponto of pontosArea) {
+          const eventoAberto = todosEventos.find(e => 
+            e.ponto_suplementacao_id === ponto.id && 
+            (e.dias_periodo === null || e.dias_periodo === undefined)
+          );
+          
+          if (eventoAberto) {
+            abertos.push({
+              ...eventoAberto,
+              ponto_nome: ponto.nome_ponto,
+              ponto_id: ponto.id
+            });
+          }
+        }
+
+        setEventosAbertos(abertos);
+        
+        if (abertos.length > 0) {
+          setEtapa('fechamento_consumo');
+          // Inicializar sobras como 0
+          const sobrasIniciais = {};
+          abertos.forEach(ev => {
+            sobrasIniciais[ev.id] = '0';
+          });
+          setFormData(prev => ({ ...prev, sobras_cocho: sobrasIniciais }));
+        } else {
+          setEtapa('movimentacao');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar eventos:', error);
+        setEtapa('movimentacao');
+      }
+    };
+
+    verificarEventosAbertos();
+  }, [areaOrigem?.id, empresaSelecionadaId]);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
@@ -142,6 +198,51 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     setFormData({ ...formData, movimentacoes: novasMovimentacoes });
   };
 
+  const handleFecharEventos = async () => {
+    setLoading(true);
+    try {
+      // Fechar cada evento com a sobra informada
+      for (const evento of eventosAbertos) {
+        const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
+        const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(evento.data_lancamento)) / (1000 * 60 * 60 * 24)));
+        const quantidadeConsumida = evento.quantidade_total_kg - sobra;
+        const consumoDiario = quantidadeConsumida / diasPeriodo;
+
+        await base44.entities.SuplementacaoEvento.update(evento.id, {
+          sobra_kg: sobra,
+          dias_periodo: diasPeriodo,
+          consumo_diario_grupo_kg: consumoDiario
+        });
+
+        // Atualizar lotes do evento
+        const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
+        const lotesDoEvento = todosLotesSupl.filter(l => l.suplementacao_evento_id === evento.id);
+
+        for (const loteSupl of lotesDoEvento) {
+          const consumoUnitario = evento.peso_total_consumo > 0 
+            ? quantidadeConsumida / (diasPeriodo * evento.peso_total_consumo)
+            : 0;
+          const consumoPorCabecaDia = consumoUnitario * (loteSupl.fator_consumo || 1.0);
+          const consumoTotalPeriodo = consumoPorCabecaDia * loteSupl.cabecas_na_area * diasPeriodo;
+
+          await base44.entities.SuplementacaoLote.update(loteSupl.id, {
+            dias_periodo: diasPeriodo,
+            consumo_unitario_dia: consumoUnitario,
+            consumo_por_cabeca_dia_kg: consumoPorCabecaDia,
+            consumo_total_lote_periodo_kg: consumoTotalPeriodo
+          });
+        }
+      }
+
+      setEtapa('movimentacao');
+    } catch (error) {
+      console.error('Erro ao fechar eventos:', error);
+      alert('Erro ao fechar períodos de consumo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -176,6 +277,111 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       setLoading(false);
     }
   };
+
+  if (etapa === 'verificacao') {
+    return (
+      <Card className="shadow-sm">
+        <CardHeader className="bg-slate-50 border-b py-3">
+          <CardTitle className="text-sm font-semibold">Verificando Suplementação...</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
+            <p className="text-xs text-slate-600 mt-4">Verificando eventos de suplementação abertos...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (etapa === 'fechamento_consumo') {
+    return (
+      <Card className="shadow-sm">
+        <CardHeader className="bg-amber-50 border-b py-3 border-amber-200">
+          <CardTitle className="text-sm font-semibold text-amber-900">⚠️ Fechamento de Consumo Necessário</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+              <p className="text-xs text-amber-900 mb-2">
+                <strong>Atenção:</strong> Existem {eventosAbertos.length} evento(s) de suplementação em aberto na área de origem.
+              </p>
+              <p className="text-xs text-amber-800">
+                Para mover o gado, é necessário fechar esses períodos informando quanto sobrou no cocho.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {eventosAbertos.map(evento => {
+                const diasPeriodo = Math.max(1, Math.ceil((new Date(formData.data_movimentacao) - new Date(evento.data_lancamento)) / (1000 * 60 * 60 * 24)));
+                return (
+                  <div key={evento.id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-slate-900">{evento.ponto_nome}</div>
+                      <div className="text-[10px] text-slate-600 mt-1 space-y-0.5">
+                        <div>Lançamento: {new Date(evento.data_lancamento).toLocaleDateString()}</div>
+                        <div>Produto: {evento.produto}</div>
+                        <div>Quantidade fornecida: {evento.quantidade_total_kg.toFixed(1)} kg</div>
+                        <div className="font-semibold text-blue-700">Período: {diasPeriodo} dia(s)</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Sobra no cocho (kg) *
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max={evento.quantidade_total_kg}
+                        value={formData.sobras_cocho[evento.id] || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          sobras_cocho: {
+                            ...formData.sobras_cocho,
+                            [evento.id]: e.target.value
+                          }
+                        })}
+                        className="h-9 text-xs"
+                        placeholder="0.0"
+                        required
+                      />
+                      <p className="text-[10px] text-slate-500">
+                        Informe 0 se não sobrou nada no cocho
+                      </p>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      <div className="text-[10px] text-slate-700">
+                        <strong>Consumo calculado:</strong>{' '}
+                        {(evento.quantidade_total_kg - parseFloat(formData.sobras_cocho[evento.id] || 0)).toFixed(1)} kg
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
+                Cancelar
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleFecharEventos}
+                size="sm" 
+                className="h-8 text-xs bg-amber-600 hover:bg-amber-700" 
+                disabled={loading}
+              >
+                {loading ? 'Fechando...' : 'Fechar Consumos e Continuar'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-sm">
