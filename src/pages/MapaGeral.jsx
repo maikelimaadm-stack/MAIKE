@@ -54,6 +54,7 @@ export default function MapaGeral() {
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [showAlertas, setShowAlertas] = useState(true);
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   const [showDetalhesLote, setShowDetalhesLote] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
@@ -72,7 +73,7 @@ export default function MapaGeral() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
-    queryKey: ['areas', empresaSelecionadaId],
+    queryKey: ['areas', empresaSelecionadaId, forceUpdate],
     queryFn: async () => {
       if (!navigator.onLine) {
         const cached = localStorage.getItem('cache_areas');
@@ -132,7 +133,7 @@ export default function MapaGeral() {
   });
 
   const { data: lotes = [], refetch: refetchLotes } = useQuery({
-    queryKey: ['lotes', empresaSelecionadaId],
+    queryKey: ['lotes', empresaSelecionadaId, forceUpdate],
     queryFn: async () => {
       if (!navigator.onLine) {
         const cached = localStorage.getItem('cache_lotes');
@@ -889,11 +890,7 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesLote} onOpenChange={(open) => {
         setShowDetalhesLote(open);
         if (!open) {
-          setTimeout(() => {
-            refetchLotes();
-            refetchEventosSupl();
-            refetchAreas();
-          }, 300);
+          setForceUpdate(prev => prev + 1);
         }
       }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -905,11 +902,7 @@ export default function MapaGeral() {
               lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
               onClose={() => {
                 setShowDetalhesLote(false);
-                setTimeout(() => {
-                  refetchLotes();
-                  refetchEventosSupl();
-                  refetchAreas();
-                }, 300);
+                setForceUpdate(prev => prev + 1);
               }}
             />
           )}
