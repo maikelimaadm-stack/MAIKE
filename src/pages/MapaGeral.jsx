@@ -633,7 +633,26 @@ export default function MapaGeral() {
         marker.addListener('dragend', (e) => {
           const newPos = e.latLng;
 
-          // Encontrar área mais próxima
+          // Retornar marcador para posição original IMEDIATAMENTE
+          marker.setPosition(center);
+
+          // Verificar se ainda está dentro da mesma área
+          const paths = area.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+          let dentroAreaOriginal = false;
+          for (let i = 0, j = paths.length - 1; i < paths.length; j = i++) {
+            const xi = paths[i].lat, yi = paths[i].lng;
+            const xj = paths[j].lat, yj = paths[j].lng;
+            const intersect = ((yi > newPos.lng()) !== (yj > newPos.lng()))
+                && (newPos.lat() < (xj - xi) * (newPos.lng() - yi) / (yj - yi) + xi);
+            if (intersect) dentroAreaOriginal = !dentroAreaOriginal;
+          }
+
+          if (dentroAreaOriginal) {
+            toast.error('❌ Arraste para outra área');
+            return;
+          }
+
+          // Encontrar área destino
           let areaMaisProxima = null;
           let menorDistancia = Infinity;
 
@@ -641,23 +660,24 @@ export default function MapaGeral() {
             if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) return;
 
             const paths = a.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-            const bounds = new google.maps.LatLngBounds();
-            paths.forEach(p => bounds.extend(p));
-            const areaCenter = bounds.getCenter();
+            
+            // Verificar se o ponto está dentro do polígono
+            let inside = false;
+            for (let i = 0, j = paths.length - 1; i < paths.length; j = i++) {
+              const xi = paths[i].lat, yi = paths[i].lng;
+              const xj = paths[j].lat, yj = paths[j].lng;
+              const intersect = ((yi > newPos.lng()) !== (yj > newPos.lng()))
+                  && (newPos.lat() < (xj - xi) * (newPos.lng() - yi) / (yj - yi) + xi);
+              if (intersect) inside = !inside;
+            }
 
-            const distancia = google.maps.geometry.spherical.computeDistanceBetween(newPos, areaCenter);
-
-            if (distancia < menorDistancia) {
-              menorDistancia = distancia;
+            if (inside) {
               areaMaisProxima = a;
+              menorDistancia = 0;
             }
           });
 
-          // Retornar marcador para posição original
-          marker.setPosition(center);
-
-          if (areaMaisProxima && menorDistancia < 500) { // 500 metros de raio
-            // Abrir dialog de movimentação com área destino
+          if (areaMaisProxima) {
             window.areaDestinoArrastada = areaMaisProxima.id;
             setSelectedLote(lotesNaArea);
             setShowDetalhesLote(true);
@@ -665,6 +685,8 @@ export default function MapaGeral() {
               const event = new CustomEvent('open-movimentacao');
               window.dispatchEvent(event);
             }, 100);
+          } else {
+            toast.error('❌ Solte sobre outra área');
           }
         });
       });
