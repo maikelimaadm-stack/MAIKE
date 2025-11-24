@@ -20,7 +20,6 @@ import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
 import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
-import { Dialog as ProgressDialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 
 function ResumoSuplementacaoLote({ lotesIds }) {
@@ -782,7 +781,7 @@ export default function DetalhesLote({ lotes, onClose }) {
       </Dialog>
     </div>
 
-    <ProgressDialog open={progresso.show} onOpenChange={() => {}}>
+    <Dialog open={progresso.show} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-sm">Processando...</DialogTitle>
@@ -792,7 +791,7 @@ export default function DetalhesLote({ lotes, onClose }) {
           <Progress value={(progresso.atual / progresso.total) * 100} className="w-full h-1.5" />
         </div>
       </DialogContent>
-    </ProgressDialog>
+    </Dialog>
     </>
   );
 }
