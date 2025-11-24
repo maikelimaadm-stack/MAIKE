@@ -71,7 +71,7 @@ export default function MapaGeral() {
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const { data: areas = [] } = useQuery({
+  const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
       if (!navigator.onLine) {
@@ -83,6 +83,8 @@ export default function MapaGeral() {
       return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: pontos = [] } = useQuery({
@@ -99,7 +101,7 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: pontosSuplementacao = [] } = useQuery({
+  const { data: pontosSuplementacao = [], refetch: refetchPontos } = useQuery({
     queryKey: ['pontos-suplementacao', empresaSelecionadaId],
     queryFn: async () => {
       if (!navigator.onLine) {
@@ -111,6 +113,8 @@ export default function MapaGeral() {
       return all.filter(p => p.empresa_id === empresaSelecionadaId && p.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: linhas = [] } = useQuery({
@@ -141,7 +145,8 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
     staleTime: 0,
     cacheTime: 0,
-    refetchInterval: 5000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: iconesConfig = [] } = useQuery({
@@ -165,7 +170,8 @@ export default function MapaGeral() {
       return all.filter(e => e.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
-    refetchInterval: 5000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: pontosSupl = [] } = useQuery({
@@ -866,8 +872,11 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesLote} onOpenChange={(open) => {
         setShowDetalhesLote(open);
         if (!open) {
-          refetchLotes();
-          refetchEventosSupl();
+          setTimeout(() => {
+            refetchLotes();
+            refetchEventosSupl();
+            refetchAreas();
+          }, 300);
         }
       }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -879,8 +888,11 @@ export default function MapaGeral() {
               lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]}
               onClose={() => {
                 setShowDetalhesLote(false);
-                refetchLotes();
-                refetchEventosSupl();
+                setTimeout(() => {
+                  refetchLotes();
+                  refetchEventosSupl();
+                  refetchAreas();
+                }, 300);
               }}
             />
           )}
@@ -890,8 +902,11 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {
         setShowDetalhesPontoSupl(open);
         if (!open) {
-          refetchEventosSupl();
-          refetchLotes();
+          setTimeout(() => {
+            refetchEventosSupl();
+            refetchLotes();
+            refetchPontos();
+          }, 300);
         }
       }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -903,8 +918,11 @@ export default function MapaGeral() {
               ponto={selectedPontoSupl}
               onClose={() => {
                 setShowDetalhesPontoSupl(false);
-                refetchEventosSupl();
-                refetchLotes();
+                setTimeout(() => {
+                  refetchEventosSupl();
+                  refetchLotes();
+                  refetchPontos();
+                }, 300);
               }}
             />
           )}
