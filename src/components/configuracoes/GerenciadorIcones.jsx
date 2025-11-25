@@ -49,26 +49,23 @@ export default function GerenciadorIcones() {
     categorias_misto: []
   });
 
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      return all.filter(i => i.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
   });
 
   const createIconeMutation = useMutation({
     mutationFn: (data) => base44.entities.ConfiguracaoIcone.create({
       ...data,
-      empresa_id: empresaSelecionadaId,
       ativo: true
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
+      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
       resetForm();
       toast.success('✅ Ícone cadastrado!');
     }
@@ -77,7 +74,7 @@ export default function GerenciadorIcones() {
   const updateIconeMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.ConfiguracaoIcone.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
+      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
       resetForm();
       toast.success('✅ Ícone atualizado!');
     }
@@ -86,7 +83,7 @@ export default function GerenciadorIcones() {
   const deleteIconeMutation = useMutation({
     mutationFn: (id) => base44.entities.ConfiguracaoIcone.update(id, { ativo: false }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
+      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
       toast.success('✅ Ícone removido!');
     }
   });

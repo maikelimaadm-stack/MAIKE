@@ -154,19 +154,18 @@ export default function MapaGeral() {
   });
 
   const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       if (!navigator.onLine) {
         const cached = localStorage.getItem('cache_icones');
-        if (cached) return JSON.parse(cached).filter(i => i.empresa_id === empresaSelecionadaId);
+        if (cached) return JSON.parse(cached).filter(i => i.ativo !== false);
         return [];
       }
       const all = await base44.entities.ConfiguracaoIcone.list();
-      const filtered = all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const filtered = all.filter(i => i.ativo !== false);
       console.log('🎨 ÍCONES CARREGADOS:', filtered.length, filtered);
       return filtered;
     },
-    enabled: !!empresaSelecionadaId,
   });
 
   const { data: eventosSupl = [], refetch: refetchEventosSupl } = useQuery({
