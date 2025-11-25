@@ -233,14 +233,10 @@ export default function Layout({ children, currentPageName }) {
   }, [empresas.length]); // Apenas quando o tamanho mudar
 
   const handleEmpresaChange = (empresaId) => {
+    if (empresaId === empresaSelecionada) return;
     isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
-    
-    // Usar timeout para evitar loops
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
   };
 
   useEffect(() => {
