@@ -392,10 +392,8 @@ export default function Layout({ children, currentPageName }) {
       <OfflineManager />
       <CacheManager />
       <OfflineIndicator />
-    </div>
-  );
-      }
+    }
 
-export const getEmpresaSelecionada = () => {
-  return localStorage.getItem('empresa_selecionada_id');
-};
+    export const getEmpresaSelecionada = () => {
+      return localStorage.getItem('empresa_selecionada_id');
+    };
