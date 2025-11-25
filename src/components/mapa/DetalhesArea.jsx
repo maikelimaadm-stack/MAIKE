@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Leaf, Tractor, Plus, MapPin, DollarSign,
-  TrendingUp, Package, Calculator
+  Leaf, Tractor, Plus, MapPin, DollarSign, Edit2, Trash2,
+  TrendingUp, Package, Calculator, ChevronUp, ChevronDown, History
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import FormularioOperacao from "../operacoes/FormularioOperacao";
@@ -20,6 +21,12 @@ export default function DetalhesArea({ area, onClose }) {
   const [showOperacao, setShowOperacao] = useState(false);
   const [showControle, setShowControle] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
+  const [mainTab, setMainTab] = useState('lotes');
+  const [subTab, setSubTab] = useState('resumo');
+  const [sortField, setSortField] = useState('categoria');
+  const [sortDir, setSortDir] = useState('asc');
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
 
   // Buscar operações da área
@@ -49,319 +56,407 @@ export default function DetalhesArea({ area, onClose }) {
     },
   });
 
-  // Calcular custos
-  const custos = useMemo(() => {
-    const operacoesConc = operacoes.filter(o => o.status === 'Concluída');
+  const controleAtual = controles.length > 0 ? controles[0] : null;
+
+  // Calcular métricas pecuárias
+  const metricas = useMemo(() => {
+    const areaTotal = area.tamanho_hectares || 0;
+    const areaUtil = area.area_util_hectares || areaTotal;
+    const diasPastejados = area.dias_pastejo || 0;
     
-    const custoOperacoes = operacoesConc.reduce((sum, o) => sum + (o.custo_total || 0), 0);
-    const custoCombustivel = operacoesConc.reduce((sum, o) => sum + (o.valor_combustivel || 0), 0);
-    const custoMaquinas = operacoesConc.reduce((sum, o) => sum + (o.custo_maquina_total || 0), 0);
-    const custoInsumos = operacoesConc.reduce((sum, o) => sum + (o.custo_produto || 0), 0);
-    const custoMaoObra = operacoesConc.reduce((sum, o) => sum + (o.custo_mao_obra || 0), 0);
+    const totalCabecas = lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
     
-    const hectares = area.tamanho_hectares || 1;
-    const custoPorHa = custoOperacoes / hectares;
+    // Calcular UA (Unidade Animal) = peso médio / 450kg
+    const totalUA = lotes.reduce((sum, l) => {
+      const cabecas = l.quantidade_cabecas || 0;
+      const pesoMedio = l.peso_medio_kg || 450;
+      return sum + (cabecas * pesoMedio / 450);
+    }, 0);
     
-    // Agrupar por tipo de operação
-    const custoPorTipo = {};
-    operacoesConc.forEach(o => {
-      if (!custoPorTipo[o.tipo_operacao]) {
-        custoPorTipo[o.tipo_operacao] = 0;
-      }
-      custoPorTipo[o.tipo_operacao] += o.custo_total || 0;
-    });
+    // Carga de lotação = UA total
+    const cargaLotacao = totalUA;
+    
+    // Taxa de lotação = UA / ha útil
+    const taxaLotacao = areaUtil > 0 ? totalUA / areaUtil : 0;
 
     return {
-      total: custoOperacoes,
-      combustivel: custoCombustivel,
-      maquinas: custoMaquinas,
-      insumos: custoInsumos,
-      maoObra: custoMaoObra,
-      porHectare: custoPorHa,
-      porTipo: custoPorTipo
+      areaTotal,
+      areaUtil,
+      diasPastejados,
+      totalCabecas,
+      totalUA,
+      cargaLotacao,
+      taxaLotacao
     };
-  }, [operacoes, area]);
+  }, [area, lotes]);
 
-  const controleAtual = controles.length > 0 ? controles[0] : null;
-  const totalCabecas = lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
-  const totalOperacoes = operacoes.length;
-  const totalHectaresTrabalhados = operacoes.filter(o => o.status === 'Concluída')
-    .reduce((sum, o) => sum + (o.hectares_trabalhados || 0), 0);
+  // Ordenar e paginar lotes
+  const lotesSorted = useMemo(() => {
+    const sorted = [...lotes].sort((a, b) => {
+      let valA, valB;
+      switch (sortField) {
+        case 'categoria':
+          valA = a.categoria || '';
+          valB = b.categoria || '';
+          break;
+        case 'nome':
+          valA = a.nome || '';
+          valB = b.nome || '';
+          break;
+        case 'cabecas':
+          valA = a.quantidade_cabecas || 0;
+          valB = b.quantidade_cabecas || 0;
+          break;
+        case 'peso':
+          valA = a.peso_medio_kg || 0;
+          valB = b.peso_medio_kg || 0;
+          break;
+        default:
+          valA = a.categoria || '';
+          valB = b.categoria || '';
+      }
+      if (typeof valA === 'string') {
+        return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortDir === 'asc' ? valA - valB : valB - valA;
+    });
+    
+    const start = (currentPage - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [lotes, sortField, sortDir, currentPage, pageSize]);
 
-  const statusColors = {
-    'Pousio': 'bg-slate-100 text-slate-800',
-    'Preparação': 'bg-amber-100 text-amber-800',
-    'Plantada': 'bg-blue-100 text-blue-800',
-    'Em Desenvolvimento': 'bg-emerald-100 text-emerald-800',
-    'Colheita': 'bg-purple-100 text-purple-800',
-    'Colhida': 'bg-green-100 text-green-800',
-    'Planejada': 'bg-blue-100 text-blue-800',
-    'Em Andamento': 'bg-amber-100 text-amber-800',
-    'Concluída': 'bg-emerald-100 text-emerald-800',
+  const totalPages = Math.ceil(lotes.length / pageSize);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
   };
 
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) return <ChevronUp className="w-3 h-3 opacity-30" />;
+    return sortDir === 'asc' 
+      ? <ChevronUp className="w-3 h-3 text-emerald-600" />
+      : <ChevronDown className="w-3 h-3 text-emerald-600" />;
+  };
+
+  // Totais para tabela
+  const totais = useMemo(() => {
+    return {
+      cabecas: lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0),
+      ua: lotes.reduce((sum, l) => {
+        const cabecas = l.quantidade_cabecas || 0;
+        const peso = l.peso_medio_kg || 450;
+        return sum + (cabecas * peso / 450);
+      }, 0)
+    };
+  }, [lotes]);
+
   return (
-    <div className="space-y-4" translate="no">
-      {/* Cabeçalho */}
-      <div className="flex items-start justify-between pb-2 border-b">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <MapPin className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-bold text-slate-900">{area.nome}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span>{area.tamanho_hectares || 0} ha</span>
-            <span>•</span>
-            <span>{area.tipo_pastagem || 'Sem tipo'}</span>
-          </div>
+    <div className="flex flex-col lg:flex-row gap-4 max-h-[80vh]" translate="no">
+      {/* Painel Esquerdo - Informações da Área */}
+      <div className="w-full lg:w-64 flex-shrink-0 space-y-3">
+        {/* Ações */}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-8 text-xs flex-1" onClick={() => { setEditingControle(controleAtual); setShowControle(true); }}>
+            Editar detalhes
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs flex-1">
+            Editar área
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 hover:bg-red-50">
+            Excluir
+          </Button>
         </div>
-        {controleAtual && (
-          <Badge className={statusColors[controleAtual.status]}>
-            {controleAtual.status}
-          </Badge>
-        )}
-      </div>
 
-      {/* Resumo Geral */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-emerald-50 rounded-lg">
-          <div className="text-lg font-bold text-emerald-700">{area.tamanho_hectares || 0}</div>
-          <div className="text-[10px] text-emerald-600">Hectares</div>
-        </div>
-        <div className="text-center p-2 bg-blue-50 rounded-lg">
-          <div className="text-lg font-bold text-blue-700">{totalCabecas}</div>
-          <div className="text-[10px] text-blue-600">Cabeças</div>
-        </div>
-        <div className="text-center p-2 bg-amber-50 rounded-lg">
-          <div className="text-lg font-bold text-amber-700">{totalOperacoes}</div>
-          <div className="text-[10px] text-amber-600">Operações</div>
-        </div>
-        <div className="text-center p-2 bg-purple-50 rounded-lg">
-          <div className="text-lg font-bold text-purple-700">{totalHectaresTrabalhados.toFixed(0)}</div>
-          <div className="text-[10px] text-purple-600">ha Trab.</div>
-        </div>
-      </div>
-
-      {/* Resumo de Custos */}
-      <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-4 h-4 text-red-600" />
-            <span className="text-xs font-semibold text-red-900">Custos da Área</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-red-700">
-                R$ {custos.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="text-[9px] text-slate-600">CUSTO TOTAL</div>
-            </div>
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-orange-700">
-                R$ {custos.porHectare.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="text-[9px] text-slate-600">CUSTO/HA</div>
-            </div>
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-amber-700">
-                {controleAtual?.producao_estimada_kg 
-                  ? `R$ ${((custos.total / (controleAtual.producao_estimada_kg / 60)) || 0).toFixed(2)}`
-                  : '-'}
-              </div>
-              <div className="text-[9px] text-slate-600">CUSTO/SC</div>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-[10px]">
-            <div className="bg-white p-1.5 rounded text-center">
-              <div className="font-semibold text-slate-700">R$ {custos.combustivel.toFixed(0)}</div>
-              <div className="text-slate-500">Combustível</div>
-            </div>
-            <div className="bg-white p-1.5 rounded text-center">
-              <div className="font-semibold text-slate-700">R$ {custos.maquinas.toFixed(0)}</div>
-              <div className="text-slate-500">Máquinas</div>
-            </div>
-            <div className="bg-white p-1.5 rounded text-center">
-              <div className="font-semibold text-slate-700">R$ {custos.insumos.toFixed(0)}</div>
-              <div className="text-slate-500">Insumos</div>
-            </div>
-            <div className="bg-white p-1.5 rounded text-center">
-              <div className="font-semibold text-slate-700">R$ {custos.maoObra.toFixed(0)}</div>
-              <div className="text-slate-500">Mão Obra</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Controle Atual */}
-      {controleAtual && (
-        <Card className="border-emerald-200 bg-emerald-50/50">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Leaf className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-900">Cultura Atual</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[10px]"
-                onClick={() => { setEditingControle(controleAtual); setShowControle(true); }}
-              >
-                Editar
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-slate-500">Cultura:</span>
-                <span className="ml-1 font-medium">{controleAtual.cultura || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Variedade:</span>
-                <span className="ml-1 font-medium">{controleAtual.variedade || '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">Plantio:</span>
-                <span className="ml-1 font-medium">
-                  {controleAtual.data_plantio ? format(new Date(controleAtual.data_plantio), 'dd/MM/yy') : '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500">Prod. Est:</span>
-                <span className="ml-1 font-medium">
-                  {controleAtual.producao_estimada_kg ? `${(controleAtual.producao_estimada_kg/1000).toFixed(1)}t` : '-'}
-                </span>
-              </div>
-            </div>
-            {controleAtual.produtividade_sc_ha && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-emerald-700">
-                <TrendingUp className="w-3 h-3" />
-                {controleAtual.produtividade_sc_ha} sc/ha
+        {/* Card Info Área */}
+        <div className="border rounded-lg p-3 bg-white">
+          <div className="flex items-start gap-3 mb-3">
+            {area.icone_url ? (
+              <img src={area.icone_url} alt="" className="w-10 h-10 object-contain" />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <Leaf className="w-5 h-5 text-emerald-600" />
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+            <div>
+              <div className="font-bold text-slate-900 text-sm">{area.nome}</div>
+              <div className="text-xs text-slate-500">{area.tipo_pastagem || 'Pastejo'} / {area.forrageira || 'Natural Grasses'}</div>
+            </div>
+          </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="operacoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="operacoes" className="text-xs">
-            <Tractor className="w-3 h-3 mr-1" />
-            Operações
-          </TabsTrigger>
-          <TabsTrigger value="custos" className="text-xs">
-            <Calculator className="w-3 h-3 mr-1" />
-            Custos
-          </TabsTrigger>
-          <TabsTrigger value="lotes" className="text-xs">
-            <Package className="w-3 h-3 mr-1" />
-            Lotes
-          </TabsTrigger>
-        </TabsList>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-600">Área total</span>
+              <span className="font-semibold">{metricas.areaTotal} ha</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Área útil</span>
+              <span className="font-semibold">{metricas.areaUtil} ha</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Dias pastejados</span>
+              <span className="font-semibold">{metricas.diasPastejados} dias</span>
+            </div>
+          </div>
+        </div>
 
-        <TabsContent value="operacoes" className="mt-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold text-slate-700">Últimas Operações</span>
-            <Button size="sm" onClick={() => setShowOperacao(true)} className="h-7 gap-1 text-xs">
+        {/* Card Métricas Pecuárias */}
+        <div className="border rounded-lg p-3 bg-white space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-slate-600">Bovinos</span>
+            <span className="font-semibold">{metricas.totalCabecas.toLocaleString('pt-BR')} cabeça</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600">Carga de lotação</span>
+            <span className="font-semibold">{metricas.cargaLotacao.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} UA</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600">Taxa de lotação</span>
+            <span className="font-semibold">{metricas.taxaLotacao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} UA / ha</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Painel Direito - Tabs */}
+      <div className="flex-1 min-w-0">
+        {/* Tabs Principais */}
+        <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
+          <div className="flex items-center justify-between mb-3">
+            <TabsList className="h-9">
+              <TabsTrigger value="lotes" className="text-xs px-4">Lotes</TabsTrigger>
+              <TabsTrigger value="historico" className="text-xs px-4">Histórico</TabsTrigger>
+            </TabsList>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 gap-1">
               <Plus className="w-3 h-3" />
-              Nova
+              Criar registro de rebanho
             </Button>
           </div>
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {operacoes.length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Nenhuma operação</p>
-            ) : operacoes.slice(0, 5).map(op => (
-              <div key={op.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div>
-                  <div className="text-xs font-medium">{op.tipo_operacao}</div>
-                  <div className="text-[10px] text-slate-500">
-                    {op.data_inicio ? format(new Date(op.data_inicio), 'dd/MM/yy') : '-'}
-                    {op.maquina_nome && ` • ${op.maquina_nome}`}
-                  </div>
-                </div>
-                <div className="text-right">
-                  {op.custo_total ? (
-                    <div className="text-xs font-semibold text-red-600">R$ {op.custo_total.toFixed(2)}</div>
-                  ) : (
-                    <Badge className={`text-[10px] ${statusColors[op.status]}`}>{op.status}</Badge>
-                  )}
-                  {op.hectares_trabalhados && (
-                    <div className="text-[10px] text-slate-600">{op.hectares_trabalhados} ha</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="custos" className="mt-3">
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-slate-700">Custos por Tipo de Operação</h4>
-            {Object.entries(custos.porTipo).length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Sem custos registrados</p>
-            ) : (
-              <div className="space-y-1.5">
-                {Object.entries(custos.porTipo)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([tipo, valor]) => (
-                  <div key={tipo} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                    <span className="text-xs font-medium text-slate-700">{tipo}</span>
-                    <div className="text-right">
-                      <div className="text-xs font-semibold text-red-600">
-                        R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        R$ {(valor / (area.tamanho_hectares || 1)).toFixed(2)}/ha
-                      </div>
+          <TabsContent value="lotes" className="mt-0">
+            {/* Sub Tabs */}
+            <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
+              <div className="flex items-center justify-between mb-3">
+                <TabsList className="h-8 bg-slate-100">
+                  <TabsTrigger value="resumo" className="text-xs px-3 h-7">Resumo</TabsTrigger>
+                  <TabsTrigger value="lotes" className="text-xs px-3 h-7">Lotes</TabsTrigger>
+                </TabsList>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                  <span>≡</span> Colunas ({6})
+                </Button>
+              </div>
+
+              <TabsContent value="resumo" className="mt-0">
+                {/* Resumo por categoria */}
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 border-b">
+                      <tr>
+                        <th className="text-left p-2 font-medium text-slate-600">Categoria</th>
+                        <th className="text-right p-2 font-medium text-slate-600">Cabeças</th>
+                        <th className="text-right p-2 font-medium text-slate-600">UA</th>
+                        <th className="text-right p-2 font-medium text-slate-600">Peso Médio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(
+                        lotes.reduce((acc, l) => {
+                          const cat = l.categoria || 'Sem categoria';
+                          if (!acc[cat]) acc[cat] = { cabecas: 0, ua: 0, pesoTotal: 0 };
+                          acc[cat].cabecas += l.quantidade_cabecas || 0;
+                          const peso = l.peso_medio_kg || 450;
+                          acc[cat].ua += (l.quantidade_cabecas || 0) * peso / 450;
+                          acc[cat].pesoTotal += (l.quantidade_cabecas || 0) * peso;
+                          return acc;
+                        }, {})
+                      ).map(([cat, dados]) => (
+                        <tr key={cat} className="border-b hover:bg-slate-50">
+                          <td className="p-2 font-medium">{cat}</td>
+                          <td className="p-2 text-right">{dados.cabecas.toLocaleString('pt-BR')}</td>
+                          <td className="p-2 text-right">{dados.ua.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                          <td className="p-2 text-right">{dados.cabecas > 0 ? (dados.pesoTotal / dados.cabecas).toFixed(0) : '-'} kg</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-100 font-semibold">
+                      <tr>
+                        <td className="p-2">TOTAL</td>
+                        <td className="p-2 text-right">{totais.cabecas.toLocaleString('pt-BR')}</td>
+                        <td className="p-2 text-right">{totais.ua.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-right">-</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="lotes" className="mt-0">
+                {/* Tabela de lotes detalhada */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 border-b">
+                        <tr>
+                          <th className="w-8 p-2">
+                            <input type="checkbox" className="rounded" />
+                          </th>
+                          <th 
+                            className="text-left p-2 font-medium text-slate-600 cursor-pointer hover:bg-slate-100"
+                            onClick={() => handleSort('categoria')}
+                          >
+                            <div className="flex items-center gap-1">
+                              CATEGORIA ANIMAL <SortIcon field="categoria" />
+                            </div>
+                          </th>
+                          <th 
+                            className="text-left p-2 font-medium text-slate-600 cursor-pointer hover:bg-slate-100"
+                            onClick={() => handleSort('nome')}
+                          >
+                            <div className="flex items-center gap-1">
+                              TAG DE MANEJO <SortIcon field="nome" />
+                            </div>
+                          </th>
+                          <th className="text-left p-2 font-medium text-slate-600">COR DO BRINCO</th>
+                          <th 
+                            className="text-left p-2 font-medium text-slate-600 cursor-pointer hover:bg-slate-100"
+                            onClick={() => handleSort('nome')}
+                          >
+                            <div className="flex items-center gap-1">
+                              NOME DO LOTE <SortIcon field="nome" />
+                            </div>
+                          </th>
+                          <th 
+                            className="text-right p-2 font-medium text-slate-600 cursor-pointer hover:bg-slate-100"
+                            onClick={() => handleSort('cabecas')}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              CABEÇA <SortIcon field="cabecas" />
+                            </div>
+                          </th>
+                          <th className="text-right p-2 font-medium text-slate-600">CARGA (UA)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lotesSorted.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-6 text-center text-slate-500">
+                              Nenhum lote nesta área
+                            </td>
+                          </tr>
+                        ) : lotesSorted.map(lote => {
+                          const ua = (lote.quantidade_cabecas || 0) * (lote.peso_medio_kg || 450) / 450;
+                          return (
+                            <tr key={lote.id} className="border-b hover:bg-slate-50">
+                              <td className="p-2">
+                                <input type="checkbox" className="rounded" />
+                              </td>
+                              <td className="p-2">{lote.categoria || '-'}</td>
+                              <td className="p-2">{lote.tag_manejo || '-'}</td>
+                              <td className="p-2">
+                                {lote.cor_brinco && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: lote.cor_brinco_hex || '#666' }}></span>
+                                    {lote.cor_brinco}
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-2 font-medium">{lote.nome}</td>
+                              <td className="p-2 text-right font-semibold">{(lote.quantidade_cabecas || 0).toLocaleString('pt-BR')}</td>
+                              <td className="p-2 text-right">{ua.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-slate-100">
+                        <tr className="text-[10px] text-slate-500">
+                          <td colSpan={5} className="p-2">MÉD.</td>
+                          <td className="p-2 text-right"></td>
+                          <td className="p-2 text-right"></td>
+                        </tr>
+                        <tr className="font-semibold">
+                          <td colSpan={5} className="p-2">TOTAL</td>
+                          <td className="p-2 text-right">{totais.cabecas.toLocaleString('pt-BR')}</td>
+                          <td className="p-2 text-right">{totais.ua.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  {/* Paginação */}
+                  <div className="flex items-center justify-between p-2 border-t bg-slate-50">
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-7 w-7"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
+                      >
+                        &lt;
+                      </Button>
+                      <Badge variant="default" className="bg-emerald-600 h-7 px-3">
+                        {currentPage}
+                      </Badge>
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-7 w-7"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
+                      >
+                        &gt;
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <span>Resultados por página</span>
+                      <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+                        <SelectTrigger className="h-7 w-16 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="lotes" className="mt-3">
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {lotes.length === 0 ? (
-              <p className="text-center text-slate-500 text-xs py-6">Nenhum lote nesta área</p>
-            ) : lotes.map(lote => (
-              <div key={lote.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div>
-                  <div className="text-xs font-medium">{lote.nome}</div>
-                  <div className="text-[10px] text-slate-500">{lote.categoria}</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-slate-900">{lote.quantidade_cabecas} cab</div>
-                  {lote.peso_medio_kg && (
-                    <div className="text-[10px] text-slate-600">{lote.peso_medio_kg} kg</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
 
-      {/* Ações */}
-      <div className="grid grid-cols-2 gap-2 pt-2">
-        <Button
-          onClick={() => setShowOperacao(true)}
-          variant="outline"
-          className="h-10 text-xs font-semibold gap-1"
-        >
-          <Tractor className="w-4 h-4" />
-          Nova Operação
-        </Button>
-        <Button
-          onClick={() => { setEditingControle(null); setShowControle(true); }}
-          variant="outline"
-          className="h-10 text-xs font-semibold gap-1"
-        >
-          <Leaf className="w-4 h-4" />
-          {controleAtual ? 'Atualizar Cultura' : 'Registrar Cultura'}
-        </Button>
+          <TabsContent value="historico" className="mt-0">
+            <div className="border rounded-lg p-6 text-center text-slate-500">
+              <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Histórico de movimentações da área</p>
+              <p className="text-xs">Em breve...</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Dialog Controle */}
+      <Dialog open={showControle} onOpenChange={setShowControle}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingControle ? 'Editar Detalhes' : 'Registrar Cultura'} - {area.nome}</DialogTitle>
+          </DialogHeader>
+          <FormularioControleArea
+            controle={editingControle || { area_id: area.id, area_nome: area.nome }}
+            onSave={() => {
+              setShowControle(false);
+              queryClient.invalidateQueries({ queryKey: ['controle-area'] });
+              toast.success('Dados salvos!');
+            }}
+            onCancel={() => setShowControle(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Operação */}
       <Dialog open={showOperacao} onOpenChange={setShowOperacao}>
@@ -377,24 +472,6 @@ export default function DetalhesArea({ area, onClose }) {
               toast.success('Operação registrada!');
             }}
             onCancel={() => setShowOperacao(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Controle */}
-      <Dialog open={showControle} onOpenChange={setShowControle}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingControle ? 'Atualizar Cultura' : 'Registrar Cultura'} - {area.nome}</DialogTitle>
-          </DialogHeader>
-          <FormularioControleArea
-            controle={editingControle || { area_id: area.id, area_nome: area.nome }}
-            onSave={() => {
-              setShowControle(false);
-              queryClient.invalidateQueries({ queryKey: ['controle-area'] });
-              toast.success('Cultura registrada!');
-            }}
-            onCancel={() => setShowControle(false)}
           />
         </DialogContent>
       </Dialog>
