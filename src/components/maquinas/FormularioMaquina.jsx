@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const TIPOS = ["Trator", "Colheitadeira", "Plantadeira", "Pulverizador", "Caminhão", "Pickup", "Motocicleta", "Implemento", "Outro"];
@@ -13,6 +14,16 @@ const COMBUSTIVEIS = ["Diesel", "Gasolina", "Etanol", "Flex", "Elétrico", "Não
 
 export default function FormularioMaquina({ maquina, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-maquina', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const [formData, setFormData] = useState({
     codigo: maquina?.codigo || '',
     nome: maquina?.nome || '',
