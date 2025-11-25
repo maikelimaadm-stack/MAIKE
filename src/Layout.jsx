@@ -159,34 +159,21 @@ export default function Layout({ children, currentPageName }) {
     initialData: [],
   });
 
-  const { data: empresaAtual } = useQuery({
-    queryKey: ['empresa-atual', empresaSelecionada],
-    queryFn: async () => {
-      if (!empresaSelecionada) return null;
-      const empresa = empresas.find(e => e.id === empresaSelecionada);
-      return empresa || null;
-    },
-    enabled: !!empresaSelecionada && empresas.length > 0,
-  });
+  const empresaAtual = empresas.find(e => e.id === empresaSelecionada);
 
-  // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
     if (!empresaSelecionada && empresas.length > 0 && !isChangingEmpresa.current) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas.length]); // Apenas quando o tamanho mudar
+  }, [empresas.length]);
 
   const handleEmpresaChange = (empresaId) => {
     isChangingEmpresa.current = true;
     setEmpresaSelecionada(empresaId);
     localStorage.setItem('empresa_selecionada_id', empresaId);
-    
-    // Usar timeout para evitar loops
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+    setTimeout(() => window.location.reload(), 100);
   };
 
   useEffect(() => {
@@ -194,42 +181,18 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-        
-        // Carregar permissões do usuário
         try {
           const allPermissoes = await base44.entities.Permissao.list();
           const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
           setUserPermissions(permissao);
         } catch (error) {
-          console.error("Erro ao carregar permissões:", error);
           setUserPermissions(null);
         }
       } catch (error) {
-        console.error("Erro ao carregar usuário:", error);
         setUser(null);
       }
     };
     loadUser();
-  }, []);
-
-  useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=-15.0067&longitude=-59.9533&current=temperature_2m,precipitation&timezone=America/Cuiaba`
-        );
-        const data = await response.json();
-        setWeather({
-          temperature: Math.round(data.current.temperature_2m),
-          precipitation: data.current.precipitation > 0,
-        });
-      } catch (error) {
-        console.error("Erro clima:", error);
-      }
-    };
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
