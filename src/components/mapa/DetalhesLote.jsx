@@ -151,11 +151,12 @@ export default function DetalhesLote({ lotes, onClose }) {
   }, []);
 
   const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
+    queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false);
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
     },
+    enabled: !!empresaSelecionadaId,
   });
 
   // Agrupar lotes por categoria
