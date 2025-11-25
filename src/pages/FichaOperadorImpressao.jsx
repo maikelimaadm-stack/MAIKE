@@ -5,16 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Printer, FileText } from "lucide-react";
 
 export default function FichaOperadorImpressao() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [config, setConfig] = useState({
-    quantidade: 1,
-    area_id: '',
-    maquina_id: '',
-    tipo_operacao: '',
+    quantidade: 4,
+    fichasPorPagina: 4,
   });
 
   const { data: empresa } = useQuery({
