@@ -10,8 +10,8 @@ import { Printer, FileText } from "lucide-react";
 export default function FichaOperadorImpressao() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [config, setConfig] = useState({
-    quantidade: 4,
-    fichasPorPagina: 4,
+    quantidade: 6,
+    fichasPorPagina: 6,
   });
 
   const { data: empresa } = useQuery({
@@ -46,7 +46,7 @@ export default function FichaOperadorImpressao() {
                 min="1"
                 max="100"
                 value={config.quantidade}
-                onChange={(e) => setConfig({ ...config, quantidade: parseInt(e.target.value) || 4 })}
+                onChange={(e) => setConfig({ ...config, quantidade: parseInt(e.target.value) || 6 })}
                 className="h-9"
               />
             </div>
@@ -57,8 +57,9 @@ export default function FichaOperadorImpressao() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2">2 fichas</SelectItem>
                   <SelectItem value="4">4 fichas</SelectItem>
+                  <SelectItem value="6">6 fichas</SelectItem>
+                  <SelectItem value="8">8 fichas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -77,7 +78,7 @@ export default function FichaOperadorImpressao() {
         </div>
       </div>
 
-      {/* Fichas estilo bloquinho */}
+      {/* Fichas estilo bloquinho - PRETO E BRANCO */}
       <div className="p-4 print:p-0">
         {Array.from({ length: totalPaginas }).map((_, pageIndex) => (
           <div 
@@ -85,129 +86,105 @@ export default function FichaOperadorImpressao() {
             className="max-w-4xl mx-auto bg-white mb-4 print:mb-0 shadow-lg print:shadow-none"
             style={{ pageBreakAfter: pageIndex < totalPaginas - 1 ? 'always' : 'auto' }}
           >
-            <div className={`grid ${config.fichasPorPagina === 4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'} print:h-[297mm]`}>
+            <div className={`grid ${config.fichasPorPagina === 4 ? 'grid-cols-2 grid-rows-2' : config.fichasPorPagina === 6 ? 'grid-cols-2 grid-rows-3' : 'grid-cols-2 grid-rows-4'} print:h-[297mm]`}>
               {Array.from({ length: config.fichasPorPagina }).map((_, fichaIndex) => {
                 const fichaNumero = pageIndex * config.fichasPorPagina + fichaIndex + 1;
                 if (fichaNumero > config.quantidade) return null;
                 
+                const alturaFicha = config.fichasPorPagina === 4 ? '148.5mm' : config.fichasPorPagina === 6 ? '99mm' : '74.25mm';
+                
                 return (
                   <div 
                     key={fichaIndex} 
-                    className="border border-dashed border-slate-400 p-3 relative"
-                    style={{ height: config.fichasPorPagina === 4 ? '148.5mm' : '148.5mm' }}
+                    className="border border-dashed border-black p-2 relative"
+                    style={{ height: alturaFicha }}
                   >
                     {/* Cabeçalho compacto */}
-                    <div className="flex justify-between items-start border-b border-slate-900 pb-1 mb-2">
-                      <div>
-                        <h1 className="text-sm font-bold text-slate-900 leading-tight">{empresa?.apelido || empresa?.nome || 'FAZENDA'}</h1>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-700">FICHA Nº</div>
-                        <div className="w-12 h-5 border border-slate-400 bg-slate-50"></div>
+                    <div className="flex justify-between items-center border-b-2 border-black pb-1 mb-1">
+                      <h1 className="text-xs font-bold text-black leading-tight">{empresa?.apelido || empresa?.nome || 'FAZENDA'}</h1>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] font-bold text-black">Nº</span>
+                        <div className="w-8 h-4 border border-black"></div>
                       </div>
                     </div>
 
                     {/* Linha 1: Data, Operador */}
+                    <div className="grid grid-cols-4 gap-1 mb-1">
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">DATA</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
+                      </div>
+                      <div className="border border-black p-0.5 col-span-3">
+                        <div className="text-[9px] text-black font-bold">OPERADOR</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
+                      </div>
+                    </div>
+
+                    {/* Linha 2: Operação, Área, Máquina */}
                     <div className="grid grid-cols-3 gap-1 mb-1">
-                      <div className="border border-slate-300 p-1">
-                        <div className="text-[8px] text-slate-500 font-semibold">DATA</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">OPERAÇÃO</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
                       </div>
-                      <div className="border border-slate-300 p-1 col-span-2">
-                        <div className="text-[8px] text-slate-500 font-semibold">OPERADOR</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">ÁREA</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
+                      </div>
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">MÁQUINA</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
                       </div>
                     </div>
 
-                    {/* Linha 2: Operação, Área */}
+                    {/* Horímetro e Produção na mesma linha */}
+                    <div className="grid grid-cols-5 gap-1 mb-1">
+                      <div className="border border-black p-0.5 text-center">
+                        <div className="text-[8px] text-black font-bold">H.INÍCIO</div>
+                        <div className="h-4 border border-black bg-white"></div>
+                      </div>
+                      <div className="border border-black p-0.5 text-center">
+                        <div className="text-[8px] text-black font-bold">H.FINAL</div>
+                        <div className="h-4 border border-black bg-white"></div>
+                      </div>
+                      <div className="border-2 border-black p-0.5 text-center">
+                        <div className="text-[8px] text-black font-bold">TOTAL H</div>
+                        <div className="h-4 border border-black"></div>
+                      </div>
+                      <div className="border border-black p-0.5 text-center">
+                        <div className="text-[8px] text-black font-bold">HECTARES</div>
+                        <div className="h-4 border border-black bg-white"></div>
+                      </div>
+                      <div className="border border-black p-0.5 text-center">
+                        <div className="text-[8px] text-black font-bold">COMB. (L)</div>
+                        <div className="h-4 border border-black bg-white"></div>
+                      </div>
+                    </div>
+
+                    {/* Produto e Obs */}
                     <div className="grid grid-cols-2 gap-1 mb-1">
-                      <div className="border border-slate-300 p-1">
-                        <div className="text-[8px] text-slate-500 font-semibold">OPERAÇÃO</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">PRODUTO/QTD</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
                       </div>
-                      <div className="border border-slate-300 p-1">
-                        <div className="text-[8px] text-slate-500 font-semibold">ÁREA/TALHÃO</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
+                      <div className="border border-black p-0.5">
+                        <div className="text-[9px] text-black font-bold">OBS</div>
+                        <div className="h-3 border-b border-dotted border-black"></div>
                       </div>
-                    </div>
-
-                    {/* Linha 3: Máquina, Implemento */}
-                    <div className="grid grid-cols-2 gap-1 mb-1">
-                      <div className="border border-slate-300 p-1">
-                        <div className="text-[8px] text-slate-500 font-semibold">MÁQUINA</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
-                      </div>
-                      <div className="border border-slate-300 p-1">
-                        <div className="text-[8px] text-slate-500 font-semibold">IMPLEMENTO</div>
-                        <div className="h-4 border-b border-dotted border-slate-400"></div>
-                      </div>
-                    </div>
-
-                    {/* Horímetro */}
-                    <div className="bg-slate-100 border border-slate-300 p-1 mb-1">
-                      <div className="text-[8px] font-bold text-slate-700 mb-1">HORÍMETRO</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center">
-                          <div className="text-[7px] text-slate-500">INÍCIO</div>
-                          <div className="h-5 border border-slate-400 bg-white"></div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-[7px] text-slate-500">FINAL</div>
-                          <div className="h-5 border border-slate-400 bg-white"></div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-[7px] text-slate-500">TOTAL</div>
-                          <div className="h-5 border-2 border-slate-500 bg-slate-200 font-bold"></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Produção */}
-                    <div className="grid grid-cols-2 gap-1 mb-1">
-                      <div className="bg-green-50 border border-green-300 p-1">
-                        <div className="text-[8px] font-bold text-green-800">HECTARES</div>
-                        <div className="flex items-center gap-1">
-                          <div className="h-5 flex-1 border border-green-400 bg-white"></div>
-                          <span className="text-[10px] font-semibold text-green-700">ha</span>
-                        </div>
-                      </div>
-                      <div className="bg-amber-50 border border-amber-300 p-1">
-                        <div className="text-[8px] font-bold text-amber-800">COMBUSTÍVEL</div>
-                        <div className="flex items-center gap-1">
-                          <div className="h-5 flex-1 border border-amber-400 bg-white"></div>
-                          <span className="text-[10px] font-semibold text-amber-700">L</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Produto */}
-                    <div className="border border-slate-300 p-1 mb-1">
-                      <div className="text-[8px] text-slate-500 font-semibold">PRODUTO APLICADO / QTD</div>
-                      <div className="h-4 border-b border-dotted border-slate-400"></div>
-                    </div>
-
-                    {/* Observações */}
-                    <div className="border border-slate-300 p-1 mb-2">
-                      <div className="text-[8px] text-slate-500 font-semibold">OBS</div>
-                      <div className="h-6"></div>
                     </div>
 
                     {/* Assinaturas */}
-                    <div className="grid grid-cols-2 gap-4 absolute bottom-2 left-3 right-3">
+                    <div className="grid grid-cols-2 gap-2 absolute bottom-1 left-2 right-2">
                       <div className="text-center">
-                        <div className="border-t border-slate-900 pt-0.5">
-                          <div className="text-[7px] text-slate-600">Operador</div>
+                        <div className="border-t border-black pt-0.5">
+                          <div className="text-[8px] text-black font-semibold">Operador</div>
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="border-t border-slate-900 pt-0.5">
-                          <div className="text-[7px] text-slate-600">Supervisor</div>
+                        <div className="border-t border-black pt-0.5">
+                          <div className="text-[8px] text-black font-semibold">Supervisor</div>
                         </div>
                       </div>
                     </div>
-
-                    {/* Linha de corte */}
-                    <div className="absolute -top-0.5 left-0 right-0 border-t border-dashed border-slate-300"></div>
                   </div>
                 );
               })}
