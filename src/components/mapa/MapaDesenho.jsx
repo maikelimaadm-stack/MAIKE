@@ -361,10 +361,10 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
       currentPolygonRef.current = new google.maps.Polygon({
         paths: currentPoints,
-        strokeColor: '#10b981',
+        strokeColor: '#facc15',
         strokeOpacity: 1,
         strokeWeight: 3,
-        fillColor: '#10b981',
+        fillColor: '#facc15',
         fillOpacity: 0.35,
       });
       currentPolygonRef.current.setMap(mapInstanceRef.current);
@@ -374,9 +374,19 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
       currentPolylineRef.current = new google.maps.Polyline({
         path: currentPoints,
-        strokeColor: '#f59e0b',
+        strokeColor: '#facc15',
         strokeOpacity: 1,
         strokeWeight: 3,
+        icons: [{
+          icon: {
+            path: 'M 0,-1 0,1',
+            strokeOpacity: 1,
+            strokeColor: '#ffffff',
+            scale: 3
+          },
+          offset: '0',
+          repeat: '15px'
+        }]
       });
       currentPolylineRef.current.setMap(mapInstanceRef.current);
     }
