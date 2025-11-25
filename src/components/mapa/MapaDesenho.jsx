@@ -568,31 +568,74 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           </div>
         )}
         {tipoDesenho && mapReady && !itemEditando && (
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2 px-4 w-full max-w-md">
-            <div className="bg-blue-600/95 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-2xl font-semibold text-xs text-center border-2 border-white">
-              {tipoDesenho === 'area' && `🎯 Pontos: ${currentPoints.length}`}
-              {tipoDesenho === 'ponto' && '📍 Toque no mapa'}
-              {tipoDesenho === 'linha' && `➡️ Pontos: ${currentPoints.length}`}
-            </div>
-            {tipoDesenho === 'area' && currentPoints.length >= 3 && (
+          <>
+            {/* Botão TERMINAR no topo */}
+            {((tipoDesenho === 'area' && currentPoints.length >= 3) || (tipoDesenho === 'linha' && currentPoints.length >= 2)) && (
               <Button
                 onClick={finalizarDesenho}
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg h-9 px-4 text-xs"
+                className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-2xl h-10 px-6 text-sm border-2 border-white"
               >
-                ✓ FINALIZAR ÁREA
+                TERMINAR
               </Button>
+            )}
+
+            {/* Indicador de área/comprimento no centro do polígono */}
+            {tipoDesenho === 'area' && currentPoints.length >= 3 && (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
+                  Área: {(() => {
+                    if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 3) {
+                      const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
+                      const areaM2 = google.maps.geometry.spherical.computeArea(path);
+                      const areaHa = areaM2 / 10000;
+                      return areaHa < 1 ? `${(areaHa).toFixed(2)} ha` : `${areaHa.toFixed(1)} ha`;
+                    }
+                    return '0 ha';
+                  })()}
+                </div>
+              </div>
             )}
             {tipoDesenho === 'linha' && currentPoints.length >= 2 && (
-              <Button
-                onClick={finalizarDesenho}
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-lg h-9 px-4 text-xs"
-              >
-                ✓ FINALIZAR LINHA
-              </Button>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
+                  {(() => {
+                    if (window.google?.maps?.geometry?.spherical && currentPoints.length >= 2) {
+                      const path = currentPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
+                      const lengthM = google.maps.geometry.spherical.computeLength(path);
+                      return lengthM < 1000 ? `${lengthM.toFixed(0)} m` : `${(lengthM / 1000).toFixed(2)} km`;
+                    }
+                    return '0 m';
+                  })()}
+                </div>
+              </div>
             )}
-          </div>
+
+            {/* Botão DESFAZER na parte inferior */}
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+              {tipoDesenho === 'ponto' && !currentMarker && (
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                  📍 Toque no mapa para marcar
+                </div>
+              )}
+              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setCurrentPoints(prev => prev.slice(0, -1));
+                    toast.success('Último ponto removido');
+                  }}
+                  variant="secondary"
+                  className="bg-slate-800/90 hover:bg-slate-700 text-white font-bold shadow-2xl h-10 px-6 text-sm border-2 border-white"
+                >
+                  DESFAZER
+                </Button>
+              )}
+              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && (
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                  {tipoDesenho === 'area' ? '🎯 Toque para desenhar a área' : '➡️ Toque para desenhar a linha'}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
