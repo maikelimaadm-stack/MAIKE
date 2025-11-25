@@ -195,30 +195,21 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  const handleLogout = () => {
-    base44.auth.logout();
-  };
+  const handleLogout = () => base44.auth.logout();
 
   const hasAccess = (itemId) => {
-    // Admin sempre tem acesso
     if (user?.role === 'admin' || userPermissions?.is_admin) return true;
-    
-    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
     if (!userPermissions) return true;
-    
-    // Verifica se o módulo está nas permissões
     return userPermissions.modulos_permitidos?.includes(itemId);
   };
 
   const filterMenuByPermissions = (items) => {
     return items.filter(item => {
       if (!hasAccess(item.id)) return false;
-      
       if (item.submenu) {
         item.submenu = filterMenuByPermissions(item.submenu);
         return item.submenu.length > 0;
       }
-      
       return true;
     });
   };
@@ -227,27 +218,9 @@ export default function Layout({ children, currentPageName }) {
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
-    if (item.submenu) return item.submenu.some(sub => {
-      if (sub.url) return location.pathname === createPageUrl(sub.url);
-      if (sub.submenu) return sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url));
-      return false;
-    });
+    if (item.submenu) return item.submenu.some(sub => location.pathname === createPageUrl(sub.url));
     return false;
   };
-
-  const allPages = getAllPages(menuItemsFiltered);
-  const filteredPages = searchTerm 
-    ? allPages.filter(p => 
-        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : allPages;
-
-  const pagesByCategory = filteredPages.reduce((acc, page) => {
-    if (!acc[page.categoria]) acc[page.categoria] = [];
-    acc[page.categoria].push(page);
-    return acc;
-  }, {});
 
   return (
     <div className="min-h-screen bg-slate-50" translate="no">
