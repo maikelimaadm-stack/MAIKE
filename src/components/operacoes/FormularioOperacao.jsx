@@ -71,15 +71,45 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: abastecimentos = [] } = useQuery({
+    queryKey: ['abastecimentos-operacao', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AbastecimentoMaquina.list('-data_abastecimento');
+      return all.filter(a => a.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const implementos = maquinas.filter(m => m.tipo === 'Implemento');
   const maquinaSelecionada = maquinas.find(m => m.id === formData.maquina_id);
+
+  // Buscar último valor do combustível pelo tipo de combustível da máquina
+  const getValorCombustivel = () => {
+    if (!maquinaSelecionada) return 0;
+    
+    // Buscar abastecimentos da máquina selecionada
+    const abastMaquina = abastecimentos.filter(a => a.maquina_id === formData.maquina_id);
+    if (abastMaquina.length > 0 && abastMaquina[0].valor_litro) {
+      return abastMaquina[0].valor_litro;
+    }
+    
+    // Se não tem abastecimento da máquina, buscar pelo tipo de combustível
+    const tipoComb = maquinaSelecionada.tipo_combustivel;
+    if (tipoComb) {
+      const abastTipo = abastecimentos.find(a => a.tipo_combustivel === tipoComb && a.valor_litro);
+      if (abastTipo) return abastTipo.valor_litro;
+    }
+    
+    // Fallback para valor cadastrado na máquina
+    return maquinaSelecionada.valor_combustivel_litro || 0;
+  };
 
   // Calcular custos automaticamente
   useEffect(() => {
     if (maquinaSelecionada) {
       const horas = parseFloat(formData.horas_trabalhadas) || 0;
       const consumoMedio = maquinaSelecionada.consumo_medio || 0;
-      const valorCombustivel = maquinaSelecionada.valor_combustivel_litro || 0;
+      const valorCombustivel = getValorCombustivel();
       const custoHoraMaquina = maquinaSelecionada.custo_hora || 0;
 
       // Calcular combustível se não informado
@@ -131,7 +161,8 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
     formData.quantidade_produto,
     formData.valor_unitario_produto,
     formData.custo_mao_obra,
-    maquinaSelecionada
+    maquinaSelecionada,
+    abastecimentos
   ]);
 
   // Calcular horas pelo horímetro
