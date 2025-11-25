@@ -302,19 +302,20 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const filterMenuByPermissions = (items) => {
-    return items.filter(item => {
-      if (!hasAccess(item.id)) return false;
-      
-      if (item.submenu) {
-        item.submenu = filterMenuByPermissions(item.submenu);
-        return item.submenu.length > 0;
-      }
-      
-      return true;
-    });
+    return items
+      .filter(item => hasAccess(item.id))
+      .map(item => {
+        if (item.submenu) {
+          const filteredSubmenu = filterMenuByPermissions(item.submenu);
+          if (filteredSubmenu.length === 0) return null;
+          return { ...item, submenu: filteredSubmenu };
+        }
+        return item;
+      })
+      .filter(Boolean);
   };
 
-  const menuItemsFiltered = filterMenuByPermissions(menuItems);
+  const menuItemsFiltered = React.useMemo(() => filterMenuByPermissions(menuItems), [menuItems, user, userPermissions]);
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
