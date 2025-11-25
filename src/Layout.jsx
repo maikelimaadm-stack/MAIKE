@@ -70,6 +70,16 @@ const DEFAULT_MENU = [
     ],
   },
   {
+    id: "maquinas",
+    title: "Maquinas",
+    icon: "Package",
+    submenu: [
+      { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
+      { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
+      { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
+    ],
+  },
+  {
     id: "financeiro",
     title: "Financeiro",
     icon: "DollarSign",
