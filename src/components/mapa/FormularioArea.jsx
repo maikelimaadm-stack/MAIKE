@@ -38,10 +38,11 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   
   const [formData, setFormData] = useState({
     nome: "",
-    sigla: "",
-    tipo_pastagem: "Pasto/Piquete",
-    capacidade_maxima: "",
-    cor: CORES_DISPONIVEIS[0],
+    area_total: "",
+    area_pastejada: "",
+    aproveitamento: "Pastejo",
+    tipo_cultura: "Aruana",
+    cor: CORES_DISPONIVEIS[4].cor,
     observacoes: ""
   });
 
