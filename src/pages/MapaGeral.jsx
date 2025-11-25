@@ -334,11 +334,27 @@ export default function MapaGeral() {
 
         const polygon = new google.maps.Polygon({
           paths,
-          strokeColor: '#ffffff',
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
+          strokeColor: cor,
+          strokeOpacity: 0.6,
+          strokeWeight: 1,
           fillColor: cor,
           fillOpacity: 0.5,
+        });
+
+        polygon.addListener('mouseover', () => {
+          polygon.setOptions({
+            strokeColor: '#ffffff',
+            strokeOpacity: 1,
+            strokeWeight: 3,
+          });
+        });
+
+        polygon.addListener('mouseout', () => {
+          polygon.setOptions({
+            strokeColor: cor,
+            strokeOpacity: 0.6,
+            strokeWeight: 1,
+          });
         });
 
         polygon.setMap(mapInstanceRef.current);
