@@ -281,7 +281,7 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <Label className="text-xs">Data Aquisição</Label>
           <Input
@@ -310,6 +310,17 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
             onChange={(e) => setFormData({ ...formData, valor_atual: e.target.value })}
             className="h-9"
           />
+        </div>
+        <div>
+          <Label className="text-xs">Localização Atual</Label>
+          <Select value={formData.localizacao_atual} onValueChange={(v) => setFormData({ ...formData, localizacao_atual: v })}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Selecione a área" />
+            </SelectTrigger>
+            <SelectContent>
+              {areas.map(a => <SelectItem key={a.id} value={a.nome}>{a.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
