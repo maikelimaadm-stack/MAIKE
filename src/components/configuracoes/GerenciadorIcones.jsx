@@ -55,6 +55,7 @@ export default function GerenciadorIcones() {
     queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
       const all = await base44.entities.ConfiguracaoIcone.list();
+      // Ícones são globais - não filtrar por empresa
       return all.filter(i => i.ativo !== false);
     },
   });
