@@ -110,12 +110,12 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     }
 
     createAreaMutation.mutate({
-      nome: formData.nome.toUpperCase(),
-      sigla: formData.sigla.toUpperCase(),
-      tipo_pastagem: formData.tipo_pastagem,
-      tamanho_hectares: tamanhoHectares,
-      capacidade_maxima: parseFloat(formData.capacidade_maxima) || 0,
-      observacoes: formData.observacoes?.toUpperCase(),
+      nome: formData.nome,
+      tipo_pastagem: formData.aproveitamento,
+      tipo_cultura: formData.tipo_cultura,
+      tamanho_hectares: parseFloat(formData.area_total?.replace(',', '.')) || tamanhoHectares,
+      area_pastejada: parseFloat(formData.area_pastejada?.replace(',', '.')) || 0,
+      observacoes: formData.observacoes,
       cor: formData.cor
     });
   };
