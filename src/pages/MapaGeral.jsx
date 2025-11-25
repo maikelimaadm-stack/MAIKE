@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
+import DetalhesArea from "../components/mapa/DetalhesArea";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
@@ -60,6 +61,8 @@ export default function MapaGeral() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [showDetalhesPontoSupl, setShowDetalhesPontoSupl] = useState(false);
   const [selectedPontoSupl, setSelectedPontoSupl] = useState(null);
+  const [showDetalhesArea, setShowDetalhesArea] = useState(false);
+  const [selectedArea, setSelectedArea] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showUserLocation, setShowUserLocation] = useState(true);
 
@@ -364,19 +367,9 @@ export default function MapaGeral() {
 
         polygon.addListener('click', (e) => {
           if (e.vertex === undefined) {
-            const infoWindow = new google.maps.InfoWindow({
-              content: `
-                <div style="padding: 10px;">
-                  <strong style="font-size: 14px;">${area.nome}</strong><br/>
-                  <span style="font-size: 12px; color: #666;">Área: ${area.tamanho_hectares || 0} ha</span><br/>
-                  <span style="font-size: 12px; color: #666;">Tipo: ${area.tipo_pastagem || '-'}</span>
-                </div>
-              `
-            });
-            const bounds = new google.maps.LatLngBounds();
-            paths.forEach(p => bounds.extend(p));
-            infoWindow.setPosition(bounds.getCenter());
-            infoWindow.open(mapInstanceRef.current);
+            // Abrir detalhes da área
+            setSelectedArea(area);
+            setShowDetalhesArea(true);
           }
         });
       });
@@ -937,6 +930,20 @@ export default function MapaGeral() {
                 setShowDetalhesLote(false);
                 setForceUpdate(prev => prev + 1);
               }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Área</DialogTitle>
+          </DialogHeader>
+          {selectedArea && (
+            <DetalhesArea
+              area={selectedArea}
+              onClose={() => setShowDetalhesArea(false)}
             />
           )}
         </DialogContent>
