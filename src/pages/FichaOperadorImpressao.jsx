@@ -23,30 +23,11 @@ export default function FichaOperadorImpressao() {
     enabled: !!empresaSelecionadaId,
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ['areas-impressao', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: maquinas = [] } = useQuery({
-    queryKey: ['maquinas-impressao', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Maquina.list();
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativo' && m.tipo !== 'Implemento');
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
   const handlePrint = () => {
     window.print();
   };
 
-  const areaSelecionada = areas.find(a => a.id === config.area_id);
-  const maquinaSelecionada = maquinas.find(m => m.id === config.maquina_id);
+  const totalPaginas = Math.ceil(config.quantidade / config.fichasPorPagina);
 
   return (
     <div className="min-h-screen bg-slate-100">
