@@ -602,8 +602,8 @@ export default function MapaGeral() {
           map: mapInstanceRef.current,
           icon: markerIcon,
           label: {
-            text: String(totalCabecas) + (showAlertas && temAlerta ? ' ⚠️' : ''),
-            color: temAlerta && showAlertas ? '#fbbf24' : '#ffffff',
+            text: String(totalCabecas),
+            color: '#ffffff',
             fontSize: '11px',
             fontWeight: 'bold',
             className: 'marker-label'
@@ -612,6 +612,43 @@ export default function MapaGeral() {
           zIndex: temAlerta ? 2000 : 1000,
           draggable: true
         });
+
+        // Label com nome do pasto e hectares abaixo do marcador
+        const labelDiv = document.createElement('div');
+        labelDiv.innerHTML = `
+          <div style="
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+            transform: translateY(8px);
+          ">
+            ${area.nome}<br/>
+            <span style="font-size: 10px; font-weight: 400;">${areaHa.toFixed(0)}ha</span>
+          </div>
+        `;
+
+        const labelOverlay = new google.maps.OverlayView();
+        labelOverlay.onAdd = function() {
+          const pane = this.getPanes().overlayMouseTarget;
+          pane.appendChild(labelDiv);
+        };
+        labelOverlay.draw = function() {
+          const projection = this.getProjection();
+          const position = projection.fromLatLngToDivPixel(center);
+          labelDiv.style.position = 'absolute';
+          labelDiv.style.left = position.x - 40 + 'px';
+          labelDiv.style.top = position.y + 25 + 'px';
+        };
+        labelOverlay.onRemove = function() {
+          labelDiv.parentNode?.removeChild(labelDiv);
+        };
+        labelOverlay.setMap(mapInstanceRef.current);
+        markersRef.current.push({ setMap: (m) => labelOverlay.setMap(m) });
 
         markersRef.current.push(marker);
 
