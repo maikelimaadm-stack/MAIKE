@@ -41,6 +41,9 @@ import DashboardSuplementacao from './pages/DashboardSuplementacao';
 import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
 import ConfiguracaoFatoresConsumo from './pages/ConfiguracaoFatoresConsumo';
 import CategoriasManejo from './pages/CategoriasManejo';
+import CadastroMaquinas from './pages/CadastroMaquinas';
+import OperacoesAgricolas from './pages/OperacoesAgricolas';
+import ControleAreas from './pages/ControleAreas';
 import __Layout from './Layout.jsx';
 
 
@@ -88,6 +91,9 @@ export const PAGES = {
     "RelatorioSuplementacao": RelatorioSuplementacao,
     "ConfiguracaoFatoresConsumo": ConfiguracaoFatoresConsumo,
     "CategoriasManejo": CategoriasManejo,
+    "CadastroMaquinas": CadastroMaquinas,
+    "OperacoesAgricolas": OperacoesAgricolas,
+    "ControleAreas": ControleAreas,
 }
 
 export const pagesConfig = {
