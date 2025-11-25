@@ -78,6 +78,7 @@ const DEFAULT_MENU = [
       { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
       { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
       { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
+      { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
     ],
   },
   {
