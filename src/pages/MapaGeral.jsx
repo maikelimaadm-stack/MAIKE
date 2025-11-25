@@ -504,6 +504,14 @@ export default function MapaGeral() {
         paths.forEach(p => bounds.extend(p));
         const center = bounds.getCenter();
 
+        // Calcular área em hectares
+        let areaHa = 0;
+        if (window.google?.maps?.geometry?.spherical) {
+          const pathLatLng = paths.map(p => new google.maps.LatLng(p.lat, p.lng));
+          const areaM2 = google.maps.geometry.spherical.computeArea(pathLatLng);
+          areaHa = areaM2 / 10000;
+        }
+
         // Calcular total de cabeças
         const totalCabecas = lotesNaArea.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
 
