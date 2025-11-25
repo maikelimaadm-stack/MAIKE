@@ -134,97 +134,119 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold text-slate-700">Nome da Área *</Label>
-          <Input
-            value={formData.nome}
-            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-            placeholder="PIQUETE 01, LAVOURA A..."
-            className="h-9 text-xs uppercase"
-            required
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">nome de Pasto</Label>
+        <Input
+          value={formData.nome}
+          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+          placeholder="Pasto 1"
+          className="h-10 text-sm bg-slate-50 border-slate-200"
+          required
+        />
+      </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold text-slate-700">Sigla</Label>
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Área total *</Label>
+        <div className="relative">
           <Input
-            value={formData.sigla}
-            onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
-            placeholder="A1, PQ01..."
-            className="h-9 text-xs uppercase"
-            maxLength={10}
+            type="text"
+            value={formData.area_total}
+            onChange={(e) => setFormData({ ...formData, area_total: e.target.value })}
+            placeholder="0,00"
+            className="h-10 text-sm bg-slate-50 border-slate-200 pr-10"
           />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">ha</span>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Tipo de Uso *</Label>
-        <Select value={formData.tipo_pastagem} onValueChange={(v) => setFormData({ ...formData, tipo_pastagem: v })}>
-          <SelectTrigger className="h-9 text-xs">
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Área pastejada ou arável *</Label>
+        <div className="relative">
+          <Input
+            type="text"
+            value={formData.area_pastejada}
+            onChange={(e) => setFormData({ ...formData, area_pastejada: e.target.value })}
+            placeholder="0,00"
+            className="h-10 text-sm bg-slate-50 border-slate-200 pr-10"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">ha</span>
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Aproveitamento da área *</Label>
+        <p className="text-xs text-slate-500">O conjunto de terra como pastejo será incluído em sua taxa de lotação</p>
+        <Select value={formData.aproveitamento} onValueChange={(v) => setFormData({ ...formData, aproveitamento: v })}>
+          <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {TIPOS_USO.map(tipo => (
-              <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
+              <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {formData.area_total && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-          <div className="text-xs text-slate-600 mb-1 font-medium">Área Calculada</div>
-          <div className="text-2xl font-bold text-slate-900">{formData.area_total} ha</div>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
+          <Button type="button" variant="default" size="sm" className="h-8 text-xs bg-[#61aad9] hover:bg-[#0d67ad]">
+            Adicionar tipo de cultura
+          </Button>
         </div>
-      )}
-
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Capacidade (UA)</Label>
-        <Input
-          type="number"
-          value={formData.capacidade_maxima}
-          onChange={(e) => setFormData({ ...formData, capacidade_maxima: e.target.value })}
-          placeholder="0"
-          className="h-9 text-xs"
-        />
+        <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData({ ...formData, tipo_cultura: v })}>
+          <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPOS_CULTURA.map(tipo => (
+              <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Cor da Área</Label>
-        <div className="grid grid-cols-5 gap-2">
-          {CORES_DISPONIVEIS.map(cor => (
-            <button
-              key={cor}
-              type="button"
-              onClick={() => setFormData({ ...formData, cor })}
-              className={`w-full h-10 rounded-lg border-2 transition-all ${formData.cor === cor ? 'border-slate-900 scale-110 shadow-md' : 'border-slate-300 hover:border-slate-400'}`}
-              style={{ backgroundColor: cor }}
-            />
-          ))}
-        </div>
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Cor no mapa *</Label>
+        <Select value={formData.cor} onValueChange={(v) => setFormData({ ...formData, cor: v })}>
+          <SelectTrigger className="h-10 text-sm bg-slate-50 border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: formData.cor }} />
+              <span>{CORES_DISPONIVEIS.find(c => c.cor === formData.cor)?.nome || 'Selecione'}</span>
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {CORES_DISPONIVEIS.map(c => (
+              <SelectItem key={c.cor} value={c.cor} className="text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: c.cor }} />
+                  <span>{c.nome}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold text-slate-700">Observações</Label>
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Descrição</Label>
         <Textarea
           value={formData.observacoes}
           onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-          placeholder="OBSERVAÇÕES..."
-          className="text-xs uppercase"
-          rows={3}
+          placeholder=""
+          className="text-sm bg-slate-50 border-slate-200"
+          rows={4}
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-3 border-t mt-4">
-        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-9 text-xs gap-1.5">
-          <X className="w-3.5 h-3.5" />
+      <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 bg-slate-100 -mx-6 px-6 py-3 -mb-6 mt-6">
+        <Button type="button" variant="outline" onClick={onCancel} className="h-9 px-4 text-sm text-[#61aad9] border-[#61aad9] hover:bg-[#61aad9]/10">
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-9 text-xs bg-slate-700 hover:bg-slate-800 gap-1.5">
-          <Save className="w-3.5 h-3.5" />
-          Salvar Área
+        <Button type="submit" className="h-9 px-6 text-sm bg-[#92ca25] hover:bg-[#7ab31f] text-white">
+          Salvar
         </Button>
       </div>
     </form>
