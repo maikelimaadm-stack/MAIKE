@@ -119,14 +119,10 @@ const DEFAULT_MENU = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = useState(null);
-  const [weather, setWeather] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
   const isChangingEmpresa = useRef(false);
 
-  // Prevenir tradução automática do navegador
   React.useEffect(() => {
     document.documentElement.setAttribute('translate', 'no');
     document.documentElement.setAttribute('lang', 'pt-BR');
@@ -141,7 +137,6 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // ATUALIZAR MENU - SEM LOOP!
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('custom_menu');
@@ -155,10 +150,7 @@ export default function Layout({ children, currentPageName }) {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const { data: empresas = [] } = useQuery({
