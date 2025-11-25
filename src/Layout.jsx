@@ -344,19 +344,6 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {empresaAtual?.logotipo_url ? (
-                <img 
-                  src={empresaAtual.logotipo_url} 
-                  alt={empresaAtual.apelido}
-                  className="h-10 w-auto object-contain"
-                />
-              ) : (
-                <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" 
-                  alt="Logo"
-                  className="h-10 w-auto object-contain"
-                />
-              )}
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'FAZENDA PALMITAL'}
