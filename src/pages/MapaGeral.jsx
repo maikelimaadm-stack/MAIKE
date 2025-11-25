@@ -64,7 +64,7 @@ export default function MapaGeral() {
   const [showDetalhesArea, setShowDetalhesArea] = useState(false);
   const [selectedArea, setSelectedArea] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
-  const [showUserLocation, setShowUserLocation] = useState(true);
+  const [showUserLocation, setShowUserLocation] = useState(false);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -251,27 +251,7 @@ export default function MapaGeral() {
         setTimeout(() => setMapReady(true), 100);
       });
 
-      // Obter localização do usuário
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const pos = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            };
-            setUserLocation(pos);
-            
-            // Centralizar mapa na localização
-            if (areas.length === 0) {
-              map.setCenter(pos);
-              map.setZoom(17);
-            }
-          },
-          () => {
-            console.log('Não foi possível obter localização');
-          }
-        );
-      }
+
     }).catch((error) => {
       console.error('Erro ao carregar mapa:', error);
       toast.error('Erro ao carregar mapa.');
