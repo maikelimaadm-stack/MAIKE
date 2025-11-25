@@ -77,6 +77,7 @@ const DEFAULT_MENU = [
       { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
       { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
       { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
+      { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
     ],
   },
   {
