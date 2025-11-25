@@ -61,10 +61,14 @@ export default function GerenciadorIcones() {
   });
 
   const createIconeMutation = useMutation({
-    mutationFn: (data) => base44.entities.ConfiguracaoIcone.create({
-      ...data,
-      ativo: true
-    }),
+    mutationFn: (data) => {
+      // Remover empresa_id para tornar ícone global
+      const { empresa_id, ...dataWithoutEmpresa } = data;
+      return base44.entities.ConfiguracaoIcone.create({
+        ...dataWithoutEmpresa,
+        ativo: true
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
       resetForm();
