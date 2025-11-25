@@ -32,118 +32,89 @@ import {
 } from "@/components/ui/sheet";
 
 const DEFAULT_MENU = [
-  { id: "dashboard", title: "Dashboard", url: "Home", icon: "Home" },
-  { id: "pesagens", title: "Pesagens", url: "Pesagens", icon: "Scale" },
-  { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
-  { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
+  { id: "dashboard", title: "INICIO", url: "Home" },
+  { id: "pesagens", title: "PESAGENS", url: "Pesagens" },
+  { id: "custos", title: "CUSTOS SAFRA", url: "CustosSafra" },
+  { id: "movimentacoes", title: "ESTOQUE", url: "MovimentacoesEstoque" },
   {
     id: "pecuaria",
-    title: "Pecuaria",
-    icon: "Package",
+    title: "PECUARIA",
     submenu: [
-      { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-      { id: "pec-categorias", title: "categorias", url: "CategoriasManejo" },
-      { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
-      { id: "pec-fatores", title: "Configuracao Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
-      { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
-      { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
-      { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
-      { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
-      { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" },
+      { id: "pec-lotes", title: "Lotes", url: "CadastroLotes" },
+      { id: "pec-categorias-manejo", title: "Categorias Manejo", url: "CategoriasManejo" },
+      { id: "pec-fatores", title: "Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
+      { id: "pec-dashboard-supl", title: "Suplementacao", url: "DashboardSuplementacao" },
+      { id: "pec-historico", title: "Historico Mov.", url: "HistoricoMovimentacoesPecuaria" },
+      { id: "pec-mapa-cadastro", title: "Mapa Cadastro", url: "MapaCadastro" },
+      { id: "pec-mapa-geral", title: "Mapa Manejo", url: "MapaGeral" },
+      { id: "pec-relatorio", title: "Rel. Suplementacao", url: "RelatorioSuplementacao" },
     ],
   },
   {
     id: "maquinas",
-    title: "Maquinas",
-    icon: "Package",
+    title: "MAQUINAS",
     submenu: [
-      { id: "maq-cadastro", title: "Cadastro de Maquinas", url: "CadastroMaquinas" },
-      { id: "maq-operacoes", title: "Operacoes Agricolas", url: "OperacoesAgricolas" },
-      { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
-      { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
+      { id: "maq-cadastro", title: "Cadastro", url: "CadastroMaquinas" },
+      { id: "maq-operacoes", title: "Operacoes", url: "OperacoesAgricolas" },
+      { id: "maq-controle-areas", title: "Controle Areas", url: "ControleAreas" },
+      { id: "maq-ficha", title: "Ficha Operador", url: "FichaOperador" },
       { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
     ],
   },
   {
     id: "financeiro",
-    title: "Financeiro",
-    icon: "DollarSign",
+    title: "FINANCEIRO",
     submenu: [
-      { id: "fin-lancamento", title: "Lancamento Financeiro", url: "LancamentoFinanceiro" },
-      { id: "fin-caixa-bancos", title: "Caixa & Bancos", url: "CaixaBancos" },
-      { id: "fin-plano", title: "Plano de Contas", url: "PlanoContas" },
-      { id: "fin-formas", title: "Formas de Pagamento", url: "FormasPagamento" },
-      { id: "fin-grupos", title: "Grupos Financeiros", url: "GruposFinanceiros" },
-      { id: "fin-fluxo", title: "Fluxo de Caixa", url: "FluxoCaixa" },
+      { id: "fin-lancamento", title: "Lancamentos", url: "LancamentoFinanceiro" },
+      { id: "fin-caixa-bancos", title: "Caixa/Bancos", url: "CaixaBancos" },
+      { id: "fin-plano", title: "Plano Contas", url: "PlanoContas" },
+      { id: "fin-formas", title: "Formas Pgto", url: "FormasPagamento" },
+      { id: "fin-grupos", title: "Grupos", url: "GruposFinanceiros" },
+      { id: "fin-fluxo", title: "Fluxo Caixa", url: "FluxoCaixa" },
       { id: "fin-livro-caixa", title: "Livro-Caixa", url: "LivroCaixa" },
     ],
   },
   {
     id: "fiscal",
-    title: "Fiscal",
-    icon: "BookOpen",
+    title: "FISCAL",
     submenu: [
       { id: "fiscal-livros", title: "Livros Fiscais", url: "LivrosFiscais" },
     ],
   },
   {
     id: "cadastros",
-    title: "Cadastros",
-    icon: "FolderOpen",
+    title: "CADASTROS",
     submenu: [
       { id: "cad-empresa", title: "Empresa", url: "Empresa" },
-      { id: "cad-mapa", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
+      { id: "cad-mapa", title: "Mapa", url: "MapaCadastro" },
       { id: "cad-safras", title: "Safras", url: "GerenciarSafras" },
-      { id: "cad-fornecedores", title: "Fornecedores/Clientes", url: "Fornecedores" },
+      { id: "cad-fornecedores", title: "Fornecedores", url: "Fornecedores" },
       { id: "cad-produtos", title: "Produtos", url: "Produtos" },
       { id: "cad-ativos", title: "Ativos Fixos", url: "AtivosFixos" },
       { id: "cad-cidades", title: "Cidades", url: "GerenciarCidades" },
-      { id: "cad-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
+      { id: "cad-unidades", title: "Unidades Med.", url: "UnidadesMedida" },
       { id: "cad-categorias", title: "Categorias", url: "Categorias" },
-      { id: "cad-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
-      { id: "cad-centros", title: "Centros de Custo", url: "CentrosCusto" },
+      { id: "cad-locais", title: "Locais Estoque", url: "LocaisEstoque" },
+      { id: "cad-centros", title: "Centros Custo", url: "CentrosCusto" },
     ],
   },
   {
     id: "relatorios",
-    title: "Relatorios",
-    icon: "FileText",
+    title: "RELATORIOS",
     submenu: [
-      { id: "rel-pesagens", title: "Relatorio de Pesagens", url: "RelatorioPesagens" },
-      { id: "rel-custos", title: "Relatorio de Custos Safra", url: "RelatorioCustosSafra" },
-      { id: "rel-estoque", title: "Relatorio de Estoque", url: "RelatorioEstoque" },
-      { id: "rel-entregas", title: "Historico de Entregas", url: "RelatorioHistoricoEntregas" },
-      { id: "rel-financeiro", title: "Relatorio Financeiro", url: "RelatorioFinanceiro" },
-      { id: "rel-fornecedores", title: "Lista de Fornecedores", url: "RelatorioFornecedores" },
-      { id: "rel-produtos", title: "Lista de Produtos", url: "RelatorioProdutos" },
-      { id: "rel-suplementacao", title: "Relatorio de Suplementacao", url: "RelatorioSuplementacao" },
+      { id: "rel-pesagens", title: "Pesagens", url: "RelatorioPesagens" },
+      { id: "rel-custos", title: "Custos Safra", url: "RelatorioCustosSafra" },
+      { id: "rel-estoque", title: "Estoque", url: "RelatorioEstoque" },
+      { id: "rel-entregas", title: "Entregas", url: "RelatorioHistoricoEntregas" },
+      { id: "rel-financeiro", title: "Financeiro", url: "RelatorioFinanceiro" },
+      { id: "rel-fornecedores", title: "Fornecedores", url: "RelatorioFornecedores" },
+      { id: "rel-produtos", title: "Produtos", url: "RelatorioProdutos" },
+      { id: "rel-suplementacao", title: "Suplementacao", url: "RelatorioSuplementacao" },
     ],
   },
-  { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
+  { id: "usuarios", title: "USUARIOS", url: "Usuarios" },
+  { id: "config", title: "CONFIG", url: "ConfiguracoesGerais" },
 ];
-
-const getAllPages = (menuItems) => {
-  const pages = [];
-  
-  const traverse = (items, categoria = '') => {
-    items.forEach(item => {
-      if (item.url) {
-        pages.push({
-          id: item.id,
-          title: item.title,
-          url: item.url,
-          categoria: categoria || 'Geral'
-        });
-      }
-      if (item.submenu) {
-        traverse(item.submenu, item.title);
-      }
-    });
-  };
-  
-  traverse(menuItems);
-  return pages;
-};
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
