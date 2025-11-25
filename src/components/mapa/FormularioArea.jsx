@@ -11,13 +11,24 @@ import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
 
 const TIPOS_USO = [
-  "Pasto/Piquete", "Lavoura", "Reserva Legal", "APP", 
+  "Pastejo", "Lavoura", "Reserva Legal", "APP", 
   "Curral", "Sede", "Retiro", "Módulo", "Talhão", "Outro"
 ];
 
+const TIPOS_CULTURA = [
+  "Aruana", "Mombaça", "Marandu", "Tifton", "Brachiaria", "Piatã", "Tanzânia", "Outro"
+];
+
 const CORES_DISPONIVEIS = [
-  "#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+  { nome: "Branco", cor: "#f8f9fa" },
+  { nome: "Cinza claro", cor: "#d8dee2" },
+  { nome: "Preto", cor: "#2c303e" },
+  { nome: "Azul escuro", cor: "#0d67ad" },
+  { nome: "Azul celeste", cor: "#61aad9" },
+  { nome: "Amarelo", cor: "#efcb19" },
+  { nome: "Verde claro", cor: "#92ca25" },
+  { nome: "Laranja", cor: "#f5a01b" },
+  { nome: "Roxo", cor: "#966fe1" }
 ];
 
 export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false }) {
