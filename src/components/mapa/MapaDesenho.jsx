@@ -329,19 +329,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       const marker = new google.maps.Marker({
         position: point,
         map: mapInstanceRef.current,
-        label: {
-          text: String(index + 1),
-          color: '#ffffff',
-          fontSize: '12px',
-          fontWeight: 'bold'
-        },
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: '#3b82f6',
+          scale: 8,
+          fillColor: '#facc15',
           fillOpacity: 1,
           strokeColor: '#ffffff',
-          strokeWeight: 3
+          strokeWeight: 2
         },
         draggable: true,
         zIndex: 1000
