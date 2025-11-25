@@ -375,7 +375,7 @@ export default function MapaGeral() {
         const coords = ponto.coordenadas || {};
         if (!coords.lat || !coords.lng) return;
 
-        const configIcone = iconesConfig.find(ic => ic.tipo_entidade === 'Ponto' && ic.categoria === ponto.tipo);
+        const configIcone = iconesConfig.find(ic => ic.tipo_entidade === 'Ponto' && ic.categoria?.toUpperCase().trim() === ponto.tipo?.toUpperCase().trim());
         let markerIcon;
 
         if (configIcone?.icone_url) {
