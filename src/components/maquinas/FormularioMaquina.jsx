@@ -32,6 +32,9 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
     consumo_medio: maquina?.consumo_medio || '',
     tipo_combustivel: maquina?.tipo_combustivel || '',
     capacidade_tanque: maquina?.capacidade_tanque || '',
+    vida_util_horas: maquina?.vida_util_horas || '',
+    custo_hora: maquina?.custo_hora || '',
+    valor_combustivel_litro: maquina?.valor_combustivel_litro || '',
     status: maquina?.status || 'Ativo',
     localizacao_atual: maquina?.localizacao_atual || '',
     observacoes: maquina?.observacoes || '',
@@ -50,6 +53,9 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
         valor_atual: data.valor_atual ? parseFloat(data.valor_atual) : null,
         consumo_medio: data.consumo_medio ? parseFloat(data.consumo_medio) : null,
         capacidade_tanque: data.capacidade_tanque ? parseFloat(data.capacidade_tanque) : null,
+        vida_util_horas: data.vida_util_horas ? parseFloat(data.vida_util_horas) : null,
+        custo_hora: data.custo_hora ? parseFloat(data.custo_hora) : null,
+        valor_combustivel_litro: data.valor_combustivel_litro ? parseFloat(data.valor_combustivel_litro) : null,
       };
 
       if (maquina) {
@@ -212,6 +218,55 @@ export default function FormularioMaquina({ maquina, onSave, onCancel }) {
             onChange={(e) => setFormData({ ...formData, capacidade_tanque: e.target.value })}
             className="h-9"
           />
+        </div>
+      </div>
+
+      <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+        <h4 className="text-xs font-semibold text-emerald-800 mb-3">Custos Operacionais</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <Label className="text-xs">Vida Útil (horas)</Label>
+            <Input
+              type="number"
+              value={formData.vida_util_horas}
+              onChange={(e) => setFormData({ ...formData, vida_util_horas: e.target.value })}
+              className="h-9 bg-white"
+              placeholder="Ex: 10000"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Custo/Hora (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.custo_hora}
+              onChange={(e) => setFormData({ ...formData, custo_hora: e.target.value })}
+              className="h-9 bg-white"
+              placeholder="Ex: 150.00"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Consumo Médio (L/h)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              value={formData.consumo_medio}
+              onChange={(e) => setFormData({ ...formData, consumo_medio: e.target.value })}
+              className="h-9 bg-white"
+              placeholder="Ex: 15"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Valor Combustível (R$/L)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.valor_combustivel_litro}
+              onChange={(e) => setFormData({ ...formData, valor_combustivel_litro: e.target.value })}
+              className="h-9 bg-white"
+              placeholder="Ex: 6.50"
+            />
+          </div>
         </div>
       </div>
 

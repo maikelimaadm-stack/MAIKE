@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Leaf, Tractor, Truck, Plus, Calendar, MapPin, Fuel, Wrench,
-  TrendingUp, Package
+  Leaf, Tractor, Plus, MapPin, DollarSign,
+  TrendingUp, Package, Calculator
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -49,6 +49,39 @@ export default function DetalhesArea({ area, onClose }) {
     },
   });
 
+  // Calcular custos
+  const custos = useMemo(() => {
+    const operacoesConc = operacoes.filter(o => o.status === 'Concluída');
+    
+    const custoOperacoes = operacoesConc.reduce((sum, o) => sum + (o.custo_total || 0), 0);
+    const custoCombustivel = operacoesConc.reduce((sum, o) => sum + (o.valor_combustivel || 0), 0);
+    const custoMaquinas = operacoesConc.reduce((sum, o) => sum + (o.custo_maquina_total || 0), 0);
+    const custoInsumos = operacoesConc.reduce((sum, o) => sum + (o.custo_produto || 0), 0);
+    const custoMaoObra = operacoesConc.reduce((sum, o) => sum + (o.custo_mao_obra || 0), 0);
+    
+    const hectares = area.tamanho_hectares || 1;
+    const custoPorHa = custoOperacoes / hectares;
+    
+    // Agrupar por tipo de operação
+    const custoPorTipo = {};
+    operacoesConc.forEach(o => {
+      if (!custoPorTipo[o.tipo_operacao]) {
+        custoPorTipo[o.tipo_operacao] = 0;
+      }
+      custoPorTipo[o.tipo_operacao] += o.custo_total || 0;
+    });
+
+    return {
+      total: custoOperacoes,
+      combustivel: custoCombustivel,
+      maquinas: custoMaquinas,
+      insumos: custoInsumos,
+      maoObra: custoMaoObra,
+      porHectare: custoPorHa,
+      porTipo: custoPorTipo
+    };
+  }, [operacoes, area]);
+
   const controleAtual = controles.length > 0 ? controles[0] : null;
   const totalCabecas = lotes.reduce((sum, l) => sum + (l.quantidade_cabecas || 0), 0);
   const totalOperacoes = operacoes.length;
@@ -89,7 +122,7 @@ export default function DetalhesArea({ area, onClose }) {
         )}
       </div>
 
-      {/* Resumo */}
+      {/* Resumo Geral */}
       <div className="grid grid-cols-4 gap-2">
         <div className="text-center p-2 bg-emerald-50 rounded-lg">
           <div className="text-lg font-bold text-emerald-700">{area.tamanho_hectares || 0}</div>
@@ -108,6 +141,56 @@ export default function DetalhesArea({ area, onClose }) {
           <div className="text-[10px] text-purple-600">ha Trab.</div>
         </div>
       </div>
+
+      {/* Resumo de Custos */}
+      <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="w-4 h-4 text-red-600" />
+            <span className="text-xs font-semibold text-red-900">Custos da Área</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="text-center p-2 bg-white rounded-lg border">
+              <div className="text-sm font-bold text-red-700">
+                R$ {custos.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[9px] text-slate-600">CUSTO TOTAL</div>
+            </div>
+            <div className="text-center p-2 bg-white rounded-lg border">
+              <div className="text-sm font-bold text-orange-700">
+                R$ {custos.porHectare.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[9px] text-slate-600">CUSTO/HA</div>
+            </div>
+            <div className="text-center p-2 bg-white rounded-lg border">
+              <div className="text-sm font-bold text-amber-700">
+                {controleAtual?.producao_estimada_kg 
+                  ? `R$ ${((custos.total / (controleAtual.producao_estimada_kg / 60)) || 0).toFixed(2)}`
+                  : '-'}
+              </div>
+              <div className="text-[9px] text-slate-600">CUSTO/SC</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-[10px]">
+            <div className="bg-white p-1.5 rounded text-center">
+              <div className="font-semibold text-slate-700">R$ {custos.combustivel.toFixed(0)}</div>
+              <div className="text-slate-500">Combustível</div>
+            </div>
+            <div className="bg-white p-1.5 rounded text-center">
+              <div className="font-semibold text-slate-700">R$ {custos.maquinas.toFixed(0)}</div>
+              <div className="text-slate-500">Máquinas</div>
+            </div>
+            <div className="bg-white p-1.5 rounded text-center">
+              <div className="font-semibold text-slate-700">R$ {custos.insumos.toFixed(0)}</div>
+              <div className="text-slate-500">Insumos</div>
+            </div>
+            <div className="bg-white p-1.5 rounded text-center">
+              <div className="font-semibold text-slate-700">R$ {custos.maoObra.toFixed(0)}</div>
+              <div className="text-slate-500">Mão Obra</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Controle Atual */}
       {controleAtual && (
@@ -161,14 +244,18 @@ export default function DetalhesArea({ area, onClose }) {
 
       {/* Tabs */}
       <Tabs defaultValue="operacoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="operacoes" className="text-xs">
             <Tractor className="w-3 h-3 mr-1" />
-            Operações ({operacoes.length})
+            Operações
+          </TabsTrigger>
+          <TabsTrigger value="custos" className="text-xs">
+            <Calculator className="w-3 h-3 mr-1" />
+            Custos
           </TabsTrigger>
           <TabsTrigger value="lotes" className="text-xs">
             <Package className="w-3 h-3 mr-1" />
-            Lotes ({lotes.length})
+            Lotes
           </TabsTrigger>
         </TabsList>
 
@@ -193,13 +280,44 @@ export default function DetalhesArea({ area, onClose }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <Badge className={`text-[10px] ${statusColors[op.status]}`}>{op.status}</Badge>
+                  {op.custo_total ? (
+                    <div className="text-xs font-semibold text-red-600">R$ {op.custo_total.toFixed(2)}</div>
+                  ) : (
+                    <Badge className={`text-[10px] ${statusColors[op.status]}`}>{op.status}</Badge>
+                  )}
                   {op.hectares_trabalhados && (
-                    <div className="text-[10px] text-slate-600 mt-0.5">{op.hectares_trabalhados} ha</div>
+                    <div className="text-[10px] text-slate-600">{op.hectares_trabalhados} ha</div>
                   )}
                 </div>
               </div>
             ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="custos" className="mt-3">
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-slate-700">Custos por Tipo de Operação</h4>
+            {Object.entries(custos.porTipo).length === 0 ? (
+              <p className="text-center text-slate-500 text-xs py-6">Sem custos registrados</p>
+            ) : (
+              <div className="space-y-1.5">
+                {Object.entries(custos.porTipo)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([tipo, valor]) => (
+                  <div key={tipo} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                    <span className="text-xs font-medium text-slate-700">{tipo}</span>
+                    <div className="text-right">
+                      <div className="text-xs font-semibold text-red-600">
+                        R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        R$ {(valor / (area.tamanho_hectares || 1)).toFixed(2)}/ha
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 

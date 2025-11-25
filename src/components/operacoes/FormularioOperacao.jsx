@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Calculator, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 const TIPOS_OPERACAO = ["Gradagem", "Aração", "Plantio", "Pulverização", "Adubação", "Colheita", "Roçagem", "Calagem", "Dessecação", "Subsolagem", "Outro"];
@@ -24,13 +26,20 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
     horimetro_inicio: operacao?.horimetro_inicio || '',
     horimetro_fim: operacao?.horimetro_fim || '',
     combustivel_consumido: operacao?.combustivel_consumido || '',
+    valor_combustivel: operacao?.valor_combustivel || '',
+    custo_maquina_hora: operacao?.custo_maquina_hora || '',
+    custo_maquina_total: operacao?.custo_maquina_total || '',
+    custo_mao_obra: operacao?.custo_mao_obra || '',
     produto_aplicado: operacao?.produto_aplicado || '',
     quantidade_produto: operacao?.quantidade_produto || '',
     unidade_produto: operacao?.unidade_produto || '',
+    valor_unitario_produto: operacao?.valor_unitario_produto || '',
+    custo_produto: operacao?.custo_produto || '',
     dose_por_hectare: operacao?.dose_por_hectare || '',
     operador: operacao?.operador || '',
     safra_id: operacao?.safra_id || '',
     custo_total: operacao?.custo_total || '',
+    custo_por_hectare: operacao?.custo_por_hectare || '',
     status: operacao?.status || 'Concluída',
     observacoes: operacao?.observacoes || '',
   });
@@ -63,6 +72,79 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
   });
 
   const implementos = maquinas.filter(m => m.tipo === 'Implemento');
+  const maquinaSelecionada = maquinas.find(m => m.id === formData.maquina_id);
+
+  // Calcular custos automaticamente
+  useEffect(() => {
+    if (maquinaSelecionada) {
+      const horas = parseFloat(formData.horas_trabalhadas) || 0;
+      const consumoMedio = maquinaSelecionada.consumo_medio || 0;
+      const valorCombustivel = maquinaSelecionada.valor_combustivel_litro || 0;
+      const custoHoraMaquina = maquinaSelecionada.custo_hora || 0;
+
+      // Calcular combustível se não informado
+      let combustivelCalc = parseFloat(formData.combustivel_consumido) || 0;
+      if (!combustivelCalc && horas && consumoMedio) {
+        combustivelCalc = horas * consumoMedio;
+      }
+
+      // Valor do combustível
+      let valorCombustivelCalc = parseFloat(formData.valor_combustivel) || 0;
+      if (!valorCombustivelCalc && combustivelCalc && valorCombustivel) {
+        valorCombustivelCalc = combustivelCalc * valorCombustivel;
+      }
+
+      // Custo hora máquina
+      let custoMaquinaHora = parseFloat(formData.custo_maquina_hora) || custoHoraMaquina;
+      let custoMaquinaTotal = horas * custoMaquinaHora;
+
+      // Custo do produto
+      const qtdProduto = parseFloat(formData.quantidade_produto) || 0;
+      const valorUnitProduto = parseFloat(formData.valor_unitario_produto) || 0;
+      const custoProduto = qtdProduto * valorUnitProduto;
+
+      // Custo mão de obra
+      const custoMaoObra = parseFloat(formData.custo_mao_obra) || 0;
+
+      // Custo total
+      const custoTotal = valorCombustivelCalc + custoMaquinaTotal + custoProduto + custoMaoObra;
+
+      // Custo por hectare
+      const hectares = parseFloat(formData.hectares_trabalhados) || 0;
+      const custoPorHectare = hectares > 0 ? custoTotal / hectares : 0;
+
+      setFormData(prev => ({
+        ...prev,
+        combustivel_consumido: combustivelCalc || prev.combustivel_consumido,
+        valor_combustivel: valorCombustivelCalc.toFixed(2),
+        custo_maquina_hora: custoMaquinaHora.toFixed(2),
+        custo_maquina_total: custoMaquinaTotal.toFixed(2),
+        custo_produto: custoProduto.toFixed(2),
+        custo_total: custoTotal.toFixed(2),
+        custo_por_hectare: custoPorHectare.toFixed(2),
+      }));
+    }
+  }, [
+    formData.maquina_id,
+    formData.horas_trabalhadas,
+    formData.hectares_trabalhados,
+    formData.quantidade_produto,
+    formData.valor_unitario_produto,
+    formData.custo_mao_obra,
+    maquinaSelecionada
+  ]);
+
+  // Calcular horas pelo horímetro
+  useEffect(() => {
+    const inicio = parseFloat(formData.horimetro_inicio) || 0;
+    const fim = parseFloat(formData.horimetro_fim) || 0;
+    if (inicio && fim && fim > inicio) {
+      setFormData(prev => ({
+        ...prev,
+        horas_trabalhadas: (fim - inicio).toFixed(1)
+      }));
+    }
+  }, [formData.horimetro_inicio, formData.horimetro_fim]);
 
   const mutation = useMutation({
     mutationFn: async (data) => {
@@ -83,18 +165,25 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
         horimetro_inicio: data.horimetro_inicio ? parseFloat(data.horimetro_inicio) : null,
         horimetro_fim: data.horimetro_fim ? parseFloat(data.horimetro_fim) : null,
         combustivel_consumido: data.combustivel_consumido ? parseFloat(data.combustivel_consumido) : null,
+        valor_combustivel: data.valor_combustivel ? parseFloat(data.valor_combustivel) : null,
+        custo_maquina_hora: data.custo_maquina_hora ? parseFloat(data.custo_maquina_hora) : null,
+        custo_maquina_total: data.custo_maquina_total ? parseFloat(data.custo_maquina_total) : null,
+        custo_mao_obra: data.custo_mao_obra ? parseFloat(data.custo_mao_obra) : null,
         quantidade_produto: data.quantidade_produto ? parseFloat(data.quantidade_produto) : null,
+        valor_unitario_produto: data.valor_unitario_produto ? parseFloat(data.valor_unitario_produto) : null,
+        custo_produto: data.custo_produto ? parseFloat(data.custo_produto) : null,
         dose_por_hectare: data.dose_por_hectare ? parseFloat(data.dose_por_hectare) : null,
         custo_total: data.custo_total ? parseFloat(data.custo_total) : null,
+        custo_por_hectare: data.custo_por_hectare ? parseFloat(data.custo_por_hectare) : null,
       };
 
-      if (operacao) {
+      if (operacao?.id) {
         return base44.entities.OperacaoAgricola.update(operacao.id, payload);
       }
       return base44.entities.OperacaoAgricola.create(payload);
     },
     onSuccess: () => {
-      toast.success(operacao ? 'Operação atualizada!' : 'Operação registrada!');
+      toast.success(operacao?.id ? 'Operação atualizada!' : 'Operação registrada!');
       onSave();
     },
     onError: (error) => {
@@ -149,7 +238,7 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
               <SelectValue placeholder="Selecione a área" />
             </SelectTrigger>
             <SelectContent>
-              {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+              {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome} ({a.tamanho_hectares}ha)</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -175,7 +264,9 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
             </SelectTrigger>
             <SelectContent>
               {maquinas.filter(m => m.tipo !== 'Implemento').map(m => (
-                <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                <SelectItem key={m.id} value={m.id}>
+                  {m.nome} {m.custo_hora ? `(R$ ${m.custo_hora}/h)` : ''}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -224,12 +315,10 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
           />
         </div>
         <div>
-          <Label className="text-xs">Horas</Label>
+          <Label className="text-xs">Operador</Label>
           <Input
-            type="number"
-            step="0.1"
-            value={formData.horas_trabalhadas}
-            onChange={(e) => setFormData({ ...formData, horas_trabalhadas: e.target.value })}
+            value={formData.operador}
+            onChange={(e) => setFormData({ ...formData, operador: e.target.value })}
             className="h-9"
           />
         </div>
@@ -243,6 +332,7 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
             value={formData.horimetro_inicio}
             onChange={(e) => setFormData({ ...formData, horimetro_inicio: e.target.value })}
             className="h-9"
+            placeholder={maquinaSelecionada?.horimetro_atual ? `Atual: ${maquinaSelecionada.horimetro_atual}` : ''}
           />
         </div>
         <div>
@@ -255,6 +345,16 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
           />
         </div>
         <div>
+          <Label className="text-xs">Horas Trabalhadas</Label>
+          <Input
+            type="number"
+            step="0.1"
+            value={formData.horas_trabalhadas}
+            onChange={(e) => setFormData({ ...formData, horas_trabalhadas: e.target.value })}
+            className="h-9"
+          />
+        </div>
+        <div>
           <Label className="text-xs">Combustível (L)</Label>
           <Input
             type="number"
@@ -262,59 +362,123 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
             value={formData.combustivel_consumido}
             onChange={(e) => setFormData({ ...formData, combustivel_consumido: e.target.value })}
             className="h-9"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Operador</Label>
-          <Input
-            value={formData.operador}
-            onChange={(e) => setFormData({ ...formData, operador: e.target.value })}
-            className="h-9"
+            placeholder={maquinaSelecionada?.consumo_medio ? `Est: ${(parseFloat(formData.horas_trabalhadas || 0) * maquinaSelecionada.consumo_medio).toFixed(1)}L` : ''}
           />
         </div>
       </div>
 
-      {(formData.tipo_operacao === 'Pulverização' || formData.tipo_operacao === 'Adubação' || formData.tipo_operacao === 'Calagem') && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-slate-50 rounded-lg">
-          <div>
-            <Label className="text-xs">Produto Aplicado</Label>
-            <Input
-              value={formData.produto_aplicado}
-              onChange={(e) => setFormData({ ...formData, produto_aplicado: e.target.value })}
-              className="h-9"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Quantidade</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.quantidade_produto}
-              onChange={(e) => setFormData({ ...formData, quantidade_produto: e.target.value })}
-              className="h-9"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Unidade</Label>
-            <Input
-              value={formData.unidade_produto}
-              onChange={(e) => setFormData({ ...formData, unidade_produto: e.target.value })}
-              className="h-9"
-              placeholder="kg, L, etc"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Dose/ha</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.dose_por_hectare}
-              onChange={(e) => setFormData({ ...formData, dose_por_hectare: e.target.value })}
-              className="h-9"
-            />
-          </div>
-        </div>
+      {/* Produtos/Insumos */}
+      {(formData.tipo_operacao === 'Pulverização' || formData.tipo_operacao === 'Adubação' || formData.tipo_operacao === 'Calagem' || formData.tipo_operacao === 'Plantio') && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="p-3">
+            <h4 className="text-xs font-semibold text-blue-800 mb-3">Produto/Insumo Aplicado</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="md:col-span-2">
+                <Label className="text-xs">Produto</Label>
+                <Input
+                  value={formData.produto_aplicado}
+                  onChange={(e) => setFormData({ ...formData, produto_aplicado: e.target.value })}
+                  className="h-9 bg-white"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.quantidade_produto}
+                  onChange={(e) => setFormData({ ...formData, quantidade_produto: e.target.value })}
+                  className="h-9 bg-white"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Unidade</Label>
+                <Input
+                  value={formData.unidade_produto}
+                  onChange={(e) => setFormData({ ...formData, unidade_produto: e.target.value })}
+                  className="h-9 bg-white"
+                  placeholder="kg, L, sc"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Valor Unit. (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.valor_unitario_produto}
+                  onChange={(e) => setFormData({ ...formData, valor_unitario_produto: e.target.value })}
+                  className="h-9 bg-white"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Custos */}
+      <Card className="border-emerald-200 bg-emerald-50/50">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Calculator className="w-4 h-4 text-emerald-600" />
+            <h4 className="text-xs font-semibold text-emerald-800">Custos da Operação</h4>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <Label className="text-xs">Custo Máquina/h (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.custo_maquina_hora}
+                onChange={(e) => setFormData({ ...formData, custo_maquina_hora: e.target.value })}
+                className="h-9 bg-white"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Custo Máquina Total</Label>
+              <div className="h-9 flex items-center px-3 bg-white rounded-md text-sm border">
+                R$ {formData.custo_maquina_total || '0.00'}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Custo Combustível</Label>
+              <div className="h-9 flex items-center px-3 bg-white rounded-md text-sm border">
+                R$ {formData.valor_combustivel || '0.00'}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Mão de Obra (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.custo_mao_obra}
+                onChange={(e) => setFormData({ ...formData, custo_mao_obra: e.target.value })}
+                className="h-9 bg-white"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            <div>
+              <Label className="text-xs">Custo Produto</Label>
+              <div className="h-9 flex items-center px-3 bg-white rounded-md text-sm border">
+                R$ {formData.custo_produto || '0.00'}
+              </div>
+            </div>
+            <div></div>
+            <div>
+              <Label className="text-xs font-semibold text-emerald-700">CUSTO TOTAL</Label>
+              <div className="h-9 flex items-center px-3 bg-emerald-100 rounded-md text-sm font-bold text-emerald-800 border border-emerald-300">
+                R$ {formData.custo_total || '0.00'}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-emerald-700">CUSTO/HA</Label>
+              <div className="h-9 flex items-center px-3 bg-emerald-100 rounded-md text-sm font-bold text-emerald-800 border border-emerald-300">
+                R$ {formData.custo_por_hectare || '0.00'}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div>
         <Label className="text-xs">Observações</Label>
