@@ -207,18 +207,14 @@ export default function Layout({ children, currentPageName }) {
   const { data: empresas = [] } = useQuery({
     queryKey: ['empresas'],
     queryFn: () => base44.entities.Empresa.list(),
-    initialData: [],
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  const { data: empresaAtual } = useQuery({
-    queryKey: ['empresa-atual', empresaSelecionada],
-    queryFn: async () => {
-      if (!empresaSelecionada) return null;
-      const empresa = empresas.find(e => e.id === empresaSelecionada);
-      return empresa || null;
-    },
-    enabled: !!empresaSelecionada && empresas.length > 0,
-  });
+  const empresaAtual = React.useMemo(() => {
+    if (!empresaSelecionada || !empresas.length) return null;
+    return empresas.find(e => e.id === empresaSelecionada) || null;
+  }, [empresaSelecionada, empresas]);
 
   // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
@@ -308,7 +304,10 @@ export default function Layout({ children, currentPageName }) {
       .filter(Boolean);
   };
 
-  const menuItemsFiltered = React.useMemo(() => filterMenuByPermissions(menuItems), [menuItems, user, userPermissions]);
+  const menuItemsFiltered = React.useMemo(() => {
+    if (!menuItems) return [];
+    return filterMenuByPermissions(menuItems);
+  }, [menuItems, user?.role, userPermissions?.is_admin, userPermissions?.modulos_permitidos]);
 
   const isActive = (item) => {
     if (item.url) return location.pathname === createPageUrl(item.url);
