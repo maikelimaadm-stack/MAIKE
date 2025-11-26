@@ -35,10 +35,7 @@ export default function Home() {
     return ['movimentacoes_mes', 'estoque_categoria'];
   });
 
-  // Limpar cache antigo ao montar o componente
-  useEffect(() => {
-    localStorage.removeItem('cartoes_dashboard');
-  }, []);
+
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
