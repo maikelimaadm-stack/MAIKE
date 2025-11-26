@@ -8,7 +8,7 @@ import {
   BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import PWAInstaller from "@/components/PWAInstaller";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -687,7 +687,7 @@ export default function Layout({ children, currentPageName }) {
         {children}
       </main>
 
-      <PWAInstaller />
+
       </div>
       );
       }
