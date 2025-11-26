@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Plus, Navigation } from "lucide-react";
+import { Map, Plus, Navigation, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import TabelaPontosGeo from "../components/mapa/TabelaPontosGeo";
 import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
 
 import MapaDesenho from "../components/mapa/MapaDesenho";
+import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
 
 export default function MapaCadastro() {
   const [modo, setModo] = useState('listagem');
@@ -28,6 +29,7 @@ export default function MapaCadastro() {
   const [usarGPS, setUsarGPS] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [itemExcluir, setItemExcluir] = useState(null);
+  const [showImportarGeoJSON, setShowImportarGeoJSON] = useState(false);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -152,6 +154,14 @@ export default function MapaCadastro() {
           <h1 className="text-2xl font-bold text-slate-900">Cadastro de Áreas, Pontos e Linhas</h1>
           <p className="text-sm text-slate-600">Gerencie elementos geográficos da fazenda</p>
         </div>
+        <Button
+          onClick={() => setShowImportarGeoJSON(true)}
+          variant="outline"
+          className="gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          Importar GeoJSON
+        </Button>
       </div>
 
       <Tabs defaultValue="areas" className="w-full">
@@ -254,6 +264,11 @@ export default function MapaCadastro() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportarGeoJSON 
+        open={showImportarGeoJSON} 
+        onOpenChange={setShowImportarGeoJSON} 
+      />
     </div>
   );
 }
