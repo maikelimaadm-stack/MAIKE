@@ -97,7 +97,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           });
           
           importados++;
-          detalhes.push({ nome: properties.title || `Área ${i + 1}`, tipo: "Área", status: "ok" });
+          detalhes.push({ nome: nomePasto, tipo: "Área", status: "ok" });
         } 
         else if (geometryType === "Point" && coordinates) {
           await base44.entities.PontoReferencia.create({
