@@ -81,15 +81,12 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           await base44.entities.AreaPastagem.create({
             empresa_id: empresaSelecionadaId,
             nome: properties.title || properties.name || `Área ${i + 1}`,
-            tipo_uso: properties.type === "paddock" ? "Pasto" : (properties.type || "Pasto"),
-            tipo_cultura: properties.cropType || properties.vegetation || "",
-            area_total_ha: areaHa,
-            area_pastejavel_ha: properties.grazableArea_hectares || areaHa,
+            tamanho_hectares: areaHa,
+            tipo_pastagem: properties.cropType || properties.vegetation || "",
             coordenadas: {
               coords: coords,
               cor: properties.fillColour || properties.fillColor || "#10b981"
             },
-            cor: properties.fillColour || properties.fillColor || "#10b981",
             observacoes: properties.pastureState || "",
             ativo: true
           });
