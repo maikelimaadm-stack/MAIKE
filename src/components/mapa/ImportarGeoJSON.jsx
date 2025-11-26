@@ -76,11 +76,16 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
           const coords = coordinates[0].map(coord => [coord[1], coord[0]]);
           
           // Calcular área em hectares se não vier no GeoJSON
-          const areaHa = properties.area_hectares || properties.grazableArea_hectares || 0;
+          const areaHa = properties.area_hectares || properties.grazableArea_hectares || properties.area || 0;
+          
+          // Buscar nome em vários campos possíveis
+          const nomePasto = properties.title || properties.name || properties.Name || properties.NAME || 
+                           properties.titulo || properties.nome || properties.NOME || properties.label || 
+                           properties.Label || properties.LABEL || properties.description || `Área ${i + 1}`;
           
           await base44.entities.AreaPastagem.create({
             empresa_id: empresaSelecionadaId,
-            nome: properties.title || properties.name || `Área ${i + 1}`,
+            nome: nomePasto,
             tamanho_hectares: areaHa,
             tipo_pastagem: properties.cropType || properties.vegetation || "",
             coordenadas: {
