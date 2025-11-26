@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, RefreshCw, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function OfflineManager() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingActions, setPendingActions] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const handleOnline = () => {
@@ -124,8 +126,8 @@ export default function OfflineManager() {
       localStorage.setItem('pending_actions', JSON.stringify(failedActions));
       loadPendingActions();
       
-      // Recarregar página para atualizar dados
-      window.location.reload();
+      // Invalidar queries para atualizar dados sem recarregar página
+      queryClient.invalidateQueries();
     } else if (failedActions.length > 0) {
       toast.error('Erro ao sincronizar algumas ações');
     }
