@@ -47,25 +47,42 @@ const TIPOS_DETALHADOS = {
 };
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
-  const [formData, setFormData] = useState({
-    tipo_movimentacao: initialData?.tipo_movimentacao || "",
-    tipo_detalhado: initialData?.tipo_detalhado || "",
-    local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || initialData?.local_estoque || "",
-    local_destino: initialData?.local_estoque_destino || "",
-    empresa_destino_id: initialData?.empresa_destino_id || "",
-    tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
-    numero_documento: initialData?.numero_documento || "",
-    serie_documento: initialData?.serie_documento || "",
-    chave_documento: initialData?.chave_documento || "",
-    data_documento: initialData?.data_documento || "",
-    cfop: initialData?.cfop || "",
-    natureza_operacao: initialData?.natureza_operacao || "",
-    fornecedor_id: initialData?.fornecedor_id || "",
-    cliente_nome: initialData?.cliente_nome || "",
-    centro_custo_id: initialData?.centro_custo_id || "",
-    motivo_movimentacao: initialData?.motivo_movimentacao || "",
-    observacoes: initialData?.observacoes || "",
-    produtos_selecionados: initialData?.produtos_selecionados || []
+  const [formData, setFormData] = useState(() => {
+    // Se estiver editando uma movimentação existente (sem produtos_selecionados), montar o produto
+    let produtosSelecionados = initialData?.produtos_selecionados || [];
+    
+    // Se é uma edição de movimentação existente (tem produto_id mas não tem produtos_selecionados)
+    if (initialData?.produto_id && produtosSelecionados.length === 0) {
+      produtosSelecionados = [{
+        produto_id: initialData.produto_id,
+        produto_nome: initialData.produto_nome || '',
+        quantidade: String(initialData.quantidade || '').replace('.', ','),
+        valor_total: String(initialData.valor_total || '').replace('.', ','),
+        desconto_item: '0,00',
+        unidade: initialData.unidade_medida || ''
+      }];
+    }
+
+    return {
+      tipo_movimentacao: initialData?.tipo_movimentacao || "",
+      tipo_detalhado: initialData?.tipo_detalhado || "",
+      local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || initialData?.local_estoque || "",
+      local_destino: initialData?.local_estoque_destino || "",
+      empresa_destino_id: initialData?.empresa_destino_id || "",
+      tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
+      numero_documento: initialData?.numero_documento || "",
+      serie_documento: initialData?.serie_documento || "",
+      chave_documento: initialData?.chave_documento || "",
+      data_documento: initialData?.data_documento || "",
+      cfop: initialData?.cfop || "",
+      natureza_operacao: initialData?.natureza_operacao || "",
+      fornecedor_id: initialData?.fornecedor_id || "",
+      cliente_nome: initialData?.cliente_nome || "",
+      centro_custo_id: initialData?.centro_custo_id || "",
+      motivo_movimentacao: initialData?.motivo_movimentacao || "",
+      observacoes: initialData?.observacoes || "",
+      produtos_selecionados: produtosSelecionados
+    };
   });
 
   const [showDialogLocal, setShowDialogLocal] = useState(false);
