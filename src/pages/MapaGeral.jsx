@@ -364,12 +364,18 @@ export default function MapaGeral() {
         polygonsRef.current.push(polygon);
 
         polygon.addListener('click', (e) => {
-          if (e.vertex === undefined) {
-            // Abrir detalhes da área
-            setSelectedArea(area);
-            setShowDetalhesArea(true);
-          }
-        });
+                      if (e.vertex === undefined) {
+                        // Abrir detalhes da área
+                        setSelectedArea(area);
+                        setShowDetalhesArea(true);
+                      }
+                    });
+
+                    // Clique com botão direito para abrir tarefas
+                    polygon.addListener('rightclick', (e) => {
+                      setTarefasContext({ areaId: area.id, areaNome: area.nome });
+                      setShowTarefas(true);
+                    });
 
         // Calcular centro e área em hectares
         const bounds = new google.maps.LatLngBounds();
