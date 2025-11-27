@@ -27,7 +27,6 @@ const loadGoogleMapsScript = () => {
 };
 
 export default function DeteccaoMataIA({ 
-  mapInstance, 
   areasExistentes = [], 
   onMataCriada,
   empresaId 
@@ -38,7 +37,73 @@ export default function DeteccaoMataIA({
   const [matasDetectadas, setMatasDetectadas] = useState([]);
   const [matasConfirmadas, setMatasConfirmadas] = useState([]);
   const [polygonsNoMapa, setPolygonsNoMapa] = useState([]);
+  const [showMapa, setShowMapa] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
   const queryClient = useQueryClient();
+  
+  // Inicializar mapa quando mostrar
+  useEffect(() => {
+    if (showMapa && !mapInstanceRef.current) {
+      loadGoogleMapsScript().then(() => {
+        if (!mapRef.current) return;
+        
+        const bounds = calcularLimitesFazenda();
+        const center = bounds ? {
+          lat: (bounds.minLat + bounds.maxLat) / 2,
+          lng: (bounds.minLng + bounds.maxLng) / 2
+        } : { lat: -15.0067, lng: -59.9533 };
+        
+        const map = new google.maps.Map(mapRef.current, {
+          center,
+          zoom: 14,
+          mapTypeId: 'satellite',
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+        
+        mapInstanceRef.current = map;
+        
+        // Desenhar áreas existentes
+        areasExistentes.forEach(area => {
+          const coords = area.coordenadas?.coords || [];
+          if (coords.length < 3) return;
+          
+          const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
+          const cor = area.coordenadas?.cor || '#FFCC00';
+          
+          new google.maps.Polygon({
+            paths,
+            strokeColor: cor,
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: cor,
+            fillOpacity: 0.35,
+            map
+          });
+        });
+        
+        // Ajustar zoom para mostrar todas as áreas
+        if (bounds) {
+          const mapBounds = new google.maps.LatLngBounds(
+            { lat: bounds.minLat, lng: bounds.minLng },
+            { lat: bounds.maxLat, lng: bounds.maxLng }
+          );
+          map.fitBounds(mapBounds, { padding: 50 });
+        }
+        
+        setMapReady(true);
+        
+        // Se já tem matas detectadas, desenhar
+        if (matasDetectadas.length > 0) {
+          setTimeout(() => desenharPoligonosNoMapa(matasDetectadas), 500);
+        }
+      });
+    }
+  }, [showMapa]);
 
   // Mutation para criar área de mata
   const createMataMutation = useMutation({
