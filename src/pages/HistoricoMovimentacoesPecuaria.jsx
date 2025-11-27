@@ -112,6 +112,8 @@ export default function HistoricoMovimentacoesPecuaria() {
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [showNovoLancamento, setShowNovoLancamento] = useState(false);
+  const [itemEditandoManual, setItemEditandoManual] = useState(null);
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_movimentacoes_pecuaria');
