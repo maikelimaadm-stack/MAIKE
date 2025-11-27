@@ -139,7 +139,7 @@ export default function ControlePecuaria() {
         </div>
         <div className="flex gap-2">
           <Link to={createPageUrl("MapaGeral")}>
-            <Button size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
               <MapPin className="w-3 h-3" /> Ver no Mapa
             </Button>
           </Link>
@@ -153,43 +153,43 @@ export default function ControlePecuaria() {
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Total Cabeças</div>
                 <div className="text-xl font-bold text-slate-900">{stats.totalCabecas.toLocaleString()}</div>
               </div>
-              <Users className="w-6 h-6 text-emerald-500" />
+              <Users className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Lotes Ativos</div>
                 <div className="text-xl font-bold text-slate-900">{stats.totalLotes}</div>
               </div>
-              <Package className="w-6 h-6 text-blue-500" />
+              <Package className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Áreas Ocupadas</div>
                 <div className="text-xl font-bold text-slate-900">{stats.areasOcupadas}/{stats.totalAreas}</div>
               </div>
-              <MapPin className="w-6 h-6 text-purple-500" />
+              <MapPin className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -197,27 +197,27 @@ export default function ControlePecuaria() {
                 <div className="text-xl font-bold text-slate-900">{stats.movRecentes}</div>
                 <div className="text-[9px] text-slate-400">últimos {periodoMov} dias</div>
               </div>
-              <ArrowRightLeft className="w-6 h-6 text-amber-500" />
+              <ArrowRightLeft className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Tarefas Pendentes</div>
                 <div className="text-xl font-bold text-slate-900">{stats.tarefasPendentes}</div>
                 {stats.tarefasUrgentes > 0 && (
-                  <div className="text-[9px] text-red-600">{stats.tarefasUrgentes} urgente(s)</div>
+                  <div className="text-[9px] text-slate-600">{stats.tarefasUrgentes} urgente(s)</div>
                 )}
               </div>
-              <Clock className="w-6 h-6 text-yellow-500" />
+              <Clock className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -225,7 +225,7 @@ export default function ControlePecuaria() {
                 <div className="text-xl font-bold text-slate-900">{(stats.totalSuplKg / 1000).toFixed(1)}t</div>
                 <div className="text-[9px] text-slate-400">últimos 30 dias</div>
               </div>
-              <Scale className="w-6 h-6 text-teal-500" />
+              <Scale className="w-6 h-6 text-slate-400" />
             </div>
           </CardContent>
         </Card>
@@ -377,7 +377,7 @@ export default function ControlePecuaria() {
               {stats.tarefasPendentes} pendente(s) • {stats.tarefasUrgentes} urgente(s)
             </div>
             <Link to={createPageUrl("MapaGeral")}>
-              <Button size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
                 Gerenciar no Mapa
               </Button>
             </Link>
@@ -391,11 +391,7 @@ export default function ControlePecuaria() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-sm text-slate-900">{tarefa.titulo}</span>
-                        <Badge className={`text-[10px] ${
-                          tarefa.prioridade === 'Urgente' ? 'bg-red-100 text-red-700' :
-                          tarefa.prioridade === 'Alta' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
+                        <Badge className="text-[10px] bg-slate-100 text-slate-700">
                           {tarefa.prioridade}
                         </Badge>
                       </div>
