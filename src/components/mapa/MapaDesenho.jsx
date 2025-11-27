@@ -168,11 +168,45 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     if (itemEditando && tipoDesenho === 'area' && itemEditando.coordenadas?.coords) {
       const coords = itemEditando.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       setCurrentPoints(coords);
+      // Centralizar no polígono
+      setTimeout(() => {
+        if (mapInstanceRef.current && coords.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          coords.forEach(c => bounds.extend(c));
+          mapInstanceRef.current.fitBounds(bounds, { padding: 80 });
+        }
+      }, 500);
     } else if (itemEditando && tipoDesenho === 'linha' && itemEditando.coordenadas?.coords) {
       const coords = itemEditando.coordenadas.coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
       setCurrentPoints(coords);
+      // Centralizar na linha
+      setTimeout(() => {
+        if (mapInstanceRef.current && coords.length > 0) {
+          const bounds = new google.maps.LatLngBounds();
+          coords.forEach(c => bounds.extend(c));
+          mapInstanceRef.current.fitBounds(bounds, { padding: 80 });
+        }
+      }, 500);
     } else if (itemEditando && tipoDesenho === 'ponto' && itemEditando.coordenadas) {
       setCurrentMarker(itemEditando.coordenadas);
+      // Mostrar marcador e centralizar
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter(itemEditando.coordenadas);
+          mapInstanceRef.current.setZoom(18);
+          if (tempMarkerRef.current) {
+            tempMarkerRef.current.setMap(null);
+          }
+          tempMarkerRef.current = new google.maps.Marker({
+            position: itemEditando.coordenadas,
+            map: mapInstanceRef.current,
+            draggable: true
+          });
+          tempMarkerRef.current.addListener('dragend', (e) => {
+            setCurrentMarker({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+          });
+        }
+      }, 500);
     }
   }, [itemEditando, tipoDesenho]);
 
