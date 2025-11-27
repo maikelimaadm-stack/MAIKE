@@ -378,9 +378,8 @@ Responda em JSON:
 
         setMatasDetectadas(matasProcessadas);
         
-        // Mostrar mapa e desenhar polígonos
+        // Mostrar mapa - os polígonos serão desenhados pelo useEffect
         setShowMapa(true);
-        setTimeout(() => desenharPoligonosNoMapa(matasProcessadas), 800);
         
         toast.success(`${matasProcessadas.length} área(s) de mata detectada(s)! Veja no mapa abaixo.`);
       } else {
