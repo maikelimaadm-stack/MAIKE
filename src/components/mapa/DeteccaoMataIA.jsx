@@ -407,11 +407,16 @@ Responda em JSON:
           <div className="bg-slate-50 rounded-lg p-4 text-xs text-slate-600 space-y-2">
             <p className="font-semibold text-slate-700">Como funciona:</p>
             <ul className="list-disc ml-4 space-y-1">
-              <li>A IA analisa a imagem de satélite da sua fazenda</li>
-              <li>Identifica áreas com vegetação nativa (mata)</li>
-              <li>Sugere polígonos para cada área detectada</li>
+              <li>A IA captura imagem de satélite de TODA a fazenda ({areasExistentes.length} áreas cadastradas)</li>
+              <li>Analisa as áreas verdes escuras (mata) dentro e ao redor dos pastos</li>
+              <li>Identifica: matas ciliares, reservas, APPs e vegetação nativa</li>
               <li>Você pode confirmar, editar ou descartar cada sugestão</li>
             </ul>
+            <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded">
+              <p className="text-emerald-800 font-medium">
+                📍 Perímetro de análise: {areasExistentes.reduce((sum, a) => sum + (a.tamanho_hectares || 0), 0).toFixed(0)} hectares cadastrados
+              </p>
+            </div>
             <p className="text-amber-700 flex items-center gap-1 mt-2">
               <AlertTriangle className="w-3 h-3" />
               A precisão depende da qualidade da imagem. Revise antes de confirmar.
