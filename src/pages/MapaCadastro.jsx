@@ -16,9 +16,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import TabelaAreasGeo from "../components/mapa/TabelaAreasGeo";
 import TabelaPontosGeo from "../components/mapa/TabelaPontosGeo";
 import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
+import FormularioArea from "../components/mapa/FormularioArea";
+import FormularioPonto from "../components/mapa/FormularioPonto";
+import FormularioLinha from "../components/mapa/FormularioLinha";
 
 import MapaDesenho from "../components/mapa/MapaDesenho";
 import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
