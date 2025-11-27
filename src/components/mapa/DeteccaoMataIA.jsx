@@ -375,10 +375,11 @@ Responda em JSON:
 
         setMatasDetectadas(matasProcessadas);
         
-        // Desenhar polígonos no mapa
-        desenharPoligonosNoMapa(matasProcessadas);
+        // Mostrar mapa e desenhar polígonos
+        setShowMapa(true);
+        setTimeout(() => desenharPoligonosNoMapa(matasProcessadas), 800);
         
-        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s) e desenhadas no mapa!`);
+        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s)! Veja no mapa abaixo.`);
       } else {
         toast.info("Nenhuma área de mata significativa detectada");
       }
