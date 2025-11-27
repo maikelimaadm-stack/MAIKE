@@ -111,57 +111,64 @@ export default function DeteccaoMataIA({
   };
 
   // Analisar imagem com IA
-  const analisarComIA = async (imageUrl, bounds) => {
+  const analisarComIA = async (imageUrl, bounds, zoom) => {
     const areasContexto = gerarContextoAreas();
     
-    const prompt = `Você é um especialista em análise de imagens de satélite agrícolas.
+    // Calcular área total da fazenda
+    const areaTotal = areasExistentes.reduce((sum, a) => sum + (a.tamanho_hectares || 0), 0);
+    
+    const prompt = `Você é um especialista em análise de imagens de satélite agrícolas e sensoriamento remoto.
 
-CONTEXTO:
-- Esta é uma imagem de satélite de uma fazenda
-- As áreas já cadastradas são: ${JSON.stringify(areasContexto)}
-- Você deve identificar APENAS áreas de MATA/VEGETAÇÃO NATIVA dentro dos limites visíveis
+CONTEXTO DA FAZENDA:
+- Esta é uma imagem de satélite mostrando uma fazenda rural
+- As áreas AMARELAS/DESTACADAS na imagem são os piquetes/pastos JÁ CADASTRADOS (${areasExistentes.length} áreas, total de ${areaTotal.toFixed(0)} hectares)
+- Nomes das áreas cadastradas: ${areasContexto.map(a => a.nome).join(', ')}
+- Você deve analisar DENTRO e AO REDOR dessas áreas amarelas
 
-TAREFA:
-Analise a imagem e identifique áreas com:
-1. Vegetação densa (mata fechada)
-2. Mata nativa
-3. Vegetação secundária
-4. Áreas de preservação
+TAREFA PRINCIPAL:
+Identifique TODAS as áreas de MATA/VEGETAÇÃO NATIVA visíveis na imagem, que são caracterizadas por:
+- Cor VERDE ESCURO (diferente do verde claro das pastagens)
+- Textura irregular/densa (copas de árvores)
+- Geralmente aparecem nas bordas dos pastos, ao longo de rios/córregos, ou como "ilhas" de mata
 
-Para cada área de mata identificada, forneça:
-- Localização aproximada (ex: "canto superior esquerdo", "centro", "entre pasto X e Y")
-- Classificação: "Mata Densa", "Mata Média" ou "Vegetação Rala"
-- Densidade estimada em % (60-100%)
-- Área aproximada em hectares
-- Se parece ser APP, reserva legal ou mata isolada
+O QUE PROCURAR:
+1. ✅ Matas ciliares (ao longo de cursos d'água) - verde escuro linear
+2. ✅ Reservas florestais - grandes manchas verde escuro
+3. ✅ Vegetação de encosta - áreas íngremes com mata
+4. ✅ Mata isolada entre pastos - pequenas manchas verde escuro
+5. ✅ APPs (Áreas de Preservação Permanente)
 
-IMPORTANTE:
-- NÃO identifique pastagens como mata
-- NÃO identifique áreas agrícolas como mata
-- Foque em vegetação NATURAL não manejada
-- Cores verde escuro uniforme geralmente indicam mata
+O QUE NÃO IDENTIFICAR COMO MATA:
+- ❌ Pastagens (verde claro/amarelado) - são as áreas amarelas destacadas
+- ❌ Solo exposto (marrom/bege)
+- ❌ Água (azul/preto)
+- ❌ Construções
 
-Responda em JSON com este formato:
+PARA CADA ÁREA DE MATA, forneça a POSIÇÃO EXATA na imagem:
+- x_percent: posição horizontal (0=esquerda, 50=centro, 100=direita)
+- y_percent: posição vertical (0=topo, 50=meio, 100=base)
+
+Responda em JSON:
 {
   "areas_mata": [
     {
       "id": "MAT-001",
-      "localizacao_descritiva": "string",
+      "localizacao_descritiva": "Entre Pasto 50 e Pasto 51, ao longo do córrego",
       "classificacao": "Mata Densa|Mata Média|Vegetação Rala",
-      "densidade_percentual": number,
-      "area_estimada_ha": number,
-      "tipo_provavel": "APP|Reserva Legal|Mata Isolada|Vegetação Secundária",
-      "confianca": number (0-100),
+      "densidade_percentual": 85,
+      "area_estimada_ha": 15,
+      "tipo_provavel": "APP|Reserva Legal|Mata Isolada|Mata Ciliar",
+      "confianca": 90,
       "posicao_relativa": {
-        "x_percent": number (0-100, da esquerda),
-        "y_percent": number (0-100, do topo)
+        "x_percent": 35,
+        "y_percent": 60
       }
     }
   ],
   "analise_geral": {
-    "total_areas_mata": number,
-    "area_total_estimada_ha": number,
-    "observacoes": "string"
+    "total_areas_mata": 5,
+    "area_total_estimada_ha": 120,
+    "observacoes": "Identificadas matas ciliares ao longo do rio principal e reserva legal no canto sudeste"
   }
 }`;
 
