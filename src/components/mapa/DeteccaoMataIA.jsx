@@ -51,20 +51,6 @@ export default function DeteccaoMataIA({
     return { minLat, maxLat, minLng, maxLng };
   };
 
-  // Calcular zoom ideal baseado no tamanho da área
-  const calcularZoomIdeal = (bounds) => {
-    const latDiff = bounds.maxLat - bounds.minLat;
-    const lngDiff = bounds.maxLng - bounds.minLng;
-    const maxDiff = Math.max(latDiff, lngDiff);
-    
-    // Quanto maior a área, menor o zoom
-    if (maxDiff > 0.1) return 12;      // Área muito grande (>10km)
-    if (maxDiff > 0.05) return 13;     // Área grande (~5km)
-    if (maxDiff > 0.02) return 14;     // Área média (~2km)
-    if (maxDiff > 0.01) return 15;     // Área pequena (~1km)
-    return 16;                          // Área muito pequena
-  };
-
   // Capturar screenshot do mapa
   const capturarImagemMapa = async () => {
     const bounds = calcularLimitesFazenda();
@@ -77,28 +63,14 @@ export default function DeteccaoMataIA({
     const centerLat = (bounds.minLat + bounds.maxLat) / 2;
     const centerLng = (bounds.minLng + bounds.maxLng) / 2;
 
-    // Calcular zoom ideal para mostrar toda a fazenda
-    const zoom = calcularZoomIdeal(bounds);
-
-    // Usar Static Maps API do Google - tamanho máximo 640x640
+    // Usar Static Maps API do Google
     const width = 640;
     const height = 640;
+    const zoom = 15;
 
-    // Criar path com todos os polígonos para mostrar os limites
-    let pathParam = '';
-    areasExistentes.forEach(area => {
-      const coords = area.coordenadas?.coords || [];
-      if (coords.length >= 3) {
-        const pathCoords = coords.map(c => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
-        pathParam += `&path=color:0xFFFF0080|weight:2|fillcolor:0xFFFF0040|${pathCoords}`;
-      }
-    });
+    const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=${zoom}&size=${width}x${height}&maptype=satellite&key=AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8`;
 
-    const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=${zoom}&size=${width}x${height}&maptype=satellite&key=AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8${pathParam}`;
-
-    console.log('📸 Capturando imagem:', { centerLat, centerLng, zoom, bounds });
-
-    return { imageUrl, bounds, centerLat, centerLng, zoom };
+    return { imageUrl, bounds, centerLat, centerLng };
   };
 
   // Gerar descrição das áreas existentes para contexto
@@ -111,64 +83,57 @@ export default function DeteccaoMataIA({
   };
 
   // Analisar imagem com IA
-  const analisarComIA = async (imageUrl, bounds, zoom) => {
+  const analisarComIA = async (imageUrl, bounds) => {
     const areasContexto = gerarContextoAreas();
     
-    // Calcular área total da fazenda
-    const areaTotal = areasExistentes.reduce((sum, a) => sum + (a.tamanho_hectares || 0), 0);
-    
-    const prompt = `Você é um especialista em análise de imagens de satélite agrícolas e sensoriamento remoto.
+    const prompt = `Você é um especialista em análise de imagens de satélite agrícolas.
 
-CONTEXTO DA FAZENDA:
-- Esta é uma imagem de satélite mostrando uma fazenda rural
-- As áreas AMARELAS/DESTACADAS na imagem são os piquetes/pastos JÁ CADASTRADOS (${areasExistentes.length} áreas, total de ${areaTotal.toFixed(0)} hectares)
-- Nomes das áreas cadastradas: ${areasContexto.map(a => a.nome).join(', ')}
-- Você deve analisar DENTRO e AO REDOR dessas áreas amarelas
+CONTEXTO:
+- Esta é uma imagem de satélite de uma fazenda
+- As áreas já cadastradas são: ${JSON.stringify(areasContexto)}
+- Você deve identificar APENAS áreas de MATA/VEGETAÇÃO NATIVA dentro dos limites visíveis
 
-TAREFA PRINCIPAL:
-Identifique TODAS as áreas de MATA/VEGETAÇÃO NATIVA visíveis na imagem, que são caracterizadas por:
-- Cor VERDE ESCURO (diferente do verde claro das pastagens)
-- Textura irregular/densa (copas de árvores)
-- Geralmente aparecem nas bordas dos pastos, ao longo de rios/córregos, ou como "ilhas" de mata
+TAREFA:
+Analise a imagem e identifique áreas com:
+1. Vegetação densa (mata fechada)
+2. Mata nativa
+3. Vegetação secundária
+4. Áreas de preservação
 
-O QUE PROCURAR:
-1. ✅ Matas ciliares (ao longo de cursos d'água) - verde escuro linear
-2. ✅ Reservas florestais - grandes manchas verde escuro
-3. ✅ Vegetação de encosta - áreas íngremes com mata
-4. ✅ Mata isolada entre pastos - pequenas manchas verde escuro
-5. ✅ APPs (Áreas de Preservação Permanente)
+Para cada área de mata identificada, forneça:
+- Localização aproximada (ex: "canto superior esquerdo", "centro", "entre pasto X e Y")
+- Classificação: "Mata Densa", "Mata Média" ou "Vegetação Rala"
+- Densidade estimada em % (60-100%)
+- Área aproximada em hectares
+- Se parece ser APP, reserva legal ou mata isolada
 
-O QUE NÃO IDENTIFICAR COMO MATA:
-- ❌ Pastagens (verde claro/amarelado) - são as áreas amarelas destacadas
-- ❌ Solo exposto (marrom/bege)
-- ❌ Água (azul/preto)
-- ❌ Construções
+IMPORTANTE:
+- NÃO identifique pastagens como mata
+- NÃO identifique áreas agrícolas como mata
+- Foque em vegetação NATURAL não manejada
+- Cores verde escuro uniforme geralmente indicam mata
 
-PARA CADA ÁREA DE MATA, forneça a POSIÇÃO EXATA na imagem:
-- x_percent: posição horizontal (0=esquerda, 50=centro, 100=direita)
-- y_percent: posição vertical (0=topo, 50=meio, 100=base)
-
-Responda em JSON:
+Responda em JSON com este formato:
 {
   "areas_mata": [
     {
       "id": "MAT-001",
-      "localizacao_descritiva": "Entre Pasto 50 e Pasto 51, ao longo do córrego",
+      "localizacao_descritiva": "string",
       "classificacao": "Mata Densa|Mata Média|Vegetação Rala",
-      "densidade_percentual": 85,
-      "area_estimada_ha": 15,
-      "tipo_provavel": "APP|Reserva Legal|Mata Isolada|Mata Ciliar",
-      "confianca": 90,
+      "densidade_percentual": number,
+      "area_estimada_ha": number,
+      "tipo_provavel": "APP|Reserva Legal|Mata Isolada|Vegetação Secundária",
+      "confianca": number (0-100),
       "posicao_relativa": {
-        "x_percent": 35,
-        "y_percent": 60
+        "x_percent": number (0-100, da esquerda),
+        "y_percent": number (0-100, do topo)
       }
     }
   ],
   "analise_geral": {
-    "total_areas_mata": 5,
-    "area_total_estimada_ha": 120,
-    "observacoes": "Identificadas matas ciliares ao longo do rio principal e reserva legal no canto sudeste"
+    "total_areas_mata": number,
+    "area_total_estimada_ha": number,
+    "observacoes": "string"
   }
 }`;
 
@@ -273,9 +238,7 @@ Responda em JSON:
       // Etapa 2: Analisar com IA
       setEtapa("Analisando vegetação com IA...");
       setProgresso(50);
-      console.log('🔍 Enviando para análise:', captura.imageUrl);
-      const resultado = await analisarComIA(captura.imageUrl, captura.bounds, captura.zoom);
-      console.log('📊 Resultado da análise:', resultado);
+      const resultado = await analisarComIA(captura.imageUrl, captura.bounds);
 
       // Etapa 3: Processar resultados
       setEtapa("Processando áreas detectadas...");
@@ -407,16 +370,11 @@ Responda em JSON:
           <div className="bg-slate-50 rounded-lg p-4 text-xs text-slate-600 space-y-2">
             <p className="font-semibold text-slate-700">Como funciona:</p>
             <ul className="list-disc ml-4 space-y-1">
-              <li>A IA captura imagem de satélite de TODA a fazenda ({areasExistentes.length} áreas cadastradas)</li>
-              <li>Analisa as áreas verdes escuras (mata) dentro e ao redor dos pastos</li>
-              <li>Identifica: matas ciliares, reservas, APPs e vegetação nativa</li>
+              <li>A IA analisa a imagem de satélite da sua fazenda</li>
+              <li>Identifica áreas com vegetação nativa (mata)</li>
+              <li>Sugere polígonos para cada área detectada</li>
               <li>Você pode confirmar, editar ou descartar cada sugestão</li>
             </ul>
-            <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded">
-              <p className="text-emerald-800 font-medium">
-                📍 Perímetro de análise: {areasExistentes.reduce((sum, a) => sum + (a.tamanho_hectares || 0), 0).toFixed(0)} hectares cadastrados
-              </p>
-            </div>
             <p className="text-amber-700 flex items-center gap-1 mt-2">
               <AlertTriangle className="w-3 h-3" />
               A precisão depende da qualidade da imagem. Revise antes de confirmar.
