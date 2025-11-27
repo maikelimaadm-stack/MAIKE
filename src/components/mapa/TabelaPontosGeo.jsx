@@ -3,16 +3,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Pencil, Trash2, Search, MapPin } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Search, MapPin, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 export default function TabelaPontosGeo({ pontos, onEdit, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState("nome");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [selecionados, setSelecionados] = useState([]);
 
   const filteredPontos = pontos.filter(ponto =>
     ponto.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -20,87 +29,194 @@ export default function TabelaPontosGeo({ pontos, onEdit, onDelete }) {
     ponto.numero_ponto?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const pontosSorted = [...filteredPontos].sort((a, b) => {
+    let aValue = a[sortField] || '';
+    let bValue = b[sortField] || '';
+    if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+    if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
+
+  const handleSelecionarTodos = () => {
+    if (selecionados.length === pontosSorted.length && pontosSorted.length > 0) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(pontosSorted.map(p => p.id));
+    }
+  };
+
+  const handleToggleSelecao = (id) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleExcluirEmMassa = async () => {
+    if (selecionados.length === 0) {
+      toast.error('Selecione ao menos um ponto!');
+      return;
+    }
+    if (window.confirm(`Excluir ${selecionados.length} ponto(s)?`)) {
+      for (const id of selecionados) {
+        const ponto = pontos.find(p => p.id === id);
+        if (ponto) onDelete(ponto);
+      }
+      setSelecionados([]);
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-blue-600" />
-            Pontos Cadastrados ({pontos.length})
+    <Card className="shadow-sm border-slate-300">
+      <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-slate-600" />
+            Pontos Cadastrados ({pontosSorted.length})
           </CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar pontos..."
-              className="h-8 pl-8 text-xs"
-            />
+          <div className="flex gap-2 items-center">
+            {selecionados.length > 0 && (
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
+                <span className="text-xs font-semibold text-slate-800">
+                  {selecionados.length} selecionado(s)
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 px-1.5">
+                      <MoreVertical className="w-4 h-4 text-slate-700" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleExcluirEmMassa} className="text-xs text-red-600">
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setSelecionados([])} className="text-xs">
+                      <X className="w-3.5 h-3.5 mr-2" />
+                      Limpar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+            
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar pontos..."
+                className="pl-9 h-8 w-48 text-xs"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b text-xs">
-                <th className="text-left py-2 px-2 font-semibold text-slate-700">Código</th>
-                <th className="text-left py-2 px-2 font-semibold text-slate-700">Nome</th>
-                <th className="text-left py-2 px-2 font-semibold text-slate-700">Tipo</th>
-                <th className="text-left py-2 px-2 font-semibold text-slate-700">Coordenadas</th>
-                <th className="text-left py-2 px-2 font-semibold text-slate-700">Observações</th>
-                <th className="text-right py-2 px-2 font-semibold text-slate-700">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPontos.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8 text-slate-500 text-sm">
-                    Nenhum ponto encontrado
-                  </td>
-                </tr>
-              ) : (
-                filteredPontos.map((ponto) => (
-                  <tr key={ponto.id} className="border-b hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-2 text-xs">{ponto.numero_ponto}</td>
-                    <td className="py-2.5 px-2 text-xs font-medium">{ponto.nome}</td>
-                    <td className="py-2.5 px-2 text-xs">
-                      <Badge variant="outline" className="text-[10px]">
-                        {ponto.tipo}
-                      </Badge>
-                    </td>
-                    <td className="py-2.5 px-2 text-xs text-slate-600">
-                      {ponto.coordenadas?.lat && ponto.coordenadas?.lng 
-                        ? `${ponto.coordenadas.lat.toFixed(6)}, ${ponto.coordenadas.lng.toFixed(6)}`
-                        : '-'}
-                    </td>
-                    <td className="py-2.5 px-2 text-xs text-slate-600">
-                      {ponto.observacoes ? ponto.observacoes.substring(0, 30) + '...' : '-'}
-                    </td>
-                    <td className="py-2.5 px-2 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(ponto)} className="text-xs">
-                            <Pencil className="w-3 h-3 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDelete(ponto)} className="text-xs text-red-600">
-                            <Trash2 className="w-3 h-3 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 border-b">
+                <TableHead className="w-8 text-xs border-r border-slate-200">
+                  <Checkbox 
+                    checked={selecionados.length === pontosSorted.length && pontosSorted.length > 0}
+                    onCheckedChange={handleSelecionarTodos}
+                  />
+                </TableHead>
+                <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Código</TableHead>
+                <TableHead className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('nome')}>
+                  <div className="flex items-center">Nome {getSortIcon('nome')}</div>
+                </TableHead>
+                <TableHead className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('tipo')}>
+                  <div className="flex items-center">Tipo {getSortIcon('tipo')}</div>
+                </TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Coordenadas</TableHead>
+                <TableHead className="text-xs border-r border-slate-200">Observações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <AnimatePresence>
+                {pontosSorted.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-xs">
+                      Nenhum ponto encontrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pontosSorted.map((ponto) => (
+                    <motion.tr 
+                      key={ponto.id}
+                      initial={{ opacity: 0 }} 
+                      animate={{ opacity: 1 }} 
+                      exit={{ opacity: 0 }} 
+                      className="hover:bg-slate-50 transition-colors border-b"
+                    >
+                      <TableCell className="border-r border-slate-200">
+                        <Checkbox
+                          checked={selecionados.includes(ponto.id)}
+                          onCheckedChange={() => handleToggleSelecao(ponto.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center border-r border-slate-200">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => onEdit(ponto)} className="text-xs">
+                              <Pencil className="w-3.5 h-3.5 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => onDelete(ponto)} className="text-xs text-red-600">
+                              <Trash2 className="w-3.5 h-3.5 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono border-r border-slate-200">{ponto.numero_ponto || '-'}</TableCell>
+                      <TableCell className="text-xs font-medium border-r border-slate-200">{ponto.nome}</TableCell>
+                      <TableCell className="border-r border-slate-200">
+                        <Badge variant="outline" className="text-[10px]">{ponto.tipo}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600 font-mono border-r border-slate-200">
+                        {ponto.coordenadas?.lat && ponto.coordenadas?.lng 
+                          ? `${ponto.coordenadas.lat.toFixed(6)}, ${ponto.coordenadas.lng.toFixed(6)}`
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600 border-r border-slate-200 max-w-[200px] truncate">
+                        {ponto.observacoes || '-'}
+                      </TableCell>
+                    </motion.tr>
+                  ))
+                )}
+              </AnimatePresence>
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
