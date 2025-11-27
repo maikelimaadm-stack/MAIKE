@@ -1,12 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Leaf, Loader2, AlertTriangle, Check, Trash2, Edit2, RefreshCw } from "lucide-react";
+import { Leaf, Loader2, AlertTriangle, Check, Trash2, Edit2, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
+
+const loadGoogleMapsScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
 
 export default function DeteccaoMataIA({ 
   mapInstance, 
