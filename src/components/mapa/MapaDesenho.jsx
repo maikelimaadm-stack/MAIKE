@@ -326,59 +326,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     return () => google.maps.event.removeListener(listener);
   }, [tipoDesenho, mapReady, itemEditando]);
 
-  useEffect(() => {
-    if (!mapInstanceRef.current || !tipoDesenho || currentPoints.length === 0 || !mapReady || tipoDesenho === 'ponto') {
-      if (guideLineRef.current) {
-        guideLineRef.current.setMap(null);
-        guideLineRef.current = null;
-      }
-      return;
-    }
-
-    const handleMouseMove = (e) => {
-      if (!currentPoints.length) return;
-      
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      const lastPoint = currentPoints[currentPoints.length - 1];
-
-      const snappedPoint = findNearestPoint(e.latLng, mapInstanceRef.current);
-      const targetPoint = snappedPoint || { lat, lng };
-
-      if (guideLineRef.current) {
-        guideLineRef.current.setMap(null);
-      }
-
-      const lineSymbol = {
-        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-        scale: 3,
-        strokeColor: '#3b82f6',
-      };
-
-      guideLineRef.current = new google.maps.Polyline({
-        path: [lastPoint, targetPoint],
-        strokeColor: snappedPoint ? '#10b981' : '#3b82f6',
-        strokeOpacity: 0.7,
-        strokeWeight: snappedPoint ? 4 : 2,
-        icons: [{
-          icon: lineSymbol,
-          offset: '100%'
-        }],
-        map: mapInstanceRef.current,
-        clickable: false,
-        zIndex: 1
-      });
-    };
-
-    const listener = google.maps.event.addListener(mapInstanceRef.current, 'mousemove', handleMouseMove);
-    return () => {
-      google.maps.event.removeListener(listener);
-      if (guideLineRef.current) {
-        guideLineRef.current.setMap(null);
-        guideLineRef.current = null;
-      }
-    };
-  }, [tipoDesenho, currentPoints.length, mapReady]);
+  // Linha guia removida - não mostrar mais a linha azul durante desenho
 
   useEffect(() => {
     if (!mapInstanceRef.current || currentPoints.length === 0 || !tipoDesenho) return;
