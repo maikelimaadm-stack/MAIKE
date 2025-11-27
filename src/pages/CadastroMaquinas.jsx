@@ -52,10 +52,10 @@ export default function CadastroMaquinas() {
   });
 
   const statusColors = {
-    'Ativo': 'bg-emerald-100 text-emerald-800',
-    'Em Manutenção': 'bg-amber-100 text-amber-800',
-    'Inativo': 'bg-slate-100 text-slate-800',
-    'Vendido': 'bg-red-100 text-red-800',
+    'Ativo': 'bg-slate-100 text-slate-700',
+    'Em Manutenção': 'bg-slate-100 text-slate-700',
+    'Inativo': 'bg-slate-100 text-slate-700',
+    'Vendido': 'bg-slate-100 text-slate-700',
   };
 
   return (
@@ -65,8 +65,8 @@ export default function CadastroMaquinas() {
           <h1 className="text-xl font-bold text-slate-900">Máquinas e Veículos</h1>
           <p className="text-xs text-slate-600">{maquinas.length} máquinas cadastradas</p>
         </div>
-        <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+          <Plus className="w-3 h-3" />
           Nova Máquina
         </Button>
       </div>

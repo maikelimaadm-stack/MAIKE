@@ -47,12 +47,12 @@ export default function ControleAreas() {
   });
 
   const statusColors = {
-    'Pousio': 'bg-slate-100 text-slate-800',
-    'Preparação': 'bg-amber-100 text-amber-800',
-    'Plantada': 'bg-blue-100 text-blue-800',
-    'Em Desenvolvimento': 'bg-emerald-100 text-emerald-800',
-    'Colheita': 'bg-purple-100 text-purple-800',
-    'Colhida': 'bg-green-100 text-green-800',
+    'Pousio': 'bg-slate-100 text-slate-700',
+    'Preparação': 'bg-slate-100 text-slate-700',
+    'Plantada': 'bg-slate-100 text-slate-700',
+    'Em Desenvolvimento': 'bg-slate-100 text-slate-700',
+    'Colheita': 'bg-slate-100 text-slate-700',
+    'Colhida': 'bg-slate-100 text-slate-700',
   };
 
   // Resumo
@@ -67,36 +67,36 @@ export default function ControleAreas() {
           <h1 className="text-xl font-bold text-slate-900">Controle de Áreas</h1>
           <p className="text-xs text-slate-600">Gestão de culturas e produtividade</p>
         </div>
-        <Button onClick={() => { setEditingControle(null); setShowForm(true); }} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => { setEditingControle(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+          <Plus className="w-3 h-3" />
           Novo Registro
         </Button>
       </div>
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-emerald-50 border-emerald-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-emerald-700">{totalAreaPlantada.toFixed(1)} ha</div>
-            <div className="text-xs text-emerald-600">Área Plantada</div>
+            <div className="text-lg font-bold text-slate-700">{totalAreaPlantada.toFixed(1)} ha</div>
+            <div className="text-xs text-slate-600">Área Plantada</div>
           </CardContent>
         </Card>
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-blue-700">{(producaoEstimada / 1000).toFixed(1)} t</div>
-            <div className="text-xs text-blue-600">Produção Estimada</div>
+            <div className="text-lg font-bold text-slate-700">{(producaoEstimada / 1000).toFixed(1)} t</div>
+            <div className="text-xs text-slate-600">Produção Estimada</div>
           </CardContent>
         </Card>
-        <Card className="bg-amber-50 border-amber-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-amber-700">{controles.filter(c => c.status === 'Colheita').length}</div>
-            <div className="text-xs text-amber-600">Em Colheita</div>
+            <div className="text-lg font-bold text-slate-700">{controles.filter(c => c.status === 'Colheita').length}</div>
+            <div className="text-xs text-slate-600">Em Colheita</div>
           </CardContent>
         </Card>
-        <Card className="bg-purple-50 border-purple-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-purple-700">{controles.length}</div>
-            <div className="text-xs text-purple-600">Total Registros</div>
+            <div className="text-lg font-bold text-slate-700">{controles.length}</div>
+            <div className="text-xs text-slate-600">Total Registros</div>
           </CardContent>
         </Card>
       </div>
@@ -134,8 +134,8 @@ export default function ControleAreas() {
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <Leaf className="w-5 h-5 text-emerald-600" />
+                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                    <Leaf className="w-5 h-5 text-slate-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-900 text-sm">{ctrl.area_nome}</h3>
@@ -169,7 +169,7 @@ export default function ControleAreas() {
               </div>
 
               {ctrl.produtividade_sc_ha && (
-                <div className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded mb-3">
+                <div className="flex items-center gap-1 text-xs text-slate-700 bg-slate-50 border border-slate-200 px-2 py-1 rounded mb-3">
                   <TrendingUp className="w-3 h-3" />
                   {ctrl.produtividade_sc_ha} sc/ha
                 </div>

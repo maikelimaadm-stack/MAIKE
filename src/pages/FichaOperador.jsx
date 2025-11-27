@@ -184,15 +184,15 @@ export default function FichaOperador() {
 
   if (enviado) {
     return (
-      <div className="min-h-screen bg-emerald-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center">
           <CardContent className="pt-8 pb-6">
-            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-10 h-10 text-emerald-600" />
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-10 h-10 text-slate-600" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Ficha Enviada!</h2>
             <p className="text-slate-600 mb-6">A operação foi registrada com sucesso.</p>
-            <Button onClick={handleNova} className="w-full gap-2">
+            <Button onClick={handleNova} className="w-full gap-2 bg-slate-700 hover:bg-slate-800">
               <RotateCcw className="w-4 h-4" />
               Nova Ficha
             </Button>
@@ -206,22 +206,22 @@ export default function FichaOperador() {
     <div className="min-h-screen bg-slate-100 p-4">
       <div className="max-w-lg mx-auto">
         <Card className="shadow-lg">
-          <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+          <CardHeader className="bg-slate-700 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Tractor className="w-5 h-5" />
               Ficha de Operação
             </CardTitle>
-            <p className="text-emerald-100 text-sm">Preencha os dados da operação realizada</p>
+            <p className="text-slate-100 text-sm">Preencha os dados da operação realizada</p>
           </CardHeader>
 
           <CardContent className="p-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* Operador e Data */}
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <User className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-900">Identificação</span>
+                  <User className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm font-semibold text-slate-900">Identificação</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -248,10 +248,10 @@ export default function FichaOperador() {
               </div>
 
               {/* Operação */}
-              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <Tractor className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-semibold text-amber-900">Operação</span>
+                  <Tractor className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm font-semibold text-slate-900">Operação</span>
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -316,10 +316,10 @@ export default function FichaOperador() {
               </div>
 
               {/* Horímetro */}
-              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm font-semibold text-purple-900">Horímetro</span>
+                  <Clock className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm font-semibold text-slate-900">Horímetro</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -344,17 +344,17 @@ export default function FichaOperador() {
                   </div>
                 </div>
                 {formData.horimetro_inicio && formData.horimetro_fim && (
-                  <div className="mt-2 text-center text-sm font-semibold text-purple-700">
+                  <div className="mt-2 text-center text-sm font-semibold text-slate-700">
                     Total: {(parseFloat(formData.horimetro_fim) - parseFloat(formData.horimetro_inicio)).toFixed(1)} horas
                   </div>
                 )}
               </div>
 
               {/* Área e Combustível */}
-              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-semibold text-green-900">Produção</span>
+                  <MapPin className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm font-semibold text-slate-900">Produção</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -384,10 +384,10 @@ export default function FichaOperador() {
 
               {/* Produto Aplicado */}
               {(formData.tipo_operacao === 'Pulverização' || formData.tipo_operacao === 'Adubação' || formData.tipo_operacao === 'Calagem' || formData.tipo_operacao === 'Plantio') && (
-                <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <Fuel className="w-4 h-4 text-orange-600" />
-                    <span className="text-sm font-semibold text-orange-900">Produto Aplicado</span>
+                    <Fuel className="w-4 h-4 text-slate-600" />
+                    <span className="text-sm font-semibold text-slate-900">Produto Aplicado</span>
                   </div>
                   <div className="space-y-3">
                     <div>
@@ -441,7 +441,7 @@ export default function FichaOperador() {
               <Button 
                 type="submit" 
                 disabled={mutation.isPending}
-                className="w-full h-12 text-base font-semibold bg-emerald-600 hover:bg-emerald-700"
+                className="w-full h-12 text-base font-semibold bg-slate-700 hover:bg-slate-800"
               >
                 {mutation.isPending ? 'Enviando...' : 'Enviar Ficha'}
               </Button>

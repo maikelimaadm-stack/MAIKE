@@ -49,10 +49,10 @@ export default function OperacoesAgricolas() {
   });
 
   const statusColors = {
-    'Planejada': 'bg-blue-100 text-blue-800',
-    'Em Andamento': 'bg-amber-100 text-amber-800',
-    'Concluída': 'bg-emerald-100 text-emerald-800',
-    'Cancelada': 'bg-red-100 text-red-800',
+    'Planejada': 'bg-slate-100 text-slate-700',
+    'Em Andamento': 'bg-slate-100 text-slate-700',
+    'Concluída': 'bg-slate-100 text-slate-700',
+    'Cancelada': 'bg-slate-100 text-slate-700',
   };
 
   // Resumo
@@ -66,36 +66,36 @@ export default function OperacoesAgricolas() {
           <h1 className="text-xl font-bold text-slate-900">Operações Agrícolas</h1>
           <p className="text-xs text-slate-600">{operacoes.length} operações registradas</p>
         </div>
-        <Button onClick={() => { setEditingOperacao(null); setShowForm(true); }} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => { setEditingOperacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+          <Plus className="w-3 h-3" />
           Nova Operação
         </Button>
       </div>
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-emerald-50 border-emerald-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-emerald-700">{totalHectares.toFixed(1)} ha</div>
-            <div className="text-xs text-emerald-600">Total Trabalhado</div>
+            <div className="text-lg font-bold text-slate-700">{totalHectares.toFixed(1)} ha</div>
+            <div className="text-xs text-slate-600">Total Trabalhado</div>
           </CardContent>
         </Card>
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-blue-700">{totalHoras.toFixed(1)}h</div>
-            <div className="text-xs text-blue-600">Horas Trabalhadas</div>
+            <div className="text-lg font-bold text-slate-700">{totalHoras.toFixed(1)}h</div>
+            <div className="text-xs text-slate-600">Horas Trabalhadas</div>
           </CardContent>
         </Card>
-        <Card className="bg-amber-50 border-amber-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-amber-700">{operacoes.filter(o => o.status === 'Em Andamento').length}</div>
-            <div className="text-xs text-amber-600">Em Andamento</div>
+            <div className="text-lg font-bold text-slate-700">{operacoes.filter(o => o.status === 'Em Andamento').length}</div>
+            <div className="text-xs text-slate-600">Em Andamento</div>
           </CardContent>
         </Card>
-        <Card className="bg-purple-50 border-purple-200">
+        <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-3 text-center">
-            <div className="text-lg font-bold text-purple-700">{operacoes.filter(o => o.status === 'Concluída').length}</div>
-            <div className="text-xs text-purple-600">Concluídas</div>
+            <div className="text-lg font-bold text-slate-700">{operacoes.filter(o => o.status === 'Concluída').length}</div>
+            <div className="text-xs text-slate-600">Concluídas</div>
           </CardContent>
         </Card>
       </div>
@@ -144,8 +144,8 @@ export default function OperacoesAgricolas() {
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <Tractor className="w-5 h-5 text-emerald-600" />
+                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                    <Tractor className="w-5 h-5 text-slate-600" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
