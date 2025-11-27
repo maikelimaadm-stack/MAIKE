@@ -1137,7 +1137,12 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showTarefas} onOpenChange={setShowTarefas}>
+      <Dialog open={showTarefas} onOpenChange={(open) => {
+        setShowTarefas(open);
+        if (!open) {
+          refetchTarefas();
+        }
+      }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tarefas do Mapa</DialogTitle>
@@ -1148,7 +1153,7 @@ export default function MapaGeral() {
             loteId={tarefasContext.loteId}
             loteNome={tarefasContext.loteNome}
             pontoSuplId={tarefasContext.pontoSuplId}
-            onClose={() => setShowTarefas(false)}
+            onClose={() => { setShowTarefas(false); refetchTarefas(); }}
           />
         </DialogContent>
       </Dialog>
