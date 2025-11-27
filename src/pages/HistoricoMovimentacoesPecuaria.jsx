@@ -679,8 +679,17 @@ export default function HistoricoMovimentacoesPecuaria() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
+                              <DropdownMenuItem 
+                                onClick={() => { 
+                                  setItemEditandoManual(mov); 
+                                  setShowNovoLancamento(true); 
+                                }} 
+                                className="text-xs"
+                              >
+                                Editar Completo
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEdit(mov)} className="text-xs">
-                                Editar
+                                Editar Rápido
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDelete(mov.id)} className="text-xs text-red-600">
