@@ -302,9 +302,9 @@ export default function FormularioLote({ onSubmit, onCancel, initialData }) {
                 <X className="w-3 h-3 mr-1" />
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
                 <Save className="w-3 h-3 mr-1" />
-                Salvar Lote
+                {initialData ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
           </form>
