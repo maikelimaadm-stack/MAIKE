@@ -55,8 +55,8 @@ const DEFAULT_MENU = [
     title: "Pecuaria",
     icon: "Package",
     submenu: [
+      { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
       { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-      { id: "pec-categorias", title: "categorias", url: "CategoriasManejo" },
       { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
       { id: "pec-fatores", title: "Configuracao Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
