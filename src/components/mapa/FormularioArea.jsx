@@ -1,22 +1,28 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, X } from "lucide-react";
+import { Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const TIPOS_USO = [
   "Pastejo", "Lavoura", "Reserva Legal", "APP", 
   "Curral", "Sede", "Retiro", "Módulo", "Talhão", "Outro"
 ];
 
-const TIPOS_CULTURA = [
-  "Aruana", "Mombaça", "Marandu", "Tifton", "Brachiaria", "Piatã", "Tanzânia", "Outro"
+const TIPOS_CULTURA_PADRAO = [
+  "Aruana", "Mombaça", "Marandu", "Tifton", "Brachiaria", "Piatã", "Tanzânia"
 ];
 
 const CORES_DISPONIVEIS = [
