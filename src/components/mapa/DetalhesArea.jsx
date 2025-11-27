@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import FormularioOperacao from "../operacoes/FormularioOperacao";
 import FormularioControleArea from "../areas/FormularioControleArea";
+import TarefasMapaPanel from "./TarefasMapaPanel";
 
 export default function DetalhesArea({ area, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
