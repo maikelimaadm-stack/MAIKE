@@ -285,6 +285,30 @@ function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSup
     enabled: !!empresaSelecionadaId && !areaId,
   });
 
+  // Buscar área para calcular coordenadas iniciais se areaId foi passado
+  const { data: areaInicial } = useQuery({
+    queryKey: ['area-inicial', areaId],
+    queryFn: async () => {
+      if (!areaId) return null;
+      const all = await base44.entities.AreaPastagem.list();
+      return all.find(a => a.id === areaId);
+    },
+    enabled: !!areaId && !tarefa?.coordenadas,
+  });
+
+  // Calcular coordenadas iniciais baseado na área
+  const calcularCoordenadasArea = (area) => {
+    if (!area?.coordenadas?.coords || area.coordenadas.coords.length === 0) return null;
+    const lats = area.coordenadas.coords.map(c => c[0] || c.lat);
+    const lngs = area.coordenadas.coords.map(c => c[1] || c.lng);
+    return {
+      lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+      lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
+    };
+  };
+
+  const coordenadasIniciais = tarefa?.coordenadas || (areaInicial ? calcularCoordenadasArea(areaInicial) : null);
+
   const [formData, setFormData] = useState({
     titulo: tarefa?.titulo || '',
     descricao: tarefa?.descricao || '',
@@ -295,8 +319,18 @@ function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSup
     responsavel: tarefa?.responsavel || '',
     area_id: tarefa?.area_id || areaId || '',
     area_nome: tarefa?.area_nome || areaNome || '',
-    coordenadas: tarefa?.coordenadas || null
+    coordenadas: coordenadasIniciais
   });
+
+  // Atualizar coordenadas quando areaInicial carregar
+  React.useEffect(() => {
+    if (areaInicial && !formData.coordenadas) {
+      const coords = calcularCoordenadasArea(areaInicial);
+      if (coords) {
+        setFormData(prev => ({ ...prev, coordenadas: coords }));
+      }
+    }
+  }, [areaInicial]);
 
   const handleAreaChange = (selectedAreaId) => {
     const area = areas.find(a => a.id === selectedAreaId);
