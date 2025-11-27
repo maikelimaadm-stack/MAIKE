@@ -227,6 +227,95 @@ export default function MovimentacoesEstoque() {
     try {
       const { produtos_selecionados, produtos, ...dadosComuns } = formData;
 
+      // Se está editando, atualizar a movimentação existente
+      if (editingMovimentacao?.id) {
+        const produto = produtosLista[0];
+        const produtoData = produtos.find(p => p.id === produto.produto_id);
+        
+        if (!produtoData) {
+          throw new Error('Produto não encontrado');
+        }
+
+        const quantidade = parseNumero(produto.quantidade);
+        const valorTotal = parseNumero(produto.valor_total);
+        const desconto = parseNumero(produto.desconto_item || 0);
+        const valorLiquido = valorTotal - desconto;
+        const valorUnitario = quantidade > 0 ? (valorLiquido / quantidade) : 0;
+
+        // Reverter estoque antigo
+        const movAnterior = editingMovimentacao;
+        let estoqueAtual = produtoData.estoque_atual || 0;
+        
+        if (movAnterior.tipo_movimentacao === 'Entrada') {
+          estoqueAtual -= movAnterior.quantidade;
+        } else if (movAnterior.tipo_movimentacao === 'Saída') {
+          estoqueAtual += movAnterior.quantidade;
+        }
+
+        // Aplicar novo estoque
+        let novoEstoque = estoqueAtual;
+        if (dadosComuns.tipo_movimentacao === 'Entrada') {
+          novoEstoque = estoqueAtual + quantidade;
+        } else if (dadosComuns.tipo_movimentacao === 'Saída') {
+          novoEstoque = estoqueAtual - quantidade;
+        } else if (dadosComuns.tipo_movimentacao === 'Ajuste') {
+          if (dadosComuns.tipo_detalhado?.toUpperCase().includes('POSITIVO')) {
+            novoEstoque = estoqueAtual + quantidade;
+          } else {
+            novoEstoque = estoqueAtual - quantidade;
+          }
+        }
+
+        const centro = centros.find(c => c.id === dadosComuns.centro_custo_id);
+        const fornecedor = fornecedores.find(f => f.id === dadosComuns.fornecedor_id);
+
+        await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
+          tipo_movimentacao: dadosComuns.tipo_movimentacao,
+          tipo_detalhado: dadosComuns.tipo_detalhado,
+          produto_id: produto.produto_id,
+          produto_nome: produto.produto_nome,
+          produto_codigo: produtoData.codigo_interno,
+          quantidade: quantidade,
+          unidade_medida: produto.unidade || produtoData.unidade_medida,
+          valor_unitario: valorUnitario,
+          valor_total: valorLiquido,
+          local_estoque_origem: dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_estoque : undefined,
+          local_estoque_destino: dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência' ? (dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_destino : dadosComuns.local_estoque) : undefined,
+          tipo_documento: dadosComuns.tipo_documento || undefined,
+          numero_documento: dadosComuns.numero_documento || undefined,
+          serie_documento: dadosComuns.serie_documento || undefined,
+          chave_documento: dadosComuns.chave_documento || undefined,
+          data_documento: dadosComuns.data_documento || undefined,
+          cfop: dadosComuns.cfop || undefined,
+          natureza_operacao: dadosComuns.natureza_operacao || undefined,
+          fornecedor_id: dadosComuns.fornecedor_id || undefined,
+          fornecedor_nome: fornecedor?.nome,
+          cliente_nome: dadosComuns.cliente_nome || undefined,
+          centro_custo_id: dadosComuns.centro_custo_id || undefined,
+          centro_custo_nome: centro?.nome,
+          motivo_movimentacao: dadosComuns.motivo_movimentacao || undefined,
+          observacoes: dadosComuns.observacoes || undefined,
+          saldo_antes: estoqueAtual,
+          saldo_depois: novoEstoque,
+        });
+
+        await base44.entities.Produto.update(produtoData.id, {
+          estoque_atual: novoEstoque
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
+        queryClient.invalidateQueries({ queryKey: ['produtos'] });
+        
+        setTimeout(() => {
+          setIsSaving(false);
+          setShowForm(false);
+          setEditingMovimentacao(null);
+          toast.success('✅ Movimentação atualizada!');
+        }, 500);
+        return;
+      }
+
+      // Criar novas movimentações
       let saved = 0;
       for (const produto of produtosLista) {
         await processarMovimentacaoProduto(produto, dadosComuns);
