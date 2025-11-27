@@ -140,7 +140,7 @@ export default function OperacoesAgricolas() {
       {/* Lista */}
       <div className="space-y-3">
         {operacoesFiltradas.map(op => (
-          <Card key={op.id} className="shadow-sm">
+          <Card key={op.id} className="shadow-sm border-slate-200">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
