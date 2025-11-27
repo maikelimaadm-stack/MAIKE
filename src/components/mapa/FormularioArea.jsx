@@ -82,28 +82,40 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const createAreaMutation = useMutation({
     mutationFn: async (data) => {
-      const allAreas = await base44.entities.AreaPastagem.list();
-      const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
-      
-      return base44.entities.AreaPastagem.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_area: String(maxNum + 1),
-        quantidade_atual: 0,
-        status_ocupacao: 'Disponível',
-        ativo: true,
-        coordenadas: {
-          coords: coordenadas.map(p => [p.lat, p.lng]),
-          cor: data.cor
-        }
-      });
+      if (item) {
+        // Modo edição
+        return base44.entities.AreaPastagem.update(item.id, {
+          ...data,
+          coordenadas: {
+            coords: (coordenadasGPS || coordenadas || item.coordenadas?.coords)?.map(p => [p.lat || p[0], p.lng || p[1]]),
+            cor: data.cor
+          }
+        });
+      } else {
+        // Modo criação
+        const allAreas = await base44.entities.AreaPastagem.list();
+        const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
+        
+        return base44.entities.AreaPastagem.create({
+          ...data,
+          empresa_id: empresaSelecionadaId,
+          numero_area: String(maxNum + 1),
+          quantidade_atual: 0,
+          status_ocupacao: 'Disponível',
+          ativo: true,
+          coordenadas: {
+            coords: coordenadas.map(p => [p.lat, p.lng]),
+            cor: data.cor
+          }
+        });
+      }
     },
     onSuccess: () => {
-      toast.success('✅ Área cadastrada!');
+      toast.success(item ? '✅ Área atualizada!' : '✅ Área cadastrada!');
       onSave();
     },
     onError: () => {
-      toast.error('❌ Erro ao cadastrar área');
+      toast.error(item ? '❌ Erro ao atualizar área' : '❌ Erro ao cadastrar área');
     }
   });
 
