@@ -39,6 +39,10 @@ export default function MapaCadastro() {
   const [itemEditando, setItemEditando] = useState(null);
   const [itemExcluir, setItemExcluir] = useState(null);
   const [showImportarGeoJSON, setShowImportarGeoJSON] = useState(false);
+  const [showEditarDetalhesArea, setShowEditarDetalhesArea] = useState(false);
+  const [showEditarDetalhesPonto, setShowEditarDetalhesPonto] = useState(false);
+  const [showEditarDetalhesLinha, setShowEditarDetalhesLinha] = useState(false);
+  const [itemDetalhes, setItemDetalhes] = useState(null);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
