@@ -547,8 +547,31 @@ export default function HistoricoMovimentacoesPecuaria() {
             <Download className="w-3.5 h-3.5" />
             Exportar
           </Button>
+          <Button 
+            onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
+            size="sm" 
+            className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo Lançamento
+          </Button>
         </div>
       </div>
+
+      {showNovoLancamento && (
+        <FormularioLancamentoManual
+          item={itemEditandoManual}
+          onSave={() => {
+            setShowNovoLancamento(false);
+            setItemEditandoManual(null);
+            queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+          }}
+          onCancel={() => {
+            setShowNovoLancamento(false);
+            setItemEditandoManual(null);
+          }}
+        />
+      )}
 
       <Card className="shadow-sm border-slate-300">
         <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
