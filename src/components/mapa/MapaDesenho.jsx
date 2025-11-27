@@ -153,10 +153,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       tempMarkerRef.current.setMap(null);
       tempMarkerRef.current = null;
     }
-    if (guideLineRef.current) {
-      guideLineRef.current.setMap(null);
-      guideLineRef.current = null;
-    }
+
     pointMarkersRef.current.forEach(m => m.setMap(null));
     pointMarkersRef.current = [];
     setCurrentPoints([]);
