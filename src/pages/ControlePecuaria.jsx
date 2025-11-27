@@ -388,7 +388,7 @@ export default function ControlePecuaria() {
             </div>
             <Link to={createPageUrl("OperacoesAgricolas")}>
               <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-                <Tractor className="w-3 h-3" /> Gerenciar Operações
+                <Tractor className="w-3 h-3" /> Ver Todas
               </Button>
             </Link>
           </div>

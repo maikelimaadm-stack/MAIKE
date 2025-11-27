@@ -63,7 +63,7 @@ export default function OperacoesAgricolas() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Operações Agrícolas</h1>
+          <h1 className="text-xl font-bold text-slate-900">Operações</h1>
           <p className="text-xs text-slate-600">{operacoes.length} operações registradas</p>
         </div>
         <Button onClick={() => { setEditingOperacao(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
