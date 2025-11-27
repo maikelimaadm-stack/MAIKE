@@ -19,6 +19,7 @@ export default function DeteccaoMataIA({
   const [etapa, setEtapa] = useState("");
   const [matasDetectadas, setMatasDetectadas] = useState([]);
   const [matasConfirmadas, setMatasConfirmadas] = useState([]);
+  const [polygonsNoMapa, setPolygonsNoMapa] = useState([]);
   const queryClient = useQueryClient();
 
   // Mutation para criar área de mata
