@@ -277,57 +277,70 @@ export default function DashboardSuplementacao() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="border-b py-3">
-          <CardTitle className="text-sm font-semibold">Análise Detalhada por Ponto</CardTitle>
+      <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+          <CardTitle className="text-sm font-semibold text-slate-900">Análise Detalhada por Ponto</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
-          <div className="grid gap-3">
-            {pontos.filter(p => p.status === 'Ativo').map((ponto) => {
-              const eventosP = eventosFiltrados.filter(e => e.ponto_suplementacao_id === ponto.id);
-              const totalP = eventosP.reduce((sum, e) => sum + e.quantidade_total_kg, 0);
-              const temConfiguracao = ponto.consumo_ideal_por_cabeca_kg > 0;
-              const temAlerta = pontosComAlerta.some(p => p.id === ponto.id);
-              const temProblema = pontosComProblemas.some(p => p.id === ponto.id);
+        <CardContent className="p-0">
+          <div className="overflow-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b">
+                  <th className="text-xs border-r border-slate-200 text-left px-3 py-2 font-semibold text-slate-700">Ponto</th>
+                  <th className="text-xs border-r border-slate-200 text-left px-3 py-2 font-semibold text-slate-700">Área</th>
+                  <th className="text-xs border-r border-slate-200 text-right px-3 py-2 font-semibold text-slate-700">Lançamentos</th>
+                  <th className="text-xs border-r border-slate-200 text-right px-3 py-2 font-semibold text-slate-700">Total (kg)</th>
+                  <th className="text-xs border-r border-slate-200 px-3 py-2 font-semibold text-slate-700">Alertas</th>
+                  <th className="text-xs border-r border-slate-200 text-center px-3 py-2 font-semibold text-slate-700">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pontos.filter(p => p.status === 'Ativo').map((ponto) => {
+                  const eventosP = eventosFiltrados.filter(e => e.ponto_suplementacao_id === ponto.id);
+                  const totalP = eventosP.reduce((sum, e) => sum + e.quantidade_total_kg, 0);
+                  const temConfiguracao = ponto.consumo_ideal_por_cabeca_kg > 0;
+                  const temAlerta = pontosComAlerta.some(p => p.id === ponto.id);
+                  const temProblema = pontosComProblemas.some(p => p.id === ponto.id);
 
-              return (
-                <div key={ponto.id} className="border border-slate-200 rounded-lg p-3 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-slate-900">{ponto.nome_ponto}</h4>
-                        {temAlerta && (
-                          <Badge className="bg-amber-100 text-amber-800 text-xs">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            Sem lançamento
-                          </Badge>
-                        )}
-                        {temProblema && (
-                          <Badge className="bg-red-100 text-red-800 text-xs">
-                            <Activity className="w-3 h-3 mr-1" />
-                            Consumo irregular
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-600 space-y-0.5">
-                        <div>Área: {ponto.area_vinculada_nome}</div>
-                        <div>Lançamentos: {eventosP.length} • Total: {totalP.toFixed(0)} kg</div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleShowAnalise(ponto)}
-                      className="h-8 text-xs"
-                      disabled={!temConfiguracao}
-                    >
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      {temConfiguracao ? 'Ver Análise' : 'Sem config'}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                  return (
+                    <tr key={ponto.id} className="hover:bg-slate-50 transition-colors border-b">
+                      <td className="text-xs font-medium border-r border-slate-200 px-3 py-2.5">{ponto.nome_ponto}</td>
+                      <td className="text-xs border-r border-slate-200 px-3 py-2.5">{ponto.area_vinculada_nome || '-'}</td>
+                      <td className="text-xs text-right font-mono border-r border-slate-200 px-3 py-2.5">{eventosP.length}</td>
+                      <td className="text-xs text-right font-mono font-semibold border-r border-slate-200 px-3 py-2.5">{totalP.toFixed(0)}</td>
+                      <td className="border-r border-slate-200 px-3 py-2.5">
+                        <div className="flex gap-1">
+                          {temAlerta && (
+                            <Badge className="bg-slate-100 text-slate-700 text-[10px]">
+                              <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                              Sem lançamento
+                            </Badge>
+                          )}
+                          {temProblema && (
+                            <Badge className="bg-slate-100 text-slate-700 text-[10px]">
+                              <Activity className="w-2.5 h-2.5 mr-0.5" />
+                              Irregular
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="text-center border-r border-slate-200 px-3 py-2.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShowAnalise(ponto)}
+                          className="h-7 text-xs"
+                          disabled={!temConfiguracao}
+                        >
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                          {temConfiguracao ? 'Análise' : 'Sem config'}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
