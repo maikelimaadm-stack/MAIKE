@@ -291,7 +291,11 @@ Responda em JSON:
         }));
 
         setMatasDetectadas(matasProcessadas);
-        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s)!`);
+        
+        // Desenhar polígonos no mapa
+        desenharPoligonosNoMapa(matasProcessadas);
+        
+        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s) e desenhadas no mapa!`);
       } else {
         toast.info("Nenhuma área de mata significativa detectada");
       }
