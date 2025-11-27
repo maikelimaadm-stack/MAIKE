@@ -51,6 +51,20 @@ export default function DeteccaoMataIA({
     return { minLat, maxLat, minLng, maxLng };
   };
 
+  // Calcular zoom ideal baseado no tamanho da área
+  const calcularZoomIdeal = (bounds) => {
+    const latDiff = bounds.maxLat - bounds.minLat;
+    const lngDiff = bounds.maxLng - bounds.minLng;
+    const maxDiff = Math.max(latDiff, lngDiff);
+    
+    // Quanto maior a área, menor o zoom
+    if (maxDiff > 0.1) return 12;      // Área muito grande (>10km)
+    if (maxDiff > 0.05) return 13;     // Área grande (~5km)
+    if (maxDiff > 0.02) return 14;     // Área média (~2km)
+    if (maxDiff > 0.01) return 15;     // Área pequena (~1km)
+    return 16;                          // Área muito pequena
+  };
+
   // Capturar screenshot do mapa
   const capturarImagemMapa = async () => {
     const bounds = calcularLimitesFazenda();
@@ -63,14 +77,28 @@ export default function DeteccaoMataIA({
     const centerLat = (bounds.minLat + bounds.maxLat) / 2;
     const centerLng = (bounds.minLng + bounds.maxLng) / 2;
 
-    // Usar Static Maps API do Google
+    // Calcular zoom ideal para mostrar toda a fazenda
+    const zoom = calcularZoomIdeal(bounds);
+
+    // Usar Static Maps API do Google - tamanho máximo 640x640
     const width = 640;
     const height = 640;
-    const zoom = 15;
 
-    const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=${zoom}&size=${width}x${height}&maptype=satellite&key=AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8`;
+    // Criar path com todos os polígonos para mostrar os limites
+    let pathParam = '';
+    areasExistentes.forEach(area => {
+      const coords = area.coordenadas?.coords || [];
+      if (coords.length >= 3) {
+        const pathCoords = coords.map(c => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
+        pathParam += `&path=color:0xFFFF0080|weight:2|fillcolor:0xFFFF0040|${pathCoords}`;
+      }
+    });
 
-    return { imageUrl, bounds, centerLat, centerLng };
+    const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=${zoom}&size=${width}x${height}&maptype=satellite&key=AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8${pathParam}`;
+
+    console.log('📸 Capturando imagem:', { centerLat, centerLng, zoom, bounds });
+
+    return { imageUrl, bounds, centerLat, centerLng, zoom };
   };
 
   // Gerar descrição das áreas existentes para contexto
