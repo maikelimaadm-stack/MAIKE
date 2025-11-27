@@ -390,10 +390,28 @@ export default function MapaGeral() {
                       setShowTarefas(true);
                     });
 
-        // Calcular centro e área em hectares
-        const bounds = new google.maps.LatLngBounds();
-        paths.forEach(p => bounds.extend(p));
-        const center = bounds.getCenter();
+        // Calcular centróide real do polígono (não o centro do bounding box)
+        let centroidLat = 0;
+        let centroidLng = 0;
+        let signedArea = 0;
+        
+        for (let i = 0; i < paths.length; i++) {
+          const x0 = paths[i].lat;
+          const y0 = paths[i].lng;
+          const x1 = paths[(i + 1) % paths.length].lat;
+          const y1 = paths[(i + 1) % paths.length].lng;
+          
+          const a = x0 * y1 - x1 * y0;
+          signedArea += a;
+          centroidLat += (x0 + x1) * a;
+          centroidLng += (y0 + y1) * a;
+        }
+        
+        signedArea *= 0.5;
+        centroidLat /= (6 * signedArea);
+        centroidLng /= (6 * signedArea);
+        
+        const center = new google.maps.LatLng(centroidLat, centroidLng);
 
         let areaHa = area.tamanho_hectares || 0;
         if (!areaHa && window.google?.maps?.geometry?.spherical) {
