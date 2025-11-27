@@ -367,6 +367,52 @@ export default function MapaGeral() {
             setShowDetalhesArea(true);
           }
         });
+
+        // Calcular centro e área em hectares
+        const bounds = new google.maps.LatLngBounds();
+        paths.forEach(p => bounds.extend(p));
+        const center = bounds.getCenter();
+
+        let areaHa = area.tamanho_hectares || 0;
+        if (!areaHa && window.google?.maps?.geometry?.spherical) {
+          const pathLatLng = paths.map(p => new google.maps.LatLng(p.lat, p.lng));
+          const areaM2 = google.maps.geometry.spherical.computeArea(pathLatLng);
+          areaHa = areaM2 / 10000;
+        }
+
+        // Label com nome do pasto e hectares no centro da área
+        const areaLabelDiv = document.createElement('div');
+        areaLabelDiv.innerHTML = `
+          <div style="
+            color: white;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+          ">
+            <div style="font-size: 13px; font-weight: 700;">${area.nome || 'Sem nome'}</div>
+            <div style="font-size: 11px; font-weight: 500;">${areaHa.toFixed(0)}ha</div>
+          </div>
+        `;
+
+        const areaLabelOverlay = new google.maps.OverlayView();
+        areaLabelOverlay.onAdd = function() {
+          const pane = this.getPanes().overlayLayer;
+          pane.appendChild(areaLabelDiv);
+        };
+        areaLabelOverlay.draw = function() {
+          const projection = this.getProjection();
+          const position = projection.fromLatLngToDivPixel(center);
+          areaLabelDiv.style.position = 'absolute';
+          areaLabelDiv.style.left = position.x - 50 + 'px';
+          areaLabelDiv.style.top = position.y - 15 + 'px';
+          areaLabelDiv.style.width = '100px';
+        };
+        areaLabelOverlay.onRemove = function() {
+          areaLabelDiv.parentNode?.removeChild(areaLabelDiv);
+        };
+        areaLabelOverlay.setMap(mapInstanceRef.current);
+        markersRef.current.push({ setMap: (m) => areaLabelOverlay.setMap(m) });
       });
     }
 
