@@ -17,7 +17,7 @@ import { MoreVertical, Pencil, Trash2, Search, Map, ArrowUpDown, ArrowUp, ArrowD
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-export default function TabelaAreasGeo({ areas, onEdit, onDelete }) {
+export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -187,8 +187,12 @@ export default function TabelaAreasGeo({ areas, onEdit, onDelete }) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
                             <DropdownMenuItem onClick={() => onEdit(area)} className="text-xs">
+                              <Map className="w-3.5 h-3.5 mr-2" />
+                              Editar Área (Mapa)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEditDetalhes && onEditDetalhes(area)} className="text-xs">
                               <Pencil className="w-3.5 h-3.5 mr-2" />
-                              Editar
+                              Editar Detalhes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => onDelete(area)} className="text-xs text-red-600">
