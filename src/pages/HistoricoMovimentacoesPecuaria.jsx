@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
   TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -32,6 +32,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import FormularioLancamentoManual from "@/components/pecuaria/FormularioLancamentoManual";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
