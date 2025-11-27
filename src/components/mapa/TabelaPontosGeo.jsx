@@ -13,11 +13,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Pencil, Trash2, Search, MapPin, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Search, MapPin, ArrowUpDown, ArrowUp, ArrowDown, X, Map } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-export default function TabelaPontosGeo({ pontos, onEdit, onDelete }) {
+export default function TabelaPontosGeo({ pontos, onEdit, onEditDetalhes, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -187,8 +187,12 @@ export default function TabelaPontosGeo({ pontos, onEdit, onDelete }) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
                             <DropdownMenuItem onClick={() => onEdit(ponto)} className="text-xs">
+                              <Map className="w-3.5 h-3.5 mr-2" />
+                              Editar Posição (Mapa)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEditDetalhes && onEditDetalhes(ponto)} className="text-xs">
                               <Pencil className="w-3.5 h-3.5 mr-2" />
-                              Editar
+                              Editar Detalhes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => onDelete(ponto)} className="text-xs text-red-600">

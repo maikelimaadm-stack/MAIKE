@@ -13,11 +13,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Pencil, Trash2, Search, Route, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Search, Route, ArrowUpDown, ArrowUp, ArrowDown, X, Map } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-export default function TabelaLinhasGeo({ linhas, onEdit, onDelete }) {
+export default function TabelaLinhasGeo({ linhas, onEdit, onEditDetalhes, onDelete }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -187,8 +187,12 @@ export default function TabelaLinhasGeo({ linhas, onEdit, onDelete }) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
                             <DropdownMenuItem onClick={() => onEdit(linha)} className="text-xs">
+                              <Map className="w-3.5 h-3.5 mr-2" />
+                              Editar Traçado (Mapa)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEditDetalhes && onEditDetalhes(linha)} className="text-xs">
                               <Pencil className="w-3.5 h-3.5 mr-2" />
-                              Editar
+                              Editar Detalhes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => onDelete(linha)} className="text-xs text-red-600">
