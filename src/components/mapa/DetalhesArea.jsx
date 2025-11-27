@@ -20,6 +20,7 @@ export default function DetalhesArea({ area, onClose }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [showOperacao, setShowOperacao] = useState(false);
   const [showControle, setShowControle] = useState(false);
+  const [showTarefas, setShowTarefas] = useState(false);
   const [editingControle, setEditingControle] = useState(null);
   const queryClient = useQueryClient();
 
