@@ -320,7 +320,7 @@ Responda em JSON:
     try {
       const novaArea = {
         empresa_id: empresaId,
-        nome: `Mata identificada - IA (${mata.id})`,
+        nome: `Mata ${mata.tipo_provavel} - ${mata.id}`,
         tipo: "Reserva",
         categoria: mata.tipo_provavel,
         tamanho_hectares: mata.area_estimada_ha,
@@ -329,11 +329,20 @@ Responda em JSON:
           cor: "#166534" // Verde escuro
         },
         cor: "#166534",
-        observacoes: `Detectado por IA em ${new Date().toLocaleDateString('pt-BR')}. Classificação: ${mata.classificacao}. Densidade: ${mata.densidade_percentual}%. Confiança: ${mata.confianca}%`,
+        observacoes: `Detectado por IA em ${new Date().toLocaleDateString('pt-BR')}. Classificação: ${mata.classificacao}. Densidade: ${mata.densidade_percentual}%. Confiança: ${mata.confianca}%. Localização: ${mata.localizacao_descritiva}`,
         ativo: true
       };
 
       await createMataMutation.mutateAsync(novaArea);
+      
+      // Remover polígono temporário do mapa (será substituído pelo permanente após refresh)
+      const itemRemover = polygonsNoMapa.find(p => p.mataId === mata.id);
+      if (itemRemover) {
+        itemRemover.polygon.setMap(null);
+        itemRemover.labelOverlay.setMap(null);
+        itemRemover.infoWindow.close();
+        setPolygonsNoMapa(prev => prev.filter(p => p.mataId !== mata.id));
+      }
       
       setMatasConfirmadas(prev => [...prev, mata.id]);
       setMatasDetectadas(prev => prev.filter(m => m.id !== mata.id));
