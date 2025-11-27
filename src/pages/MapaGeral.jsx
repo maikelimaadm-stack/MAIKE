@@ -412,6 +412,10 @@ export default function MapaGeral() {
             text-shadow: 1px 1px 3px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.8);
             pointer-events: none;
             z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
           ">
             <div style="font-size: 13px; font-weight: 400;">${area.nome || 'Sem nome'}</div>
             <div style="font-size: 11px; font-weight: 400;">${areaHa.toFixed(0)}ha</div>
@@ -427,9 +431,9 @@ export default function MapaGeral() {
           const projection = this.getProjection();
           const position = projection.fromLatLngToDivPixel(center);
           areaLabelDiv.style.position = 'absolute';
-          areaLabelDiv.style.left = position.x - 50 + 'px';
-          areaLabelDiv.style.top = position.y - 15 + 'px';
-          areaLabelDiv.style.width = '100px';
+          areaLabelDiv.style.left = position.x + 'px';
+          areaLabelDiv.style.top = position.y + 'px';
+          areaLabelDiv.style.transform = 'translate(-50%, -50%)';
           areaLabelDiv.style.zIndex = '9999';
         };
         areaLabelOverlay.onRemove = function() {
