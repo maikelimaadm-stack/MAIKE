@@ -1078,6 +1078,21 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showTarefas} onOpenChange={setShowTarefas}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tarefas do Mapa</DialogTitle>
+          </DialogHeader>
+          <TarefasMapaPanel
+            areaId={tarefasContext.areaId}
+            areaNome={tarefasContext.areaNome}
+            loteId={tarefasContext.loteId}
+            loteNome={tarefasContext.loteNome}
+            pontoSuplId={tarefasContext.pontoSuplId}
+            onClose={() => setShowTarefas(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
