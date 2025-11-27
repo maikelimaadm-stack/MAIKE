@@ -347,8 +347,135 @@ Responda em JSON:
     }
   };
 
+  // Desenhar polígonos das matas detectadas no mapa
+  const desenharPoligonosNoMapa = (matas) => {
+    if (!mapInstance || !window.google?.maps) return;
+    
+    // Limpar polígonos anteriores
+    limparPoligonosDoMapa();
+    
+    const novosPolygons = [];
+    
+    matas.forEach((mata) => {
+      const paths = mata.coordenadas.map(c => ({ lat: c[0], lng: c[1] }));
+      
+      // Cor baseada na classificação
+      const cores = {
+        "Mata Densa": { fill: "#166534", stroke: "#14532d" },
+        "Mata Média": { fill: "#22c55e", stroke: "#15803d" },
+        "Vegetação Rala": { fill: "#86efac", stroke: "#22c55e" }
+      };
+      const cor = cores[mata.classificacao] || cores["Mata Média"];
+      
+      const polygon = new google.maps.Polygon({
+        paths,
+        strokeColor: cor.stroke,
+        strokeOpacity: 1,
+        strokeWeight: 3,
+        fillColor: cor.fill,
+        fillOpacity: 0.5,
+        editable: false,
+        draggable: false,
+        zIndex: 1000
+      });
+      
+      polygon.setMap(mapInstance);
+      
+      // Adicionar label no centro
+      const bounds = new google.maps.LatLngBounds();
+      paths.forEach(p => bounds.extend(p));
+      const center = bounds.getCenter();
+      
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px; font-size: 12px;">
+            <strong style="color: #166534;">${mata.id}</strong><br/>
+            <span>${mata.classificacao}</span><br/>
+            <span>~${mata.area_estimada_ha?.toFixed(1)} ha</span><br/>
+            <span style="color: #666;">${mata.tipo_provavel}</span>
+          </div>
+        `,
+        position: center
+      });
+      
+      polygon.addListener('click', () => {
+        infoWindow.open(mapInstance);
+      });
+      
+      // Criar label overlay
+      const labelDiv = document.createElement('div');
+      labelDiv.innerHTML = `
+        <div style="
+          background: rgba(22, 101, 52, 0.9);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-align: center;
+          white-space: nowrap;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        ">
+          🌳 ${mata.id}<br/>
+          <span style="font-size: 10px; font-weight: 400;">${mata.area_estimada_ha?.toFixed(1)}ha</span>
+        </div>
+      `;
+      
+      const labelOverlay = new google.maps.OverlayView();
+      labelOverlay.onAdd = function() {
+        const pane = this.getPanes().floatPane;
+        pane.appendChild(labelDiv);
+      };
+      labelOverlay.draw = function() {
+        const projection = this.getProjection();
+        const position = projection.fromLatLngToDivPixel(center);
+        labelDiv.style.position = 'absolute';
+        labelDiv.style.left = position.x - 40 + 'px';
+        labelDiv.style.top = position.y - 25 + 'px';
+        labelDiv.style.zIndex = '9999';
+      };
+      labelOverlay.onRemove = function() {
+        labelDiv.parentNode?.removeChild(labelDiv);
+      };
+      labelOverlay.setMap(mapInstance);
+      
+      novosPolygons.push({ polygon, labelOverlay, infoWindow, mataId: mata.id });
+    });
+    
+    setPolygonsNoMapa(novosPolygons);
+    
+    // Centralizar mapa nas matas detectadas
+    if (matas.length > 0) {
+      const allBounds = new google.maps.LatLngBounds();
+      matas.forEach(mata => {
+        mata.coordenadas.forEach(c => allBounds.extend({ lat: c[0], lng: c[1] }));
+      });
+      mapInstance.fitBounds(allBounds, { padding: 50 });
+    }
+  };
+  
+  // Limpar polígonos do mapa
+  const limparPoligonosDoMapa = () => {
+    polygonsNoMapa.forEach(item => {
+      item.polygon.setMap(null);
+      item.labelOverlay.setMap(null);
+      item.infoWindow.close();
+    });
+    setPolygonsNoMapa([]);
+  };
+
   // Descartar mata
   const descartarMata = (mataId) => {
+    // Remover polígono do mapa
+    const itemRemover = polygonsNoMapa.find(p => p.mataId === mataId);
+    if (itemRemover) {
+      itemRemover.polygon.setMap(null);
+      itemRemover.labelOverlay.setMap(null);
+      itemRemover.infoWindow.close();
+      setPolygonsNoMapa(prev => prev.filter(p => p.mataId !== mataId));
+    }
+    
     setMatasDetectadas(prev => prev.filter(m => m.id !== mataId));
     toast.info("Área descartada");
   };
