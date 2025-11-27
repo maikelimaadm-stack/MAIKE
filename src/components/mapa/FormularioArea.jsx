@@ -238,7 +238,13 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
-          <Button type="button" variant="default" size="sm" className="h-8 text-xs bg-[#61aad9] hover:bg-[#0d67ad]">
+          <Button 
+            type="button" 
+            variant="default" 
+            size="sm" 
+            className="h-8 text-xs bg-[#61aad9] hover:bg-[#0d67ad]"
+            onClick={() => setShowAddCultura(true)}
+          >
             Adicionar tipo de cultura
           </Button>
         </div>
@@ -247,12 +253,46 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TIPOS_CULTURA.map(tipo => (
+            {tiposCultura.map(tipo => (
               <SelectItem key={tipo} value={tipo} className="text-sm">{tipo}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+
+      <Dialog open={showAddCultura} onOpenChange={setShowAddCultura}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Adicionar Tipo de Cultura</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label className="text-sm">Nome do tipo de cultura</Label>
+              <Input
+                value={novaCultura}
+                onChange={(e) => setNovaCultura(e.target.value)}
+                placeholder="Ex: Capim Elefante"
+                className="h-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCultura();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddCultura(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleAddCultura} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-4 h-4 mr-1" />
+                Adicionar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-1">
         <Label className="text-sm text-slate-700">Cor no mapa *</Label>
