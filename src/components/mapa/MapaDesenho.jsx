@@ -331,10 +331,10 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         map: mapInstanceRef.current,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#facc15',
+          scale: 5,
+          fillColor: '#ffffff',
           fillOpacity: 1,
-          strokeColor: '#ffffff',
+          strokeColor: '#facc15',
           strokeWeight: 2
         },
         draggable: true,
