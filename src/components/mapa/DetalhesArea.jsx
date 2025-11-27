@@ -347,6 +347,14 @@ export default function DetalhesArea({ area, onClose }) {
             ))}
           </div>
         </TabsContent>
+
+        <TabsContent value="tarefas" className="mt-3">
+          <TarefasMapaPanel
+            areaId={area.id}
+            areaNome={area.nome}
+            onClose={() => {}}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Ações */}
