@@ -66,8 +66,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data/Hora', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'tipo_detalhado', label: 'Tipo Detalhado', default: true, sortable: false },
-  { id: 'tipo_documento', label: 'Tipo Doc', default: true, sortable: false },
-  { id: 'numero_documento', label: 'Nº Documento', default: true, sortable: false },
+  { id: 'tipo_documento', label: 'Tipo Doc', default: false, sortable: false },
+  { id: 'numero_documento', label: 'Nº Documento', default: false, sortable: false },
   { id: 'serie_documento', label: 'Série', default: false, sortable: false },
   { id: 'chave_documento', label: 'Chave NF-e', default: false, sortable: false },
   { id: 'data_documento', label: 'Data Doc', default: false, sortable: false },
@@ -85,10 +85,11 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'saldo_antes', label: 'Saldo Ant.', default: false, sortable: false },
   { id: 'saldo_depois', label: 'Saldo Dep.', default: false, sortable: false },
   { id: 'fornecedor', label: 'Fornecedor/Cliente', default: true, sortable: true },
-  { id: 'local_origem', label: 'Local Origem', default: true, sortable: false },
-  { id: 'local_destino', label: 'Local Destino', default: true, sortable: false },
+  { id: 'local_estoque', label: 'Local Estoque', default: true, sortable: false },
+  { id: 'local_origem', label: 'Local Origem', default: false, sortable: false },
+  { id: 'local_destino', label: 'Local Destino', default: false, sortable: false },
   { id: 'centro_custo', label: 'Centro de Custo', default: false, sortable: false },
-  { id: 'motivo', label: 'Motivo', default: false, sortable: false },
+  { id: 'motivo', label: 'Motivo (Ajuste)', default: false, sortable: false },
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
   { id: 'status', label: 'Status', default: true, sortable: true },
@@ -353,10 +354,16 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
         return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{formatarNumero(mov.saldo_depois)}</TableCell>;
       case 'fornecedor':
         return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
+      case 'local_estoque':
+        // Mostrar o local principal (origem para saída, destino para entrada)
+        const localPrincipal = mov.tipo_movimentacao === 'Entrada' 
+          ? (mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-')
+          : (mov.local_estoque_origem || mov.local_origem || mov.local_estoque || '-');
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{localPrincipal}</TableCell>;
       case 'local_origem':
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || mov.local_origem || '-'}</TableCell>;
       case 'local_destino':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-'}</TableCell>;
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || mov.local_destino || '-'}</TableCell>;
       case 'centro_custo':
         return <TableCell className="text-xs border-r border-slate-200">{mov.centro_custo_nome || '-'}</TableCell>;
       case 'motivo':
