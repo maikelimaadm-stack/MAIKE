@@ -37,20 +37,48 @@ const CORES_DISPONIVEIS = [
   { nome: "Roxo", cor: "#966fe1" }
 ];
 
-export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false }) {
+export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const queryClient = useQueryClient();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
+  const [showAddCultura, setShowAddCultura] = useState(false);
+  const [novaCultura, setNovaCultura] = useState("");
   
-  const [formData, setFormData] = useState({
-    nome: "",
-    area_total: "",
-    area_pastejada: "",
-    aproveitamento: "Pastejo",
-    tipo_cultura: "Aruana",
-    cor: CORES_DISPONIVEIS[4].cor,
-    observacoes: ""
+  // Buscar tipos de cultura customizados
+  const { data: tiposCulturaCustom = [] } = useQuery({
+    queryKey: ['tipos-cultura', empresaSelecionadaId],
+    queryFn: async () => {
+      const saved = localStorage.getItem(`tipos_cultura_${empresaSelecionadaId}`);
+      return saved ? JSON.parse(saved) : [];
+    },
   });
+
+  const tiposCultura = [...TIPOS_CULTURA_PADRAO, ...tiposCulturaCustom];
+
+  const [formData, setFormData] = useState({
+    nome: item?.nome || "",
+    area_total: item?.tamanho_hectares?.toString() || "",
+    area_pastejada: item?.area_pastejada?.toString() || "",
+    aproveitamento: item?.tipo_pastagem || "Pastejo",
+    tipo_cultura: item?.tipo_cultura || "Aruana",
+    cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
+    observacoes: item?.observacoes || ""
+  });
+
+  const handleAddCultura = () => {
+    if (!novaCultura.trim()) {
+      toast.error('Digite o nome do tipo de cultura');
+      return;
+    }
+    const updated = [...tiposCulturaCustom, novaCultura.trim()];
+    localStorage.setItem(`tipos_cultura_${empresaSelecionadaId}`, JSON.stringify(updated));
+    queryClient.invalidateQueries({ queryKey: ['tipos-cultura'] });
+    setFormData({ ...formData, tipo_cultura: novaCultura.trim() });
+    setNovaCultura("");
+    setShowAddCultura(false);
+    toast.success('Tipo de cultura adicionado!');
+  };
 
   const createAreaMutation = useMutation({
     mutationFn: async (data) => {
