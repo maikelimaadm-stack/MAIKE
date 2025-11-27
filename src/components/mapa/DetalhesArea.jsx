@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Leaf, Tractor, Plus, MapPin, DollarSign,
-  TrendingUp, Package, Calculator
+  TrendingUp, Package, Calculator, ClipboardList
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
