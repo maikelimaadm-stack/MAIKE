@@ -246,7 +246,7 @@ export default function DetalhesArea({ area, onClose }) {
 
       {/* Tabs */}
       <Tabs defaultValue="operacoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="operacoes" className="text-xs">
             <Tractor className="w-3 h-3 mr-1" />
             Operações
@@ -258,6 +258,10 @@ export default function DetalhesArea({ area, onClose }) {
           <TabsTrigger value="lotes" className="text-xs">
             <Package className="w-3 h-3 mr-1" />
             Lotes
+          </TabsTrigger>
+          <TabsTrigger value="tarefas" className="text-xs">
+            <ClipboardList className="w-3 h-3 mr-1" />
+            Tarefas
           </TabsTrigger>
         </TabsList>
 
