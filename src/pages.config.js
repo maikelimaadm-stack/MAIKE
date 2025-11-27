@@ -46,6 +46,7 @@ import OperacoesAgricolas from './pages/OperacoesAgricolas';
 import ControleAreas from './pages/ControleAreas';
 import FichaOperador from './pages/FichaOperador';
 import FichaOperadorImpressao from './pages/FichaOperadorImpressao';
+import ControlePecuaria from './pages/ControlePecuaria';
 import __Layout from './Layout.jsx';
 
 
@@ -98,6 +99,7 @@ export const PAGES = {
     "ControleAreas": ControleAreas,
     "FichaOperador": FichaOperador,
     "FichaOperadorImpressao": FichaOperadorImpressao,
+    "ControlePecuaria": ControlePecuaria,
 }
 
 export const pagesConfig = {
