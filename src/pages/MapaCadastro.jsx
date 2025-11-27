@@ -296,6 +296,78 @@ export default function MapaCadastro() {
         open={showImportarGeoJSON} 
         onOpenChange={setShowImportarGeoJSON} 
       />
+
+      {/* Sheet Editar Detalhes Área */}
+      <Sheet open={showEditarDetalhesArea} onOpenChange={setShowEditarDetalhesArea}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Detalhes da Área</SheetTitle>
+          </SheetHeader>
+          {itemDetalhes && (
+            <FormularioArea
+              coordenadas={itemDetalhes.coordenadas?.coords?.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))}
+              item={itemDetalhes}
+              onSave={() => {
+                setShowEditarDetalhesArea(false);
+                setItemDetalhes(null);
+                queryClient.invalidateQueries({ queryKey: ['areas'] });
+              }}
+              onCancel={() => {
+                setShowEditarDetalhesArea(false);
+                setItemDetalhes(null);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet Editar Detalhes Ponto */}
+      <Sheet open={showEditarDetalhesPonto} onOpenChange={setShowEditarDetalhesPonto}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Detalhes do Ponto</SheetTitle>
+          </SheetHeader>
+          {itemDetalhes && (
+            <FormularioPonto
+              coordenadas={itemDetalhes.coordenadas}
+              item={itemDetalhes}
+              onSave={() => {
+                setShowEditarDetalhesPonto(false);
+                setItemDetalhes(null);
+                queryClient.invalidateQueries({ queryKey: ['pontos'] });
+              }}
+              onCancel={() => {
+                setShowEditarDetalhesPonto(false);
+                setItemDetalhes(null);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet Editar Detalhes Linha */}
+      <Sheet open={showEditarDetalhesLinha} onOpenChange={setShowEditarDetalhesLinha}>
+        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Detalhes da Linha</SheetTitle>
+          </SheetHeader>
+          {itemDetalhes && (
+            <FormularioLinha
+              coordenadas={itemDetalhes.coordenadas?.coords?.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }))}
+              item={itemDetalhes}
+              onSave={() => {
+                setShowEditarDetalhesLinha(false);
+                setItemDetalhes(null);
+                queryClient.invalidateQueries({ queryKey: ['linhas'] });
+              }}
+              onCancel={() => {
+                setShowEditarDetalhesLinha(false);
+                setItemDetalhes(null);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
