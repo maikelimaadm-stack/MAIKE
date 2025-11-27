@@ -234,31 +234,6 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         setTimeout(() => {
           setMapReady(true);
-          // Centralizar nas áreas cadastradas (se não estiver editando)
-          if (!itemEditando) {
-            setTimeout(() => {
-              if (areas.length > 0) {
-                const bounds = new google.maps.LatLngBounds();
-                let hasValidCoords = false;
-
-                areas.forEach(area => {
-                  const coords = area.coordenadas?.coords || [];
-                  coords.forEach(c => {
-                    const lat = c[0] || c.lat;
-                    const lng = c[1] || c.lng;
-                    if (lat && lng) {
-                      bounds.extend({ lat, lng });
-                      hasValidCoords = true;
-                    }
-                  });
-                });
-
-                if (hasValidCoords) {
-                  map.fitBounds(bounds, { padding: 50 });
-                }
-              }
-            }, 200);
-          }
         }, 100);
       });
     }).catch((error) => {
@@ -266,6 +241,34 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       toast.error('Erro ao carregar mapa.');
     });
   }, []);
+
+  // Centralizar nas áreas cadastradas quando os dados estiverem disponíveis
+  const hasCenteredRef = useRef(false);
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapReady || itemEditando || hasCenteredRef.current) return;
+    
+    if (areas.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      let hasValidCoords = false;
+
+      areas.forEach(area => {
+        const coords = area.coordenadas?.coords || [];
+        coords.forEach(c => {
+          const lat = c[0] || c.lat;
+          const lng = c[1] || c.lng;
+          if (lat && lng) {
+            bounds.extend({ lat, lng });
+            hasValidCoords = true;
+          }
+        });
+      });
+
+      if (hasValidCoords) {
+        mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+        hasCenteredRef.current = true;
+      }
+    }
+  }, [areas, mapReady, itemEditando]);
 
   useEffect(() => {
     if (mapInstanceRef.current) {
