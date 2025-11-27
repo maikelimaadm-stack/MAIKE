@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Plus, Navigation, Upload } from "lucide-react";
+import { Map, Plus, Navigation, Upload, Leaf } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ import TabelaLinhasGeo from "../components/mapa/TabelaLinhasGeo";
 
 import MapaDesenho from "../components/mapa/MapaDesenho";
 import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
+import DeteccaoMataIA from "../components/mapa/DeteccaoMataIA";
 
 export default function MapaCadastro() {
   const [modo, setModo] = useState('listagem');
@@ -165,10 +166,14 @@ export default function MapaCadastro() {
       </div>
 
       <Tabs defaultValue="areas" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="areas">Áreas</TabsTrigger>
           <TabsTrigger value="pontos">Pontos</TabsTrigger>
           <TabsTrigger value="linhas">Linhas</TabsTrigger>
+          <TabsTrigger value="ia" className="gap-1">
+            <Leaf className="w-3 h-3" />
+            Detectar Mata
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="areas" className="space-y-4">
@@ -243,6 +248,14 @@ export default function MapaCadastro() {
             linhas={linhas}
             onEdit={(linha) => handleEditarItem(linha, 'linha')}
             onDelete={(linha) => handleExcluirItem(linha, 'linha')}
+          />
+        </TabsContent>
+
+        <TabsContent value="ia" className="space-y-4">
+          <DeteccaoMataIA
+            areasExistentes={areas}
+            empresaId={empresaSelecionadaId}
+            onMataCriada={() => queryClient.invalidateQueries({ queryKey: ['areas'] })}
           />
         </TabsContent>
 
