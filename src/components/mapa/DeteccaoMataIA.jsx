@@ -441,7 +441,9 @@ Responda em JSON:
 
   // Desenhar polígonos das matas detectadas no mapa
   const desenharPoligonosNoMapa = (matas) => {
-    if (!mapInstance || !window.google?.maps) return;
+    if (!mapInstanceRef.current || !window.google?.maps) return;
+    
+    const mapInstance = mapInstanceRef.current;
     
     // Limpar polígonos anteriores
     limparPoligonosDoMapa();
