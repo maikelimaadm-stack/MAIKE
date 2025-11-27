@@ -25,6 +25,7 @@ import {
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
 import DetalhesArea from "../components/mapa/DetalhesArea";
+import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
 
