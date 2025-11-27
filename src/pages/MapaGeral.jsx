@@ -191,6 +191,19 @@ export default function MapaGeral() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: tarefasMapa = [], refetch: refetchTarefas } = useQuery({
+    queryKey: ['tarefas-mapa', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.TarefaMapa.list();
+      return all.filter(t => 
+        t.empresa_id === empresaSelecionadaId && 
+        t.coordenadas && 
+        (t.status === 'Pendente' || t.status === 'Em Andamento')
+      );
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   // Calcular alertas
   const lotesComAlerta = lotes.map(lote => {
     const alertas = [];
