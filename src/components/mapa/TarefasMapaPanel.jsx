@@ -256,11 +256,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 createMutation.mutate({
                   ...data,
                   empresa_id: empresaSelecionadaId,
-                  area_id: areaId,
-                  area_nome: areaNome,
-                  lote_id: loteId,
-                  lote_nome: loteNome,
-                  ponto_suplementacao_id: pontoSuplId
+                  area_id: data.area_id || areaId,
+                  area_nome: data.area_nome || areaNome,
+                  lote_id: data.lote_id || loteId,
+                  lote_nome: data.lote_nome || loteNome,
+                  ponto_suplementacao_id: pontoSuplId,
+                  coordenadas: data.coordenadas
                 });
               }
             }}
