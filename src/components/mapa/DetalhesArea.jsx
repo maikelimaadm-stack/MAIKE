@@ -91,15 +91,15 @@ export default function DetalhesArea({ area, onClose }) {
     .reduce((sum, o) => sum + (o.hectares_trabalhados || 0), 0);
 
   const statusColors = {
-    'Pousio': 'bg-slate-100 text-slate-800',
-    'Preparação': 'bg-amber-100 text-amber-800',
-    'Plantada': 'bg-blue-100 text-blue-800',
-    'Em Desenvolvimento': 'bg-emerald-100 text-emerald-800',
-    'Colheita': 'bg-purple-100 text-purple-800',
-    'Colhida': 'bg-green-100 text-green-800',
-    'Planejada': 'bg-blue-100 text-blue-800',
-    'Em Andamento': 'bg-amber-100 text-amber-800',
-    'Concluída': 'bg-emerald-100 text-emerald-800',
+    'Pousio': 'bg-slate-100 text-slate-700',
+    'Preparação': 'bg-slate-100 text-slate-700',
+    'Plantada': 'bg-slate-100 text-slate-700',
+    'Em Desenvolvimento': 'bg-slate-100 text-slate-700',
+    'Colheita': 'bg-slate-100 text-slate-700',
+    'Colhida': 'bg-slate-100 text-slate-700',
+    'Planejada': 'bg-slate-100 text-slate-700',
+    'Em Andamento': 'bg-slate-100 text-slate-700',
+    'Concluída': 'bg-slate-100 text-slate-700',
   };
 
   return (
@@ -126,46 +126,46 @@ export default function DetalhesArea({ area, onClose }) {
 
       {/* Resumo Geral */}
       <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-emerald-50 rounded-lg">
-          <div className="text-lg font-bold text-emerald-700">{area.tamanho_hectares || 0}</div>
-          <div className="text-[10px] text-emerald-600">Hectares</div>
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-lg font-bold text-slate-700">{area.tamanho_hectares || 0}</div>
+          <div className="text-[10px] text-slate-600">Hectares</div>
         </div>
-        <div className="text-center p-2 bg-blue-50 rounded-lg">
-          <div className="text-lg font-bold text-blue-700">{totalCabecas}</div>
-          <div className="text-[10px] text-blue-600">Cabeças</div>
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-lg font-bold text-slate-700">{totalCabecas}</div>
+          <div className="text-[10px] text-slate-600">Cabeças</div>
         </div>
-        <div className="text-center p-2 bg-amber-50 rounded-lg">
-          <div className="text-lg font-bold text-amber-700">{totalOperacoes}</div>
-          <div className="text-[10px] text-amber-600">Operações</div>
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-lg font-bold text-slate-700">{totalOperacoes}</div>
+          <div className="text-[10px] text-slate-600">Operações</div>
         </div>
-        <div className="text-center p-2 bg-purple-50 rounded-lg">
-          <div className="text-lg font-bold text-purple-700">{totalHectaresTrabalhados.toFixed(0)}</div>
-          <div className="text-[10px] text-purple-600">ha Trab.</div>
+        <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="text-lg font-bold text-slate-700">{totalHectaresTrabalhados.toFixed(0)}</div>
+          <div className="text-[10px] text-slate-600">ha Trab.</div>
         </div>
       </div>
 
       {/* Resumo de Custos */}
-      <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+      <Card className="border-slate-200 bg-slate-50">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-4 h-4 text-red-600" />
-            <span className="text-xs font-semibold text-red-900">Custos da Área</span>
+            <DollarSign className="w-4 h-4 text-slate-600" />
+            <span className="text-xs font-semibold text-slate-900">Custos da Área</span>
           </div>
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-red-700">
+            <div className="text-center p-2 bg-white rounded-lg border border-slate-200">
+              <div className="text-sm font-bold text-slate-700">
                 R$ {custos.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[9px] text-slate-600">CUSTO TOTAL</div>
             </div>
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-orange-700">
+            <div className="text-center p-2 bg-white rounded-lg border border-slate-200">
+              <div className="text-sm font-bold text-slate-700">
                 R$ {custos.porHectare.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[9px] text-slate-600">CUSTO/HA</div>
             </div>
-            <div className="text-center p-2 bg-white rounded-lg border">
-              <div className="text-sm font-bold text-amber-700">
+            <div className="text-center p-2 bg-white rounded-lg border border-slate-200">
+              <div className="text-sm font-bold text-slate-700">
                 {controleAtual?.producao_estimada_kg 
                   ? `R$ ${((custos.total / (controleAtual.producao_estimada_kg / 60)) || 0).toFixed(2)}`
                   : '-'}
@@ -174,19 +174,19 @@ export default function DetalhesArea({ area, onClose }) {
             </div>
           </div>
           <div className="grid grid-cols-4 gap-2 text-[10px]">
-            <div className="bg-white p-1.5 rounded text-center">
+            <div className="bg-white p-1.5 rounded border border-slate-200 text-center">
               <div className="font-semibold text-slate-700">R$ {custos.combustivel.toFixed(0)}</div>
               <div className="text-slate-500">Combustível</div>
             </div>
-            <div className="bg-white p-1.5 rounded text-center">
+            <div className="bg-white p-1.5 rounded border border-slate-200 text-center">
               <div className="font-semibold text-slate-700">R$ {custos.maquinas.toFixed(0)}</div>
               <div className="text-slate-500">Máquinas</div>
             </div>
-            <div className="bg-white p-1.5 rounded text-center">
+            <div className="bg-white p-1.5 rounded border border-slate-200 text-center">
               <div className="font-semibold text-slate-700">R$ {custos.insumos.toFixed(0)}</div>
               <div className="text-slate-500">Insumos</div>
             </div>
-            <div className="bg-white p-1.5 rounded text-center">
+            <div className="bg-white p-1.5 rounded border border-slate-200 text-center">
               <div className="font-semibold text-slate-700">R$ {custos.maoObra.toFixed(0)}</div>
               <div className="text-slate-500">Mão Obra</div>
             </div>
@@ -196,12 +196,12 @@ export default function DetalhesArea({ area, onClose }) {
 
       {/* Controle Atual */}
       {controleAtual && (
-        <Card className="border-emerald-200 bg-emerald-50/50">
+        <Card className="border-slate-200 bg-slate-50">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Leaf className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-900">Cultura Atual</span>
+                <Leaf className="w-4 h-4 text-slate-600" />
+                <span className="text-xs font-semibold text-slate-900">Cultura Atual</span>
               </div>
               <Button
                 variant="ghost"
@@ -235,7 +235,7 @@ export default function DetalhesArea({ area, onClose }) {
               </div>
             </div>
             {controleAtual.produtividade_sc_ha && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-emerald-700">
+              <div className="flex items-center gap-1 mt-2 text-xs text-slate-700">
                 <TrendingUp className="w-3 h-3" />
                 {controleAtual.produtividade_sc_ha} sc/ha
               </div>
@@ -287,8 +287,8 @@ export default function DetalhesArea({ area, onClose }) {
                 </div>
                 <div className="text-right">
                   {op.custo_total ? (
-                    <div className="text-xs font-semibold text-red-600">R$ {op.custo_total.toFixed(2)}</div>
-                  ) : (
+                      <div className="text-xs font-semibold text-slate-700">R$ {op.custo_total.toFixed(2)}</div>
+                    ) : (
                     <Badge className={`text-[10px] ${statusColors[op.status]}`}>{op.status}</Badge>
                   )}
                   {op.hectares_trabalhados && (
@@ -313,9 +313,9 @@ export default function DetalhesArea({ area, onClose }) {
                   <div key={tipo} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
                     <span className="text-xs font-medium text-slate-700">{tipo}</span>
                     <div className="text-right">
-                      <div className="text-xs font-semibold text-red-600">
-                        R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </div>
+                        <div className="text-xs font-semibold text-slate-700">
+                          R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </div>
                       <div className="text-[10px] text-slate-500">
                         R$ {(valor / (area.tamanho_hectares || 1)).toFixed(2)}/ha
                       </div>
