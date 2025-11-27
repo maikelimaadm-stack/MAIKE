@@ -273,7 +273,9 @@ Responda em JSON:
       // Etapa 2: Analisar com IA
       setEtapa("Analisando vegetação com IA...");
       setProgresso(50);
-      const resultado = await analisarComIA(captura.imageUrl, captura.bounds);
+      console.log('🔍 Enviando para análise:', captura.imageUrl);
+      const resultado = await analisarComIA(captura.imageUrl, captura.bounds, captura.zoom);
+      console.log('📊 Resultado da análise:', resultado);
 
       // Etapa 3: Processar resultados
       setEtapa("Processando áreas detectadas...");
