@@ -235,7 +235,34 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       mapInstanceRef.current = map;
       
       google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
-        setTimeout(() => setMapReady(true), 100);
+        setTimeout(() => {
+          setMapReady(true);
+          // Centralizar nas áreas cadastradas (se não estiver editando)
+          if (!itemEditando) {
+            setTimeout(() => {
+              if (areas.length > 0) {
+                const bounds = new google.maps.LatLngBounds();
+                let hasValidCoords = false;
+
+                areas.forEach(area => {
+                  const coords = area.coordenadas?.coords || [];
+                  coords.forEach(c => {
+                    const lat = c[0] || c.lat;
+                    const lng = c[1] || c.lng;
+                    if (lat && lng) {
+                      bounds.extend({ lat, lng });
+                      hasValidCoords = true;
+                    }
+                  });
+                });
+
+                if (hasValidCoords) {
+                  map.fitBounds(bounds, { padding: 50 });
+                }
+              }
+            }, 200);
+          }
+        }, 100);
       });
     }).catch((error) => {
       console.error('Erro ao carregar mapa:', error);
