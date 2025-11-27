@@ -413,8 +413,8 @@ export default function MapaGeral() {
             pointer-events: none;
             z-index: 9999;
           ">
-            <div style="font-size: 13px; font-weight: 700;">${area.nome || 'Sem nome'}</div>
-            <div style="font-size: 11px; font-weight: 500;">${areaHa.toFixed(0)}ha</div>
+            <div style="font-size: 13px; font-weight: 400;">${area.nome || 'Sem nome'}</div>
+            <div style="font-size: 11px; font-weight: 400;">${areaHa.toFixed(0)}ha</div>
           </div>
         `;
 
