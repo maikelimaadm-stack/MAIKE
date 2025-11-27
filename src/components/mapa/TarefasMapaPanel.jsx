@@ -421,11 +421,29 @@ function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSup
         />
       </div>
 
-      {(areaNome || loteNome) && (
-        <div className="bg-slate-50 rounded p-2 text-xs text-slate-600">
-          <span className="font-medium">Vinculado a:</span> {areaNome || loteNome}
-        </div>
-      )}
+      {!areaId && !loteId && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Vincular à Área</Label>
+              <Select value={formData.area_id} onValueChange={handleAreaChange}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione uma área..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map(area => (
+                    <SelectItem key={area.id} value={area.id} className="text-xs">
+                      {area.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {(areaNome || loteNome || formData.area_nome) && (
+            <div className="bg-slate-50 rounded p-2 text-xs text-slate-600">
+              <span className="font-medium">Vinculado a:</span> {areaNome || loteNome || formData.area_nome}
+            </div>
+          )}
 
       <div className="flex justify-end gap-2 pt-2 border-t">
         <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
