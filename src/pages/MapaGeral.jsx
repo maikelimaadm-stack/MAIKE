@@ -66,6 +66,8 @@ export default function MapaGeral() {
   const [selectedArea, setSelectedArea] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showUserLocation, setShowUserLocation] = useState(false);
+  const [showTarefas, setShowTarefas] = useState(false);
+  const [tarefasContext, setTarefasContext] = useState({});
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
