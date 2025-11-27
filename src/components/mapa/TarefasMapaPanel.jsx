@@ -104,7 +104,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             <p className="text-xs text-slate-500">{areaNome || loteNome}</p>
           )}
         </div>
-        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+        <Button size="sm" onClick={() => { setEditingTarefa(null); setShowForm(true); }} className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
           <Plus className="w-3 h-3" /> Nova Tarefa
         </Button>
       </div>
@@ -484,8 +484,8 @@ function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSup
         <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
           Cancelar
         </Button>
-        <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-          {tarefa ? 'Salvar' : 'Criar Tarefa'}
+        <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+        {tarefa ? 'Salvar' : 'Criar Tarefa'}
         </Button>
       </div>
     </form>

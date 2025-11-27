@@ -202,8 +202,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   return (
     <>
     <Card>
-      <CardHeader className="bg-emerald-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold text-emerald-900">
+      <CardHeader className="bg-slate-50 border-b py-3">
+        <CardTitle className="text-sm font-semibold text-slate-900">
           Lançar Suplementação - {ponto?.nome_ponto}
         </CardTitle>
       </CardHeader>
@@ -225,7 +225,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               {loadingLotes ? (
                 <Badge variant="outline" className="text-xs">Carregando...</Badge>
               ) : (
-                <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                <Badge className="bg-slate-100 text-slate-700 text-xs">
                   {lotes.length} lote(s) - {totalCabecas} cabeças
                 </Badge>
               )}
@@ -400,10 +400,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               type="button"
               onClick={handleSalvar}
               size="sm" 
-              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+              className="h-8 text-xs bg-slate-700 hover:bg-slate-800"
               disabled={!botaoHabilitado || progresso.show}
             >
-              {progresso.show ? 'Registrando...' : `Registrar (${botaoHabilitado ? 'OK' : 'Faltam dados'})`}
+              {progresso.show ? 'Registrando...' : 'Salvar'}
             </Button>
           </div>
         </div>
