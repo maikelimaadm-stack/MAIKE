@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Users, MapPin, TrendingUp, AlertTriangle, Search, Filter, 
   ArrowRightLeft, Calendar, Package, Activity, CheckCircle, Clock,
-  Scale, Syringe, Truck
+  Scale, Syringe, Truck, Tractor
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -68,6 +68,15 @@ export default function ControlePecuaria() {
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list('-data_lancamento');
       return all.filter(e => e.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: operacoes = [] } = useQuery({
+    queryKey: ['operacoes-controle', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.OperacaoAgricola.list('-data_inicio');
+      return all.filter(o => o.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -232,9 +241,10 @@ export default function ControlePecuaria() {
       </div>
 
       <Tabs defaultValue="rebanho" className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-4 h-8">
+        <TabsList className="grid w-full max-w-2xl grid-cols-5 h-8">
           <TabsTrigger value="rebanho" className="text-xs h-7">Rebanho</TabsTrigger>
           <TabsTrigger value="movimentacoes" className="text-xs h-7">Movimentações</TabsTrigger>
+          <TabsTrigger value="operacoes" className="text-xs h-7">Operações</TabsTrigger>
           <TabsTrigger value="tarefas" className="text-xs h-7">Tarefas</TabsTrigger>
           <TabsTrigger value="graficos" className="text-xs h-7">Gráficos</TabsTrigger>
         </TabsList>
@@ -368,6 +378,73 @@ export default function ControlePecuaria() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="operacoes" className="space-y-3 mt-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm text-slate-600">
+              {operacoes.filter(o => o.status === 'Em Andamento').length} em andamento • {operacoes.filter(o => o.status === 'Planejada').length} planejada(s)
+            </div>
+            <Link to={createPageUrl("OperacoesAgricolas")}>
+              <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+                <Tractor className="w-3 h-3" /> Gerenciar Operações
+              </Button>
+            </Link>
+          </div>
+
+          <div className="space-y-2">
+            {operacoes.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Tractor className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma operação registrada</p>
+              </div>
+            ) : (
+              operacoes.slice(0, 20).map(op => (
+                <Card key={op.id} className="shadow-sm border-slate-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm text-slate-900">{op.tipo_operacao}</span>
+                          <Badge className="text-[10px] bg-slate-100 text-slate-700">
+                            {op.status}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                          {op.area_nome && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {op.area_nome}
+                            </span>
+                          )}
+                          {op.maquina_nome && (
+                            <span className="flex items-center gap-1">
+                              <Tractor className="w-3 h-3" />
+                              {op.maquina_nome}
+                            </span>
+                          )}
+                          {op.data_inicio && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(op.data_inicio), 'dd/MM/yyyy')}
+                            </span>
+                          )}
+                          {op.hectares_trabalhados && (
+                            <span>{op.hectares_trabalhados} ha</span>
+                          )}
+                          {op.custo_total && (
+                            <span className="font-medium text-slate-700">
+                              R$ {op.custo_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
