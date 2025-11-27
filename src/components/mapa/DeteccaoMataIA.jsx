@@ -1,32 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Leaf, Loader2, AlertTriangle, Check, Trash2, Edit2, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { Leaf, Loader2, AlertTriangle, Check, Trash2, Edit2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyB-PfoOotwVlkAzt72cBgYE2tl4vJuqFe8";
-
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google?.maps) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=drawing,geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
-
 export default function DeteccaoMataIA({ 
+  mapInstance, 
   areasExistentes = [], 
   onMataCriada,
   empresaId 
@@ -37,73 +20,7 @@ export default function DeteccaoMataIA({
   const [matasDetectadas, setMatasDetectadas] = useState([]);
   const [matasConfirmadas, setMatasConfirmadas] = useState([]);
   const [polygonsNoMapa, setPolygonsNoMapa] = useState([]);
-  const [showMapa, setShowMapa] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
-  
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
   const queryClient = useQueryClient();
-  
-  // Inicializar mapa quando mostrar
-  useEffect(() => {
-    if (showMapa && !mapInstanceRef.current) {
-      loadGoogleMapsScript().then(() => {
-        if (!mapRef.current) return;
-        
-        const bounds = calcularLimitesFazenda();
-        const center = bounds ? {
-          lat: (bounds.minLat + bounds.maxLat) / 2,
-          lng: (bounds.minLng + bounds.maxLng) / 2
-        } : { lat: -15.0067, lng: -59.9533 };
-        
-        const map = new google.maps.Map(mapRef.current, {
-          center,
-          zoom: 14,
-          mapTypeId: 'satellite',
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
-        
-        mapInstanceRef.current = map;
-        
-        // Desenhar áreas existentes
-        areasExistentes.forEach(area => {
-          const coords = area.coordenadas?.coords || [];
-          if (coords.length < 3) return;
-          
-          const paths = coords.map(c => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
-          const cor = area.coordenadas?.cor || '#FFCC00';
-          
-          new google.maps.Polygon({
-            paths,
-            strokeColor: cor,
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            fillColor: cor,
-            fillOpacity: 0.35,
-            map
-          });
-        });
-        
-        // Ajustar zoom para mostrar todas as áreas
-        if (bounds) {
-          const mapBounds = new google.maps.LatLngBounds(
-            { lat: bounds.minLat, lng: bounds.minLng },
-            { lat: bounds.maxLat, lng: bounds.maxLng }
-          );
-          map.fitBounds(mapBounds, { padding: 50 });
-        }
-        
-        setMapReady(true);
-        
-        // Se já tem matas detectadas, desenhar
-        if (matasDetectadas.length > 0) {
-          setTimeout(() => desenharPoligonosNoMapa(matasDetectadas), 500);
-        }
-      });
-    }
-  }, [showMapa]);
 
   // Mutation para criar área de mata
   const createMataMutation = useMutation({
@@ -375,11 +292,10 @@ Responda em JSON:
 
         setMatasDetectadas(matasProcessadas);
         
-        // Mostrar mapa e desenhar polígonos
-        setShowMapa(true);
-        setTimeout(() => desenharPoligonosNoMapa(matasProcessadas), 800);
+        // Desenhar polígonos no mapa
+        desenharPoligonosNoMapa(matasProcessadas);
         
-        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s)! Veja no mapa abaixo.`);
+        toast.success(`${matasProcessadas.length} área(s) de mata detectada(s) e desenhadas no mapa!`);
       } else {
         toast.info("Nenhuma área de mata significativa detectada");
       }
@@ -442,9 +358,7 @@ Responda em JSON:
 
   // Desenhar polígonos das matas detectadas no mapa
   const desenharPoligonosNoMapa = (matas) => {
-    if (!mapInstanceRef.current || !window.google?.maps) return;
-    
-    const mapInstance = mapInstanceRef.current;
+    if (!mapInstance || !window.google?.maps) return;
     
     // Limpar polígonos anteriores
     limparPoligonosDoMapa();
@@ -722,42 +636,6 @@ Responda em JSON:
               {matasConfirmadas.length} área(s) salva(s) como reserva
             </div>
           </div>
-        )}
-        
-        {/* MAPA EMBUTIDO */}
-        {showMapa && (
-          <div className="border border-slate-300 rounded-lg overflow-hidden">
-            <div className="bg-slate-100 px-3 py-2 flex items-center justify-between border-b">
-              <span className="text-xs font-semibold text-slate-700">
-                🗺️ Mapa com Matas Detectadas
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowMapa(false)}
-                className="h-6 text-xs"
-              >
-                <Minimize2 className="w-3 h-3 mr-1" />
-                Ocultar
-              </Button>
-            </div>
-            <div 
-              ref={mapRef} 
-              style={{ height: '400px', width: '100%' }}
-              className="bg-slate-200"
-            />
-          </div>
-        )}
-        
-        {!showMapa && matasDetectadas.length > 0 && (
-          <Button
-            variant="outline"
-            onClick={() => setShowMapa(true)}
-            className="w-full h-10 text-xs gap-2"
-          >
-            <Maximize2 className="w-4 h-4" />
-            Ver Mapa com Matas Detectadas
-          </Button>
         )}
       </CardContent>
     </Card>
