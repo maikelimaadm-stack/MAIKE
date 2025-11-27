@@ -605,15 +605,28 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             </div>
           </div>
         )}
-        {tipoDesenho && mapReady && !itemEditando && (
+        {tipoDesenho && mapReady && (
           <>
-            {/* Botão TERMINAR no topo */}
-            {((tipoDesenho === 'area' && currentPoints.length >= 3) || (tipoDesenho === 'linha' && currentPoints.length >= 2)) && (
+            {/* Botão TERMINAR/SALVAR no topo */}
+            {((tipoDesenho === 'area' && currentPoints.length >= 3) || (tipoDesenho === 'linha' && currentPoints.length >= 2) || (tipoDesenho === 'ponto' && currentMarker)) && (
               <Button
-                onClick={finalizarDesenho}
+                onClick={() => {
+                  if (itemEditando) {
+                    // Modo edição - abrir formulário para salvar
+                    if (tipoDesenho === 'area') {
+                      setShowFormularioArea(true);
+                    } else if (tipoDesenho === 'linha') {
+                      setShowFormularioLinha(true);
+                    } else if (tipoDesenho === 'ponto') {
+                      setShowFormularioPonto(true);
+                    }
+                  } else {
+                    finalizarDesenho();
+                  }
+                }}
                 className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-2xl h-10 px-6 text-sm border-2 border-white"
               >
-                TERMINAR
+                {itemEditando ? 'SALVAR ALTERAÇÕES' : 'TERMINAR'}
               </Button>
             )}
 
@@ -650,12 +663,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
             {/* Botão DESFAZER na parte inferior */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-2">
-              {tipoDesenho === 'ponto' && !currentMarker && (
+              {tipoDesenho === 'ponto' && !currentMarker && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
                   📍 Toque no mapa para marcar
                 </div>
               )}
-              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length > 0 && (
+              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length > 0 && !itemEditando && (
                 <Button
                   onClick={() => {
                     setCurrentPoints(prev => prev.slice(0, -1));
@@ -667,9 +680,14 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   DESFAZER
                 </Button>
               )}
-              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && (
+              {(tipoDesenho === 'area' || tipoDesenho === 'linha') && currentPoints.length === 0 && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
                   {tipoDesenho === 'area' ? '🎯 Toque para desenhar a área' : '➡️ Toque para desenhar a linha'}
+                </div>
+              )}
+              {itemEditando && (
+                <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                  ✏️ Arraste os pontos para ajustar
                 </div>
               )}
             </div>
