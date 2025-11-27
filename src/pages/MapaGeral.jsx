@@ -416,8 +416,9 @@ export default function MapaGeral() {
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            line-height: 1.4;
           ">
-            <div style="font-size: 13px; font-weight: 400;">${area.nome || 'Sem nome'}</div>
+            <div style="font-size: 13px; font-weight: 400; margin-bottom: 2px;">${area.nome || 'Sem nome'}</div>
             <div style="font-size: 11px; font-weight: 400;">${areaHa.toFixed(0)}ha</div>
           </div>
         `;
