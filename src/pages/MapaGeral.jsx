@@ -411,6 +411,7 @@ export default function MapaGeral() {
             white-space: nowrap;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.8);
             pointer-events: none;
+            z-index: 9999;
           ">
             <div style="font-size: 13px; font-weight: 700;">${area.nome || 'Sem nome'}</div>
             <div style="font-size: 11px; font-weight: 500;">${areaHa.toFixed(0)}ha</div>
@@ -419,7 +420,7 @@ export default function MapaGeral() {
 
         const areaLabelOverlay = new google.maps.OverlayView();
         areaLabelOverlay.onAdd = function() {
-          const pane = this.getPanes().overlayLayer;
+          const pane = this.getPanes().floatPane;
           pane.appendChild(areaLabelDiv);
         };
         areaLabelOverlay.draw = function() {
@@ -429,6 +430,7 @@ export default function MapaGeral() {
           areaLabelDiv.style.left = position.x - 50 + 'px';
           areaLabelDiv.style.top = position.y - 15 + 'px';
           areaLabelDiv.style.width = '100px';
+          areaLabelDiv.style.zIndex = '9999';
         };
         areaLabelOverlay.onRemove = function() {
           areaLabelDiv.parentNode?.removeChild(areaLabelDiv);
