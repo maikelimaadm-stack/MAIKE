@@ -216,6 +216,7 @@ export default function MapaCadastro() {
           <TabelaAreasGeo
             areas={areas}
             onEdit={(area) => handleEditarItem(area, 'area')}
+            onEditDetalhes={(area) => handleEditarDetalhes(area, 'area')}
             onDelete={(area) => handleExcluirItem(area, 'area')}
           />
         </TabsContent>
