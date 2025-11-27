@@ -53,7 +53,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const currentPolygonRef = useRef(null);
   const currentPolylineRef = useRef(null);
   const tempMarkerRef = useRef(null);
-  const guideLineRef = useRef(null);
+
   const pointMarkersRef = useRef([]);
 
   const queryClient = useQueryClient();
