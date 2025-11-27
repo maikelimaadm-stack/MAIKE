@@ -268,6 +268,7 @@ export default function MapaCadastro() {
           <TabelaLinhasGeo
             linhas={linhas}
             onEdit={(linha) => handleEditarItem(linha, 'linha')}
+            onEditDetalhes={(linha) => handleEditarDetalhes(linha, 'linha')}
             onDelete={(linha) => handleExcluirItem(linha, 'linha')}
           />
         </TabsContent>
