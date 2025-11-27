@@ -145,6 +145,9 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                 </TableHead>
                 <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
                 <TableHead className="text-xs border-r border-slate-200">Código</TableHead>
+                <TableHead className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('sigla')}>
+                  <div className="flex items-center">Sigla {getSortIcon('sigla')}</div>
+                </TableHead>
                 <TableHead className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('nome')}>
                   <div className="flex items-center">Nome {getSortIcon('nome')}</div>
                 </TableHead>
@@ -159,7 +162,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
               <AnimatePresence>
                 {areasSorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-slate-400 text-xs">
+                    <TableCell colSpan={10} className="text-center py-12 text-slate-400 text-xs">
                       Nenhuma área encontrada
                     </TableCell>
                   </TableRow>
@@ -203,6 +206,7 @@ export default function TabelaAreasGeo({ areas, onEdit, onEditDetalhes, onDelete
                         </DropdownMenu>
                       </TableCell>
                       <TableCell className="text-xs font-mono border-r border-slate-200">{area.numero_area || '-'}</TableCell>
+                      <TableCell className="text-xs font-semibold border-r border-slate-200 text-emerald-700">{area.sigla || '-'}</TableCell>
                       <TableCell className="text-xs font-medium border-r border-slate-200">{area.nome}</TableCell>
                       <TableCell className="text-xs border-r border-slate-200">{area.tipo_pastagem || '-'}</TableCell>
                       <TableCell className="text-xs text-right font-mono border-r border-slate-200">{area.tamanho_hectares?.toFixed(2) || '-'}</TableCell>

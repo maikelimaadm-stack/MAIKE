@@ -58,6 +58,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const [formData, setFormData] = useState({
     nome: item?.nome || "",
+    sigla: item?.sigla || "",
     area_total: item?.tamanho_hectares?.toString() || "",
     area_pastejada: item?.area_pastejada?.toString() || "",
     aproveitamento: item?.tipo_pastagem || "Pastejo",
@@ -157,6 +158,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
     createAreaMutation.mutate({
       nome: formData.nome,
+      sigla: formData.sigla,
       tipo_pastagem: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tamanho_hectares: parseFloat(formData.area_total?.replace(',', '.')) || tamanhoHectares,
@@ -182,7 +184,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mt-4">
       <div className="space-y-1">
-        <Label className="text-sm text-slate-700">nome de Pasto</Label>
+        <Label className="text-sm text-slate-700">Nome do Pasto *</Label>
         <Input
           value={formData.nome}
           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
@@ -190,6 +192,18 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           className="h-10 text-sm bg-slate-50 border-slate-200"
           required
         />
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-sm text-slate-700">Sigla *</Label>
+        <Input
+          value={formData.sigla}
+          onChange={(e) => setFormData({ ...formData, sigla: e.target.value.toUpperCase() })}
+          placeholder="Ex: A1, PQ01"
+          className="h-10 text-sm bg-slate-50 border-slate-200"
+          maxLength={10}
+        />
+        <p className="text-xs text-slate-500">Sigla que aparecerá no mapa</p>
       </div>
 
       <div className="space-y-1">
