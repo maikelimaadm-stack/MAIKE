@@ -118,6 +118,17 @@ export default function MapaCadastro() {
     setModo('mapa');
   };
 
+  const handleEditarDetalhes = (item, tipo) => {
+    setItemDetalhes(item);
+    if (tipo === 'area') {
+      setShowEditarDetalhesArea(true);
+    } else if (tipo === 'ponto') {
+      setShowEditarDetalhesPonto(true);
+    } else if (tipo === 'linha') {
+      setShowEditarDetalhesLinha(true);
+    }
+  };
+
   const handleExcluirItem = (item, tipo) => {
     setItemExcluir({ item, tipo });
   };
