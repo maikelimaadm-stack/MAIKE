@@ -567,6 +567,46 @@ export default function MapaGeral() {
       });
     }
 
+    // Renderizar tarefas no mapa (FORA do loop de lotes)
+    tarefasMapa.forEach(tarefa => {
+      if (!tarefa.coordenadas?.lat || !tarefa.coordenadas?.lng) return;
+
+      const prioridadeCores = {
+        'Baixa': '#94a3b8',
+        'Normal': '#3b82f6',
+        'Alta': '#f59e0b',
+        'Urgente': '#ef4444'
+      };
+
+      const cor = prioridadeCores[tarefa.prioridade] || '#3b82f6';
+
+      const tarefaMarker = new google.maps.Marker({
+        position: { lat: tarefa.coordenadas.lat, lng: tarefa.coordenadas.lng },
+        map: mapInstanceRef.current,
+        icon: {
+          path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+          fillColor: cor,
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+          scale: 1.8,
+          anchor: new google.maps.Point(12, 22)
+        },
+        title: tarefa.titulo,
+        zIndex: tarefa.prioridade === 'Urgente' ? 3000 : 2500
+      });
+
+      markersRef.current.push(tarefaMarker);
+
+      tarefaMarker.addListener('click', () => {
+        setTarefasContext({ 
+          areaId: tarefa.area_id, 
+          areaNome: tarefa.area_nome 
+        });
+        setShowTarefas(true);
+      });
+    });
+
     if (showLotes) {
       // Agrupar lotes por área
       const lotesPorArea = {};
