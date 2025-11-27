@@ -242,6 +242,7 @@ export default function MapaCadastro() {
           <TabelaPontosGeo
             pontos={pontos}
             onEdit={(ponto) => handleEditarItem(ponto, 'ponto')}
+            onEditDetalhes={(ponto) => handleEditarDetalhes(ponto, 'ponto')}
             onDelete={(ponto) => handleExcluirItem(ponto, 'ponto')}
           />
         </TabsContent>
