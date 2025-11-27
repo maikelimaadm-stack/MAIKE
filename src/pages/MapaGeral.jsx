@@ -811,6 +811,16 @@ export default function MapaGeral() {
               <X className="w-6 h-6 text-slate-700" />
             </Button>
           </Link>
+
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => { setTarefasContext({}); setShowTarefas(true); }}
+            className="h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+            title="Tarefas"
+          >
+            <ClipboardList className="w-6 h-6 text-slate-700" />
+          </Button>
           
           <Sheet>
             <SheetTrigger asChild>
