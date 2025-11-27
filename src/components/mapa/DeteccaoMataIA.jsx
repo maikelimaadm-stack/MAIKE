@@ -67,7 +67,7 @@ export default function DeteccaoMataIA({
         
         mapInstanceRef.current = map;
         
-        // Desenhar áreas existentes (pastos)
+        // Desenhar áreas existentes
         areasExistentes.forEach(area => {
           const coords = area.coordenadas?.coords || [];
           if (coords.length < 3) return;
@@ -96,17 +96,14 @@ export default function DeteccaoMataIA({
         }
         
         setMapReady(true);
+        
+        // Se já tem matas detectadas, desenhar
+        if (matasDetectadas.length > 0) {
+          setTimeout(() => desenharPoligonosNoMapa(matasDetectadas), 500);
+        }
       });
     }
   }, [showMapa]);
-  
-  // Desenhar matas quando o mapa estiver pronto E tivermos matas detectadas
-  useEffect(() => {
-    if (mapReady && matasDetectadas.length > 0 && mapInstanceRef.current) {
-      console.log('🌳 Desenhando matas no mapa:', matasDetectadas.length);
-      desenharPoligonosNoMapa(matasDetectadas);
-    }
-  }, [mapReady, matasDetectadas]);
 
   // Mutation para criar área de mata
   const createMataMutation = useMutation({
@@ -378,8 +375,9 @@ Responda em JSON:
 
         setMatasDetectadas(matasProcessadas);
         
-        // Mostrar mapa - os polígonos serão desenhados pelo useEffect
+        // Mostrar mapa e desenhar polígonos
         setShowMapa(true);
+        setTimeout(() => desenharPoligonosNoMapa(matasProcessadas), 800);
         
         toast.success(`${matasProcessadas.length} área(s) de mata detectada(s)! Veja no mapa abaixo.`);
       } else {
