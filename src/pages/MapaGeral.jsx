@@ -409,17 +409,17 @@ export default function MapaGeral() {
             color: white;
             text-align: center;
             white-space: nowrap;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.8);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.6), -1px -1px 3px rgba(0,0,0,0.4);
             pointer-events: none;
             z-index: 9999;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            line-height: 1.4;
+            font-family: Arial, sans-serif;
           ">
-            <div style="font-size: 13px; font-weight: 400; margin-bottom: 2px;">${area.nome || 'Sem nome'}</div>
-            <div style="font-size: 11px; font-weight: 400;">${areaHa.toFixed(0)}ha</div>
+            <div style="font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">${area.nome || 'Sem nome'}</div>
+            <div style="font-size: 13px; font-weight: 300; margin-top: 4px; opacity: 0.95;">${areaHa.toFixed(0)}ha</div>
           </div>
         `;
 
