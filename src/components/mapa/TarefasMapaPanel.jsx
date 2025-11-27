@@ -273,6 +273,17 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 }
 
 function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, onSubmit, onCancel }) {
+  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas-tarefas', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId && !areaId,
+  });
+
   const [formData, setFormData] = useState({
     titulo: tarefa?.titulo || '',
     descricao: tarefa?.descricao || '',
@@ -280,8 +291,33 @@ function FormularioTarefa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSup
     prioridade: tarefa?.prioridade || 'Normal',
     status: tarefa?.status || 'Pendente',
     data_prevista: tarefa?.data_prevista || '',
-    responsavel: tarefa?.responsavel || ''
+    responsavel: tarefa?.responsavel || '',
+    area_id: tarefa?.area_id || areaId || '',
+    area_nome: tarefa?.area_nome || areaNome || '',
+    coordenadas: tarefa?.coordenadas || null
   });
+
+  const handleAreaChange = (selectedAreaId) => {
+    const area = areas.find(a => a.id === selectedAreaId);
+    if (area) {
+      // Calcular centro da área para as coordenadas da tarefa
+      let coords = null;
+      if (area.coordenadas?.coords && area.coordenadas.coords.length > 0) {
+        const lats = area.coordenadas.coords.map(c => c[0] || c.lat);
+        const lngs = area.coordenadas.coords.map(c => c[1] || c.lng);
+        coords = {
+          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+          lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
+        };
+      }
+      setFormData({ 
+        ...formData, 
+        area_id: selectedAreaId, 
+        area_nome: area.nome,
+        coordenadas: coords
+      });
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
