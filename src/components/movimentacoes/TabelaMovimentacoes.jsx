@@ -354,13 +354,15 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       case 'fornecedor':
         return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
       case 'local_origem':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || '-'}</TableCell>;
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || mov.local_origem || '-'}</TableCell>;
       case 'local_destino':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || '-'}</TableCell>;
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-'}</TableCell>;
       case 'centro_custo':
         return <TableCell className="text-xs border-r border-slate-200">{mov.centro_custo_nome || '-'}</TableCell>;
       case 'motivo':
-        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.motivo_movimentacao}>{mov.motivo_movimentacao || '-'}</TableCell>;
+        // Mostrar motivo apenas para ajustes
+        const motivo = mov.tipo_movimentacao === 'Ajuste' ? (mov.motivo_movimentacao || '-') : '-';
+        return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.tipo_movimentacao === 'Ajuste' ? mov.motivo_movimentacao : ''}>{motivo}</TableCell>;
       case 'observacoes':
         return <TableCell className="text-xs max-w-[150px] truncate border-r border-slate-200" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':

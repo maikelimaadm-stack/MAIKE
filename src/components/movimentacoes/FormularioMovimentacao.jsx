@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -146,8 +145,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.tipo_movimentacao || formData.produtos_selecionados.length === 0 || !formData.tipo_detalhado || !formData.motivo_movimentacao) {
+    if (!formData.tipo_movimentacao || formData.produtos_selecionados.length === 0 || !formData.tipo_detalhado) {
       toast.error('Preencha todos os campos obrigatórios e adicione pelo menos um produto!');
+      return;
+    }
+
+    if (formData.tipo_movimentacao === 'Ajuste' && !formData.motivo_movimentacao) {
+      toast.error('Informe o motivo do ajuste!');
       return;
     }
 
@@ -476,10 +480,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </>
               )}
 
-              <div className="space-y-1">
-                <Label className="text-xs">Motivo da Movimentação *</Label>
-                <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o Motivo" className="h-8 text-xs" required />
-              </div>
+              {formData.tipo_movimentacao === 'Ajuste' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Motivo do Ajuste *</Label>
+                  <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o motivo do ajuste" className="h-8 text-xs" required />
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
