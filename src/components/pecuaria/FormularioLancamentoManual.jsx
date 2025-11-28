@@ -143,37 +143,43 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     return saldos;
   }, [movimentacoes]);
 
-  // Calcular saldo por marca (entradas - saídas)
-  const saldoPorMarca = useMemo(() => {
+  // Calcular saldo por categoria + marca (para saída)
+  const saldoPorCategoriaMarca = useMemo(() => {
     const saldos = {};
     
     movimentacoes.forEach(mov => {
+      const categoria = mov.categoria_animal;
       const marca = mov.marca;
-      if (!marca) return;
+      if (!categoria || !marca) return;
       
-      if (!saldos[marca]) {
-        saldos[marca] = 0;
+      const chave = `${categoria}|||${marca}`;
+      if (!saldos[chave]) {
+        saldos[chave] = { categoria, marca, saldo: 0 };
       }
       
       const qtd = mov.quantidade_animais || 0;
       
       if (mov.tipo === "Entrada") {
-        saldos[marca] += qtd;
+        saldos[chave].saldo += qtd;
       } else if (mov.tipo === "Saída") {
-        saldos[marca] -= qtd;
+        saldos[chave].saldo -= qtd;
       }
     });
     
     return saldos;
   }, [movimentacoes]);
 
-  // Marcas com saldo > 0 para saída
-  const marcasComSaldo = useMemo(() => {
-    return Object.entries(saldoPorMarca)
-      .filter(([_, saldo]) => saldo > 0)
-      .map(([marca]) => marca)
-      .sort();
-  }, [saldoPorMarca]);
+  // Marcas disponíveis para a categoria selecionada (na saída)
+  const marcasParaCategoriaSelecionada = useMemo(() => {
+    if (!formData.categoria_animal || formData.tipo !== "Saída") return [];
+    
+    const marcas = Object.values(saldoPorCategoriaMarca)
+      .filter(item => item.categoria === formData.categoria_animal && item.saldo > 0)
+      .map(item => ({ marca: item.marca, saldo: item.saldo }))
+      .sort((a, b) => a.marca.localeCompare(b.marca));
+    
+    return marcas;
+  }, [saldoPorCategoriaMarca, formData.categoria_animal, formData.tipo]);
 
   // Calcular peso total automaticamente
   useEffect(() => {
@@ -352,15 +358,15 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Linha 2: Categoria, Marca, Sexo, Área */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {/* Linha 2: Categoria, Marca (só entrada), Sexo (só entrada), Área */}
+          <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
             <div className="space-y-1">
               <Label className="text-sm font-medium">Categoria</Label>
               {formData.tipo === "Saída" ? (
                 // Na saída, mostrar apenas categorias que têm saldo > 0
                 <Select value={formData.categoria_animal} onValueChange={(v) => {
                   const catEncontrada = categoriasManejo.find(c => c.nome === v);
-                  setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
+                  setFormData({ ...formData, categoria_animal: v, marca: "", sexo: catEncontrada?.sexo || "" });
                 }}>
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Selecione" />
@@ -413,80 +419,82 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               )}
               {formData.tipo === "Saída" && formData.categoria_animal && (
                 <div className="flex items-center gap-1 text-xs mt-1">
-                  <span className="text-slate-500">Saldo disponível:</span>
+                  <span className="text-slate-500">Saldo:</span>
                   <span className={`font-semibold ${(saldoPorCategoria[formData.categoria_animal] || 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {saldoPorCategoria[formData.categoria_animal] || 0} cab
                   </span>
-                  {formData.quantidade_animais > (saldoPorCategoria[formData.categoria_animal] || 0) && (
-                    <span className="text-red-600 flex items-center gap-0.5">
-                      <AlertTriangle className="w-3 h-3" />
-                      Excede saldo!
-                    </span>
-                  )}
                 </div>
               )}
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-sm font-medium">Marca</Label>
-              {formData.tipo === "Saída" ? (
-                // Na saída, mostrar apenas marcas que têm saldo > 0
-                <Select value={formData.marca} onValueChange={(v) => setFormData({ ...formData, marca: v })}>
+            {/* Marca na Saída - baseado na categoria selecionada */}
+            {formData.tipo === "Saída" && (
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Marca</Label>
+                <Select 
+                  value={formData.marca} 
+                  onValueChange={(v) => setFormData({ ...formData, marca: v })}
+                  disabled={!formData.categoria_animal}
+                >
                   <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {marcasExistentes.length > 0 ? (
-                      marcasExistentes.map(marca => {
-                        const saldo = saldoPorMarca[marca] || 0;
-                        return (
-                          <SelectItem key={marca} value={marca} className="text-sm" disabled={saldo <= 0}>
-                            <div className="flex items-center justify-between w-full gap-2">
-                              <span>{marca}</span>
-                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                                {saldo} cab
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        );
-                      })
+                    {marcasParaCategoriaSelecionada.length > 0 ? (
+                      marcasParaCategoriaSelecionada.map(item => (
+                        <SelectItem key={item.marca} value={item.marca} className="text-sm">
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span>{item.marca}</span>
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                              {item.saldo} cab
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
                     ) : (
                       <SelectItem value={null} disabled className="text-sm text-slate-500">
-                        Nenhuma marca com saldo
+                        {formData.categoria_animal ? "Nenhuma marca com saldo nesta categoria" : "Selecione categoria primeiro"}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
-              ) : (
-                // Na entrada, usar ComboboxComNovo
-                <ComboboxComNovo
-                  value={formData.marca}
-                  onChange={(v) => setFormData({ ...formData, marca: v })}
-                  options={marcasExistentes}
-                  placeholder="Selecione ou digite..."
-                />
-              )}
-              {formData.tipo === "Saída" && formData.marca && (
-                <div className="flex items-center gap-1 text-xs mt-1">
-                  <span className="text-slate-500">Saldo disponível:</span>
-                  <span className={`font-semibold ${(saldoPorMarca[formData.marca] || 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                    {saldoPorMarca[formData.marca] || 0} cab
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1">
-                <Label className="text-sm font-medium">Sexo</Label>
-                <Input
-                  value={formData.sexo || ""}
-                  readOnly
-                  disabled
-                  className="h-9 text-sm bg-slate-100 cursor-not-allowed"
-                  placeholder="Definido pela categoria"
-                />
-                <p className="text-[10px] text-slate-500">Preenchido automaticamente pela categoria</p>
+                {formData.marca && formData.categoria_animal && (
+                  <div className="flex items-center gap-1 text-xs mt-1">
+                    <span className="text-slate-500">Saldo:</span>
+                    <span className="font-semibold text-blue-600">
+                      {marcasParaCategoriaSelecionada.find(m => m.marca === formData.marca)?.saldo || 0} cab
+                    </span>
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* Marca e Sexo apenas na Entrada */}
+            {formData.tipo === "Entrada" && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Marca</Label>
+                  <ComboboxComNovo
+                    value={formData.marca}
+                    onChange={(v) => setFormData({ ...formData, marca: v })}
+                    options={marcasExistentes}
+                    placeholder="Selecione ou digite..."
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Sexo</Label>
+                  <Input
+                    value={formData.sexo || ""}
+                    readOnly
+                    disabled
+                    className="h-9 text-sm bg-slate-100 cursor-not-allowed"
+                    placeholder="Definido pela categoria"
+                  />
+                  <p className="text-[10px] text-slate-500">Auto-preenchido</p>
+                </div>
+              </>
+            )}
 
             <div className="space-y-1">
               <Label className="text-sm font-medium">Área</Label>
