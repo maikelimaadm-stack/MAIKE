@@ -445,13 +445,14 @@ export default function RelatorioMovimentacoesPecuaria() {
       <Card className="print:hidden">
         <CardContent className="p-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="space-y-1">
+            <div className="space-y-1 col-span-2">
               <Label className="text-xs">Tipo Relatório</Label>
               <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="analitico">Analítico</SelectItem>
-                  <SelectItem value="sintetico">Sintético</SelectItem>
+                  {TIPOS_RELATORIO.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
