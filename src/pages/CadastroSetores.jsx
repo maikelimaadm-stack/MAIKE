@@ -530,30 +530,97 @@ export default function CadastroSetores() {
       </Card>
 
       {/* Dialog Confirmar Exclusão */}
-      <Dialog open={showDelete} onOpenChange={setShowDelete}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Confirmar Exclusão</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600">
-              Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button 
-                onClick={() => deleteMutation.mutate(deletarId)} 
-                size="sm" 
-                className="h-8 text-xs bg-red-600 hover:bg-red-700"
-              >
-                Excluir
-              </Button>
+              <Dialog open={showDelete} onOpenChange={setShowDelete}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-sm">Confirmar Exclusão</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-600">
+                      Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
+                        Cancelar
+                      </Button>
+                      <Button 
+                        onClick={() => deleteMutation.mutate(deletarId)} 
+                        size="sm" 
+                        className="h-8 text-xs bg-red-600 hover:bg-red-700"
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Dialog Atribuir Setor às Movimentações */}
+              <Dialog open={showAtribuirSetor} onOpenChange={setShowAtribuirSetor}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="text-sm flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4" />
+                      Atribuir Setor às Movimentações
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <p className="text-sm text-orange-800">
+                        <strong>{movimentacoesSemSetor.length}</strong> movimentação(ões) de pecuária estão sem setor definido.
+                      </p>
+                      <p className="text-xs text-orange-600 mt-1">
+                        Selecione um setor para atribuir a todas essas movimentações.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">Setor para Atribuir *</Label>
+                      <Select value={setorParaAtribuir} onValueChange={setSetorParaAtribuir}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Selecione o setor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {setores.map(setor => (
+                            <SelectItem key={setor.id} value={setor.id} className="text-sm">
+                              <div className="flex items-center gap-2">
+                                <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
+                                <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
+                                  {setor.tipo}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t">
+                      <Button onClick={() => setShowAtribuirSetor(false)} variant="outline" size="sm" className="h-8 text-xs">
+                        Cancelar
+                      </Button>
+                      <Button 
+                        onClick={handleAtribuirSetor} 
+                        size="sm" 
+                        className="h-8 text-xs bg-orange-600 hover:bg-orange-700"
+                        disabled={atribuindoSetor || !setorParaAtribuir}
+                      >
+                        {atribuindoSetor ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
+                            Atribuindo...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5 mr-1" />
+                            Atribuir a Todas
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+          );
+        }
