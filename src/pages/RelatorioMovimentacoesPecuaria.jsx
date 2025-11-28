@@ -285,10 +285,95 @@ export default function RelatorioMovimentacoesPecuaria() {
     return movimentacoesFiltradas;
   }, [movimentacoesFiltradas, tipoRelatorio]);
 
+  // Dados para Relatório Geral (múltiplos quadros por motivo)
+  const dadosRelatorioGeral = useMemo(() => {
+    if (tipoRelatorio !== 'geral') return null;
+
+    const dados = movimentacoesFiltradas;
+    
+    // Agrupar por motivo
+    const porMotivo = {};
+    dados.forEach(m => {
+      const motivo = m.motivo || 'Outros';
+      if (!porMotivo[motivo]) {
+        porMotivo[motivo] = {
+          motivo,
+          entradas: 0,
+          saidas: 0,
+          quantidade: 0,
+          peso_total: 0,
+          valor_total: 0,
+          registros: [],
+          porCategoria: {}
+        };
+      }
+      const qtd = m.quantidade_animais || 0;
+      porMotivo[motivo].quantidade += qtd;
+      if (m.tipo === 'Entrada') porMotivo[motivo].entradas += qtd;
+      else porMotivo[motivo].saidas += qtd;
+      porMotivo[motivo].peso_total += m.peso_total || 0;
+      porMotivo[motivo].valor_total += m.valor_total || 0;
+      porMotivo[motivo].registros.push(m);
+
+      // Por categoria dentro do motivo
+      const cat = m.categoria_animal || 'Sem Categoria';
+      if (!porMotivo[motivo].porCategoria[cat]) {
+        porMotivo[motivo].porCategoria[cat] = { entradas: 0, saidas: 0, quantidade: 0 };
+      }
+      porMotivo[motivo].porCategoria[cat].quantidade += qtd;
+      if (m.tipo === 'Entrada') porMotivo[motivo].porCategoria[cat].entradas += qtd;
+      else porMotivo[motivo].porCategoria[cat].saidas += qtd;
+    });
+
+    // Resumo por categoria geral
+    const porCategoriaGeral = {};
+    dados.forEach(m => {
+      const cat = m.categoria_animal || 'Sem Categoria';
+      if (!porCategoriaGeral[cat]) {
+        porCategoriaGeral[cat] = { entradas: 0, saidas: 0, saldo: 0 };
+      }
+      const qtd = m.quantidade_animais || 0;
+      if (m.tipo === 'Entrada') {
+        porCategoriaGeral[cat].entradas += qtd;
+        porCategoriaGeral[cat].saldo += qtd;
+      } else {
+        porCategoriaGeral[cat].saidas += qtd;
+        porCategoriaGeral[cat].saldo -= qtd;
+      }
+    });
+
+    // Resumo por marca
+    const porMarca = {};
+    dados.forEach(m => {
+      const marca = m.marca || 'Sem Marca';
+      if (!porMarca[marca]) {
+        porMarca[marca] = { entradas: 0, saidas: 0, saldo: 0 };
+      }
+      const qtd = m.quantidade_animais || 0;
+      if (m.tipo === 'Entrada') {
+        porMarca[marca].entradas += qtd;
+        porMarca[marca].saldo += qtd;
+      } else {
+        porMarca[marca].saidas += qtd;
+        porMarca[marca].saldo -= qtd;
+      }
+    });
+
+    return {
+      porMotivo: Object.values(porMotivo).sort((a, b) => b.quantidade - a.quantidade),
+      porCategoriaGeral: Object.entries(porCategoriaGeral).map(([cat, d]) => ({ categoria: cat, ...d })).sort((a, b) => a.categoria.localeCompare(b.categoria)),
+      porMarca: Object.entries(porMarca).map(([marca, d]) => ({ marca, ...d })).sort((a, b) => a.marca.localeCompare(b.marca)),
+    };
+  }, [tipoRelatorio, movimentacoesFiltradas]);
+
   // Dados para relatório
   const dadosRelatorio = useMemo(() => {
     const agrupamentos = agrupamentosAtivos.length > 0 ? agrupamentosAtivos : ['categoria'];
     const dados = movimentacoesPorTipoRelatorio;
+
+    if (tipoRelatorio === 'geral') {
+      return { tipo: 'geral', dados: dadosRelatorioGeral, agrupamentos: [] };
+    }
 
     if (tipoRelatorio === 'sintetico' || tipoRelatorio === 'peso' || tipoRelatorio === 'financeiro') {
       const grupos = {};
