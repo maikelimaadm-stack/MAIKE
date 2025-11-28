@@ -395,20 +395,28 @@ export default function RelatorioMovimentacoesPecuaria() {
               </div>
 
               <div className="space-y-2">
-                <Label>Agrupar Por</Label>
+                <Label>Agrupar Por (selecione 1 ou mais)</Label>
                 <div className="flex flex-wrap gap-2">
-                  {['categoria', 'marca', 'motivo'].map((tipo) => (
+                  {AGRUPAMENTOS_DISPONIVEIS.map((ag) => (
                     <Button 
-                      key={tipo} 
-                      variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"} 
+                      key={ag.id} 
+                      variant={agrupamentosAtivos.includes(ag.id) ? "default" : "outline"} 
                       size="sm" 
-                      onClick={() => toggleAgrupamento(tipo)} 
-                      className={agrupamentosAtivos.includes(tipo) ? "bg-green-600 hover:bg-green-700" : ""}
+                      onClick={() => toggleAgrupamento(ag.id)} 
+                      className={agrupamentosAtivos.includes(ag.id) ? "bg-green-600 hover:bg-green-700" : ""}
                     >
-                      {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                      {ag.label}
+                      {agrupamentosAtivos.includes(ag.id) && agrupamentosAtivos.length > 1 && (
+                        <Badge className="ml-1 text-[10px] bg-white text-green-700 px-1">
+                          {agrupamentosAtivos.indexOf(ag.id) + 1}
+                        </Badge>
+                      )}
                     </Button>
                   ))}
                 </div>
+                {agrupamentosAtivos.length > 1 && (
+                  <p className="text-xs text-slate-500">Ordem: {agrupamentosAtivos.map(a => AGRUPAMENTOS_DISPONIVEIS.find(ag => ag.id === a)?.label).join(' → ')}</p>
+                )}
               </div>
 
               <div className="flex gap-3 flex-wrap">
