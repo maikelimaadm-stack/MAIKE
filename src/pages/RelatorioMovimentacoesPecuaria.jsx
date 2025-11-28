@@ -318,11 +318,12 @@ export default function RelatorioMovimentacoesPecuaria() {
       );
     }
     if (tipoRelatorio === 'mudanca_categoria') {
-      // Incluir movimentações com motivo de mudança de categoria OU que tenham categoria_nova
+      // Incluir movimentações com motivo de mudança de categoria OU que tenham vínculo de mudança
       return movimentacoesFiltradas.filter(m => 
         m.motivo?.toLowerCase().includes('mudança de categoria') ||
         m.motivo?.toLowerCase().includes('mudanca de categoria') ||
-        m.categoria_nova
+        m.categoria_nova ||
+        m.vinculo_mudanca_categoria
       );
     }
     if (tipoRelatorio === 'peso') {
