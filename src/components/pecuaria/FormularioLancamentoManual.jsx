@@ -104,6 +104,43 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const origensTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_origem).filter(Boolean))].sort();
   const destinosTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_destino).filter(Boolean))].sort();
 
+  // Extrair categorias já lançadas nas movimentações
+  const categoriasLancadas = useMemo(() => {
+    const cats = [...new Set(movimentacoes.map(m => m.categoria_animal).filter(Boolean))];
+    return cats.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [movimentacoes]);
+
+  // Calcular saldo por categoria (entradas - saídas)
+  const saldoPorCategoria = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoes.forEach(mov => {
+      const categoria = mov.categoria_animal;
+      if (!categoria) return;
+      
+      if (!saldos[categoria]) {
+        saldos[categoria] = 0;
+      }
+      
+      const qtd = mov.quantidade_animais || 0;
+      
+      if (mov.tipo === "Entrada") {
+        saldos[categoria] += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[categoria] -= qtd;
+      }
+      
+      // Mudança de categoria
+      if (mov.motivo === "Mudança de Categoria" && mov.categoria_nova && mov.tipo === "Entrada") {
+        saldos[categoria] -= qtd;
+        if (!saldos[mov.categoria_nova]) saldos[mov.categoria_nova] = 0;
+        saldos[mov.categoria_nova] += qtd;
+      }
+    });
+    
+    return saldos;
+  }, [movimentacoes]);
+
   // Calcular peso total automaticamente
   useEffect(() => {
     if (formData.peso_medio && formData.quantidade_animais) {
