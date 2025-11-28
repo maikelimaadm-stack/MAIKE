@@ -10,8 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
   TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload, FileSpreadsheet, AlertTriangle
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
@@ -99,6 +100,10 @@ export default function HistoricoMovimentacoesPecuaria() {
   const [selectedItems, setSelectedItems] = useState([]);
   const [showNovoLancamento, setShowNovoLancamento] = useState(false);
   const [itemEditandoManual, setItemEditandoManual] = useState(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [showImportErrors, setShowImportErrors] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, isImporting: false });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_movimentacoes_pecuaria');
@@ -320,18 +325,30 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const handleExport = () => {
     const csvRows = [];
-    const headers = ['Data/Hora', 'Tipo', 'Lote', 'Quantidade', 'Peso Médio', 'Área Origem', 'Área Destino', 'Observações'];
+    const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Peso Total', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
     csvRows.push(headers.join(';'));
 
     movimentacoes.forEach(m => {
+      const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
       const row = [
-        formatarData(m.data_movimentacao),
-        m.tipo,
-        m.lote,
-        m.quantidade_animais,
+        formatarDataSimples(m.data_movimentacao),
+        m.tipo || '',
+        m.motivo || '',
+        m.quantidade_animais || '',
+        m.categoria_animal || '',
+        m.marca || '',
+        m.sexo || '',
         m.peso_medio || '',
-        m.area_origem_nome || '',
-        m.area_destino_nome || '',
+        m.peso_total || '',
+        areaExibir || '',
+        m.fornecedor_origem || m.destino_venda || '',
+        m.valor_unitario || '',
+        m.valor_total || '',
+        m.nota_fiscal || '',
+        m.gta || '',
+        m.causa_morte || '',
+        m.transferencia_origem || '',
+        m.transferencia_destino || '',
         m.observacoes || ''
       ];
       csvRows.push(row.join(';'));
@@ -343,7 +360,176 @@ export default function HistoricoMovimentacoesPecuaria() {
     link.href = URL.createObjectURL(blob);
     link.download = `movimentacoes_pecuaria_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
     link.click();
-    toast.success('Exportado!');
+    toast.success('Exportado com sucesso!');
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
+    const exemplo = ['01/01/2025', 'Entrada', 'Compra', '50', 'Bezerro(a)', 'NELORE', 'Macho', '180', 'Pasto 1', 'Fazenda XYZ', '1500', '75000', '12345', '67890', '', '', '', 'Lote de bezerros'];
+    
+    const csvRows = [headers.join(';'), exemplo.join(';')];
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'modelo_importacao_movimentacoes_pecuaria.csv';
+    link.click();
+    toast.success('Modelo baixado!');
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast.error('Arquivo vazio ou sem dados');
+        return;
+      }
+
+      const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
+      const dataLines = lines.slice(1);
+      
+      const errors = [];
+      const validRecords = [];
+
+      for (let i = 0; i < dataLines.length; i++) {
+        const values = dataLines[i].split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+        const lineNum = i + 2;
+
+        try {
+          const tipo = values[headers.indexOf('tipo')] || '';
+          const motivo = values[headers.indexOf('motivo')] || '';
+          const quantidade = parseInt(values[headers.indexOf('quantidade')]) || 0;
+          const dataStr = values[headers.indexOf('data')] || '';
+
+          if (!tipo) {
+            errors.push({ linha: lineNum, erro: 'Tipo é obrigatório', dados: dataLines[i] });
+            continue;
+          }
+          if (!['Entrada', 'Saída'].includes(tipo)) {
+            errors.push({ linha: lineNum, erro: 'Tipo deve ser "Entrada" ou "Saída"', dados: dataLines[i] });
+            continue;
+          }
+          if (quantidade <= 0) {
+            errors.push({ linha: lineNum, erro: 'Quantidade deve ser maior que zero', dados: dataLines[i] });
+            continue;
+          }
+
+          let dataMovimentacao;
+          if (dataStr) {
+            const parts = dataStr.split('/');
+            if (parts.length === 3) {
+              dataMovimentacao = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else {
+              dataMovimentacao = new Date(dataStr);
+            }
+          } else {
+            dataMovimentacao = new Date();
+          }
+
+          if (isNaN(dataMovimentacao.getTime())) {
+            errors.push({ linha: lineNum, erro: 'Data inválida', dados: dataLines[i] });
+            continue;
+          }
+
+          const record = {
+            tipo,
+            motivo,
+            data_movimentacao: dataMovimentacao.toISOString(),
+            quantidade_animais: quantidade,
+            categoria_animal: values[headers.indexOf('categoria')] || null,
+            marca: values[headers.indexOf('marca')] || null,
+            sexo: values[headers.indexOf('sexo')] || null,
+            peso_medio: parseFloat(values[headers.indexOf('peso médio')]) || null,
+            fornecedor_origem: tipo === 'Entrada' ? (values[headers.indexOf('fornecedor/comprador')] || null) : null,
+            destino_venda: tipo === 'Saída' ? (values[headers.indexOf('fornecedor/comprador')] || null) : null,
+            valor_unitario: parseFloat(values[headers.indexOf('valor unitário')]) || null,
+            valor_total: parseFloat(values[headers.indexOf('valor total')]) || null,
+            nota_fiscal: values[headers.indexOf('nf')] || null,
+            gta: values[headers.indexOf('gta')] || null,
+            causa_morte: values[headers.indexOf('causa morte')] || null,
+            transferencia_origem: values[headers.indexOf('transferência origem')] || null,
+            transferencia_destino: values[headers.indexOf('transferência destino')] || null,
+            observacoes: values[headers.indexOf('observações')] || null,
+          };
+
+          // Buscar área
+          const areaNome = values[headers.indexOf('área')] || '';
+          if (areaNome) {
+            const area = areas.find(a => 
+              a.nome?.toLowerCase() === areaNome.toLowerCase() || 
+              a.sigla?.toLowerCase() === areaNome.toLowerCase()
+            );
+            if (area) {
+              if (tipo === 'Entrada') {
+                record.area_destino_id = area.id;
+                record.area_destino_nome = area.nome;
+              } else {
+                record.area_origem_id = area.id;
+                record.area_origem_nome = area.nome;
+              }
+            }
+          }
+
+          validRecords.push(record);
+        } catch (err) {
+          errors.push({ linha: lineNum, erro: 'Erro ao processar linha', dados: dataLines[i] });
+        }
+      }
+
+      if (errors.length > 0) {
+        setImportErrors(errors);
+        setShowImportErrors(true);
+      }
+
+      if (validRecords.length > 0) {
+        setImportProgress({ current: 0, total: validRecords.length, isImporting: true });
+        
+        const allMovs = await base44.entities.MovimentacaoPecuaria.list();
+        let maxNum = allMovs.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
+
+        for (let i = 0; i < validRecords.length; i++) {
+          try {
+            maxNum++;
+            await base44.entities.MovimentacaoPecuaria.create({
+              ...validRecords[i],
+              empresa_id: empresaSelecionadaId,
+              numero_movimentacao: String(maxNum),
+            });
+            setImportProgress(prev => ({ ...prev, current: i + 1 }));
+          } catch (err) {
+            console.error('Erro ao importar:', err);
+          }
+        }
+
+        setImportProgress({ current: 0, total: 0, isImporting: false });
+        queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+        toast.success(`${validRecords.length} registro(s) importado(s) com sucesso!`);
+      }
+
+      setShowImportDialog(false);
+      e.target.value = '';
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleExportErrors = () => {
+    const csvRows = ['Linha;Erro;Dados'];
+    importErrors.forEach(err => {
+      csvRows.push(`${err.linha};"${err.erro}";"${err.dados}"`);
+    });
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `erros_importacao_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
   };
 
   const extrairDadosObservacoes = (obs) => {
@@ -462,7 +648,11 @@ export default function HistoricoMovimentacoesPecuaria() {
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+            <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Modelo
+            </Button>
+            <Button onClick={() => setShowImportDialog(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <Upload className="w-3.5 h-3.5" />
               Importar
             </Button>
@@ -822,6 +1012,100 @@ export default function HistoricoMovimentacoesPecuaria() {
               <Button onClick={confirmDelete} size="sm" className="h-8 text-xs bg-red-600 hover:bg-red-700">
                 Excluir
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Importação */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Importar Movimentações</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-xs text-slate-600 mb-3">
+                Selecione um arquivo CSV com os dados das movimentações. Use o botão "Modelo" para baixar um arquivo de exemplo.
+              </p>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportFile}
+                className="w-full text-xs"
+              />
+            </div>
+            <div className="text-xs text-slate-500">
+              <strong>Colunas obrigatórias:</strong> Tipo, Quantidade
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowImportDialog(false)} variant="outline" size="sm" className="h-8 text-xs">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Erros de Importação */}
+      <Dialog open={showImportErrors} onOpenChange={setShowImportErrors}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Erros na Importação ({importErrors.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Linha</TableHead>
+                  <TableHead className="text-xs">Erro</TableHead>
+                  <TableHead className="text-xs">Dados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importErrors.map((err, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-xs font-mono">{err.linha}</TableCell>
+                    <TableCell className="text-xs text-red-600">{err.erro}</TableCell>
+                    <TableCell className="text-xs max-w-[200px] truncate" title={err.dados}>{err.dados}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button onClick={handleExportErrors} variant="outline" size="sm" className="h-8 text-xs gap-1">
+              <Download className="w-3.5 h-3.5" />
+              Baixar Erros
+            </Button>
+            <Button onClick={() => setShowImportErrors(false)} size="sm" className="h-8 text-xs">
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Progresso de Importação */}
+      <Dialog open={importProgress.isImporting} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Importando Movimentações...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Progresso</span>
+                <span className="font-semibold text-slate-900">
+                  {importProgress.current} de {importProgress.total}
+                </span>
+              </div>
+              <Progress value={(importProgress.current / importProgress.total) * 100} className="h-3" />
+              <p className="text-center text-sm font-medium text-emerald-600">
+                {Math.round((importProgress.current / importProgress.total) * 100)}%
+              </p>
             </div>
           </div>
         </DialogContent>
