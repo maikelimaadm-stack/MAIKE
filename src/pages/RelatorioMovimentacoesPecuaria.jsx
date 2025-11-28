@@ -264,7 +264,13 @@ export default function RelatorioMovimentacoesPecuaria() {
   };
 
   const toggleAgrupamento = (tipo) => {
-    setAgrupamentosAtivos(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [tipo]);
+    setAgrupamentosAtivos(prev => {
+      if (prev.includes(tipo)) {
+        return prev.filter(t => t !== tipo);
+      }
+      // Permite múltiplos agrupamentos
+      return [...prev, tipo];
+    });
   };
 
   const limparFiltros = () => {
