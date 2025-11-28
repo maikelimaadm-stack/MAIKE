@@ -431,19 +431,32 @@ export default function HistoricoMovimentacoesPecuaria() {
             continue;
           }
 
-          let dataMovimentacao;
+          let dataMovimentacaoStr;
           if (dataStr) {
             const parts = dataStr.split('/');
             if (parts.length === 3) {
-              dataMovimentacao = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+              // Formato dd/mm/yyyy - converter para yyyy-mm-dd com horário meio-dia para evitar problemas de fuso
+              const dia = parts[0].padStart(2, '0');
+              const mes = parts[1].padStart(2, '0');
+              const ano = parts[2];
+              dataMovimentacaoStr = `${ano}-${mes}-${dia}T12:00:00`;
             } else {
-              dataMovimentacao = new Date(dataStr);
+              // Tentar interpretar outros formatos
+              const parsed = new Date(dataStr);
+              if (!isNaN(parsed.getTime())) {
+                dataMovimentacaoStr = parsed.toISOString();
+              } else {
+                errors.push({ linha: lineNum, erro: 'Data inválida', dados: dataLines[i] });
+                continue;
+              }
             }
           } else {
-            dataMovimentacao = new Date();
+            dataMovimentacaoStr = new Date().toISOString();
           }
 
-          if (isNaN(dataMovimentacao.getTime())) {
+          // Validar se a data é válida
+          const dataValidacao = new Date(dataMovimentacaoStr);
+          if (isNaN(dataValidacao.getTime())) {
             errors.push({ linha: lineNum, erro: 'Data inválida', dados: dataLines[i] });
             continue;
           }
@@ -451,7 +464,7 @@ export default function HistoricoMovimentacoesPecuaria() {
           const record = {
             tipo,
             motivo,
-            data_movimentacao: dataMovimentacao.toISOString(),
+            data_movimentacao: dataMovimentacaoStr,
             quantidade_animais: quantidade,
             categoria_animal: values[headers.indexOf('categoria')] || null,
             marca: values[headers.indexOf('marca')] || null,
