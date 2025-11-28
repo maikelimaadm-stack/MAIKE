@@ -265,15 +265,34 @@ export default function RelatorioMovimentacoesPecuaria() {
     }
   };
 
+  // Filtrar movimentações por tipo de relatório especial
+  const movimentacoesPorTipoRelatorio = useMemo(() => {
+    if (tipoRelatorio === 'transferencia') {
+      return movimentacoesFiltradas.filter(m => 
+        m.motivo?.includes('Transferência') || m.transferencia_origem || m.transferencia_destino
+      );
+    }
+    if (tipoRelatorio === 'mudanca_categoria') {
+      return movimentacoesFiltradas.filter(m => m.motivo === 'Mudança de Categoria');
+    }
+    if (tipoRelatorio === 'peso') {
+      return movimentacoesFiltradas.filter(m => m.peso_medio || m.peso_total);
+    }
+    if (tipoRelatorio === 'financeiro') {
+      return movimentacoesFiltradas.filter(m => m.valor_unitario || m.valor_total);
+    }
+    return movimentacoesFiltradas;
+  }, [movimentacoesFiltradas, tipoRelatorio]);
+
   // Dados para relatório
   const dadosRelatorio = useMemo(() => {
     const agrupamentos = agrupamentosAtivos.length > 0 ? agrupamentosAtivos : ['categoria'];
+    const dados = movimentacoesPorTipoRelatorio;
 
-    if (tipoRelatorio === 'sintetico') {
+    if (tipoRelatorio === 'sintetico' || tipoRelatorio === 'peso' || tipoRelatorio === 'financeiro') {
       const grupos = {};
       
-      movimentacoesFiltradas.forEach(m => {
-        // Gera chave composta para múltiplos agrupamentos
+      dados.forEach(m => {
         const partesChave = agrupamentos.map(ag => getValorAgrupamento(m, ag));
         const chave = partesChave.join(' | ');
         
@@ -285,6 +304,8 @@ export default function RelatorioMovimentacoesPecuaria() {
             saidas: 0, 
             saldo: 0,
             peso_total: 0,
+            peso_medio_acum: 0,
+            qtd_peso: 0,
             valor_total: 0
           };
         }
@@ -298,7 +319,16 @@ export default function RelatorioMovimentacoesPecuaria() {
           grupos[chave].saldo -= qtd;
         }
         grupos[chave].peso_total += m.peso_total || 0;
+        if (m.peso_medio) {
+          grupos[chave].peso_medio_acum += m.peso_medio * qtd;
+          grupos[chave].qtd_peso += qtd;
+        }
         grupos[chave].valor_total += m.valor_total || 0;
+      });
+
+      // Calcular peso médio
+      Object.values(grupos).forEach(g => {
+        g.peso_medio = g.qtd_peso > 0 ? g.peso_medio_acum / g.qtd_peso : 0;
       });
       
       return { 
@@ -306,14 +336,50 @@ export default function RelatorioMovimentacoesPecuaria() {
         dados: Object.values(grupos).sort((a, b) => a.agrupamento.localeCompare(b.agrupamento)),
         agrupamentos
       };
+    } else if (tipoRelatorio === 'mudanca_categoria') {
+      // Relatório especial de mudança de categoria - mostra DE/PARA
+      const grupos = {};
+      dados.forEach(m => {
+        const chave = `${m.categoria_animal || 'Sem Cat.'} → ${m.categoria_nova || 'Sem Cat.'}`;
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            categoria_origem: m.categoria_animal || 'Sem Categoria',
+            categoria_destino: m.categoria_nova || 'Sem Categoria',
+            quantidade: 0,
+            registros: []
+          };
+        }
+        grupos[chave].quantidade += m.quantidade_animais || 0;
+        grupos[chave].registros.push(m);
+      });
+      return { tipo: 'mudanca_categoria', dados: Object.values(grupos), agrupamentos: [] };
+    } else if (tipoRelatorio === 'transferencia') {
+      // Relatório de transferências
+      const grupos = {};
+      dados.forEach(m => {
+        const origem = m.transferencia_origem || 'Sem Origem';
+        const destino = m.transferencia_destino || 'Sem Destino';
+        const chave = `${origem} → ${destino}`;
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            fazenda_origem: origem,
+            fazenda_destino: destino,
+            quantidade: 0,
+            registros: []
+          };
+        }
+        grupos[chave].quantidade += m.quantidade_animais || 0;
+        grupos[chave].registros.push(m);
+      });
+      return { tipo: 'transferencia', dados: Object.values(grupos), agrupamentos: [] };
     } else {
-      // Analítico com agrupamento opcional (múltiplos níveis)
+      // Analítico
       if (agrupamentosAtivos.length === 0) {
-        return { tipo: 'analitico', dados: { "Todas as Movimentações": movimentacoesFiltradas }, agrupamentos: [] };
+        return { tipo: 'analitico', dados: { "Todas as Movimentações": dados }, agrupamentos: [] };
       }
 
       const grupos = {};
-      movimentacoesFiltradas.forEach(m => {
+      dados.forEach(m => {
         const partesChave = agrupamentos.map(ag => getValorAgrupamento(m, ag));
         const chave = partesChave.join(' | ');
         if (!grupos[chave]) grupos[chave] = [];
@@ -321,7 +387,7 @@ export default function RelatorioMovimentacoesPecuaria() {
       });
       return { tipo: 'analitico', dados: grupos, agrupamentos };
     }
-  }, [tipoRelatorio, movimentacoesFiltradas, agrupamentosAtivos]);
+  }, [tipoRelatorio, movimentacoesPorTipoRelatorio, agrupamentosAtivos]);
 
   const totalEntradas = movimentacoesFiltradas.filter(m => m.tipo === 'Entrada').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
   const totalSaidas = movimentacoesFiltradas.filter(m => m.tipo === 'Saída').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
