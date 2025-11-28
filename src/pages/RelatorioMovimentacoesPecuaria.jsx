@@ -467,27 +467,10 @@ export default function RelatorioMovimentacoesPecuaria() {
               </PopoverContent>
             </Popover>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                  <Settings className="w-3.5 h-3.5" />
-                  Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-auto">
-                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {getColunasDisponiveis().map((coluna) => (
-                  <DropdownMenuCheckboxItem
-                    key={coluna.id}
-                    checked={colunasVisiveis.includes(coluna.id)}
-                    onCheckedChange={() => toggleColuna(coluna.id)}
-                  >
-                    {coluna.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowConfigColunas(true)}>
+              <Settings className="w-3.5 h-3.5" />
+              Colunas
+            </Button>
 
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar</Button>
           </div>
