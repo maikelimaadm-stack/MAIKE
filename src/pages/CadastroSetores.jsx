@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { 
   Plus, Edit2, Trash2, Search, Building2, MapPin, Phone, User, 
-  MoreVertical, Save, X, Landmark
+  MoreVertical, Save, X, Landmark, RefreshCw, Link2
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -50,6 +51,10 @@ export default function CadastroSetores() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
+  const [showVincular, setShowVincular] = useState(false);
+  const [vinculando, setVinculando] = useState(false);
+  const [progressoVinculo, setProgressoVinculo] = useState(0);
+  const [resultadoVinculo, setResultadoVinculo] = useState(null);
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -71,6 +76,16 @@ export default function CadastroSetores() {
     queryFn: async () => {
       const all = await base44.entities.Setor.list();
       return all.filter(s => s.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Carregar movimentações sem setor_id definido
+  const { data: movimentacoesSemSetor = [] } = useQuery({
+    queryKey: ['movimentacoes-sem-setor', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoPecuaria.list();
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && !m.setor_id);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -122,6 +137,59 @@ export default function CadastroSetores() {
     },
     onError: () => toast.error('Erro ao excluir setor')
   });
+
+  // Função para vincular movimentações aos setores pelo nome
+  const handleVincularSetores = async () => {
+    if (setores.length === 0) {
+      toast.error('Nenhum setor cadastrado');
+      return;
+    }
+
+    setVinculando(true);
+    setProgressoVinculo(0);
+    setResultadoVinculo(null);
+
+    try {
+      let vinculados = 0;
+      let naoEncontrados = 0;
+      const total = movimentacoesSemSetor.length;
+
+      for (let i = 0; i < movimentacoesSemSetor.length; i++) {
+        const mov = movimentacoesSemSetor[i];
+        
+        // Buscar setor pelo nome (comparação case-insensitive e trim)
+        const nomeSetor = (mov.setor_nome || '').trim().toLowerCase();
+        const setorEncontrado = setores.find(s => 
+          s.nome?.trim().toLowerCase() === nomeSetor ||
+          s.sigla?.trim().toLowerCase() === nomeSetor
+        );
+
+        if (setorEncontrado) {
+          await base44.entities.MovimentacaoPecuaria.update(mov.id, {
+            setor_id: setorEncontrado.id,
+            setor_nome: setorEncontrado.nome
+          });
+          vinculados++;
+        } else {
+          naoEncontrados++;
+        }
+
+        setProgressoVinculo(Math.round(((i + 1) / total) * 100));
+      }
+
+      setResultadoVinculo({ vinculados, naoEncontrados, total });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-sem-setor'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      
+      if (vinculados > 0) {
+        toast.success(`${vinculados} movimentação(ões) vinculada(s) com sucesso!`);
+      }
+    } catch (error) {
+      toast.error('Erro ao vincular movimentações');
+    } finally {
+      setVinculando(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -200,14 +268,27 @@ export default function CadastroSetores() {
           </h1>
           <p className="text-xs text-slate-600">Gerencie setores, fazendas próprias, arrendadas e parceiras</p>
         </div>
-        <Button 
-                    onClick={() => { resetForm(); setShowForm(true); }} 
-                    size="sm" 
-                    className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Novo Setor
-                  </Button>
+        <div className="flex gap-2">
+          {movimentacoesSemSetor.length > 0 && (
+            <Button 
+              onClick={() => { setShowVincular(true); setResultadoVinculo(null); }} 
+              size="sm" 
+              variant="outline"
+              className="h-8 gap-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              Vincular Setores ({movimentacoesSemSetor.length})
+            </Button>
+          )}
+          <Button 
+            onClick={() => { resetForm(); setShowForm(true); }} 
+            size="sm" 
+            className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo Setor
+          </Button>
+        </div>
       </div>
 
       {/* Formulário */}
@@ -467,32 +548,130 @@ export default function CadastroSetores() {
       </Card>
 
       {/* Dialog Confirmar Exclusão */}
-              <Dialog open={showDelete} onOpenChange={setShowDelete}>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-sm">Confirmar Exclusão</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <p className="text-sm text-slate-600">
-                      Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
-                        Cancelar
-                      </Button>
-                      <Button 
-                        onClick={() => deleteMutation.mutate(deletarId)} 
-                        size="sm" 
-                        className="h-8 text-xs bg-red-600 hover:bg-red-700"
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-
+        <Dialog open={showDelete} onOpenChange={setShowDelete}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Confirmar Exclusão</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Tem certeza que deseja excluir este setor? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button onClick={() => setShowDelete(false)} variant="outline" size="sm" className="h-8 text-xs">
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => deleteMutation.mutate(deletarId)} 
+                  size="sm" 
+                  className="h-8 text-xs bg-red-600 hover:bg-red-700"
+                >
+                  Excluir
+                </Button>
+              </div>
             </div>
-          );
-        }
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Vincular Setores */}
+        <Dialog open={showVincular} onOpenChange={(open) => { if (!vinculando) setShowVincular(open); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Link2 className="w-4 h-4" />
+                Vincular Movimentações aos Setores
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>{movimentacoesSemSetor.length}</strong> movimentação(ões) de pecuária estão sem setor vinculado (setor_id).
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  O sistema irá comparar o campo <strong>setor_nome</strong> de cada movimentação com os setores cadastrados e vincular automaticamente se o nome for igual.
+                </p>
+              </div>
+
+              {/* Lista de nomes únicos nas movimentações */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Nomes de setores encontrados nas movimentações:</Label>
+                <div className="max-h-32 overflow-auto p-2 bg-slate-50 rounded border text-xs space-y-1">
+                  {[...new Set(movimentacoesSemSetor.map(m => m.setor_nome).filter(Boolean))].sort().map(nome => {
+                    const setorExiste = setores.some(s => 
+                      s.nome?.trim().toLowerCase() === nome.trim().toLowerCase() ||
+                      s.sigla?.trim().toLowerCase() === nome.trim().toLowerCase()
+                    );
+                    return (
+                      <div key={nome} className="flex items-center gap-2">
+                        <span className={setorExiste ? 'text-green-700' : 'text-red-600'}>{nome}</span>
+                        <Badge variant={setorExiste ? 'default' : 'destructive'} className="text-[10px]">
+                          {setorExiste ? 'Encontrado' : 'Não cadastrado'}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                  {movimentacoesSemSetor.filter(m => !m.setor_nome).length > 0 && (
+                    <div className="text-slate-500 italic">
+                      + {movimentacoesSemSetor.filter(m => !m.setor_nome).length} sem nome de setor
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {vinculando && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span>Vinculando...</span>
+                    <span>{progressoVinculo}%</span>
+                  </div>
+                  <Progress value={progressoVinculo} className="h-2" />
+                </div>
+              )}
+
+              {resultadoVinculo && (
+                <div className="p-3 bg-slate-50 border rounded-lg space-y-1">
+                  <p className="text-sm font-medium">Resultado:</p>
+                  <p className="text-xs text-green-700">✓ {resultadoVinculo.vinculados} movimentação(ões) vinculada(s)</p>
+                  {resultadoVinculo.naoEncontrados > 0 && (
+                    <p className="text-xs text-orange-600">⚠ {resultadoVinculo.naoEncontrados} não vinculada(s) (setor não encontrado)</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button 
+                  onClick={() => setShowVincular(false)} 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 text-xs"
+                  disabled={vinculando}
+                >
+                  {resultadoVinculo ? 'Fechar' : 'Cancelar'}
+                </Button>
+                {!resultadoVinculo && (
+                  <Button 
+                    onClick={handleVincularSetores} 
+                    size="sm" 
+                    className="h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                    disabled={vinculando}
+                  >
+                    {vinculando ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
+                        Vinculando...
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="w-3.5 h-3.5 mr-1" />
+                        Vincular Automaticamente
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
