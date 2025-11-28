@@ -334,7 +334,10 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <Label className="text-sm font-medium">Categoria</Label>
               {formData.tipo === "Saída" ? (
                 // Na saída, mostrar apenas categorias que têm saldo > 0
-                <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
+                <Select value={formData.categoria_animal} onValueChange={(v) => {
+                  const catEncontrada = categoriasManejo.find(c => c.nome === v);
+                  setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
+                }}>
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
@@ -361,16 +364,28 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   </SelectContent>
                 </Select>
               ) : (
-                // Na entrada, usar ComboboxComNovo para permitir novas categorias
-                <ComboboxComNovo
-                  value={formData.categoria_animal}
-                  onChange={(v) => setFormData({ ...formData, categoria_animal: v })}
-                  options={[
-                    ...categoriasLancadas,
-                    ...(categoriasManejo.map(c => c.nome).filter(n => !categoriasLancadas.includes(n)))
-                  ].sort()}
-                  placeholder="Selecione ou digite..."
-                />
+                // Na entrada, usar Select com categorias de manejo cadastradas
+                <Select value={formData.categoria_animal} onValueChange={(v) => {
+                  const catEncontrada = categoriasManejo.find(c => c.nome === v);
+                  setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
+                }}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriasManejo.length > 0 ? (
+                      categoriasManejo.map(cat => (
+                        <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                          {cat.nome} {cat.sexo ? `(${cat.sexo})` : ''}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value={null} disabled className="text-sm text-slate-500">
+                        Cadastre categorias primeiro
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
               {formData.tipo === "Saída" && formData.categoria_animal && (
                 <div className="flex items-center gap-1 text-xs mt-1">
