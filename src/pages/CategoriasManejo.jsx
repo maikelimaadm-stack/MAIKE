@@ -181,9 +181,27 @@ export default function CategoriasManejo() {
 
 
 
-  const categoriasOficiaisDisponiveis = iconesConfig
+  // Categorias oficiais padrão do sistema (igual nos parâmetros)
+  const CATEGORIAS_OFICIAIS_PADRAO = [
+    "Bezerro 0 a 12 meses", 
+    "Bezerra 0 a 12 meses", 
+    "Garrote 13 a 24 meses", 
+    "Novilha 13 a 24 meses", 
+    "Boi 25 a 36 meses", 
+    "Vaca 25 a 36 meses", 
+    "Touro + 36 meses", 
+    "Vaca + 36 meses"
+  ];
+  
+  // Pega categorias dos ícones cadastrados + categorias padrão
+  const categoriasDoIcones = iconesConfig
+    .filter(ic => ic.tipo_entidade === 'Lote')
     .map(ic => ic.categoria)
     .filter(cat => cat && cat.toUpperCase() !== 'MISTO');
+  
+  const categoriasOficiaisDisponiveis = [
+    ...new Set([...CATEGORIAS_OFICIAIS_PADRAO, ...categoriasDoIcones])
+  ].sort();
 
   return (
     <div className="p-4 md:p-6 space-y-4">
