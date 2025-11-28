@@ -326,27 +326,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     }
   };
 
-  // Calcular saldos por setor
-  const saldosPorSetor = useMemo(() => {
-    const saldos = {};
-    
-    movimentacoesFiltradas.forEach(m => {
-      const setor = m.setor_nome || 'Sem Setor';
-      if (!saldos[setor]) {
-        saldos[setor] = { setor, entradas: 0, saidas: 0, saldo: 0 };
-      }
-      const qtd = m.quantidade_animais || 0;
-      if (m.tipo === 'Entrada') {
-        saldos[setor].entradas += qtd;
-        saldos[setor].saldo += qtd;
-      } else {
-        saldos[setor].saidas += qtd;
-        saldos[setor].saldo -= qtd;
-      }
-    });
-    
-    return Object.values(saldos).sort((a, b) => a.setor.localeCompare(b.setor));
-  }, [movimentacoesFiltradas]);
+
 
   // Filtrar movimentações por tipo de relatório especial
   const movimentacoesPorTipoRelatorio = useMemo(() => {
