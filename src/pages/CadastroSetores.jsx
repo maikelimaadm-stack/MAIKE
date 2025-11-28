@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { 
   Plus, Edit2, Trash2, Search, Building2, MapPin, Phone, User, 
-  MoreVertical, Save, X, Landmark, Upload, RefreshCw
+  MoreVertical, Save, X, Landmark
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,9 +50,6 @@ export default function CadastroSetores() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
-  const [showAtribuirSetor, setShowAtribuirSetor] = useState(false);
-  const [setorParaAtribuir, setSetorParaAtribuir] = useState("");
-  const [atribuindoSetor, setAtribuindoSetor] = useState(false);
   
   const [formData, setFormData] = useState({
     nome: "",
@@ -74,16 +71,6 @@ export default function CadastroSetores() {
     queryFn: async () => {
       const all = await base44.entities.Setor.list();
       return all.filter(s => s.empresa_id === empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  // Carregar movimentações sem setor definido
-  const { data: movimentacoesSemSetor = [] } = useQuery({
-    queryKey: ['movimentacoes-sem-setor', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.MovimentacaoPecuaria.list();
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && !m.setor_id);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -135,43 +122,6 @@ export default function CadastroSetores() {
     },
     onError: () => toast.error('Erro ao excluir setor')
   });
-
-  // Função para atribuir setor a todas movimentações sem setor
-  const handleAtribuirSetor = async () => {
-    if (!setorParaAtribuir) {
-      toast.error('Selecione um setor');
-      return;
-    }
-
-    const setor = setores.find(s => s.id === setorParaAtribuir);
-    if (!setor) {
-      toast.error('Setor não encontrado');
-      return;
-    }
-
-    setAtribuindoSetor(true);
-    
-    try {
-      let atualizados = 0;
-      for (const mov of movimentacoesSemSetor) {
-        await base44.entities.MovimentacaoPecuaria.update(mov.id, {
-          setor_id: setor.id,
-          setor_nome: setor.nome
-        });
-        atualizados++;
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-sem-setor'] });
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      toast.success(`${atualizados} movimentação(ões) atribuída(s) ao setor "${setor.nome}"`);
-      setShowAtribuirSetor(false);
-      setSetorParaAtribuir("");
-    } catch (error) {
-      toast.error('Erro ao atribuir setor às movimentações');
-    } finally {
-      setAtribuindoSetor(false);
-    }
-  };
 
   const resetForm = () => {
     setFormData({
@@ -250,27 +200,14 @@ export default function CadastroSetores() {
           </h1>
           <p className="text-xs text-slate-600">Gerencie setores, fazendas próprias, arrendadas e parceiras</p>
         </div>
-        <div className="flex gap-2">
-                    {movimentacoesSemSetor.length > 0 && (
-                      <Button 
-                        onClick={() => setShowAtribuirSetor(true)} 
-                        size="sm" 
-                        variant="outline"
-                        className="h-8 gap-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Atribuir Setor ({movimentacoesSemSetor.length})
-                      </Button>
-                    )}
-                    <Button 
-                      onClick={() => { resetForm(); setShowForm(true); }} 
-                      size="sm" 
-                      className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Novo Setor
-                    </Button>
-                  </div>
+        <Button 
+                    onClick={() => { resetForm(); setShowForm(true); }} 
+                    size="sm" 
+                    className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Novo Setor
+                  </Button>
       </div>
 
       {/* Formulário */}
@@ -555,72 +492,7 @@ export default function CadastroSetores() {
                 </DialogContent>
               </Dialog>
 
-              {/* Dialog Atribuir Setor às Movimentações */}
-              <Dialog open={showAtribuirSetor} onOpenChange={setShowAtribuirSetor}>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle className="text-sm flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4" />
-                      Atribuir Setor às Movimentações
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                      <p className="text-sm text-orange-800">
-                        <strong>{movimentacoesSemSetor.length}</strong> movimentação(ões) de pecuária estão sem setor definido.
-                      </p>
-                      <p className="text-xs text-orange-600 mt-1">
-                        Selecione um setor para atribuir a todas essas movimentações.
-                      </p>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium">Setor para Atribuir *</Label>
-                      <Select value={setorParaAtribuir} onValueChange={setSetorParaAtribuir}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Selecione o setor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {setores.map(setor => (
-                            <SelectItem key={setor.id} value={setor.id} className="text-sm">
-                              <div className="flex items-center gap-2">
-                                <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
-                                <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
-                                  {setor.tipo}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2 border-t">
-                      <Button onClick={() => setShowAtribuirSetor(false)} variant="outline" size="sm" className="h-8 text-xs">
-                        Cancelar
-                      </Button>
-                      <Button 
-                        onClick={handleAtribuirSetor} 
-                        size="sm" 
-                        className="h-8 text-xs bg-orange-600 hover:bg-orange-700"
-                        disabled={atribuindoSetor || !setorParaAtribuir}
-                      >
-                        {atribuindoSetor ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
-                            Atribuindo...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-3.5 h-3.5 mr-1" />
-                            Atribuir a Todas
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
           );
         }
