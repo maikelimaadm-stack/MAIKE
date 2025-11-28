@@ -312,194 +312,178 @@ export default function RelatorioMovimentacoesPecuaria() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 print:hidden">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Relatório de Movimentações Pecuárias</h1>
           <p className="text-xs text-slate-600">Análise de entradas, saídas e saldos do rebanho</p>
         </div>
-        <div className="flex gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)} className="h-8 gap-1 text-xs">
-            <Settings className="w-3.5 h-3.5" />
-            Config
-          </Button>
-          <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-            <Printer className="w-3.5 h-3.5" />
-            Imprimir
-          </Button>
-        </div>
+        <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+          <Printer className="w-3.5 h-3.5" />
+          Imprimir
+        </Button>
       </div>
 
-      {/* Modal de Configurações */}
-      <Dialog open={showConfig} onOpenChange={setShowConfig}>
-        <DialogContent className="max-w-4xl p-0">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle>Filtros e Configurações do Relatório</DialogTitle>
-          </DialogHeader>
-          <Card className="shadow-none border-none">
-            <CardContent className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo de Relatório</Label>
-                  <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
-                      <SelectItem value="sintetico">Sintético (Agrupado)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Orientação</Label>
-                  <Select value={orientacao} onValueChange={setOrientacao}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="retrato">Retrato</SelectItem>
-                      <SelectItem value="paisagem">Paisagem</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {tipoRelatorio === 'analitico' && (
-                  <div className="space-y-2">
-                    <Label>Ordenar Por</Label>
-                    <Select value={ordenacao} onValueChange={setOrdenacao}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {ORDENACAO_OPCOES.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label>Tipo Movimentação</Label>
-                  <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="Entrada">Entradas</SelectItem>
-                      <SelectItem value="Saída">Saídas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* Filtros e Configurações - Visíveis na Tela */}
+      <Card className="print:hidden">
+        <CardContent className="p-4 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo Relatório</Label>
+              <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="analitico">Analítico</SelectItem>
+                  <SelectItem value="sintetico">Sintético</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Orientação</Label>
+              <Select value={orientacao} onValueChange={setOrientacao}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="retrato">Retrato</SelectItem>
+                  <SelectItem value="paisagem">Paisagem</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo Mov.</Label>
+              <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="Entrada">Entradas</SelectItem>
+                  <SelectItem value="Saída">Saídas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {tipoRelatorio === 'analitico' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Ordenar</Label>
+                <Select value={ordenacao} onValueChange={setOrdenacao}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ORDENACAO_OPCOES.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            )}
+            <div className="space-y-1">
+              <Label className="text-xs">Data Início</Label>
+              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Data Fim</Label>
+              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-8 text-xs" />
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex gap-2 flex-wrap items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
                 <div className="space-y-2">
-                  <Label>Data Início</Label>
-                  <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data Fim</Label>
-                  <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Agrupar Por (selecione 1 ou mais)</Label>
-                <div className="flex flex-wrap gap-2">
-                  {AGRUPAMENTOS_DISPONIVEIS.map((ag) => (
-                    <Button 
-                      key={ag.id} 
-                      variant={agrupamentosAtivos.includes(ag.id) ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => toggleAgrupamento(ag.id)} 
-                      className={agrupamentosAtivos.includes(ag.id) ? "bg-green-600 hover:bg-green-700" : ""}
-                    >
-                      {ag.label}
-                      {agrupamentosAtivos.includes(ag.id) && agrupamentosAtivos.length > 1 && (
-                        <Badge className="ml-1 text-[10px] bg-white text-green-700 px-1">
-                          {agrupamentosAtivos.indexOf(ag.id) + 1}
-                        </Badge>
-                      )}
-                    </Button>
+                  <h4 className="font-semibold text-sm mb-2">Categorias</h4>
+                  {categoriasUnicas.map(c => (
+                    <div key={c} className="flex items-center space-x-2">
+                      <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
+                      <label className="text-sm cursor-pointer">{c}</label>
+                    </div>
                   ))}
                 </div>
-                {agrupamentosAtivos.length > 1 && (
-                  <p className="text-xs text-slate-500">Ordem: {agrupamentosAtivos.map(a => AGRUPAMENTOS_DISPONIVEIS.find(ag => ag.id === a)?.label).join(' → ')}</p>
-                )}
-              </div>
+              </PopoverContent>
+            </Popover>
 
-              <div className="flex gap-3 flex-wrap">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-h-96 overflow-auto">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm mb-2">Categorias</h4>
-                      {categoriasUnicas.map(c => (
-                        <div key={c} className="flex items-center space-x-2">
-                          <Checkbox checked={categoriasSelecionadas.includes(c)} onCheckedChange={() => toggleFiltro(categoriasSelecionadas, setCategoriasSelecionadas, c)} />
-                          <label className="text-sm cursor-pointer">{c}</label>
-                        </div>
-                      ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Marcas {marcasSelecionadas.length > 0 && `(${marcasSelecionadas.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Marcas</h4>
+                  {marcasUnicas.map(m => (
+                    <div key={m} className="flex items-center space-x-2">
+                      <Checkbox checked={marcasSelecionadas.includes(m)} onCheckedChange={() => toggleFiltro(marcasSelecionadas, setMarcasSelecionadas, m)} />
+                      <label className="text-sm cursor-pointer">{m}</label>
                     </div>
-                  </PopoverContent>
-                </Popover>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">Marcas {marcasSelecionadas.length > 0 && `(${marcasSelecionadas.length})`}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-h-96 overflow-auto">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm mb-2">Marcas</h4>
-                      {marcasUnicas.map(m => (
-                        <div key={m} className="flex items-center space-x-2">
-                          <Checkbox checked={marcasSelecionadas.includes(m)} onCheckedChange={() => toggleFiltro(marcasSelecionadas, setMarcasSelecionadas, m)} />
-                          <label className="text-sm cursor-pointer">{m}</label>
-                        </div>
-                      ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Motivos {motivosSelecionados.length > 0 && `(${motivosSelecionados.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Motivos</h4>
+                  {motivosUnicos.map(m => (
+                    <div key={m} className="flex items-center space-x-2">
+                      <Checkbox checked={motivosSelecionados.includes(m)} onCheckedChange={() => toggleFiltro(motivosSelecionados, setMotivosSelecionados, m)} />
+                      <label className="text-sm cursor-pointer">{m}</label>
                     </div>
-                  </PopoverContent>
-                </Popover>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">Motivos {motivosSelecionados.length > 0 && `(${motivosSelecionados.length})`}</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-h-96 overflow-auto">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm mb-2">Motivos</h4>
-                      {motivosUnicos.map(m => (
-                        <div key={m} className="flex items-center space-x-2">
-                          <Checkbox checked={motivosSelecionados.includes(m)} onCheckedChange={() => toggleFiltro(motivosSelecionados, setMotivosSelecionados, m)} />
-                          <label className="text-sm cursor-pointer">{m}</label>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                  <Settings className="w-3.5 h-3.5" />
+                  Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-auto">
+                <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {getColunasDisponiveis().map((coluna) => (
+                  <DropdownMenuCheckboxItem
+                    key={coluna.id}
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onCheckedChange={() => toggleColuna(coluna.id)}
+                  >
+                    {coluna.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Settings className="w-4 h-4" />
-                      Colunas
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Colunas Visíveis</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {getColunasDisponiveis().map((coluna) => (
-                      <DropdownMenuCheckboxItem
-                        key={coluna.id}
-                        checked={colunasVisiveis.includes(coluna.id)}
-                        onCheckedChange={() => toggleColuna(coluna.id)}
-                      >
-                        {coluna.label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar</Button>
+          </div>
 
-                <Button variant="outline" onClick={limparFiltros}>Limpar Filtros</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </DialogContent>
-      </Dialog>
+          <div className="space-y-1">
+            <Label className="text-xs">Agrupar Por</Label>
+            <div className="flex flex-wrap gap-1">
+              {AGRUPAMENTOS_DISPONIVEIS.map((ag) => (
+                <Button 
+                  key={ag.id} 
+                  variant={agrupamentosAtivos.includes(ag.id) ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => toggleAgrupamento(ag.id)} 
+                  className={`h-7 text-xs ${agrupamentosAtivos.includes(ag.id) ? "bg-slate-700 hover:bg-slate-800" : ""}`}
+                >
+                  {ag.label}
+                  {agrupamentosAtivos.includes(ag.id) && agrupamentosAtivos.length > 1 && (
+                    <span className="ml-1 text-[10px] bg-white text-slate-700 px-1 rounded">
+                      {agrupamentosAtivos.indexOf(ag.id) + 1}
+                    </span>
+                  )}
+                </Button>
+              ))}
+            </div>
+            {agrupamentosAtivos.length > 1 && (
+              <p className="text-xs text-slate-500">Ordem: {agrupamentosAtivos.map(a => AGRUPAMENTOS_DISPONIVEIS.find(ag => ag.id === a)?.label).join(' → ')}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Área de Impressão */}
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
