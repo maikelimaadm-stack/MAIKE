@@ -88,7 +88,6 @@ export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
 
   const saldos = calcularSaldos();
   const saldosMarca = calcularSaldosMarca();
-  const saldosSetor = calcularSaldosSetor();
   
   const totalEntradas = saldos.reduce((sum, s) => sum + s.entradas, 0);
   const totalSaidas = saldos.reduce((sum, s) => sum + s.saidas, 0);
@@ -98,11 +97,7 @@ export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
   const totalSaidasMarca = saldosMarca.reduce((sum, s) => sum + s.saidas, 0);
   const totalSaldoMarca = saldosMarca.reduce((sum, s) => sum + s.saldo, 0);
 
-  const totalEntradasSetor = saldosSetor.reduce((sum, s) => sum + s.entradas, 0);
-  const totalSaidasSetor = saldosSetor.reduce((sum, s) => sum + s.saidas, 0);
-  const totalSaldoSetor = saldosSetor.reduce((sum, s) => sum + s.saldo, 0);
-
-  if (saldos.length === 0 && saldosMarca.length === 0 && saldosSetor.length === 0) {
+  if (saldos.length === 0 && saldosMarca.length === 0) {
     return null;
   }
 
