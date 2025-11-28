@@ -66,6 +66,7 @@ const formatarDataSimples = (dataString) => {
 };
 
 const COLUNAS_DISPONIVEIS = [
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
   { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'motivo', label: 'Motivo', default: true, sortable: true },
@@ -294,6 +295,10 @@ export default function HistoricoMovimentacoesPecuaria() {
     let aValue, bValue;
 
     switch (sortField) {
+      case 'numero':
+        aValue = parseInt(a.numero_movimentacao) || 0;
+        bValue = parseInt(b.numero_movimentacao) || 0;
+        break;
       case 'data':
         aValue = new Date(a.data_movimentacao).getTime();
         bValue = new Date(b.data_movimentacao).getTime();
@@ -760,6 +765,8 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const renderCell = (coluna, mov) => {
     switch (coluna.id) {
+      case 'numero':
+        return <TableCell className="text-xs font-mono font-bold text-slate-700 border-r border-slate-200">{mov.numero_movimentacao || '-'}</TableCell>;
       case 'data':
         return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_movimentacao)}</TableCell>;
       case 'tipo':
