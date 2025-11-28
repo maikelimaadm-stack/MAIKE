@@ -423,7 +423,7 @@ export default function RelatorioMovimentacoesPecuaria() {
       return { tipo: 'geral', dados: dadosRelatorioGeral, agrupamentos: [] };
     }
 
-    if (tipoRelatorio === 'sintetico' || tipoRelatorio === 'peso' || tipoRelatorio === 'financeiro') {
+    if (tipoRelatorio === 'sintetico') {
       const grupos = {};
       
       dados.forEach(m => {
@@ -470,23 +470,15 @@ export default function RelatorioMovimentacoesPecuaria() {
         dados: Object.values(grupos).sort((a, b) => a.agrupamento.localeCompare(b.agrupamento)),
         agrupamentos
       };
+    } else if (tipoRelatorio === 'peso') {
+      // Relatório de peso - tabela simples
+      return { tipo: 'peso', dados: dados, agrupamentos: [] };
+    } else if (tipoRelatorio === 'financeiro') {
+      // Relatório financeiro - tabela simples
+      return { tipo: 'financeiro', dados: dados, agrupamentos: [] };
     } else if (tipoRelatorio === 'mudanca_categoria') {
-      // Relatório especial de mudança de categoria - mostra DE/PARA
-      const grupos = {};
-      dados.forEach(m => {
-        const chave = `${m.categoria_animal || 'Sem Cat.'} → ${m.categoria_nova || 'Sem Cat.'}`;
-        if (!grupos[chave]) {
-          grupos[chave] = {
-            categoria_origem: m.categoria_animal || 'Sem Categoria',
-            categoria_destino: m.categoria_nova || 'Sem Categoria',
-            quantidade: 0,
-            registros: []
-          };
-        }
-        grupos[chave].quantidade += m.quantidade_animais || 0;
-        grupos[chave].registros.push(m);
-      });
-      return { tipo: 'mudanca_categoria', dados: Object.values(grupos), agrupamentos: [] };
+      // Relatório de mudança de categoria - tabela simples
+      return { tipo: 'mudanca_categoria', dados: dados, agrupamentos: [] };
     } else if (tipoRelatorio === 'transferencia') {
       // Relatório de transferências
       const grupos = {};
@@ -837,69 +829,123 @@ export default function RelatorioMovimentacoesPecuaria() {
             </Table>
           )}
 
-          {/* Relatório de Mudança de Categoria */}
+          {/* Relatório de Mudança de Categoria - Tabela Simples */}
           {dadosRelatorio.tipo === 'mudanca_categoria' && (
-            <div className="space-y-4">
-              {opcoesRelatorio.mostrar_resumo && (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-black">
-                      <TableHead className="border border-black text-sm font-bold py-2">Categoria Origem (DE)</TableHead>
-                      <TableHead className="border border-black text-sm font-bold py-2">Categoria Destino (PARA)</TableHead>
-                      <TableHead className="border border-black text-sm font-bold text-right py-2">Quantidade</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dadosRelatorio.dados.map((grupo, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="border border-gray-300 text-sm py-2 font-semibold">{grupo.categoria_origem}</TableCell>
-                        <TableCell className="border border-gray-300 text-sm py-2 font-semibold">{grupo.categoria_destino}</TableCell>
-                        <TableCell className="border border-gray-300 text-sm text-right py-2 font-bold">{formatarNumero(grupo.quantidade)} cab</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={2} className="border border-black text-sm py-2">TOTAL DE MUDANÇAS</TableCell>
-                      <TableCell className="border border-black text-sm text-right py-2">{formatarNumero(dadosRelatorio.dados.reduce((s, g) => s + g.quantidade, 0))} cab</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              )}
+            <Table>
+              <TableHeader>
+                <TableRow className="border-black">
+                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Categoria (DE)</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Categoria (PARA)</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Quantidade</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Observações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dadosRelatorio.dados.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.categoria_animal || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.categoria_nova || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.quantidade_animais} cab</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.area_origem_nome || m.area_destino_nome || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 max-w-[150px] truncate">{m.observacoes || '-'}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-gray-100 font-bold">
+                  <TableCell colSpan={3} className="border border-black text-xs py-1">TOTAL</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))} cab</TableCell>
+                  <TableCell colSpan={3} className="border border-black text-xs py-1"></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
 
-              {/* Detalhamento por grupo */}
-              {(opcoesRelatorio.mostrar_detalhes || opcoesRelatorio.todos_registros) && dadosRelatorio.dados.map((grupo, idx) => {
-                const registrosExibir = opcoesRelatorio.todos_registros ? grupo.registros : grupo.registros.slice(0, 10);
-                return (
-                  <div key={idx} className="mt-3">
-                    <div className="bg-purple-600 text-white px-3 py-2">
-                      <h3 className="font-bold text-sm">{grupo.categoria_origem} → {grupo.categoria_destino} ({grupo.quantidade} cab)</h3>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="border border-black text-sm font-bold py-2">Data</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right">Quantidade</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2">Marca</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2">Observações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {registrosExibir.map((m) => (
-                          <TableRow key={m.id}>
-                            <TableCell className="border border-gray-300 text-sm py-2">{formatarData(m.data_movimentacao)}</TableCell>
-                            <TableCell className="border border-gray-300 text-sm py-2 text-right font-semibold">{m.quantidade_animais} cab</TableCell>
-                            <TableCell className="border border-gray-300 text-sm py-2">{m.marca || ''}</TableCell>
-                            <TableCell className="border border-gray-300 text-sm py-2">{m.observacoes || ''}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    {!opcoesRelatorio.todos_registros && grupo.registros.length > 10 && (
-                      <p className="text-xs text-slate-500 mt-1">... e mais {grupo.registros.length - 10} registro(s)</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Relatório de Peso - Tabela Simples */}
+          {dadosRelatorio.tipo === 'peso' && (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-black">
+                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Qtd</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Peso Médio</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Peso Total</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dadosRelatorio.dados.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{m.quantidade_animais}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.peso_medio ? `${formatarNumero(m.peso_medio)} kg` : '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.peso_total ? `${formatarNumero(m.peso_total)} kg` : '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome || '-'}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-gray-100 font-bold">
+                  <TableCell colSpan={5} className="border border-black text-xs py-1">TOTAL</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))}</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">-</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(totalPeso)} kg</TableCell>
+                  <TableCell className="border border-black text-xs py-1"></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
+
+          {/* Relatório Financeiro - Tabela Simples */}
+          {dadosRelatorio.tipo === 'financeiro' && (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-black">
+                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Qtd</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Unit.</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Total</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">Fornec./Comprador</TableHead>
+                  <TableHead className="border border-black text-xs font-bold py-1">NF</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dadosRelatorio.dados.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{m.quantidade_animais}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || m.destino_venda || '-'}</TableCell>
+                    <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || '-'}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-gray-100 font-bold">
+                  <TableCell colSpan={5} className="border border-black text-xs py-1">TOTAL</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))}</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">-</TableCell>
+                  <TableCell className="border border-black text-xs py-1 text-right">R$ {totalValor.toFixed(2)}</TableCell>
+                  <TableCell colSpan={2} className="border border-black text-xs py-1"></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           )}
 
           {/* Relatório Geral (Múltiplos Quadros) */}
