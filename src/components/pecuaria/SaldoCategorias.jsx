@@ -2,15 +2,19 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag } from "lucide-react";
+import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag, Landmark } from "lucide-react";
 
-export default function SaldoCategorias({ movimentacoes = [] }) {
+export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
   const [isVisibleCategoria, setIsVisibleCategoria] = useState(() => {
     const saved = localStorage.getItem('saldo_categoria_visivel');
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [isVisibleMarca, setIsVisibleMarca] = useState(() => {
     const saved = localStorage.getItem('saldo_marca_visivel');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [isVisibleSetor, setIsVisibleSetor] = useState(() => {
+    const saved = localStorage.getItem('saldo_setor_visivel');
     return saved !== null ? JSON.parse(saved) : true;
   });
 
@@ -29,6 +33,44 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
       return newValue;
     });
   };
+
+  const toggleSetor = () => {
+    setIsVisibleSetor(prev => {
+      const newValue = !prev;
+      localStorage.setItem('saldo_setor_visivel', JSON.stringify(newValue));
+      return newValue;
+    });
+  };
+
+  // Calcular saldo por setor
+  const calcularSaldosSetor = () => {
+    const saldos = {};
+
+    movimentacoes.forEach(mov => {
+      const setorId = mov.setor_id;
+      const setorNome = mov.setor_nome || 'Sem Setor';
+      
+      const chave = setorId || 'sem_setor';
+
+      if (!saldos[chave]) {
+        saldos[chave] = { setorId, setorNome, entradas: 0, saidas: 0, saldo: 0 };
+      }
+
+      const qtd = mov.quantidade_animais || 0;
+
+      if (mov.tipo === "Entrada") {
+        saldos[chave].entradas += qtd;
+        saldos[chave].saldo += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[chave].saidas += qtd;
+        saldos[chave].saldo -= qtd;
+      }
+    });
+
+    return Object.values(saldos)
+      .sort((a, b) => a.setorNome.localeCompare(b.setorNome, 'pt-BR'));
+  };
+
   // Calcular saldo por categoria
   const calcularSaldos = () => {
     const saldos = {};
@@ -88,6 +130,7 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
 
   const saldos = calcularSaldos();
   const saldosMarca = calcularSaldosMarca();
+  const saldosSetor = calcularSaldosSetor();
   
   const totalEntradas = saldos.reduce((sum, s) => sum + s.entradas, 0);
   const totalSaidas = saldos.reduce((sum, s) => sum + s.saidas, 0);
@@ -97,7 +140,11 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
   const totalSaidasMarca = saldosMarca.reduce((sum, s) => sum + s.saidas, 0);
   const totalSaldoMarca = saldosMarca.reduce((sum, s) => sum + s.saldo, 0);
 
-  if (saldos.length === 0 && saldosMarca.length === 0) {
+  const totalEntradasSetor = saldosSetor.reduce((sum, s) => sum + s.entradas, 0);
+  const totalSaidasSetor = saldosSetor.reduce((sum, s) => sum + s.saidas, 0);
+  const totalSaldoSetor = saldosSetor.reduce((sum, s) => sum + s.saldo, 0);
+
+  if (saldos.length === 0 && saldosMarca.length === 0 && saldosSetor.length === 0) {
     return null;
   }
 
@@ -244,6 +291,81 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
                       </TableCell>
                       <TableCell className={`text-xs text-center font-mono font-bold ${totalSaldoMarca >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                         {totalSaldoMarca} cab
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>}
+          </Card>
+          )}
+
+          {/* Saldo por Setor */}
+          {saldosSetor.length > 0 && (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="bg-indigo-50 border-b py-2 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Landmark className="w-4 h-4" />
+                  Saldo por Setor/Fazenda
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleSetor}
+                  className="h-7 gap-1 text-xs"
+                >
+                  {isVisibleSetor ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  {isVisibleSetor ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              </div>
+            </CardHeader>
+            {isVisibleSetor && <CardContent className="p-0">
+              <div className="overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-indigo-50">
+                      <TableHead className="text-xs font-semibold">Setor/Fazenda</TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-green-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          Entradas
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-red-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendingDown className="w-3 h-3" />
+                          Saídas
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-blue-700">Saldo Atual</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {saldosSetor.map((item) => (
+                      <TableRow key={item.setorId || 'sem_setor'} className="hover:bg-indigo-50/50">
+                        <TableCell className="text-xs font-medium">{item.setorNome}</TableCell>
+                        <TableCell className="text-xs text-center font-mono text-green-700 font-semibold">
+                          +{item.entradas}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono text-red-700 font-semibold">
+                          -{item.saidas}
+                        </TableCell>
+                        <TableCell className={`text-xs text-center font-mono font-bold ${item.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                          {item.saldo} cab
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-indigo-100 border-t-2 border-indigo-300">
+                      <TableCell className="text-xs font-bold">TOTAL GERAL</TableCell>
+                      <TableCell className="text-xs text-center font-mono text-green-700 font-bold">
+                        +{totalEntradasSetor}
+                      </TableCell>
+                      <TableCell className="text-xs text-center font-mono text-red-700 font-bold">
+                        -{totalSaidasSetor}
+                      </TableCell>
+                      <TableCell className={`text-xs text-center font-mono font-bold ${totalSaldoSetor >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {totalSaldoSetor} cab
                       </TableCell>
                     </TableRow>
                   </TableBody>
