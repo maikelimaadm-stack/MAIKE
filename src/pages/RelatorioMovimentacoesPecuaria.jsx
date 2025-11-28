@@ -312,7 +312,11 @@ export default function RelatorioMovimentacoesPecuaria() {
   const saldoPeriodo = totalEntradas - totalSaidas;
 
   const toggleColuna = (colunaId) => {
-    setColunasVisiveis(prev => prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId]);
+    setColunasVisiveis(prev => {
+      const novas = prev.includes(colunaId) ? prev.filter(id => id !== colunaId) : [...prev, colunaId];
+      localStorage.setItem('colunas_relatorio_pecuaria_visiveis', JSON.stringify(novas));
+      return novas;
+    });
   };
 
   const toggleFiltro = (lista, setLista, valor) => {
