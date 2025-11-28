@@ -5,8 +5,30 @@ import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [] }) {
-  const [isVisibleCategoria, setIsVisibleCategoria] = useState(true);
-  const [isVisibleMarca, setIsVisibleMarca] = useState(true);
+  const [isVisibleCategoria, setIsVisibleCategoria] = useState(() => {
+    const saved = localStorage.getItem('saldo_categoria_visivel');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [isVisibleMarca, setIsVisibleMarca] = useState(() => {
+    const saved = localStorage.getItem('saldo_marca_visivel');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const toggleCategoria = () => {
+    setIsVisibleCategoria(prev => {
+      const newValue = !prev;
+      localStorage.setItem('saldo_categoria_visivel', JSON.stringify(newValue));
+      return newValue;
+    });
+  };
+
+  const toggleMarca = () => {
+    setIsVisibleMarca(prev => {
+      const newValue = !prev;
+      localStorage.setItem('saldo_marca_visivel', JSON.stringify(newValue));
+      return newValue;
+    });
+  };
   // Calcular saldo por categoria
   const calcularSaldos = () => {
     const saldos = {};
@@ -107,7 +129,7 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsVisibleCategoria(!isVisibleCategoria)}
+                onClick={toggleCategoria}
                 className="h-7 gap-1 text-xs"
               >
                 {isVisibleCategoria ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -182,7 +204,7 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsVisibleMarca(!isVisibleMarca)}
+                  onClick={toggleMarca}
                   className="h-7 gap-1 text-xs"
                 >
                   {isVisibleMarca ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
