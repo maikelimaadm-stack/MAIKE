@@ -909,24 +909,24 @@ export default function RelatorioMovimentacoesPecuaria() {
               {/* Quadro Resumo Geral */}
               {opcoesRelatorio.mostrar_resumo && (
                 <div>
-                  <div className="bg-slate-800 text-white px-3 py-2">
+                  <div className="bg-black text-white px-3 py-2">
                     <h3 className="font-bold text-sm">RESUMO GERAL DO PERÍODO</h3>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border border-slate-300">
-                    <div className="p-4 border-r border-b md:border-b-0 border-slate-300 text-center">
-                      <div className="text-3xl font-bold text-green-700">+{formatarNumero(totalEntradas)}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border border-black">
+                    <div className="p-4 border-r border-b md:border-b-0 border-black text-center">
+                      <div className="text-3xl font-bold">+{formatarNumero(totalEntradas)}</div>
                       <div className="text-sm text-slate-600 mt-1">Entradas</div>
                     </div>
-                    <div className="p-4 border-b md:border-b-0 md:border-r border-slate-300 text-center">
-                      <div className="text-3xl font-bold text-red-700">-{formatarNumero(totalSaidas)}</div>
+                    <div className="p-4 border-b md:border-b-0 md:border-r border-black text-center">
+                      <div className="text-3xl font-bold">-{formatarNumero(totalSaidas)}</div>
                       <div className="text-sm text-slate-600 mt-1">Saídas</div>
                     </div>
-                    <div className="p-4 border-r border-slate-300 text-center">
-                      <div className={`text-3xl font-bold ${saldoPeriodo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)}</div>
+                    <div className="p-4 border-r border-black text-center">
+                      <div className="text-3xl font-bold">{saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)}</div>
                       <div className="text-sm text-slate-600 mt-1">Saldo</div>
                     </div>
                     <div className="p-4 text-center">
-                      <div className="text-3xl font-bold text-slate-700">{movimentacoesFiltradas.length}</div>
+                      <div className="text-3xl font-bold">{movimentacoesFiltradas.length}</div>
                       <div className="text-sm text-slate-600 mt-1">Registros</div>
                     </div>
                   </div>
