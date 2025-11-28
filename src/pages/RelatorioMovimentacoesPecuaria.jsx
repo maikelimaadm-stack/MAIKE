@@ -695,6 +695,24 @@ export default function RelatorioMovimentacoesPecuaria() {
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar</Button>
           </div>
 
+          {/* Opções específicas do tipo de relatório */}
+          {OPCOES_POR_TIPO[tipoRelatorio] && (
+            <div className="p-2 bg-slate-50 rounded-lg border">
+              <Label className="text-xs font-semibold text-slate-700 mb-2 block">Opções do Relatório</Label>
+              <div className="flex flex-wrap gap-3">
+                {OPCOES_POR_TIPO[tipoRelatorio].map((opcao) => (
+                  <label key={opcao.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <Checkbox 
+                      checked={opcoesRelatorio[opcao.id] || false} 
+                      onCheckedChange={() => toggleOpcaoRelatorio(opcao.id)} 
+                    />
+                    <span>{opcao.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1">
             <Label className="text-xs">Agrupar Por</Label>
             <div className="flex flex-wrap gap-1">
