@@ -609,12 +609,25 @@ export default function RelatorioMovimentacoesPecuaria() {
                         {colunasVisiveis.includes('motivo') && <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>}
                         {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
                         {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
+                        {colunasVisiveis.includes('categoria_nova') && <TableHead className="border border-black text-xs font-bold py-1">Cat. Nova</TableHead>}
                         {colunasVisiveis.includes('marca') && <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>}
                         {colunasVisiveis.includes('sexo') && <TableHead className="border border-black text-xs font-bold py-1">Sexo</TableHead>}
                         {colunasVisiveis.includes('peso_medio') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Méd.</TableHead>}
+                        {colunasVisiveis.includes('peso_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total</TableHead>}
+                        {colunasVisiveis.includes('area_origem') && <TableHead className="border border-black text-xs font-bold py-1">Origem</TableHead>}
+                        {colunasVisiveis.includes('area_destino') && <TableHead className="border border-black text-xs font-bold py-1">Destino</TableHead>}
                         {colunasVisiveis.includes('area') && <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>}
-                        {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornec./Comprador</TableHead>}
-                        {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor</TableHead>}
+                        {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornecedor</TableHead>}
+                        {colunasVisiveis.includes('comprador') && <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>}
+                        {colunasVisiveis.includes('nota_fiscal') && <TableHead className="border border-black text-xs font-bold py-1">NF</TableHead>}
+                        {colunasVisiveis.includes('gta') && <TableHead className="border border-black text-xs font-bold py-1">GTA</TableHead>}
+                        {colunasVisiveis.includes('causa_morte') && <TableHead className="border border-black text-xs font-bold py-1">Causa Morte</TableHead>}
+                        {colunasVisiveis.includes('transf_origem') && <TableHead className="border border-black text-xs font-bold py-1">Transf. Orig.</TableHead>}
+                        {colunasVisiveis.includes('transf_destino') && <TableHead className="border border-black text-xs font-bold py-1">Transf. Dest.</TableHead>}
+                        {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Unit.</TableHead>}
+                        {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Vlr Total</TableHead>}
+                        {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs.</TableHead>}
+                        {colunasVisiveis.includes('responsavel') && <TableHead className="border border-black text-xs font-bold py-1">Resp.</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -627,12 +640,25 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {colunasVisiveis.includes('motivo') && <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>}
                             {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{m.quantidade_animais}</TableCell>}
                             {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>}
+                            {colunasVisiveis.includes('categoria_nova') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_nova || '-'}</TableCell>}
                             {colunasVisiveis.includes('marca') && <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.marca || '-'}</TableCell>}
                             {colunasVisiveis.includes('sexo') && <TableCell className="border border-gray-300 text-xs py-1">{m.sexo || '-'}</TableCell>}
                             {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : '-'}</TableCell>}
+                            {colunasVisiveis.includes('peso_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : '-'}</TableCell>}
+                            {colunasVisiveis.includes('area_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_origem_nome || '-'}</TableCell>}
+                            {colunasVisiveis.includes('area_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_destino_nome || '-'}</TableCell>}
                             {colunasVisiveis.includes('area') && <TableCell className="border border-gray-300 text-xs py-1">{areaExibir || '-'}</TableCell>}
-                            {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || m.destino_venda || '-'}</TableCell>}
+                            {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || '-'}</TableCell>}
+                            {colunasVisiveis.includes('comprador') && <TableCell className="border border-gray-300 text-xs py-1">{m.destino_venda || '-'}</TableCell>}
+                            {colunasVisiveis.includes('nota_fiscal') && <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || '-'}</TableCell>}
+                            {colunasVisiveis.includes('gta') && <TableCell className="border border-gray-300 text-xs py-1">{m.gta || '-'}</TableCell>}
+                            {colunasVisiveis.includes('causa_morte') && <TableCell className="border border-gray-300 text-xs py-1">{m.causa_morte || '-'}</TableCell>}
+                            {colunasVisiveis.includes('transf_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_origem || '-'}</TableCell>}
+                            {colunasVisiveis.includes('transf_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_destino || '-'}</TableCell>}
+                            {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : '-'}</TableCell>}
                             {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : '-'}</TableCell>}
+                            {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || '-'}</TableCell>}
+                            {colunasVisiveis.includes('responsavel') && <TableCell className="border border-gray-300 text-xs py-1">{m.created_by || '-'}</TableCell>}
                           </TableRow>
                         );
                       })}
