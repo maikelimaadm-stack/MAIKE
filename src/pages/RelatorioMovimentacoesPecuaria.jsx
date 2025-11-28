@@ -79,6 +79,7 @@ const COLUNAS_ANALITICO = [
 ];
 
 const AGRUPAMENTOS_DISPONIVEIS = [
+  { id: 'setor', label: 'Setor/Fazenda' },
   { id: 'categoria', label: 'Categoria' },
   { id: 'marca', label: 'Marca' },
   { id: 'motivo', label: 'Motivo' },
@@ -165,6 +166,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [marcasSelecionadas, setMarcasSelecionadas] = useState([]);
   const [motivosSelecionados, setMotivosSelecionados] = useState([]);
+  const [setoresSelecionados, setSetoresSelecionados] = useState([]);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -238,6 +240,15 @@ export default function RelatorioMovimentacoesPecuaria() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores-relatorio', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter(s => s.empresa_id === empresaSelecionadaId && s.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal))].filter(Boolean).sort();
   const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca))].filter(Boolean).sort();
   const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo))].filter(Boolean).sort();
@@ -245,6 +256,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const areasDestinoUnicas = [...new Set(movimentacoes.map(m => m.area_destino_nome))].filter(Boolean).sort();
   const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_origem))].filter(Boolean).sort();
   const compradoresUnicos = [...new Set(movimentacoes.map(m => m.destino_venda))].filter(Boolean).sort();
+  const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome))].filter(Boolean).sort();
 
   const movimentacoesFiltradas = useMemo(() => {
     let filtered = movimentacoes.filter(m => {
@@ -252,6 +264,7 @@ export default function RelatorioMovimentacoesPecuaria() {
       if (categoriasSelecionadas.length > 0 && !categoriasSelecionadas.includes(m.categoria_animal)) return false;
       if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
       if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
+      if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
       
       if (dataInicio) {
         const dataMovimentacao = new Date(m.data_movimentacao);
@@ -282,11 +295,12 @@ export default function RelatorioMovimentacoesPecuaria() {
     });
 
     return filtered;
-  }, [movimentacoes, tipoSelecionado, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, dataInicio, dataFim, ordenacao]);
+  }, [movimentacoes, tipoSelecionado, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, setoresSelecionados, dataInicio, dataFim, ordenacao]);
 
   // Função para obter valor do campo de agrupamento
   const getValorAgrupamento = (m, campo) => {
     switch (campo) {
+      case 'setor': return m.setor_nome || 'Sem Setor';
       case 'categoria': return m.categoria_animal || 'Sem Categoria';
       case 'marca': return m.marca || 'Sem Marca';
       case 'motivo': return m.motivo || 'Sem Motivo';
@@ -547,6 +561,7 @@ export default function RelatorioMovimentacoesPecuaria() {
     setCategoriasSelecionadas([]);
     setMarcasSelecionadas([]);
     setMotivosSelecionados([]);
+    setSetoresSelecionados([]);
     setDataInicio("");
     setDataFim("");
     setTipoSelecionado('todos');
@@ -627,6 +642,23 @@ export default function RelatorioMovimentacoesPecuaria() {
           </div>
 
           <div className="flex gap-2 flex-wrap items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Setores {setoresSelecionados.length > 0 && `(${setoresSelecionados.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Setores/Fazendas</h4>
+                  {setoresUnicos.map(s => (
+                    <div key={s} className="flex items-center space-x-2">
+                      <Checkbox checked={setoresSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(setoresSelecionados, setSetoresSelecionados, s)} />
+                      <label className="text-sm cursor-pointer">{s}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs">Categorias {categoriasSelecionadas.length > 0 && `(${categoriasSelecionadas.length})`}</Button>
