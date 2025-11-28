@@ -458,11 +458,11 @@ export default function Layout({ children, currentPageName }) {
                     <Menu className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-72">
-                  <SheetHeader>
-                    <SheetTitle className="text-left text-sm">Menu</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-4 space-y-1">
+                <SheetContent side="right" className="w-72 flex flex-col">
+                                        <SheetHeader>
+                                          <SheetTitle className="text-left text-sm">Menu</SheetTitle>
+                                        </SheetHeader>
+                                        <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
                     {menuItemsFiltered.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
                       
