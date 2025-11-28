@@ -68,13 +68,23 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'motivo', label: 'Motivo', default: true, sortable: true },
-  { id: 'lote', label: 'Lote', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
   { id: 'categoria', label: 'Categoria', default: true, sortable: false },
+  { id: 'categoria_nova', label: 'Cat. Nova', default: false, sortable: false },
   { id: 'marca', label: 'Marca', default: true, sortable: false },
   { id: 'sexo', label: 'Sexo', default: false, sortable: false },
   { id: 'peso_medio', label: 'Peso Médio', default: false, sortable: false },
+  { id: 'peso_total', label: 'Peso Total', default: false, sortable: false },
   { id: 'area', label: 'Área', default: true, sortable: false },
+  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: false },
+  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: false },
+  { id: 'fornecedor', label: 'Fornec./Comprador', default: false, sortable: false },
+  { id: 'nota_fiscal', label: 'Nota Fiscal', default: false, sortable: false },
+  { id: 'gta', label: 'GTA', default: false, sortable: false },
+  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: false },
+  { id: 'destino_abate', label: 'Frigorífico', default: false, sortable: false },
+  { id: 'transferencia_origem', label: 'Transf. Origem', default: false, sortable: false },
+  { id: 'transferencia_destino', label: 'Transf. Destino', default: false, sortable: false },
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
 ];
@@ -600,8 +610,6 @@ export default function HistoricoMovimentacoesPecuaria() {
   });
 
   const renderCell = (coluna, mov) => {
-    const dadosObs = extrairDadosObservacoes(mov.observacoes);
-    
     switch (coluna.id) {
       case 'data':
         return <TableCell className="text-xs border-r border-slate-200">{formatarDataSimples(mov.data_movimentacao)}</TableCell>;
@@ -615,21 +623,41 @@ export default function HistoricoMovimentacoesPecuaria() {
         );
       case 'motivo':
         return <TableCell className="text-xs font-medium border-r border-slate-200">{mov.motivo || '-'}</TableCell>;
-      case 'lote':
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote || '-'}</TableCell>;
       case 'quantidade':
         return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.quantidade_animais} cab</TableCell>;
       case 'categoria':
         return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_animal || '-'}</TableCell>;
+      case 'categoria_nova':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_nova || '-'}</TableCell>;
       case 'marca':
         return <TableCell className="text-xs font-semibold text-blue-700 border-r border-slate-200">{mov.marca || '-'}</TableCell>;
       case 'sexo':
         return <TableCell className="text-xs border-r border-slate-200">{mov.sexo || '-'}</TableCell>;
       case 'peso_medio':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? formatarNumero(mov.peso_medio) : '-'}</TableCell>;
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? `${formatarNumero(mov.peso_medio)} kg` : '-'}</TableCell>;
+      case 'peso_total':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_total ? `${formatarNumero(mov.peso_total)} kg` : '-'}</TableCell>;
       case 'area':
         const areaExibir = mov.tipo === 'Entrada' ? mov.area_destino_nome : mov.area_origem_nome;
         return <TableCell className="text-xs border-r border-slate-200">{areaExibir || '-'}</TableCell>;
+      case 'valor_unitario':
+        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.valor_unitario ? `R$ ${mov.valor_unitario.toFixed(2)}` : '-'}</TableCell>;
+      case 'valor_total':
+        return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.valor_total ? `R$ ${mov.valor_total.toFixed(2)}` : '-'}</TableCell>;
+      case 'fornecedor':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_origem || mov.destino_venda || '-'}</TableCell>;
+      case 'nota_fiscal':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.nota_fiscal || '-'}</TableCell>;
+      case 'gta':
+        return <TableCell className="text-xs font-mono border-r border-slate-200">{mov.gta || '-'}</TableCell>;
+      case 'causa_morte':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.causa_morte || '-'}</TableCell>;
+      case 'destino_abate':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.destino_abate || '-'}</TableCell>;
+      case 'transferencia_origem':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.transferencia_origem || '-'}</TableCell>;
+      case 'transferencia_destino':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.transferencia_destino || '-'}</TableCell>;
       case 'observacoes':
         return <TableCell className="text-xs border-r border-slate-200 max-w-[200px] truncate" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
