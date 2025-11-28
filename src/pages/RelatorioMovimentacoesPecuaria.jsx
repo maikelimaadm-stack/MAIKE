@@ -80,6 +80,8 @@ const COLUNAS_ANALITICO = [
 
 const AGRUPAMENTOS_DISPONIVEIS = [
   { id: 'setor', label: 'Setor/Fazenda' },
+  { id: 'setor_origem', label: 'Setor Origem' },
+  { id: 'setor_destino', label: 'Setor Destino' },
   { id: 'categoria', label: 'Categoria' },
   { id: 'marca', label: 'Marca' },
   { id: 'motivo', label: 'Motivo' },
@@ -90,8 +92,6 @@ const AGRUPAMENTOS_DISPONIVEIS = [
   { id: 'comprador', label: 'Comprador/Destino' },
   { id: 'sexo', label: 'Sexo' },
   { id: 'mes', label: 'Mês/Ano' },
-  { id: 'transf_origem', label: 'Fazenda Origem (Transf.)' },
-  { id: 'transf_destino', label: 'Fazenda Destino (Transf.)' },
 ];
 
 const COLUNAS_SINTETICO = [
@@ -167,6 +167,8 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [marcasSelecionadas, setMarcasSelecionadas] = useState([]);
   const [motivosSelecionados, setMotivosSelecionados] = useState([]);
   const [setoresSelecionados, setSetoresSelecionados] = useState([]);
+  const [setoresOrigemSelecionados, setSetoresOrigemSelecionados] = useState([]);
+  const [setoresDestinoSelecionados, setSetoresDestinoSelecionados] = useState([]);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -257,6 +259,8 @@ export default function RelatorioMovimentacoesPecuaria() {
   const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_origem))].filter(Boolean).sort();
   const compradoresUnicos = [...new Set(movimentacoes.map(m => m.destino_venda))].filter(Boolean).sort();
   const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome))].filter(Boolean).sort();
+  const setoresOrigemUnicos = [...new Set(movimentacoes.map(m => m.setor_origem_nome))].filter(Boolean).sort();
+  const setoresDestinoUnicos = [...new Set(movimentacoes.map(m => m.setor_destino_nome))].filter(Boolean).sort();
 
   const movimentacoesFiltradas = useMemo(() => {
     let filtered = movimentacoes.filter(m => {
@@ -265,6 +269,8 @@ export default function RelatorioMovimentacoesPecuaria() {
       if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(m.marca)) return false;
       if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(m.motivo)) return false;
       if (setoresSelecionados.length > 0 && !setoresSelecionados.includes(m.setor_nome)) return false;
+      if (setoresOrigemSelecionados.length > 0 && !setoresOrigemSelecionados.includes(m.setor_origem_nome)) return false;
+      if (setoresDestinoSelecionados.length > 0 && !setoresDestinoSelecionados.includes(m.setor_destino_nome)) return false;
       
       if (dataInicio) {
         const dataMovimentacao = new Date(m.data_movimentacao);
@@ -295,12 +301,14 @@ export default function RelatorioMovimentacoesPecuaria() {
     });
 
     return filtered;
-  }, [movimentacoes, tipoSelecionado, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, setoresSelecionados, dataInicio, dataFim, ordenacao]);
+  }, [movimentacoes, tipoSelecionado, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, setoresSelecionados, setoresOrigemSelecionados, setoresDestinoSelecionados, dataInicio, dataFim, ordenacao]);
 
   // Função para obter valor do campo de agrupamento
   const getValorAgrupamento = (m, campo) => {
     switch (campo) {
       case 'setor': return m.setor_nome || 'Sem Setor';
+      case 'setor_origem': return m.setor_origem_nome || 'Sem Setor Origem';
+      case 'setor_destino': return m.setor_destino_nome || 'Sem Setor Destino';
       case 'categoria': return m.categoria_animal || 'Sem Categoria';
       case 'marca': return m.marca || 'Sem Marca';
       case 'motivo': return m.motivo || 'Sem Motivo';
@@ -310,8 +318,6 @@ export default function RelatorioMovimentacoesPecuaria() {
       case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
       case 'comprador': return m.destino_venda || 'Sem Comprador';
       case 'sexo': return m.sexo || 'Sem Sexo';
-      case 'transf_origem': return m.transferencia_origem || 'Sem Origem';
-      case 'transf_destino': return m.transferencia_destino || 'Sem Destino';
       case 'mes': 
         if (!m.data_movimentacao) return 'Sem Data';
         const d = new Date(m.data_movimentacao);
@@ -319,6 +325,28 @@ export default function RelatorioMovimentacoesPecuaria() {
       default: return 'Sem classificação';
     }
   };
+
+  // Calcular saldos por setor
+  const saldosPorSetor = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoesFiltradas.forEach(m => {
+      const setor = m.setor_nome || 'Sem Setor';
+      if (!saldos[setor]) {
+        saldos[setor] = { setor, entradas: 0, saidas: 0, saldo: 0 };
+      }
+      const qtd = m.quantidade_animais || 0;
+      if (m.tipo === 'Entrada') {
+        saldos[setor].entradas += qtd;
+        saldos[setor].saldo += qtd;
+      } else {
+        saldos[setor].saidas += qtd;
+        saldos[setor].saldo -= qtd;
+      }
+    });
+    
+    return Object.values(saldos).sort((a, b) => a.setor.localeCompare(b.setor));
+  }, [movimentacoesFiltradas]);
 
   // Filtrar movimentações por tipo de relatório especial
   const movimentacoesPorTipoRelatorio = useMemo(() => {
@@ -562,6 +590,8 @@ export default function RelatorioMovimentacoesPecuaria() {
     setMarcasSelecionadas([]);
     setMotivosSelecionados([]);
     setSetoresSelecionados([]);
+    setSetoresOrigemSelecionados([]);
+    setSetoresDestinoSelecionados([]);
     setDataInicio("");
     setDataFim("");
     setTipoSelecionado('todos');
@@ -652,6 +682,40 @@ export default function RelatorioMovimentacoesPecuaria() {
                   {setoresUnicos.map(s => (
                     <div key={s} className="flex items-center space-x-2">
                       <Checkbox checked={setoresSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(setoresSelecionados, setSetoresSelecionados, s)} />
+                      <label className="text-sm cursor-pointer">{s}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Setor Origem {setoresOrigemSelecionados.length > 0 && `(${setoresOrigemSelecionados.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Setor Origem (Transferências)</h4>
+                  {setoresOrigemUnicos.map(s => (
+                    <div key={s} className="flex items-center space-x-2">
+                      <Checkbox checked={setoresOrigemSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(setoresOrigemSelecionados, setSetoresOrigemSelecionados, s)} />
+                      <label className="text-sm cursor-pointer">{s}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Setor Destino {setoresDestinoSelecionados.length > 0 && `(${setoresDestinoSelecionados.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Setor Destino (Transferências)</h4>
+                  {setoresDestinoUnicos.map(s => (
+                    <div key={s} className="flex items-center space-x-2">
+                      <Checkbox checked={setoresDestinoSelecionados.includes(s)} onCheckedChange={() => toggleFiltro(setoresDestinoSelecionados, setSetoresDestinoSelecionados, s)} />
                       <label className="text-sm cursor-pointer">{s}</label>
                     </div>
                   ))}
@@ -815,6 +879,29 @@ export default function RelatorioMovimentacoesPecuaria() {
               </p>
             </div>
           </div>
+
+          {/* Subtotais por Setor */}
+          {saldosPorSetor.length > 1 && (
+            <div className="mb-4">
+              <div className="bg-indigo-100 border border-indigo-300 px-2 py-1 mb-1">
+                <h3 className="font-bold text-xs">SALDO POR SETOR/FAZENDA</h3>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {saldosPorSetor.map((item, idx) => (
+                  <div key={idx} className="border border-gray-300 p-2 rounded bg-white">
+                    <div className="font-bold text-xs text-indigo-800 truncate" title={item.setor}>{item.setor}</div>
+                    <div className="flex justify-between text-[10px] mt-1">
+                      <span className="text-green-700">+{formatarNumero(item.entradas)}</span>
+                      <span className="text-red-700">-{formatarNumero(item.saidas)}</span>
+                      <span className={`font-bold ${item.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        = {formatarNumero(item.saldo)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Conteúdo do Relatório */}
           {dadosRelatorio.tipo === 'sintetico' && (
