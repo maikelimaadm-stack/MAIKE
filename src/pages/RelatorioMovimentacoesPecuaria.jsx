@@ -106,6 +106,7 @@ const COLUNAS_SINTETICO = [
 const TIPOS_RELATORIO = [
   { id: 'analitico', label: 'Analítico (Detalhado)' },
   { id: 'sintetico', label: 'Sintético (Agrupado)' },
+  { id: 'geral', label: 'Relatório Geral (Quadros)' },
   { id: 'peso', label: 'Relatório de Peso' },
   { id: 'financeiro', label: 'Relatório Financeiro' },
   { id: 'transferencia', label: 'Transferências entre Fazendas' },
