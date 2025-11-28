@@ -86,15 +86,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Preencher sexo automaticamente ao selecionar categoria cadastrada
-  useEffect(() => {
-    if (formData.categoria_animal && categoriasManejo.length > 0) {
-      const catEncontrada = categoriasManejo.find(c => c.nome === formData.categoria_animal);
-      if (catEncontrada?.sexo) {
-        setFormData(prev => ({ ...prev, sexo: catEncontrada.sexo }));
-      }
-    }
-  }, [formData.categoria_animal, categoriasManejo]);
+
 
   // Carregar todas as movimentações para extrair dados únicos
   const { data: movimentacoes = [] } = useQuery({
