@@ -70,24 +70,24 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
   { id: 'motivo', label: 'Motivo', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
-  { id: 'categoria', label: 'Categoria', default: true, sortable: false },
-  { id: 'categoria_nova', label: 'Cat. Nova', default: false, sortable: false },
-  { id: 'marca', label: 'Marca', default: true, sortable: false },
-  { id: 'sexo', label: 'Sexo', default: false, sortable: false },
-  { id: 'peso_medio', label: 'Peso Médio', default: false, sortable: false },
-  { id: 'peso_total', label: 'Peso Total', default: false, sortable: false },
-  { id: 'area', label: 'Área', default: true, sortable: false },
-  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: false },
-  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: false },
-  { id: 'fornecedor', label: 'Fornec./Comprador', default: false, sortable: false },
-  { id: 'nota_fiscal', label: 'Nota Fiscal', default: false, sortable: false },
-  { id: 'gta', label: 'GTA', default: false, sortable: false },
-  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: false },
-  { id: 'destino_abate', label: 'Frigorífico', default: false, sortable: false },
-  { id: 'transferencia_origem', label: 'Transf. Origem', default: false, sortable: false },
-  { id: 'transferencia_destino', label: 'Transf. Destino', default: false, sortable: false },
-  { id: 'observacoes', label: 'Observações', default: false, sortable: false },
-  { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
+  { id: 'categoria', label: 'Categoria', default: true, sortable: true },
+  { id: 'categoria_nova', label: 'Cat. Nova', default: false, sortable: true },
+  { id: 'marca', label: 'Marca', default: true, sortable: true },
+  { id: 'sexo', label: 'Sexo', default: false, sortable: true },
+  { id: 'peso_medio', label: 'Peso Médio', default: false, sortable: true },
+  { id: 'peso_total', label: 'Peso Total', default: false, sortable: true },
+  { id: 'area', label: 'Área', default: true, sortable: true },
+  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
+  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
+  { id: 'fornecedor', label: 'Fornec./Comprador', default: false, sortable: true },
+  { id: 'nota_fiscal', label: 'Nota Fiscal', default: false, sortable: true },
+  { id: 'gta', label: 'GTA', default: false, sortable: true },
+  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: true },
+  { id: 'destino_abate', label: 'Frigorífico', default: false, sortable: true },
+  { id: 'transferencia_origem', label: 'Transf. Origem', default: false, sortable: true },
+  { id: 'transferencia_destino', label: 'Transf. Destino', default: false, sortable: true },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: true },
+  { id: 'responsavel', label: 'Responsável', default: false, sortable: true },
 ];
 
 const ITEMS_PER_PAGE = 50;
@@ -299,16 +299,88 @@ export default function HistoricoMovimentacoesPecuaria() {
         bValue = new Date(b.data_movimentacao).getTime();
         break;
       case 'tipo':
-        aValue = a.tipo;
-        bValue = b.tipo;
+        aValue = a.tipo || '';
+        bValue = b.tipo || '';
         break;
-      case 'lote':
-        aValue = a.lote;
-        bValue = b.lote;
+      case 'motivo':
+        aValue = a.motivo || '';
+        bValue = b.motivo || '';
         break;
       case 'quantidade':
-        aValue = a.quantidade_animais;
-        bValue = b.quantidade_animais;
+        aValue = a.quantidade_animais || 0;
+        bValue = b.quantidade_animais || 0;
+        break;
+      case 'categoria':
+        aValue = a.categoria_animal || '';
+        bValue = b.categoria_animal || '';
+        break;
+      case 'categoria_nova':
+        aValue = a.categoria_nova || '';
+        bValue = b.categoria_nova || '';
+        break;
+      case 'marca':
+        aValue = a.marca || '';
+        bValue = b.marca || '';
+        break;
+      case 'sexo':
+        aValue = a.sexo || '';
+        bValue = b.sexo || '';
+        break;
+      case 'peso_medio':
+        aValue = a.peso_medio || 0;
+        bValue = b.peso_medio || 0;
+        break;
+      case 'peso_total':
+        aValue = a.peso_total || 0;
+        bValue = b.peso_total || 0;
+        break;
+      case 'area':
+        aValue = (a.tipo === 'Entrada' ? a.area_destino_nome : a.area_origem_nome) || '';
+        bValue = (b.tipo === 'Entrada' ? b.area_destino_nome : b.area_origem_nome) || '';
+        break;
+      case 'valor_unitario':
+        aValue = a.valor_unitario || 0;
+        bValue = b.valor_unitario || 0;
+        break;
+      case 'valor_total':
+        aValue = a.valor_total || 0;
+        bValue = b.valor_total || 0;
+        break;
+      case 'fornecedor':
+        aValue = a.fornecedor_origem || a.destino_venda || '';
+        bValue = b.fornecedor_origem || b.destino_venda || '';
+        break;
+      case 'nota_fiscal':
+        aValue = a.nota_fiscal || '';
+        bValue = b.nota_fiscal || '';
+        break;
+      case 'gta':
+        aValue = a.gta || '';
+        bValue = b.gta || '';
+        break;
+      case 'causa_morte':
+        aValue = a.causa_morte || '';
+        bValue = b.causa_morte || '';
+        break;
+      case 'destino_abate':
+        aValue = a.destino_abate || '';
+        bValue = b.destino_abate || '';
+        break;
+      case 'transferencia_origem':
+        aValue = a.transferencia_origem || '';
+        bValue = b.transferencia_origem || '';
+        break;
+      case 'transferencia_destino':
+        aValue = a.transferencia_destino || '';
+        bValue = b.transferencia_destino || '';
+        break;
+      case 'observacoes':
+        aValue = a.observacoes || '';
+        bValue = b.observacoes || '';
+        break;
+      case 'responsavel':
+        aValue = a.created_by || '';
+        bValue = b.created_by || '';
         break;
       default:
         return 0;
