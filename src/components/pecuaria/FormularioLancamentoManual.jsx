@@ -21,15 +21,7 @@ const TIPOS_MOVIMENTACAO = [
   { value: "Pesagem", label: "Pesagem", cor: "bg-cyan-100 text-cyan-800" },
 ];
 
-const CATEGORIAS_ANIMAL = [
-  "Bezerro(a)",
-  "Novilho(a)",
-  "Garrote",
-  "Boi",
-  "Vaca",
-  "Touro",
-  "Matriz"
-];
+// Categorias serão carregadas das Categorias de Manejo cadastradas
 
 const CAUSAS_MORTE = [
   "Doença",
@@ -51,6 +43,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     lote: item?.lote || "",
     quantidade_animais: item?.quantidade_animais || 1,
     categoria_animal: item?.categoria_animal || "",
+    marca: item?.marca || "",
     sexo: item?.sexo || "",
     peso_medio: item?.peso_medio || "",
     peso_total: item?.peso_total || "",
@@ -95,6 +88,29 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  // Carregar categorias de manejo cadastradas
+  const { data: categoriasManejo = [] } = useQuery({
+    queryKey: ['categorias-manejo', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.CategoriaManejo.list();
+      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Carregar ícones/configurações para marcas
+  const { data: iconesConfig = [] } = useQuery({
+    queryKey: ['configuracao-icones', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.ConfiguracaoIcone.list();
+      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Extrair marcas únicas dos ícones
+  const marcasDisponiveis = [...new Set(iconesConfig.map(i => i.marca).filter(Boolean))];
+
   // Calcular peso total automaticamente
   useEffect(() => {
     if (formData.peso_medio && formData.quantidade_animais) {
@@ -130,6 +146,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         lote: loteSelected?.nome || data.lote || null,
         quantidade_animais: parseInt(data.quantidade_animais) || 1,
         categoria_animal: data.categoria_animal || null,
+        marca: data.marca || null,
         sexo: data.sexo || null,
         peso_medio: parseFloat(data.peso_medio) || null,
         peso_total: parseFloat(data.peso_total) || null,
@@ -241,7 +258,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           </div>
 
           {/* Lote e Quantidade */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Lote</Label>
               <Select value={formData.lote_id} onValueChange={handleLoteChange}>
@@ -278,8 +295,37 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIAS_ANIMAL.map(cat => (
-                    <SelectItem key={cat} value={cat} className="text-sm">{cat}</SelectItem>
+                  {categoriasManejo.length > 0 ? (
+                    categoriasManejo.map(cat => (
+                      <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                        {cat.sigla} - {cat.nome}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
+                      <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
+                      <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
+                      <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
+                      <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
+                      <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
+                      <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Marca</Label>
+              <Select value={formData.marca} onValueChange={(v) => setFormData({ ...formData, marca: v })}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione a marca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sem_marca" className="text-sm">Sem marca</SelectItem>
+                  {marcasDisponiveis.map(marca => (
+                    <SelectItem key={marca} value={marca} className="text-sm">{marca}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
