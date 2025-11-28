@@ -206,10 +206,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
       const results = [];
 
-      // Se é mudança de categoria, criar apenas 1 registro de SAÍDA da categoria antiga
-      // O saldo da nova categoria é ajustado automaticamente pelo componente SaldoCategorias
+      // Se é mudança de categoria, criar 2 registros interligados: saída + entrada
       if (data.motivo === "Mudança de Categoria" && data.categoria_nova) {
-        const payload = {
+        const idVinculo = `MC-${Date.now()}`;
+        
+        // 1. Saída da categoria atual
+        const payloadSaida = {
           empresa_id: empresaSelecionadaId,
           numero_movimentacao: String(maxNum + 1),
           tipo: "Saída",
@@ -235,10 +237,45 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           causa_morte: null,
           transferencia_origem: data.categoria_animal || null,
           transferencia_destino: data.categoria_nova || null,
-          observacoes: data.observacoes ? `Mudança p/ ${data.categoria_nova}. ${data.observacoes}` : `Mudança p/ ${data.categoria_nova}`,
+          vinculo_mudanca_categoria: idVinculo,
+          observacoes: data.observacoes || null,
         };
 
-        return base44.entities.MovimentacaoPecuaria.create(payload);
+        // 2. Entrada na nova categoria
+        const catNova = categoriasManejo.find(c => c.nome === data.categoria_nova);
+        const payloadEntrada = {
+          empresa_id: empresaSelecionadaId,
+          numero_movimentacao: String(maxNum + 2),
+          tipo: "Entrada",
+          data_movimentacao: new Date(data.data_movimentacao).toISOString(),
+          quantidade_animais: parseInt(data.quantidade_animais) || 1,
+          categoria_animal: data.categoria_nova || null,
+          categoria_nova: null,
+          marca: data.marca || null,
+          sexo: catNova?.sexo || data.sexo || null,
+          peso_medio: parseFloat(data.peso_medio) || null,
+          peso_total: parseFloat(data.peso_total) || null,
+          valor_unitario: null,
+          valor_total: null,
+          area_origem_id: null,
+          area_origem_nome: null,
+          area_destino_id: data.area_destino_id || data.area_origem_id || null,
+          area_destino_nome: areaDestino?.nome || areaOrigem?.nome || null,
+          fornecedor_origem: null,
+          destino_venda: null,
+          nota_fiscal: null,
+          gta: null,
+          motivo: "Mudança de Categoria",
+          causa_morte: null,
+          transferencia_origem: data.categoria_animal || null,
+          transferencia_destino: null,
+          vinculo_mudanca_categoria: idVinculo,
+          observacoes: data.observacoes || null,
+        };
+
+        const resSaida = await base44.entities.MovimentacaoPecuaria.create(payloadSaida);
+        const resEntrada = await base44.entities.MovimentacaoPecuaria.create(payloadEntrada);
+        return { saida: resSaida, entrada: resEntrada };
       }
 
       // Lançamento normal (não é mudança de categoria)
