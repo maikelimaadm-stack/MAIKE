@@ -637,29 +637,29 @@ export default function RelatorioMovimentacoesPecuaria() {
                         return (
                           <TableRow key={m.id}>
                             {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>}
-                            {colunasVisiveis.includes('tipo') && <TableCell className={`border border-gray-300 text-xs py-1 font-semibold ${m.tipo === 'Entrada' ? 'text-green-700' : 'text-red-700'}`}>{m.tipo}</TableCell>}
-                            {colunasVisiveis.includes('motivo') && <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>}
-                            {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-semibold">{m.quantidade_animais}</TableCell>}
-                            {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>}
-                            {colunasVisiveis.includes('categoria_nova') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_nova || '-'}</TableCell>}
-                            {colunasVisiveis.includes('marca') && <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.marca || '-'}</TableCell>}
-                            {colunasVisiveis.includes('sexo') && <TableCell className="border border-gray-300 text-xs py-1">{m.sexo || '-'}</TableCell>}
-                            {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : '-'}</TableCell>}
-                            {colunasVisiveis.includes('peso_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : '-'}</TableCell>}
-                            {colunasVisiveis.includes('area_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_origem_nome || '-'}</TableCell>}
-                            {colunasVisiveis.includes('area_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_destino_nome || '-'}</TableCell>}
-                            {colunasVisiveis.includes('area') && <TableCell className="border border-gray-300 text-xs py-1">{areaExibir || '-'}</TableCell>}
-                            {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || '-'}</TableCell>}
-                            {colunasVisiveis.includes('comprador') && <TableCell className="border border-gray-300 text-xs py-1">{m.destino_venda || '-'}</TableCell>}
-                            {colunasVisiveis.includes('nota_fiscal') && <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || '-'}</TableCell>}
-                            {colunasVisiveis.includes('gta') && <TableCell className="border border-gray-300 text-xs py-1">{m.gta || '-'}</TableCell>}
-                            {colunasVisiveis.includes('causa_morte') && <TableCell className="border border-gray-300 text-xs py-1">{m.causa_morte || '-'}</TableCell>}
-                            {colunasVisiveis.includes('transf_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_origem || '-'}</TableCell>}
-                            {colunasVisiveis.includes('transf_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_destino || '-'}</TableCell>}
-                            {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : '-'}</TableCell>}
-                            {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : '-'}</TableCell>}
-                            {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || '-'}</TableCell>}
-                            {colunasVisiveis.includes('responsavel') && <TableCell className="border border-gray-300 text-xs py-1">{m.created_by || '-'}</TableCell>}
+                            {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{m.tipo || ''}</TableCell>}
+                            {colunasVisiveis.includes('motivo') && <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>}
+                            {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.quantidade_animais || ''}</TableCell>}
+                            {colunasVisiveis.includes('categoria') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || ''}</TableCell>}
+                            {colunasVisiveis.includes('categoria_nova') && <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_nova || ''}</TableCell>}
+                            {colunasVisiveis.includes('marca') && <TableCell className="border border-gray-300 text-xs py-1">{m.marca || ''}</TableCell>}
+                            {colunasVisiveis.includes('sexo') && <TableCell className="border border-gray-300 text-xs py-1">{m.sexo || ''}</TableCell>}
+                            {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : ''}</TableCell>}
+                            {colunasVisiveis.includes('peso_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : ''}</TableCell>}
+                            {colunasVisiveis.includes('area_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_origem_nome || ''}</TableCell>}
+                            {colunasVisiveis.includes('area_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.area_destino_nome || ''}</TableCell>}
+                            {colunasVisiveis.includes('area') && <TableCell className="border border-gray-300 text-xs py-1">{areaExibir || ''}</TableCell>}
+                            {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || ''}</TableCell>}
+                            {colunasVisiveis.includes('comprador') && <TableCell className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>}
+                            {colunasVisiveis.includes('nota_fiscal') && <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>}
+                            {colunasVisiveis.includes('gta') && <TableCell className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>}
+                            {colunasVisiveis.includes('causa_morte') && <TableCell className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>}
+                            {colunasVisiveis.includes('transf_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>}
+                            {colunasVisiveis.includes('transf_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>}
+                            {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : ''}</TableCell>}
+                            {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : ''}</TableCell>}
+                            {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || ''}</TableCell>}
+                            {colunasVisiveis.includes('responsavel') && <TableCell className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>}
                           </TableRow>
                         );
                       })}
