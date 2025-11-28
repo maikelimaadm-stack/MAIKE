@@ -432,58 +432,44 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Categoria Atual</Label>
+                  <Label className="text-sm font-medium">Categoria Atual (De)</Label>
                   <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
                     <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="De qual categoria?" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriasManejo.length > 0 ? (
-                        categoriasManejo.map(cat => (
-                          <SelectItem key={cat.id} value={cat.nome} className="text-sm">
-                            {cat.sigla} - {cat.nome}
+                      {categoriasLancadas.map(cat => {
+                        const saldo = saldoPorCategoria[cat] || 0;
+                        return (
+                          <SelectItem key={cat} value={cat} className="text-sm" disabled={saldo <= 0}>
+                            <div className="flex items-center justify-between w-full gap-2">
+                              <span>{cat}</span>
+                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
+                                {saldo} cab
+                              </Badge>
+                            </div>
                           </SelectItem>
-                        ))
-                      ) : (
-                        <>
-                          <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
-                          <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
-                          <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
-                          <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
-                          <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
-                          <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
-                          <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
-                        </>
-                      )}
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  {formData.categoria_animal && (
+                    <div className="text-xs text-slate-500">
+                      Saldo: <span className="font-semibold">{saldoPorCategoria[formData.categoria_animal] || 0} cab</span>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nova Categoria</Label>
-                  <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Para qual categoria?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriasManejo.length > 0 ? (
-                        categoriasManejo.map(cat => (
-                          <SelectItem key={cat.id} value={cat.nome} className="text-sm">
-                            {cat.sigla} - {cat.nome}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <>
-                          <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
-                          <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
-                          <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
-                          <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
-                          <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
-                          <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
-                          <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">Nova Categoria (Para)</Label>
+                  <ComboboxComNovo
+                    value={formData.categoria_nova}
+                    onChange={(v) => setFormData({ ...formData, categoria_nova: v })}
+                    options={[
+                      ...categoriasLancadas,
+                      ...(categoriasManejo.map(c => c.nome).filter(n => !categoriasLancadas.includes(n)))
+                    ].sort()}
+                    placeholder="Para qual categoria?"
+                  />
                 </div>
               </div>
             </div>
