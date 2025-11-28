@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ComboboxComNovo from "./ComboboxComNovo";
 
 const TIPOS_MOVIMENTACAO = [
   { value: "Entrada", label: "Entrada", cor: "bg-green-100 text-green-800" },
@@ -38,13 +38,9 @@ const MOTIVOS_SAIDA = [
   "Outros"
 ];
 
-// Categorias serão carregadas das Categorias de Manejo cadastradas
-
 export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  const [showAddMarca, setShowAddMarca] = useState(false);
-  const [novaMarca, setNovaMarca] = useState("");
 
   const [formData, setFormData] = useState({
     tipo: item?.tipo || "",
@@ -66,7 +62,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     gta: item?.gta || "",
     motivo: item?.motivo || "",
     causa_morte: item?.causa_morte || "",
-    destino_abate: item?.destino_abate || "",
     transferencia_origem: item?.transferencia_origem || "",
     transferencia_destino: item?.transferencia_destino || "",
     observacoes: item?.observacoes || ""
@@ -81,7 +76,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Carregar categorias de manejo cadastradas
   const { data: categoriasManejo = [] } = useQuery({
     queryKey: ['categorias-manejo', empresaSelecionadaId],
     queryFn: async () => {
@@ -91,43 +85,23 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Carregar ícones/configurações para marcas
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
+  // Carregar todas as movimentações para extrair dados únicos
+  const { data: movimentacoes = [] } = useQuery({
+    queryKey: ['movimentacoes-pecuaria-dados', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const all = await base44.entities.MovimentacaoPecuaria.list();
+      return all.filter(m => m.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
 
-  // Extrair marcas únicas dos ícones
-  const marcasDisponiveis = [...new Set(iconesConfig.map(i => i.marca).filter(Boolean))];
-
-  const handleAddMarca = async () => {
-    if (!novaMarca.trim()) {
-      toast.error('Digite o nome da marca');
-      return;
-    }
-    try {
-      const marcaUpperCase = novaMarca.trim().toUpperCase();
-      await base44.entities.ConfiguracaoIcone.create({
-        empresa_id: empresaSelecionadaId,
-        tipo_entidade: 'Marca',
-        nome: marcaUpperCase,
-        marca: marcaUpperCase,
-        ativo: true
-      });
-      await queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
-      setFormData(prev => ({ ...prev, marca: marcaUpperCase }));
-      setNovaMarca("");
-      setShowAddMarca(false);
-      toast.success('Marca cadastrada com sucesso!');
-    } catch (error) {
-      console.error('Erro ao cadastrar marca:', error);
-      toast.error('Erro ao cadastrar marca');
-    }
-  };
+  // Extrair dados únicos das movimentações existentes
+  const marcasExistentes = [...new Set(movimentacoes.map(m => m.marca).filter(Boolean))].sort();
+  const fornecedoresExistentes = [...new Set(movimentacoes.map(m => m.fornecedor_origem).filter(Boolean))].sort();
+  const compradoresExistentes = [...new Set(movimentacoes.map(m => m.destino_venda).filter(Boolean))].sort();
+  const causasMorteExistentes = [...new Set(movimentacoes.map(m => m.causa_morte).filter(Boolean))].sort();
+  const origensTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_origem).filter(Boolean))].sort();
+  const destinosTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_destino).filter(Boolean))].sort();
 
   // Calcular peso total automaticamente
   useEffect(() => {
@@ -147,7 +121,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      // Gerar número de movimentação
       const allMovs = await base44.entities.MovimentacaoPecuaria.list();
       const maxNum = allMovs.reduce((max, m) => Math.max(max, parseInt(m.numero_movimentacao) || 0), 0);
 
@@ -161,6 +134,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         data_movimentacao: new Date(data.data_movimentacao).toISOString(),
         quantidade_animais: parseInt(data.quantidade_animais) || 1,
         categoria_animal: data.categoria_animal || null,
+        categoria_nova: data.categoria_nova || null,
         marca: data.marca || null,
         sexo: data.sexo || null,
         peso_medio: parseFloat(data.peso_medio) || null,
@@ -177,7 +151,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         gta: data.gta || null,
         motivo: data.motivo || null,
         causa_morte: data.causa_morte || null,
-        destino_abate: data.destino_abate || null,
+        transferencia_origem: data.transferencia_origem || null,
+        transferencia_destino: data.transferencia_destino || null,
         observacoes: data.observacoes || null,
       };
 
@@ -188,6 +163,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria-dados'] });
       toast.success(item ? 'Movimentação atualizada!' : 'Movimentação registrada!');
       onSave();
     },
@@ -210,9 +186,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
     createMutation.mutate(formData);
   };
-
-  // Validação simplificada
-  const precisaMotivo = formData.tipo === "Entrada" || formData.tipo === "Saída";
 
   return (
     <Card className="shadow-lg border-slate-200">
@@ -339,22 +312,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
             <div className="space-y-1">
               <Label className="text-sm font-medium">Marca</Label>
-              <div className="flex gap-1">
-                <Select value={formData.marca} onValueChange={(v) => setFormData({ ...formData, marca: v })}>
-                  <SelectTrigger className="h-9 text-sm flex-1">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sem_marca" className="text-sm">Sem marca</SelectItem>
-                    {marcasDisponiveis.map(marca => (
-                      <SelectItem key={marca} value={marca} className="text-sm">{marca}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowAddMarca(true)}>
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
+              <ComboboxComNovo
+                value={formData.marca}
+                onChange={(v) => setFormData({ ...formData, marca: v })}
+                options={marcasExistentes}
+                placeholder="Selecione ou digite..."
+              />
             </div>
 
             <div className="space-y-1">
@@ -410,7 +373,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                       {categoriasManejo.length > 0 ? (
                         categoriasManejo.map(cat => (
                           <SelectItem key={cat.id} value={cat.nome} className="text-sm">
-                            {cat.sigla} - {cat.nome} ({cat.quantidade_cabecas || 0} cab)
+                            {cat.sigla} - {cat.nome}
                           </SelectItem>
                         ))
                       ) : (
@@ -464,22 +427,55 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">{formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}</Label>
-                  <Input 
-                    value={formData.tipo === "Entrada" ? formData.fornecedor_origem : formData.destino_venda} 
-                    onChange={(e) => {
+                  <ComboboxComNovo
+                    value={formData.tipo === "Entrada" ? formData.fornecedor_origem : formData.destino_venda}
+                    onChange={(v) => {
                       if (formData.tipo === "Entrada") {
-                        setFormData({ ...formData, fornecedor_origem: e.target.value });
+                        setFormData({ ...formData, fornecedor_origem: v });
                       } else {
-                        setFormData({ ...formData, destino_venda: e.target.value });
+                        setFormData({ ...formData, destino_venda: v });
                       }
-                    }} 
-                    className="h-9 text-sm" 
-                    placeholder="Nome" 
+                    }}
+                    options={formData.tipo === "Entrada" ? fornecedoresExistentes : compradoresExistentes}
+                    placeholder="Selecione ou digite..."
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Vlr Unit. (R$)</Label>
                   <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" placeholder="0,00" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Vlr Total</Label>
+                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Campos para Abate */}
+          {formData.motivo === "Abate" && (
+            <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Comprador/Frigorífico</Label>
+                  <ComboboxComNovo
+                    value={formData.destino_venda}
+                    onChange={(v) => setFormData({ ...formData, destino_venda: v })}
+                    options={compradoresExistentes}
+                    placeholder="Selecione ou digite..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Vlr/@ (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Vlr Total</Label>
@@ -503,20 +499,20 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Origem (Fazenda/Local)</Label>
-                  <Input 
-                    value={formData.transferencia_origem} 
-                    onChange={(e) => setFormData({ ...formData, transferencia_origem: e.target.value })} 
-                    className="h-9 text-sm" 
-                    placeholder="De onde veio/saiu" 
+                  <ComboboxComNovo
+                    value={formData.transferencia_origem}
+                    onChange={(v) => setFormData({ ...formData, transferencia_origem: v })}
+                    options={origensTransfExistentes}
+                    placeholder="De onde veio/saiu"
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Destino (Fazenda/Local)</Label>
-                  <Input 
-                    value={formData.transferencia_destino} 
-                    onChange={(e) => setFormData({ ...formData, transferencia_destino: e.target.value })} 
-                    className="h-9 text-sm" 
-                    placeholder="Para onde foi/veio" 
+                  <ComboboxComNovo
+                    value={formData.transferencia_destino}
+                    onChange={(v) => setFormData({ ...formData, transferencia_destino: v })}
+                    options={destinosTransfExistentes}
+                    placeholder="Para onde foi/veio"
                   />
                 </div>
                 <div className="space-y-1">
@@ -536,36 +532,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Causa da Morte</Label>
-                <Input 
-                  value={formData.causa_morte} 
-                  onChange={(e) => setFormData({ ...formData, causa_morte: e.target.value })} 
-                  className="h-9 text-sm" 
-                  placeholder="Descreva a causa da morte" 
+                <ComboboxComNovo
+                  value={formData.causa_morte}
+                  onChange={(v) => setFormData({ ...formData, causa_morte: v })}
+                  options={causasMorteExistentes}
+                  placeholder="Selecione ou digite a causa..."
                 />
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Abate */}
-          {formData.motivo === "Abate" && (
-            <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Frigorífico</Label>
-                  <Input value={formData.destino_abate} onChange={(e) => setFormData({ ...formData, destino_abate: e.target.value })} className="h-9 text-sm" placeholder="Nome" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr/@ (R$)</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Vlr Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
-                </div>
               </div>
             </div>
           )}
@@ -588,25 +560,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </Button>
           </div>
         </form>
-
-        {/* Dialog para adicionar marca */}
-        <Dialog open={showAddMarca} onOpenChange={setShowAddMarca}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-sm">Nova Marca</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Nome da Marca</Label>
-                <Input value={novaMarca} onChange={(e) => setNovaMarca(e.target.value.toUpperCase())} className="h-8 text-xs uppercase" placeholder="Ex: NELORE, ANGUS..." />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowAddMarca(false)} className="h-7 text-xs">Cancelar</Button>
-                <Button type="button" size="sm" onClick={handleAddMarca} className="h-7 text-xs">Salvar</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );
