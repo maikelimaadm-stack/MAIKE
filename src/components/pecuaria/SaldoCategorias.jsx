@@ -43,27 +43,25 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
 
       const qtd = mov.quantidade_animais || 0;
 
-      if (mov.tipo === "Entrada") {
+      // Mudança de categoria: é uma saída da categoria antiga, mas entra na nova
+      // Não altera o total geral, apenas transfere entre categorias
+      if (mov.motivo === "Mudança de Categoria" && mov.categoria_nova && mov.tipo === "Saída") {
+        // Sai da categoria atual
+        saldos[categoria].saidas += qtd;
+        saldos[categoria].saldo -= qtd;
+        
+        // Entra na nova categoria
+        if (!saldos[mov.categoria_nova]) {
+          saldos[mov.categoria_nova] = { entradas: 0, saidas: 0, saldo: 0 };
+        }
+        saldos[mov.categoria_nova].entradas += qtd;
+        saldos[mov.categoria_nova].saldo += qtd;
+      } else if (mov.tipo === "Entrada") {
         saldos[categoria].entradas += qtd;
         saldos[categoria].saldo += qtd;
       } else if (mov.tipo === "Saída") {
         saldos[categoria].saidas += qtd;
         saldos[categoria].saldo -= qtd;
-      }
-
-      // Mudança de categoria: subtrai da categoria origem e soma na destino
-      if (mov.motivo === "Mudança de Categoria" && mov.categoria_nova) {
-        if (!saldos[mov.categoria_nova]) {
-          saldos[mov.categoria_nova] = { entradas: 0, saidas: 0, saldo: 0 };
-        }
-        // A entrada já foi contada na categoria_animal, 
-        // então precisamos ajustar para a categoria nova
-        if (mov.tipo === "Entrada") {
-          saldos[categoria].saldo -= qtd;
-          saldos[categoria].entradas -= qtd;
-          saldos[mov.categoria_nova].saldo += qtd;
-          saldos[mov.categoria_nova].entradas += qtd;
-        }
       }
     });
 
