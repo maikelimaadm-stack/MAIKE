@@ -1002,21 +1002,12 @@ export default function RelatorioMovimentacoesPecuaria() {
 
               {/* Quadros por Motivo */}
               {opcoesRelatorio.mostrar_motivos && dadosRelatorio.dados.porMotivo?.map((grupo, idx) => {
-                const corHeader = grupo.motivo.includes('Compra') ? 'bg-green-600' :
-                                  grupo.motivo.includes('Venda') ? 'bg-orange-500' :
-                                  grupo.motivo.includes('Morte') ? 'bg-gray-600' :
-                                  grupo.motivo.includes('Nascimento') ? 'bg-pink-500' :
-                                  grupo.motivo.includes('Abate') ? 'bg-red-600' :
-                                  grupo.motivo.includes('Transferência') ? 'bg-indigo-500' :
-                                  grupo.motivo.includes('Mudança') ? 'bg-purple-500' :
-                                  'bg-slate-500';
-                
                 const mostrarTodosRegistros = opcoesRelatorio.todos_registros;
                 const registrosExibir = mostrarTodosRegistros ? grupo.registros : grupo.registros.slice(0, 5);
                 
                 return (
                   <div key={idx} className="break-inside-avoid">
-                    <div className={`${corHeader} text-white px-3 py-2 flex justify-between items-center`}>
+                    <div className="bg-black text-white px-3 py-2 flex justify-between items-center">
                       <h3 className="font-bold text-sm">{grupo.motivo.toUpperCase()}</h3>
                       <div className="flex gap-3 text-sm">
                         <span className="bg-white/20 px-2 py-0.5 rounded">{grupo.quantidade} cab</span>
@@ -1029,26 +1020,26 @@ export default function RelatorioMovimentacoesPecuaria() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="border border-slate-300 text-sm font-bold py-2 bg-slate-50">Categoria</TableHead>
-                          <TableHead className="border border-slate-300 text-sm font-bold py-2 text-right bg-slate-50">Entradas</TableHead>
-                          <TableHead className="border border-slate-300 text-sm font-bold py-2 text-right bg-slate-50">Saídas</TableHead>
-                          <TableHead className="border border-slate-300 text-sm font-bold py-2 text-right bg-slate-50">Total</TableHead>
+                          <TableHead className="border border-black text-sm font-bold py-2 bg-gray-100">Categoria</TableHead>
+                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Entradas</TableHead>
+                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Saídas</TableHead>
+                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {Object.entries(grupo.porCategoria).sort(([a], [b]) => a.localeCompare(b)).map(([cat, dados], catIdx) => (
                           <TableRow key={catIdx}>
-                            <TableCell className="border border-slate-300 text-sm py-2">{cat}</TableCell>
-                            <TableCell className="border border-slate-300 text-sm py-2 text-right text-green-700 font-semibold">{dados.entradas ? `+${formatarNumero(dados.entradas)}` : ''}</TableCell>
-                            <TableCell className="border border-slate-300 text-sm py-2 text-right text-red-700 font-semibold">{dados.saidas ? `-${formatarNumero(dados.saidas)}` : ''}</TableCell>
-                            <TableCell className="border border-slate-300 text-sm py-2 text-right font-bold">{formatarNumero(dados.quantidade)} cab</TableCell>
+                            <TableCell className="border border-gray-400 text-sm py-2">{cat}</TableCell>
+                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{dados.entradas ? `+${formatarNumero(dados.entradas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{dados.saidas ? `-${formatarNumero(dados.saidas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-bold">{formatarNumero(dados.quantidade)} cab</TableCell>
                           </TableRow>
                         ))}
-                        <TableRow className="bg-slate-100">
-                          <TableCell className="border border-slate-400 text-sm py-2 font-bold">SUBTOTAL</TableCell>
-                          <TableCell className="border border-slate-400 text-sm py-2 text-right font-bold text-green-700">{grupo.entradas ? `+${formatarNumero(grupo.entradas)}` : ''}</TableCell>
-                          <TableCell className="border border-slate-400 text-sm py-2 text-right font-bold text-red-700">{grupo.saidas ? `-${formatarNumero(grupo.saidas)}` : ''}</TableCell>
-                          <TableCell className="border border-slate-400 text-sm py-2 text-right font-bold">{formatarNumero(grupo.quantidade)} cab</TableCell>
+                        <TableRow className="bg-gray-200">
+                          <TableCell className="border border-black text-sm py-2 font-bold">SUBTOTAL</TableCell>
+                          <TableCell className="border border-black text-sm py-2 text-right font-bold">{grupo.entradas ? `+${formatarNumero(grupo.entradas)}` : ''}</TableCell>
+                          <TableCell className="border border-black text-sm py-2 text-right font-bold">{grupo.saidas ? `-${formatarNumero(grupo.saidas)}` : ''}</TableCell>
+                          <TableCell className="border border-black text-sm py-2 text-right font-bold">{formatarNumero(grupo.quantidade)} cab</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -1056,41 +1047,41 @@ export default function RelatorioMovimentacoesPecuaria() {
                     {/* Detalhamento de registros */}
                     {opcoesRelatorio.mostrar_detalhes && grupo.registros.length > 0 && (
                       <div className="mt-2 mb-4">
-                        <p className="text-xs text-slate-600 mb-1 font-medium">
+                        <p className="text-xs text-gray-600 mb-1 font-medium">
                           {mostrarTodosRegistros ? `Todos os ${grupo.registros.length} registros:` : `Últimos ${Math.min(5, grupo.registros.length)} registros:`}
                         </p>
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Data</TableHead>
-                              <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Qtd</TableHead>
-                              <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Categoria</TableHead>
-                              <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Marca</TableHead>
-                              {grupo.motivo.includes('Compra') && <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Fornecedor</TableHead>}
-                              {(grupo.motivo.includes('Venda') || grupo.motivo.includes('Abate')) && <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Comprador</TableHead>}
-                              {grupo.motivo.includes('Morte') && <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Causa</TableHead>}
-                              {grupo.motivo.includes('Transferência') && <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Origem → Destino</TableHead>}
-                              {grupo.motivo.includes('Mudança') && <TableHead className="border border-slate-200 text-xs font-bold py-1.5 bg-slate-50">Para Categoria</TableHead>}
+                              <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Data</TableHead>
+                              <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Qtd</TableHead>
+                              <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Categoria</TableHead>
+                              <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Marca</TableHead>
+                              {grupo.motivo.includes('Compra') && <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Fornecedor</TableHead>}
+                              {(grupo.motivo.includes('Venda') || grupo.motivo.includes('Abate')) && <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Comprador</TableHead>}
+                              {grupo.motivo.includes('Morte') && <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Causa</TableHead>}
+                              {grupo.motivo.includes('Transferência') && <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Origem → Destino</TableHead>}
+                              {grupo.motivo.includes('Mudança') && <TableHead className="border border-gray-400 text-xs font-bold py-1.5 bg-gray-100">Para Categoria</TableHead>}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {registrosExibir.map((m) => (
                               <TableRow key={m.id}>
-                                <TableCell className="border border-slate-200 text-xs py-1.5">{formatarData(m.data_movimentacao)}</TableCell>
-                                <TableCell className="border border-slate-200 text-xs py-1.5 font-semibold">{m.quantidade_animais}</TableCell>
-                                <TableCell className="border border-slate-200 text-xs py-1.5">{m.categoria_animal || ''}</TableCell>
-                                <TableCell className="border border-slate-200 text-xs py-1.5">{m.marca || ''}</TableCell>
-                                {grupo.motivo.includes('Compra') && <TableCell className="border border-slate-200 text-xs py-1.5">{m.fornecedor_origem || ''}</TableCell>}
-                                {(grupo.motivo.includes('Venda') || grupo.motivo.includes('Abate')) && <TableCell className="border border-slate-200 text-xs py-1.5">{m.destino_venda || ''}</TableCell>}
-                                {grupo.motivo.includes('Morte') && <TableCell className="border border-slate-200 text-xs py-1.5">{m.causa_morte || ''}</TableCell>}
-                                {grupo.motivo.includes('Transferência') && <TableCell className="border border-slate-200 text-xs py-1.5">{m.transferencia_origem || ''} → {m.transferencia_destino || ''}</TableCell>}
-                                {grupo.motivo.includes('Mudança') && <TableCell className="border border-slate-200 text-xs py-1.5">{m.categoria_nova || ''}</TableCell>}
+                                <TableCell className="border border-gray-300 text-xs py-1.5">{formatarData(m.data_movimentacao)}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1.5 font-semibold">{m.quantidade_animais}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1.5">{m.categoria_animal || ''}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1.5">{m.marca || ''}</TableCell>
+                                {grupo.motivo.includes('Compra') && <TableCell className="border border-gray-300 text-xs py-1.5">{m.fornecedor_origem || ''}</TableCell>}
+                                {(grupo.motivo.includes('Venda') || grupo.motivo.includes('Abate')) && <TableCell className="border border-gray-300 text-xs py-1.5">{m.destino_venda || ''}</TableCell>}
+                                {grupo.motivo.includes('Morte') && <TableCell className="border border-gray-300 text-xs py-1.5">{m.causa_morte || ''}</TableCell>}
+                                {grupo.motivo.includes('Transferência') && <TableCell className="border border-gray-300 text-xs py-1.5">{m.transferencia_origem || ''} → {m.transferencia_destino || ''}</TableCell>}
+                                {grupo.motivo.includes('Mudança') && <TableCell className="border border-gray-300 text-xs py-1.5">{m.categoria_nova || ''}</TableCell>}
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                         {!mostrarTodosRegistros && grupo.registros.length > 5 && (
-                          <p className="text-xs text-slate-400 mt-1">... e mais {grupo.registros.length - 5} registro(s)</p>
+                          <p className="text-xs text-gray-400 mt-1">... e mais {grupo.registros.length - 5} registro(s)</p>
                         )}
                       </div>
                     )}
