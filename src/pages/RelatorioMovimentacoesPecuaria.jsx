@@ -574,9 +574,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                     {grupo.partes?.map((parte, i) => (
                       <TableCell key={i} className="border border-gray-300 text-xs py-1 font-semibold">{parte}</TableCell>
                     ))}
-                    {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1 text-green-700 font-semibold">+{formatarNumero(grupo.entradas)}</TableCell>}
-                    {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1 text-red-700 font-semibold">-{formatarNumero(grupo.saidas)}</TableCell>}
-                    {colunasVisiveis.includes('saldo') && <TableCell className={`border border-gray-300 text-xs text-right py-1 font-bold ${grupo.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{grupo.saldo >= 0 ? '+' : ''}{formatarNumero(grupo.saldo)} cab</TableCell>}
+                    {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.entradas ? formatarNumero(grupo.entradas) : ''}</TableCell>}
+                    {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.saidas ? formatarNumero(grupo.saidas) : ''}</TableCell>}
+                    {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{grupo.saldo ? `${formatarNumero(grupo.saldo)} cab` : ''}</TableCell>}
                   </TableRow>
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
