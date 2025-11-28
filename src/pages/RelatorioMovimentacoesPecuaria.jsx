@@ -123,17 +123,46 @@ export default function RelatorioMovimentacoesPecuaria() {
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+
   const getColunasDisponiveis = () => {
     return tipoRelatorio === 'sintetico' ? COLUNAS_SINTETICO : COLUNAS_ANALITICO;
   };
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    return getColunasDisponiveis().filter(c => c.default).map(c => c.id);
+    const saved = localStorage.getItem('colunas_relatorio_pecuaria_visiveis');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { }
+    }
+    return COLUNAS_ANALITICO.filter(c => c.default).map(c => c.id);
+  });
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_relatorio_pecuaria_ordem');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { }
+    }
+    return COLUNAS_ANALITICO.map(c => c.id);
   });
 
   React.useEffect(() => {
-    setColunasVisiveis(getColunasDisponiveis().filter(c => c.default).map(c => c.id));
+    const colunas = getColunasDisponiveis();
+    setColunasVisiveis(colunas.filter(c => c.default).map(c => c.id));
+    setColunasOrdem(colunas.map(c => c.id));
   }, [tipoRelatorio]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_relatorio_pecuaria_ordem', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => getColunasDisponiveis().find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
 
   const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['movimentacoes-pecuaria-relatorio', empresaSelecionadaId],
