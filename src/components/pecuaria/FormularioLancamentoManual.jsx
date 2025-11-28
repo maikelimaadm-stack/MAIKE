@@ -123,7 +123,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     return cats.sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [movimentacoes]);
 
-  // Calcular saldo por categoria (entradas - saídas)
+  // Calcular saldo por categoria GERAL (entradas - saídas)
   const saldoPorCategoria = useMemo(() => {
     const saldos = {};
     
@@ -146,6 +146,52 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     
     return saldos;
   }, [movimentacoes]);
+
+  // Calcular saldo por SETOR + CATEGORIA
+  const saldoPorSetorCategoria = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoes.forEach(mov => {
+      const setorId = mov.setor_id;
+      const categoria = mov.categoria_animal;
+      if (!setorId || !categoria) return;
+      
+      const chave = `${setorId}|||${categoria}`;
+      if (!saldos[chave]) {
+        saldos[chave] = { setorId, categoria, saldo: 0 };
+      }
+      
+      const qtd = mov.quantidade_animais || 0;
+      
+      if (mov.tipo === "Entrada") {
+        saldos[chave].saldo += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[chave].saldo -= qtd;
+      }
+    });
+    
+    return saldos;
+  }, [movimentacoes]);
+
+  // Categorias disponíveis no setor selecionado (para saída)
+  const categoriasNoSetor = useMemo(() => {
+    if (!formData.setor_id) return [];
+    
+    return Object.values(saldoPorSetorCategoria)
+      .filter(item => item.setorId === formData.setor_id && item.saldo > 0)
+      .map(item => ({ categoria: item.categoria, saldo: item.saldo }))
+      .sort((a, b) => a.categoria.localeCompare(b.categoria));
+  }, [saldoPorSetorCategoria, formData.setor_id]);
+
+  // Marcas disponíveis no setor + categoria selecionados (para saída)
+  const marcasNoSetorCategoria = useMemo(() => {
+    if (!formData.setor_id || !formData.categoria_animal) return [];
+    
+    return Object.values(saldoPorSetorCategoriaMarca)
+      .filter(item => item.setorId === formData.setor_id && item.categoria === formData.categoria_animal && item.saldo > 0)
+      .map(item => ({ marca: item.marca, saldo: item.saldo }))
+      .sort((a, b) => a.marca.localeCompare(b.marca));
+  }, [saldoPorSetorCategoriaMarca, formData.setor_id, formData.categoria_animal]);
 
   // Calcular saldo por setor
   const saldoPorSetor = useMemo(() => {
@@ -456,6 +502,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Validar setor (obrigatório exceto para transferência entre setores)
+    if (formData.motivo !== "Transferência entre Setores" && !formData.setor_id) {
+      toast.error('Selecione o setor/fazenda');
+      return;
+    }
     if (!formData.tipo) {
       toast.error('Selecione o tipo de movimentação');
       return;
@@ -473,25 +524,18 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       return;
     }
 
-    // Validar saldo para saídas e mudanças de categoria
+    // Validar saldo para saídas e mudanças de categoria - AGORA POR SETOR
     if (formData.tipo === "Saída" || formData.motivo === "Mudança de Categoria") {
-      const saldoCategoria = saldoPorCategoria[formData.categoria_animal] || 0;
       const qtdSolicitada = parseInt(formData.quantidade_animais) || 0;
 
-      if (qtdSolicitada > saldoCategoria) {
-        toast.error(`Saldo insuficiente! Categoria "${formData.categoria_animal}" possui apenas ${saldoCategoria} cabeça(s) disponível(is).`);
+      // Validar saldo no setor + categoria + marca
+      const chave = `${formData.setor_id}|||${formData.categoria_animal}|||${formData.marca}`;
+      const saldoNoSetor = saldoPorSetorCategoriaMarca[chave]?.saldo || 0;
+
+      if (qtdSolicitada > saldoNoSetor) {
+        const setorNome = setores.find(s => s.id === formData.setor_id)?.nome || 'selecionado';
+        toast.error(`Saldo insuficiente! No setor "${setorNome}", marca "${formData.marca}" categoria "${formData.categoria_animal}" possui apenas ${saldoNoSetor} cabeça(s).`);
         return;
-      }
-
-      // Validar também por marca (se aplicável)
-      if (formData.marca && formData.tipo === "Saída") {
-        const chave = `${formData.categoria_animal}|||${formData.marca}`;
-        const saldoMarca = saldoPorCategoriaMarca[chave]?.saldo || 0;
-
-        if (qtdSolicitada > saldoMarca) {
-          toast.error(`Saldo insuficiente! Marca "${formData.marca}" na categoria "${formData.categoria_animal}" possui apenas ${saldoMarca} cabeça(s) disponível(is).`);
-          return;
-        }
       }
     }
 
@@ -508,33 +552,42 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Linha 0: Setor */}
-          {setores.length > 0 && formData.motivo !== "Transferência entre Setores" && (
+          {/* Linha 0: Setor - OBRIGATÓRIO */}
+          {formData.motivo !== "Transferência entre Setores" && (
             <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1 md:col-span-2">
                   <Label className="text-sm font-medium">Setor / Fazenda *</Label>
-                  <Select value={formData.setor_id} onValueChange={(v) => setFormData({ ...formData, setor_id: v })}>
+                  <Select 
+                    value={formData.setor_id} 
+                    onValueChange={(v) => setFormData({ ...formData, setor_id: v, categoria_animal: "", marca: "" })}
+                  >
                     <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Selecione o setor" />
+                      <SelectValue placeholder="Selecione o setor primeiro" />
                     </SelectTrigger>
                     <SelectContent>
-                      {setores.map(setor => {
-                        const saldo = saldoPorSetor[setor.id] || 0;
-                        return (
-                          <SelectItem key={setor.id} value={setor.id} className="text-sm">
-                            <div className="flex items-center gap-2">
-                              <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
-                              <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
-                                {setor.tipo}
-                              </Badge>
-                              <Badge variant="outline" className="text-[10px]">
-                                {saldo} cab
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
+                      {setores.length > 0 ? (
+                        setores.map(setor => {
+                          const saldo = saldoPorSetor[setor.id] || 0;
+                          return (
+                            <SelectItem key={setor.id} value={setor.id} className="text-sm">
+                              <div className="flex items-center gap-2">
+                                <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
+                                <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
+                                  {setor.tipo}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px]">
+                                  {saldo} cab
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value={null} disabled className="text-sm text-slate-500">
+                          Cadastre setores primeiro
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -545,6 +598,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   </div>
                 )}
               </div>
+              {!formData.setor_id && (
+                <p className="text-xs text-indigo-600 mt-1">⚠️ Selecione o setor para liberar as demais opções</p>
+              )}
             </div>
           )}
 
@@ -631,49 +687,54 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Linha 2: Categoria, Marca (só entrada), Sexo (só entrada), Área */}
+          {/* Linha 2: Categoria, Marca, Sexo, Área - DEPENDEM DO SETOR */}
           <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
             <div className="space-y-1">
               <Label className="text-sm font-medium">Categoria *</Label>
               {formData.tipo === "Saída" ? (
-                // Na saída, mostrar apenas categorias que têm saldo > 0
-                <Select value={formData.categoria_animal} onValueChange={(v) => {
-                  const catEncontrada = categoriasManejo.find(c => c.nome === v);
-                  setFormData({ ...formData, categoria_animal: v, marca: "", sexo: catEncontrada?.sexo || "" });
-                }}>
+                // Na saída, mostrar apenas categorias que têm saldo > 0 NO SETOR SELECIONADO
+                <Select 
+                  value={formData.categoria_animal} 
+                  onValueChange={(v) => {
+                    const catEncontrada = categoriasManejo.find(c => c.nome === v);
+                    setFormData({ ...formData, categoria_animal: v, marca: "", sexo: catEncontrada?.sexo || "" });
+                  }}
+                  disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
+                >
                   <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {categoriasLancadas.length > 0 ? (
-                      categoriasLancadas.map(cat => {
-                        const saldo = saldoPorCategoria[cat] || 0;
-                        return (
-                          <SelectItem key={cat} value={cat} className="text-sm" disabled={saldo <= 0}>
-                            <div className="flex items-center justify-between w-full gap-2">
-                              <span>{cat}</span>
-                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                                {saldo} cab
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        );
-                      })
+                    {categoriasNoSetor.length > 0 ? (
+                      categoriasNoSetor.map(item => (
+                        <SelectItem key={item.categoria} value={item.categoria} className="text-sm">
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span>{item.categoria}</span>
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                              {item.saldo} cab
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
                     ) : (
                       <SelectItem value={null} disabled className="text-sm text-slate-500">
-                        Nenhuma categoria com saldo
+                        {formData.setor_id ? "Nenhuma categoria com saldo neste setor" : "Selecione setor primeiro"}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               ) : (
                 // Na entrada, usar Select com categorias de manejo cadastradas
-                <Select value={formData.categoria_animal} onValueChange={(v) => {
-                  const catEncontrada = categoriasManejo.find(c => c.nome === v);
-                  setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
-                }}>
+                <Select 
+                  value={formData.categoria_animal} 
+                  onValueChange={(v) => {
+                    const catEncontrada = categoriasManejo.find(c => c.nome === v);
+                    setFormData({ ...formData, categoria_animal: v, sexo: catEncontrada?.sexo || formData.sexo });
+                  }}
+                  disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
+                >
                   <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={formData.setor_id ? "Selecione" : "Selecione setor primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriasManejo.length > 0 ? (
@@ -690,31 +751,31 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   </SelectContent>
                 </Select>
               )}
-              {formData.tipo === "Saída" && formData.categoria_animal && (
+              {formData.tipo === "Saída" && formData.categoria_animal && formData.setor_id && (
                 <div className="flex items-center gap-1 text-xs mt-1">
-                  <span className="text-slate-500">Saldo:</span>
-                  <span className={`font-semibold ${(saldoPorCategoria[formData.categoria_animal] || 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {saldoPorCategoria[formData.categoria_animal] || 0} cab
+                  <span className="text-slate-500">Saldo no setor:</span>
+                  <span className={`font-semibold ${(categoriasNoSetor.find(c => c.categoria === formData.categoria_animal)?.saldo || 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {categoriasNoSetor.find(c => c.categoria === formData.categoria_animal)?.saldo || 0} cab
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Marca na Saída - baseado na categoria selecionada */}
+            {/* Marca na Saída - baseado no SETOR + CATEGORIA selecionados */}
             {formData.tipo === "Saída" && (
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Marca *</Label>
                 <Select 
                   value={formData.marca} 
                   onValueChange={(v) => setFormData({ ...formData, marca: v })}
-                  disabled={!formData.categoria_animal}
+                  disabled={!formData.categoria_animal || !formData.setor_id}
                 >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {marcasParaCategoriaSelecionada.length > 0 ? (
-                      marcasParaCategoriaSelecionada.map(item => (
+                    {marcasNoSetorCategoria.length > 0 ? (
+                      marcasNoSetorCategoria.map(item => (
                         <SelectItem key={item.marca} value={item.marca} className="text-sm">
                           <div className="flex items-center justify-between w-full gap-2">
                             <span>{item.marca}</span>
@@ -726,16 +787,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                       ))
                     ) : (
                       <SelectItem value={null} disabled className="text-sm text-slate-500">
-                        {formData.categoria_animal ? "Nenhuma marca com saldo nesta categoria" : "Selecione categoria primeiro"}
+                        {formData.categoria_animal ? "Nenhuma marca com saldo" : "Selecione categoria primeiro"}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
-                {formData.marca && formData.categoria_animal && (
+                {formData.marca && formData.categoria_animal && formData.setor_id && (
                   <div className="flex items-center gap-1 text-xs mt-1">
                     <span className="text-slate-500">Saldo:</span>
                     <span className="font-semibold text-blue-600">
-                      {marcasParaCategoriaSelecionada.find(m => m.marca === formData.marca)?.saldo || 0} cab
+                      {marcasNoSetorCategoria.find(m => m.marca === formData.marca)?.saldo || 0} cab
                     </span>
                   </div>
                 )}
@@ -752,6 +813,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     onChange={(v) => setFormData({ ...formData, marca: v })}
                     options={marcasExistentes}
                     placeholder="Selecione ou digite..."
+                    disabled={!formData.setor_id}
                   />
                 </div>
 
@@ -780,6 +842,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     setFormData({ ...formData, area_origem_id: v });
                   }
                 }}
+                disabled={!formData.setor_id && formData.motivo !== "Transferência entre Setores"}
               >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione" />
