@@ -606,10 +606,8 @@ export default function RelatorioMovimentacoesPecuaria() {
           {/* Cabeçalho */}
           <div className="border-b-2 border-black pb-1 mb-2">
             <div className="flex items-center justify-between gap-3">
-              {empresaAtual?.logotipo_url ? (
+              {empresaAtual?.logotipo_url && (
                 <img src={empresaAtual.logotipo_url} alt={empresaAtual.apelido || "Logo"} className="h-24 w-24 object-contain" />
-              ) : (
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/7f0d28c9d_Imagem1.jpg" alt="Logo" className="h-24 w-24 object-contain" />
               )}
               <div className="flex-1 text-center">
                 <h1 className="text-base font-bold leading-tight uppercase">{empresaAtual?.nome || 'Empresa'}</h1>
@@ -626,7 +624,7 @@ export default function RelatorioMovimentacoesPecuaria() {
             </div>
             <div>
               <h2 className="text-base font-bold">
-                Relatório de Movimentações Pecuárias - {tipoRelatorio === 'analitico' ? 'ANALÍTICO' : 'SINTÉTICO'}
+                {TIPOS_RELATORIO.find(t => t.id === tipoRelatorio)?.label || 'Relatório de Movimentações Pecuárias'}
               </h2>
               {(dataInicio || dataFim) && (
                 <p className="text-xs text-gray-600">
@@ -634,7 +632,10 @@ export default function RelatorioMovimentacoesPecuaria() {
                 </p>
               )}
               <p className="text-xs text-gray-600">
-                {movimentacoesFiltradas.length} registro(s) • Entradas: +{formatarNumero(totalEntradas)} cab • Saídas: -{formatarNumero(totalSaidas)} cab • Saldo: {saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab
+                {movimentacoesPorTipoRelatorio.length} registro(s) • Entradas: +{formatarNumero(totalEntradas)} cab • Saídas: -{formatarNumero(totalSaidas)} cab • Saldo: {saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab
+                {(tipoRelatorio === 'peso' || tipoRelatorio === 'financeiro') && (
+                  <> • Peso: {formatarNumero(totalPeso)} kg • Valor: R$ {totalValor.toFixed(2)}</>
+                )}
               </p>
             </div>
           </div>
