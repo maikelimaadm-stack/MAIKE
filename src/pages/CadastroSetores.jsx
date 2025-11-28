@@ -78,6 +78,16 @@ export default function CadastroSetores() {
     enabled: !!empresaSelecionadaId,
   });
 
+  // Carregar movimentações sem setor definido
+  const { data: movimentacoesSemSetor = [] } = useQuery({
+    queryKey: ['movimentacoes-sem-setor', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoPecuaria.list();
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && !m.setor_id);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const allSetores = await base44.entities.Setor.list();
