@@ -70,8 +70,8 @@ const COLUNAS_ANALITICO = [
   { id: 'nota_fiscal', label: 'Nota Fiscal', default: false },
   { id: 'gta', label: 'GTA', default: false },
   { id: 'causa_morte', label: 'Causa Morte', default: false },
-  { id: 'transf_origem', label: 'Transf. Origem', default: false },
-  { id: 'transf_destino', label: 'Transf. Destino', default: false },
+  { id: 'transf_origem', label: 'Faz. Origem', default: false },
+  { id: 'transf_destino', label: 'Faz. Destino', default: false },
   { id: 'valor_unitario', label: 'Valor Unit.', default: false },
   { id: 'valor_total', label: 'Valor Total', default: false },
   { id: 'observacoes', label: 'Observações', default: false },
@@ -89,6 +89,8 @@ const AGRUPAMENTOS_DISPONIVEIS = [
   { id: 'comprador', label: 'Comprador/Destino' },
   { id: 'sexo', label: 'Sexo' },
   { id: 'mes', label: 'Mês/Ano' },
+  { id: 'transf_origem', label: 'Fazenda Origem (Transf.)' },
+  { id: 'transf_destino', label: 'Fazenda Destino (Transf.)' },
 ];
 
 const COLUNAS_SINTETICO = [
@@ -96,6 +98,18 @@ const COLUNAS_SINTETICO = [
   { id: 'entradas', label: 'Entradas', default: true },
   { id: 'saidas', label: 'Saídas', default: true },
   { id: 'saldo', label: 'Saldo', default: true },
+  { id: 'peso_total', label: 'Peso Total', default: false },
+  { id: 'peso_medio', label: 'Peso Médio', default: false },
+  { id: 'valor_total', label: 'Valor Total', default: false },
+];
+
+const TIPOS_RELATORIO = [
+  { id: 'analitico', label: 'Analítico (Detalhado)' },
+  { id: 'sintetico', label: 'Sintético (Agrupado)' },
+  { id: 'peso', label: 'Relatório de Peso' },
+  { id: 'financeiro', label: 'Relatório Financeiro' },
+  { id: 'transferencia', label: 'Transferências entre Fazendas' },
+  { id: 'mudanca_categoria', label: 'Mudanças de Categoria' },
 ];
 
 const ORDENACAO_OPCOES = [
