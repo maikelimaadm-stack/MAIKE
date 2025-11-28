@@ -459,10 +459,30 @@ export default function Layout({ children, currentPageName }) {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-72 flex flex-col">
-                                        <SheetHeader>
-                                          <SheetTitle className="text-left text-sm">Menu</SheetTitle>
-                                        </SheetHeader>
-                                        <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="text-left text-sm">Menu</SheetTitle>
+                  </SheetHeader>
+                  
+                  {/* Seletor de Empresa no Mobile */}
+                  {empresas.length > 0 && (
+                    <div className="mt-4 px-2">
+                      <label className="text-xs text-slate-500 mb-1 block">Empresa</label>
+                      <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
+                        <SelectTrigger className="h-9 text-xs w-full border-slate-300">
+                          <SelectValue placeholder="Selecione a empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {empresas.map((empresa) => (
+                            <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
+                              {empresa.apelido || empresa.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
                     {menuItemsFiltered.map((item) => {
                       const Icon = iconsMap[item.icon] || Home;
                       
