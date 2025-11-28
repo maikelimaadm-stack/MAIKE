@@ -557,7 +557,11 @@ export default function RelatorioMovimentacoesPecuaria() {
             <Table>
               <TableHeader>
                 <TableRow className="border-black">
-                  {colunasVisiveis.includes('agrupamento') && <TableHead className="border border-black text-xs font-bold py-1">Agrupamento</TableHead>}
+                  {dadosRelatorio.agrupamentos?.map((ag, i) => (
+                    <TableHead key={ag} className="border border-black text-xs font-bold py-1">
+                      {AGRUPAMENTOS_DISPONIVEIS.find(a => a.id === ag)?.label || ag}
+                    </TableHead>
+                  ))}
                   {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1 text-green-700">Entradas</TableHead>}
                   {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1 text-red-700">Saídas</TableHead>}
                   {colunasVisiveis.includes('saldo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>}
@@ -566,14 +570,16 @@ export default function RelatorioMovimentacoesPecuaria() {
               <TableBody>
                 {dadosRelatorio.dados.map((grupo, idx) => (
                   <TableRow key={idx}>
-                    {colunasVisiveis.includes('agrupamento') && <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo.agrupamento}</TableCell>}
+                    {grupo.partes?.map((parte, i) => (
+                      <TableCell key={i} className="border border-gray-300 text-xs py-1 font-semibold">{parte}</TableCell>
+                    ))}
                     {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1 text-green-700 font-semibold">+{formatarNumero(grupo.entradas)}</TableCell>}
                     {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1 text-red-700 font-semibold">-{formatarNumero(grupo.saidas)}</TableCell>}
                     {colunasVisiveis.includes('saldo') && <TableCell className={`border border-gray-300 text-xs text-right py-1 font-bold ${grupo.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{grupo.saldo >= 0 ? '+' : ''}{formatarNumero(grupo.saldo)} cab</TableCell>}
                   </TableRow>
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
+                  <TableCell colSpan={dadosRelatorio.agrupamentos?.length || 1} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
                   {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1 text-green-700">+{formatarNumero(totalEntradas)}</TableCell>}
                   {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1 text-red-700">-{formatarNumero(totalSaidas)}</TableCell>}
                   {colunasVisiveis.includes('saldo') && <TableCell className={`border border-black text-xs text-right py-1 ${saldoPeriodo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab</TableCell>}
