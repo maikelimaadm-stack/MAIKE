@@ -169,11 +169,28 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
+      // Buscar o registro para verificar se é mudança de categoria
+      const registro = movimentacoes.find(m => m.id === id);
+      
+      if (registro?.vinculo_mudanca_categoria) {
+        // Se tem vínculo, excluir também o registro vinculado
+        const registroVinculado = movimentacoes.find(
+          m => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
+        );
+        
+        await base44.entities.MovimentacaoPecuaria.delete(id);
+        
+        if (registroVinculado) {
+          await base44.entities.MovimentacaoPecuaria.delete(registroVinculado.id);
+        }
+        return { deletedCount: registroVinculado ? 2 : 1 };
+      }
+      
       return await base44.entities.MovimentacaoPecuaria.delete(id);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      toast.success('Movimentação excluída');
+      toast.success(result?.deletedCount === 2 ? 'Mudança de categoria excluída (saída + entrada)' : 'Movimentação excluída');
       setShowDelete(false);
       setDeletarId(null);
     },
