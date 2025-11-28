@@ -389,9 +389,11 @@ export default function RelatorioMovimentacoesPecuaria() {
     }
   }, [tipoRelatorio, movimentacoesPorTipoRelatorio, agrupamentosAtivos]);
 
-  const totalEntradas = movimentacoesFiltradas.filter(m => m.tipo === 'Entrada').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
-  const totalSaidas = movimentacoesFiltradas.filter(m => m.tipo === 'Saída').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
+  const totalEntradas = movimentacoesPorTipoRelatorio.filter(m => m.tipo === 'Entrada').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
+  const totalSaidas = movimentacoesPorTipoRelatorio.filter(m => m.tipo === 'Saída').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
   const saldoPeriodo = totalEntradas - totalSaidas;
+  const totalPeso = movimentacoesPorTipoRelatorio.reduce((sum, m) => sum + (m.peso_total || 0), 0);
+  const totalValor = movimentacoesPorTipoRelatorio.reduce((sum, m) => sum + (m.valor_total || 0), 0);
 
   const toggleColuna = (colunaId) => {
     setColunasVisiveis(prev => {
