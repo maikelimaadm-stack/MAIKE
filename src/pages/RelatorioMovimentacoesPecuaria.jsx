@@ -194,7 +194,17 @@ export default function RelatorioMovimentacoesPecuaria() {
     const colunas = getColunasDisponiveis();
     setColunasVisiveis(colunas.filter(c => c.default).map(c => c.id));
     setColunasOrdem(colunas.map(c => c.id));
+    
+    // Resetar opções do relatório
+    const opcoesTipo = OPCOES_POR_TIPO[tipoRelatorio] || [];
+    const novasOpcoes = {};
+    opcoesTipo.forEach(op => { novasOpcoes[op.id] = op.default; });
+    setOpcoesRelatorio(novasOpcoes);
   }, [tipoRelatorio]);
+
+  const toggleOpcaoRelatorio = (opcaoId) => {
+    setOpcoesRelatorio(prev => ({ ...prev, [opcaoId]: !prev[opcaoId] }));
+  };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
