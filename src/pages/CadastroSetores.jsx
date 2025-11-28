@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { 
   Plus, Edit2, Trash2, Search, Building2, MapPin, Phone, User, 
-  MoreVertical, Save, X, Landmark
+  MoreVertical, Save, X, Landmark, Upload, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import {
