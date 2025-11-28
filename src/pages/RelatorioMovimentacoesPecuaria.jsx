@@ -473,7 +473,7 @@ export default function RelatorioMovimentacoesPecuaria() {
       });
       return { tipo: 'analitico', dados: grupos, agrupamentos };
     }
-  }, [tipoRelatorio, movimentacoesPorTipoRelatorio, agrupamentosAtivos]);
+  }, [tipoRelatorio, movimentacoesPorTipoRelatorio, agrupamentosAtivos, dadosRelatorioGeral]);
 
   const totalEntradas = movimentacoesPorTipoRelatorio.filter(m => m.tipo === 'Entrada').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
   const totalSaidas = movimentacoesPorTipoRelatorio.filter(m => m.tipo === 'Saída').reduce((sum, m) => sum + (m.quantidade_animais || 0), 0);
