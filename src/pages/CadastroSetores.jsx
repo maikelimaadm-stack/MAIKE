@@ -136,6 +136,43 @@ export default function CadastroSetores() {
     onError: () => toast.error('Erro ao excluir setor')
   });
 
+  // Função para atribuir setor a todas movimentações sem setor
+  const handleAtribuirSetor = async () => {
+    if (!setorParaAtribuir) {
+      toast.error('Selecione um setor');
+      return;
+    }
+
+    const setor = setores.find(s => s.id === setorParaAtribuir);
+    if (!setor) {
+      toast.error('Setor não encontrado');
+      return;
+    }
+
+    setAtribuindoSetor(true);
+    
+    try {
+      let atualizados = 0;
+      for (const mov of movimentacoesSemSetor) {
+        await base44.entities.MovimentacaoPecuaria.update(mov.id, {
+          setor_id: setor.id,
+          setor_nome: setor.nome
+        });
+        atualizados++;
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-sem-setor'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+      toast.success(`${atualizados} movimentação(ões) atribuída(s) ao setor "${setor.nome}"`);
+      setShowAtribuirSetor(false);
+      setSetorParaAtribuir("");
+    } catch (error) {
+      toast.error('Erro ao atribuir setor às movimentações');
+    } finally {
+      setAtribuindoSetor(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       nome: "",
