@@ -143,6 +143,38 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     return saldos;
   }, [movimentacoes]);
 
+  // Calcular saldo por marca (entradas - saídas)
+  const saldoPorMarca = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoes.forEach(mov => {
+      const marca = mov.marca;
+      if (!marca) return;
+      
+      if (!saldos[marca]) {
+        saldos[marca] = 0;
+      }
+      
+      const qtd = mov.quantidade_animais || 0;
+      
+      if (mov.tipo === "Entrada") {
+        saldos[marca] += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[marca] -= qtd;
+      }
+    });
+    
+    return saldos;
+  }, [movimentacoes]);
+
+  // Marcas com saldo > 0 para saída
+  const marcasComSaldo = useMemo(() => {
+    return Object.entries(saldoPorMarca)
+      .filter(([_, saldo]) => saldo > 0)
+      .map(([marca]) => marca)
+      .sort();
+  }, [saldoPorMarca]);
+
   // Calcular peso total automaticamente
   useEffect(() => {
     if (formData.peso_medio && formData.quantidade_animais) {
@@ -397,12 +429,51 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
             <div className="space-y-1">
               <Label className="text-sm font-medium">Marca</Label>
-              <ComboboxComNovo
-                value={formData.marca}
-                onChange={(v) => setFormData({ ...formData, marca: v })}
-                options={marcasExistentes}
-                placeholder="Selecione ou digite..."
-              />
+              {formData.tipo === "Saída" ? (
+                // Na saída, mostrar apenas marcas que têm saldo > 0
+                <Select value={formData.marca} onValueChange={(v) => setFormData({ ...formData, marca: v })}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {marcasExistentes.length > 0 ? (
+                      marcasExistentes.map(marca => {
+                        const saldo = saldoPorMarca[marca] || 0;
+                        return (
+                          <SelectItem key={marca} value={marca} className="text-sm" disabled={saldo <= 0}>
+                            <div className="flex items-center justify-between w-full gap-2">
+                              <span>{marca}</span>
+                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
+                                {saldo} cab
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value={null} disabled className="text-sm text-slate-500">
+                        Nenhuma marca com saldo
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                // Na entrada, usar ComboboxComNovo
+                <ComboboxComNovo
+                  value={formData.marca}
+                  onChange={(v) => setFormData({ ...formData, marca: v })}
+                  options={marcasExistentes}
+                  placeholder="Selecione ou digite..."
+                />
+              )}
+              {formData.tipo === "Saída" && formData.marca && (
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  <span className="text-slate-500">Saldo disponível:</span>
+                  <span className={`font-semibold ${(saldoPorMarca[formData.marca] || 0) > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                    {saldoPorMarca[formData.marca] || 0} cab
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
