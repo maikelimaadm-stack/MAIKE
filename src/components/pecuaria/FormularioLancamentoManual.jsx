@@ -626,7 +626,14 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
             <div className="space-y-1">
               <Label className="text-sm font-medium">Motivo *</Label>
-              <Select value={formData.motivo} onValueChange={(v) => setFormData({ ...formData, motivo: v })}>
+              <Select value={formData.motivo} onValueChange={(v) => {
+                // Se for transferência entre setores, puxar o setor já selecionado como origem
+                if (v === "Transferência entre Setores" && formData.setor_id) {
+                  setFormData({ ...formData, motivo: v, setor_origem_id: formData.setor_id });
+                } else {
+                  setFormData({ ...formData, motivo: v });
+                }
+              }}>
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
