@@ -106,7 +106,7 @@ const ORDENACAO_OPCOES = [
 ];
 
 export default function RelatorioMovimentacoesPecuaria() {
-  const [showConfig, setShowConfig] = useState(false);
+
   const [tipoRelatorio, setTipoRelatorio] = useState("analitico");
   const [orientacao, setOrientacao] = useState("paisagem");
   const [ordenacao, setOrdenacao] = useState('data_desc');
