@@ -269,12 +269,21 @@ export default function RelatorioMovimentacoesPecuaria() {
   // Filtrar movimentações por tipo de relatório especial
   const movimentacoesPorTipoRelatorio = useMemo(() => {
     if (tipoRelatorio === 'transferencia') {
+      // Incluir movimentações com motivo de transferência OU que tenham origem/destino preenchidos
       return movimentacoesFiltradas.filter(m => 
-        m.motivo?.includes('Transferência') || m.transferencia_origem || m.transferencia_destino
+        m.motivo?.toLowerCase().includes('transferência') || 
+        m.motivo?.toLowerCase().includes('transferencia') ||
+        m.transferencia_origem || 
+        m.transferencia_destino
       );
     }
     if (tipoRelatorio === 'mudanca_categoria') {
-      return movimentacoesFiltradas.filter(m => m.motivo === 'Mudança de Categoria');
+      // Incluir movimentações com motivo de mudança de categoria OU que tenham categoria_nova
+      return movimentacoesFiltradas.filter(m => 
+        m.motivo?.toLowerCase().includes('mudança de categoria') ||
+        m.motivo?.toLowerCase().includes('mudanca de categoria') ||
+        m.categoria_nova
+      );
     }
     if (tipoRelatorio === 'peso') {
       return movimentacoesFiltradas.filter(m => m.peso_medio || m.peso_total);
