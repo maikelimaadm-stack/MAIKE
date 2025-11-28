@@ -234,7 +234,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         observacoes: data.observacoes || null,
       };
 
-      if (item) {
+      // Se é duplicação ou não tem id, cria novo
+      if (item && item.id && !item._isDuplicate) {
         return base44.entities.MovimentacaoPecuaria.update(item.id, payload);
       }
       return base44.entities.MovimentacaoPecuaria.create(payload);

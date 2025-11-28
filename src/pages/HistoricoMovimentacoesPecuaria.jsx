@@ -843,7 +843,7 @@ export default function HistoricoMovimentacoesPecuaria() {
                                 onClick={() => { 
                                   // Duplicar: copia os dados sem o id para abrir no formulário como novo
                                   const { id, numero_movimentacao, created_date, updated_date, created_by, ...dadosDuplicados } = mov;
-                                  setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString() }); 
+                                  setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString(), _isDuplicate: true }); 
                                   setShowNovoLancamento(true); 
                                 }} 
                                 className="text-xs"
