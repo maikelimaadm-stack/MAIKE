@@ -51,13 +51,14 @@ const DEFAULT_MENU = [
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
-    id: "pecuaria",
-    title: "Pecuaria",
-    icon: "Package",
-    submenu: [
-      { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
-      { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
-      { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
+      id: "pecuaria",
+      title: "Pecuaria",
+      icon: "Package",
+      submenu: [
+        { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
+        { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
+        { id: "pec-lotes", title: "Cadastro de Lotes", url: "CadastroLotes" },
+        { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
       { id: "pec-fatores", title: "Configuracao Fatores Consumo", url: "ConfiguracaoFatoresConsumo" },
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
       { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
