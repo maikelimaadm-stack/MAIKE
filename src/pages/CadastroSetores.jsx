@@ -50,6 +50,9 @@ export default function CadastroSetores() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
+  const [showAtribuirSetor, setShowAtribuirSetor] = useState(false);
+  const [setorParaAtribuir, setSetorParaAtribuir] = useState("");
+  const [atribuindoSetor, setAtribuindoSetor] = useState(false);
   
   const [formData, setFormData] = useState({
     nome: "",
