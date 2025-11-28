@@ -322,30 +322,60 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-sm font-medium">Categoria</Label>
-              <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoriasManejo.length > 0 ? (
-                    categoriasManejo.map(cat => (
-                      <SelectItem key={cat.id} value={cat.nome} className="text-sm">
-                        {cat.sigla} - {cat.nome}
+              {formData.tipo === "Saída" ? (
+                // Na saída, mostrar apenas categorias que têm saldo > 0
+                <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriasLancadas.length > 0 ? (
+                      categoriasLancadas.map(cat => {
+                        const saldo = saldoPorCategoria[cat] || 0;
+                        return (
+                          <SelectItem key={cat} value={cat} className="text-sm" disabled={saldo <= 0}>
+                            <div className="flex items-center justify-between w-full gap-2">
+                              <span>{cat}</span>
+                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
+                                {saldo} cab
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <SelectItem value={null} disabled className="text-sm text-slate-500">
+                        Nenhuma categoria com saldo
                       </SelectItem>
-                    ))
-                  ) : (
-                    <>
-                      <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
-                      <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
-                      <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
-                      <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
-                      <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
-                      <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
-                      <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
-                    </>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                // Na entrada, usar ComboboxComNovo para permitir novas categorias
+                <ComboboxComNovo
+                  value={formData.categoria_animal}
+                  onChange={(v) => setFormData({ ...formData, categoria_animal: v })}
+                  options={[
+                    ...categoriasLancadas,
+                    ...(categoriasManejo.map(c => c.nome).filter(n => !categoriasLancadas.includes(n)))
+                  ].sort()}
+                  placeholder="Selecione ou digite..."
+                />
+              )}
+              {formData.tipo === "Saída" && formData.categoria_animal && (
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  <span className="text-slate-500">Saldo disponível:</span>
+                  <span className={`font-semibold ${(saldoPorCategoria[formData.categoria_animal] || 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {saldoPorCategoria[formData.categoria_animal] || 0} cab
+                  </span>
+                  {formData.quantidade_animais > (saldoPorCategoria[formData.categoria_animal] || 0) && (
+                    <span className="text-red-600 flex items-center gap-0.5">
+                      <AlertTriangle className="w-3 h-3" />
+                      Excede saldo!
+                    </span>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
