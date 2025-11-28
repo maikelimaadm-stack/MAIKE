@@ -4,10 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, X, ArrowRight, Plus } from "lucide-react";
+import { Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -20,6 +19,7 @@ const MOTIVOS_ENTRADA = [
   "Compra",
   "Nascimento", 
   "Transferência (Recebimento)",
+  "Mudança de Categoria",
   "Inventário",
   "Ajuste Positivo",
   "Doação Recebida",
@@ -31,6 +31,7 @@ const MOTIVOS_SAIDA = [
   "Morte",
   "Abate",
   "Transferência (Envio)",
+  "Mudança de Categoria",
   "Ajuste Negativo",
   "Doação",
   "Perda/Roubo",
@@ -48,10 +49,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     tipo: item?.tipo || "",
     data_movimentacao: item?.data_movimentacao?.split('T')[0] || new Date().toISOString().split('T')[0],
-    lote_id: item?.lote_id || "",
-    lote: item?.lote || "",
     quantidade_animais: item?.quantidade_animais || 1,
     categoria_animal: item?.categoria_animal || "",
+    categoria_nova: item?.categoria_nova || "",
     marca: item?.marca || "",
     sexo: item?.sexo || "",
     peso_medio: item?.peso_medio || "",
@@ -67,6 +67,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     motivo: item?.motivo || "",
     causa_morte: item?.causa_morte || "",
     destino_abate: item?.destino_abate || "",
+    transferencia_origem: item?.transferencia_origem || "",
+    transferencia_destino: item?.transferencia_destino || "",
     observacoes: item?.observacoes || ""
   });
 
@@ -75,24 +77,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
       return all.filter(a => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: lotes = [] } = useQuery({
-    queryKey: ['lotes', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-
-  const { data: fornecedores = [] } = useQuery({
-    queryKey: ['fornecedores', empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.Fornecedor.list();
-      return all.filter(f => f.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -166,15 +150,12 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
       const areaOrigem = areas.find(a => a.id === data.area_origem_id);
       const areaDestino = areas.find(a => a.id === data.area_destino_id);
-      const loteSelected = lotes.find(l => l.id === data.lote_id);
 
       const payload = {
         empresa_id: empresaSelecionadaId,
         numero_movimentacao: String(maxNum + 1),
         tipo: data.tipo,
         data_movimentacao: new Date(data.data_movimentacao).toISOString(),
-        lote_id: data.lote_id || null,
-        lote: loteSelected?.nome || data.lote || null,
         quantidade_animais: parseInt(data.quantidade_animais) || 1,
         categoria_animal: data.categoria_animal || null,
         marca: data.marca || null,
@@ -225,17 +206,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     }
 
     createMutation.mutate(formData);
-  };
-
-  const handleLoteChange = (loteId) => {
-    const lote = lotes.find(l => l.id === loteId);
-    setFormData(prev => ({
-      ...prev,
-      lote_id: loteId,
-      lote: lote?.nome || "",
-      area_origem_id: lote?.area_atual_id || prev.area_origem_id,
-      categoria_animal: lote?.categoria || prev.categoria_animal,
-    }));
   };
 
   // Validação simplificada
@@ -334,25 +304,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Linha 2: Lote, Categoria, Marca, Sexo */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium">Lote</Label>
-              <Select value={formData.lote_id} onValueChange={handleLoteChange}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sem_lote" className="text-sm">Sem lote</SelectItem>
-                  {lotes.map(lote => (
-                    <SelectItem key={lote.id} value={lote.id} className="text-sm">
-                      {lote.nome} ({lote.quantidade_cabecas || 0})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          {/* Linha 2: Categoria, Marca, Sexo, Área */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-sm font-medium">Categoria</Label>
               <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
@@ -440,22 +393,86 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Campos adicionais para Compra/Venda */}
+          {/* Campos para Mudança de Categoria */}
+          {formData.motivo === "Mudança de Categoria" && (
+            <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Categoria Atual</Label>
+                  <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="De qual categoria?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasManejo.length > 0 ? (
+                        categoriasManejo.map(cat => (
+                          <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                            {cat.sigla} - {cat.nome} ({cat.quantidade_cabecas || 0} cab)
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
+                          <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
+                          <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
+                          <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
+                          <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
+                          <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
+                          <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Nova Categoria</Label>
+                  <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Para qual categoria?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasManejo.length > 0 ? (
+                        categoriasManejo.map(cat => (
+                          <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                            {cat.sigla} - {cat.nome}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
+                          <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
+                          <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
+                          <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
+                          <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
+                          <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
+                          <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Campos para Compra/Venda */}
           {(formData.motivo === "Compra" || formData.motivo === "Venda") && (
             <div className={`p-2 ${formData.tipo === "Entrada" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"} border rounded-lg`}>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">{formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}</Label>
-                  {formData.tipo === "Entrada" ? (
-                    <Select value={formData.fornecedor_origem} onValueChange={(v) => setFormData({ ...formData, fornecedor_origem: v })}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {fornecedores.map(f => (<SelectItem key={f.id} value={f.nome} className="text-sm">{f.nome}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={formData.destino_venda} onChange={(e) => setFormData({ ...formData, destino_venda: e.target.value })} className="h-9 text-sm" placeholder="Nome" />
-                  )}
+                  <Input 
+                    value={formData.tipo === "Entrada" ? formData.fornecedor_origem : formData.destino_venda} 
+                    onChange={(e) => {
+                      if (formData.tipo === "Entrada") {
+                        setFormData({ ...formData, fornecedor_origem: e.target.value });
+                      } else {
+                        setFormData({ ...formData, destino_venda: e.target.value });
+                      }
+                    }} 
+                    className="h-9 text-sm" 
+                    placeholder="Nome" 
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Vlr Unit. (R$)</Label>
@@ -473,6 +490,55 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <Label className="text-sm font-medium">GTA</Label>
                   <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Campos para Transferência */}
+          {(formData.motivo === "Transferência (Envio)" || formData.motivo === "Transferência (Recebimento)") && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Origem (Fazenda/Local)</Label>
+                  <Input 
+                    value={formData.transferencia_origem} 
+                    onChange={(e) => setFormData({ ...formData, transferencia_origem: e.target.value })} 
+                    className="h-9 text-sm" 
+                    placeholder="De onde veio/saiu" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Destino (Fazenda/Local)</Label>
+                  <Input 
+                    value={formData.transferencia_destino} 
+                    onChange={(e) => setFormData({ ...formData, transferencia_destino: e.target.value })} 
+                    className="h-9 text-sm" 
+                    placeholder="Para onde foi/veio" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Campos para Morte */}
+          {formData.motivo === "Morte" && (
+            <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Causa da Morte</Label>
+                <Input 
+                  value={formData.causa_morte} 
+                  onChange={(e) => setFormData({ ...formData, causa_morte: e.target.value })} 
+                  className="h-9 text-sm" 
+                  placeholder="Descreva a causa da morte" 
+                />
               </div>
             </div>
           )}
