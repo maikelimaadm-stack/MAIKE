@@ -581,9 +581,9 @@ export default function RelatorioMovimentacoesPecuaria() {
                 ))}
                 <TableRow className="bg-gray-100 font-bold">
                   <TableCell colSpan={dadosRelatorio.agrupamentos?.length || 1} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
-                  {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1 text-green-700">+{formatarNumero(totalEntradas)}</TableCell>}
-                  {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1 text-red-700">-{formatarNumero(totalSaidas)}</TableCell>}
-                  {colunasVisiveis.includes('saldo') && <TableCell className={`border border-black text-xs text-right py-1 ${saldoPeriodo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab</TableCell>}
+                  {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1">{totalEntradas ? formatarNumero(totalEntradas) : ''}</TableCell>}
+                  {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1">{totalSaidas ? formatarNumero(totalSaidas) : ''}</TableCell>}
+                  {colunasVisiveis.includes('saldo') && <TableCell className="border border-black text-xs text-right py-1">{saldoPeriodo ? `${formatarNumero(saldoPeriodo)} cab` : ''}</TableCell>}
                 </TableRow>
               </TableBody>
             </Table>
