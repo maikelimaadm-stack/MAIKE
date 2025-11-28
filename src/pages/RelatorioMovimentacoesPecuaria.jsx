@@ -563,8 +563,8 @@ export default function RelatorioMovimentacoesPecuaria() {
                       {AGRUPAMENTOS_DISPONIVEIS.find(a => a.id === ag)?.label || ag}
                     </TableHead>
                   ))}
-                  {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1 text-green-700">Entradas</TableHead>}
-                  {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1 text-red-700">Saídas</TableHead>}
+                  {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>}
+                  {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>}
                   {colunasVisiveis.includes('saldo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>}
                 </TableRow>
               </TableHeader>
