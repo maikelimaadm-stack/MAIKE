@@ -220,13 +220,13 @@ export default function CategoriasManejo() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Nome da Categoria *</Label>
               <Input
                 value={formData.nome}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="AA, TESTE..."
+                placeholder="Bezerro, Novilha..."
                 className="h-8 text-xs uppercase"
                 required
               />
@@ -237,7 +237,7 @@ export default function CategoriasManejo() {
               <Input
                 value={formData.sigla}
                 onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
-                placeholder="AA, TST..."
+                placeholder="BEZ, NOV..."
                 className="h-8 text-xs uppercase"
                 required
                 maxLength={10}
@@ -245,7 +245,22 @@ export default function CategoriasManejo() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Espécie *</Label>
+              <Label className="text-xs">Sexo</Label>
+              <Select value={formData.sexo} onValueChange={(v) => setFormData({ ...formData, sexo: v })}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
+                  <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Espécie</Label>
                 <Select value={formData.especie} onValueChange={(v) => setFormData({ ...formData, especie: v })}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -259,13 +274,35 @@ export default function CategoriasManejo() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Categoria Oficial *</Label>
+                <Label className="text-xs">Idade Mínima (meses)</Label>
+                <Input
+                  type="number"
+                  value={formData.idade_minima_meses}
+                  onChange={(e) => setFormData({ ...formData, idade_minima_meses: e.target.value })}
+                  placeholder="0"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Idade Máxima (meses)</Label>
+                <Input
+                  type="number"
+                  value={formData.idade_maxima_meses}
+                  onChange={(e) => setFormData({ ...formData, idade_maxima_meses: e.target.value })}
+                  placeholder="12"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Categoria Oficial (ícone)</Label>
                 <Select 
                   value={formData.categoria_oficial} 
                   onValueChange={(v) => setFormData({ ...formData, categoria_oficial: v })}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder="Opcional" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriasOficiaisDisponiveis.map(cat => (
