@@ -261,6 +261,14 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       toast.error('Informe a quantidade de animais');
       return;
     }
+    if (!formData.categoria_animal) {
+      toast.error('Selecione a categoria');
+      return;
+    }
+    if (!formData.marca) {
+      toast.error('Selecione a marca');
+      return;
+    }
 
     createMutation.mutate(formData);
   };
@@ -361,7 +369,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           {/* Linha 2: Categoria, Marca (só entrada), Sexo (só entrada), Área */}
           <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Categoria</Label>
+              <Label className="text-sm font-medium">Categoria *</Label>
               {formData.tipo === "Saída" ? (
                 // Na saída, mostrar apenas categorias que têm saldo > 0
                 <Select value={formData.categoria_animal} onValueChange={(v) => {
@@ -430,7 +438,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             {/* Marca na Saída - baseado na categoria selecionada */}
             {formData.tipo === "Saída" && (
               <div className="space-y-1">
-                <Label className="text-sm font-medium">Marca</Label>
+                <Label className="text-sm font-medium">Marca *</Label>
                 <Select 
                   value={formData.marca} 
                   onValueChange={(v) => setFormData({ ...formData, marca: v })}
@@ -473,7 +481,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             {formData.tipo === "Entrada" && (
               <>
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Marca</Label>
+                  <Label className="text-sm font-medium">Marca *</Label>
                   <ComboboxComNovo
                     value={formData.marca}
                     onChange={(v) => setFormData({ ...formData, marca: v })}
