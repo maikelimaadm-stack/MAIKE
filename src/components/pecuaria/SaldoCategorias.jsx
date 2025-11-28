@@ -2,30 +2,18 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Scale, ChevronDown, ChevronUp, Tag } from "lucide-react";
+import { Scale, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [] }) {
-  const [isVisibleCategoria, setIsVisibleCategoria] = useState(() => {
+  const [isVisible, setIsVisible] = useState(() => {
     const saved = localStorage.getItem('saldo_categoria_visivel');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [isVisibleMarca, setIsVisibleMarca] = useState(() => {
-    const saved = localStorage.getItem('saldo_marca_visivel');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
 
-  const toggleCategoria = () => {
-    setIsVisibleCategoria(prev => {
+  const toggle = () => {
+    setIsVisible(prev => {
       const newValue = !prev;
       localStorage.setItem('saldo_categoria_visivel', JSON.stringify(newValue));
-      return newValue;
-    });
-  };
-
-  const toggleMarca = () => {
-    setIsVisibleMarca(prev => {
-      const newValue = !prev;
-      localStorage.setItem('saldo_marca_visivel', JSON.stringify(newValue));
       return newValue;
     });
   };
@@ -97,154 +85,77 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
   }
 
   return (
-    <div className="space-y-4 mb-4">
-      {/* Quadro Categoria x Marca (Pivot) */}
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50 border-b py-2 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Scale className="w-4 h-4" />
-              Saldo por Categoria
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">
-                Total: {totalGeral.toLocaleString('pt-BR')} cab
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleCategoria}
-                className="h-7 gap-1 text-xs"
-              >
-                {isVisibleCategoria ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {isVisibleCategoria ? 'Ocultar' : 'Mostrar'}
-              </Button>
+    <Card className="shadow-sm border-slate-200 mb-4">
+      <CardHeader className="bg-slate-50 border-b py-2 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Scale className="w-4 h-4" />
+            Saldo por Categoria / Marca
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">
+              Total: {totalGeral.toLocaleString('pt-BR')} cab
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggle}
+              className="h-7 gap-1 text-xs"
+            >
+              {isVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {isVisible ? 'Ocultar' : 'Mostrar'}
+            </Button>
           </div>
-        </CardHeader>
-        {isVisibleCategoria && (
-          <CardContent className="p-0">
-            <div className="overflow-auto max-h-[400px]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white z-10">
-                  <TableRow className="bg-slate-100">
-                    <TableHead className="text-xs font-bold border-r border-slate-300 sticky left-0 bg-slate-100 z-20 min-w-[150px]">
-                      Categoria de Manejo
+        </div>
+      </CardHeader>
+      {isVisible && (
+        <CardContent className="p-0">
+          <div className="overflow-auto">
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow className="bg-slate-100 border-b-2 border-slate-300">
+                  <TableHead className="font-bold border-r border-slate-300 sticky left-0 bg-slate-100 z-20 min-w-[140px] py-1.5">
+                    Categoria de Manejo
+                  </TableHead>
+                  {marcas.map(marca => (
+                    <TableHead key={marca} className="font-semibold text-center border-r border-slate-200 min-w-[70px] whitespace-nowrap py-1.5">
+                      {marca}
                     </TableHead>
-                    {marcas.map(marca => (
-                      <TableHead key={marca} className="text-xs font-semibold text-center border-r border-slate-200 min-w-[80px] whitespace-nowrap">
-                        {marca}
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-xs font-bold text-center bg-emerald-50 min-w-[100px]">
-                      Total Cabeças
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categorias.map((categoria, idx) => (
-                    <TableRow key={categoria} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <TableCell className="text-xs font-medium border-r border-slate-300 sticky left-0 bg-inherit z-10">
-                        {categoria}
-                      </TableCell>
-                      {marcas.map(marca => {
-                        const saldo = getSaldo(categoria, marca);
-                        return (
-                          <TableCell 
-                            key={marca} 
-                            className={`text-xs text-center font-mono border-r border-slate-200 ${
-                              saldo > 0 ? 'text-slate-900' : saldo < 0 ? 'text-red-600' : 'text-slate-300'
-                            }`}
-                          >
-                            {saldo !== 0 ? saldo.toLocaleString('pt-BR') : ''}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-xs text-center font-mono font-bold bg-emerald-50 text-emerald-800">
-                        {totaisPorCategoria[categoria]?.toLocaleString('pt-BR') || 0}
-                      </TableCell>
-                    </TableRow>
                   ))}
-                  {/* Linha de Subtotal por Marca */}
-                  <TableRow className="bg-slate-200 border-t-2 border-slate-400">
-                    <TableCell className="text-xs font-bold border-r border-slate-300 sticky left-0 bg-slate-200 z-10">
-                      SUBTOTAL
+                  <TableHead className="font-bold text-center bg-yellow-100 text-yellow-900 min-w-[90px] py-1.5">
+                    Total Cabeças
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categorias.map((categoria, idx) => (
+                  <TableRow key={categoria} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <TableCell className="font-medium border-r border-slate-300 sticky left-0 bg-inherit z-10 py-1">
+                      {categoria}
                     </TableCell>
-                    {marcas.map(marca => (
-                      <TableCell key={marca} className="text-xs text-center font-mono font-bold border-r border-slate-200 text-slate-800">
-                        {totaisPorMarca[marca]?.toLocaleString('pt-BR') || 0}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-xs text-center font-mono font-bold bg-emerald-100 text-emerald-900">
-                      {totalGeral.toLocaleString('pt-BR')}
+                    {marcas.map(marca => {
+                      const saldo = getSaldo(categoria, marca);
+                      return (
+                        <TableCell 
+                          key={marca} 
+                          className={`text-center font-mono border-r border-slate-200 py-1 ${
+                            saldo > 0 ? 'text-slate-900' : saldo < 0 ? 'text-red-600 font-semibold' : ''
+                          }`}
+                        >
+                          {saldo !== 0 ? saldo.toLocaleString('pt-BR') : ''}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-center font-mono font-bold bg-yellow-50 text-yellow-900 py-1">
+                      {totaisPorCategoria[categoria]?.toLocaleString('pt-BR') || 0}
                     </TableCell>
                   </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Quadro por Marca (categorias dentro de cada marca) */}
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-blue-50 border-b py-2 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              Saldo por Marca (com Categorias)
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
-                {marcas.length} marca(s)
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleMarca}
-                className="h-7 gap-1 text-xs"
-              >
-                {isVisibleMarca ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {isVisibleMarca ? 'Ocultar' : 'Mostrar'}
-              </Button>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        </CardHeader>
-        {isVisibleMarca && (
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {marcas.map(marca => {
-                const categoriasComSaldo = categorias
-                  .map(cat => ({ categoria: cat, saldo: getSaldo(cat, marca) }))
-                  .filter(item => item.saldo !== 0);
-                
-                if (categoriasComSaldo.length === 0) return null;
-
-                return (
-                  <div key={marca} className="border border-slate-200 rounded-lg overflow-hidden">
-                    <div className="bg-blue-100 px-3 py-2 border-b border-blue-200 flex items-center justify-between">
-                      <span className="text-xs font-bold text-blue-900">{marca}</span>
-                      <span className="text-xs font-bold text-blue-700 bg-white px-2 py-0.5 rounded">
-                        {totaisPorMarca[marca]?.toLocaleString('pt-BR') || 0} cab
-                      </span>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      {categoriasComSaldo.map(item => (
-                        <div key={item.categoria} className="flex justify-between px-3 py-1.5 hover:bg-slate-50">
-                          <span className="text-xs text-slate-700">{item.categoria}</span>
-                          <span className={`text-xs font-mono font-semibold ${item.saldo >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
-                            {item.saldo.toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-    </div>
+        </CardContent>
+      )}
+    </Card>
   );
 }
