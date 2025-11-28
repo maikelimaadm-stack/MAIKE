@@ -43,20 +43,8 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
 
       const qtd = mov.quantidade_animais || 0;
 
-      // Mudança de categoria: transfere entre categorias (sai de uma, entra em outra)
-      // Não altera o total geral do rebanho
-      if (mov.motivo === "Mudança de Categoria" && mov.categoria_nova) {
-        // Sai da categoria atual (categoria_animal)
-        saldos[categoria].saidas += qtd;
-        saldos[categoria].saldo -= qtd;
-        
-        // Entra na nova categoria (categoria_nova)
-        if (!saldos[mov.categoria_nova]) {
-          saldos[mov.categoria_nova] = { entradas: 0, saidas: 0, saldo: 0 };
-        }
-        saldos[mov.categoria_nova].entradas += qtd;
-        saldos[mov.categoria_nova].saldo += qtd;
-      } else if (mov.tipo === "Entrada") {
+      // Contabiliza normalmente (entrada ou saída)
+      if (mov.tipo === "Entrada") {
         saldos[categoria].entradas += qtd;
         saldos[categoria].saldo += qtd;
       } else if (mov.tipo === "Saída") {
