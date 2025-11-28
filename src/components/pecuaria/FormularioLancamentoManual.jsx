@@ -208,6 +208,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
       // Se é mudança de categoria, criar dois lançamentos: saída da categoria atual + entrada na nova
       if (data.motivo === "Mudança de Categoria" && data.categoria_nova) {
+        const idVinculo = `MC-${Date.now()}`;
+        
         // 1. Saída da categoria atual
         const payloadSaida = {
           empresa_id: empresaSelecionadaId,
@@ -233,9 +235,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           gta: null,
           motivo: "Mudança de Categoria",
           causa_morte: null,
-          transferencia_origem: null,
-          transferencia_destino: null,
-          observacoes: data.observacoes ? `Saída p/ ${data.categoria_nova}. ${data.observacoes}` : `Saída p/ ${data.categoria_nova}`,
+          transferencia_origem: data.categoria_animal || null,
+          transferencia_destino: data.categoria_nova || null,
+          observacoes: data.observacoes ? `${idVinculo} | Saída p/ ${data.categoria_nova}. ${data.observacoes}` : `${idVinculo} | Saída p/ ${data.categoria_nova}`,
         };
 
         // 2. Entrada na nova categoria
@@ -247,7 +249,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           data_movimentacao: new Date(data.data_movimentacao).toISOString(),
           quantidade_animais: parseInt(data.quantidade_animais) || 1,
           categoria_animal: data.categoria_nova || null,
-          categoria_nova: null,
+          categoria_nova: data.categoria_animal || null,
           marca: data.marca || null,
           sexo: catNova?.sexo || data.sexo || null,
           peso_medio: parseFloat(data.peso_medio) || null,
@@ -264,9 +266,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           gta: null,
           motivo: "Mudança de Categoria",
           causa_morte: null,
-          transferencia_origem: null,
-          transferencia_destino: null,
-          observacoes: data.observacoes ? `Entrada de ${data.categoria_animal}. ${data.observacoes}` : `Entrada de ${data.categoria_animal}`,
+          transferencia_origem: data.categoria_animal || null,
+          transferencia_destino: data.categoria_nova || null,
+          observacoes: data.observacoes ? `${idVinculo} | Entrada de ${data.categoria_animal}. ${data.observacoes}` : `${idVinculo} | Entrada de ${data.categoria_animal}`,
         };
 
         const resSaida = await base44.entities.MovimentacaoPecuaria.create(payloadSaida);
