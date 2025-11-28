@@ -409,6 +409,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                   <SelectItem value="Fêmea" className="text-sm">Fêmea</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.categoria_animal && categoriasManejo.find(c => c.nome === formData.categoria_animal)?.sexo && (
+                <p className="text-[10px] text-slate-500">Auto-preenchido da categoria</p>
+              )}
             </div>
 
             <div className="space-y-1">
