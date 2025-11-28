@@ -829,120 +829,175 @@ export default function RelatorioMovimentacoesPecuaria() {
             </Table>
           )}
 
-          {/* Relatório de Mudança de Categoria - Tabela Simples */}
+          {/* Relatório de Mudança de Categoria - Usa Colunas Selecionáveis */}
           {dadosRelatorio.tipo === 'mudanca_categoria' && (
             <Table>
               <TableHeader>
                 <TableRow className="border-black">
-                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Categoria (DE)</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Categoria (PARA)</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Quantidade</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Observações</TableHead>
+                  {colunasOrdenadas.map((coluna) => (
+                    <TableHead key={coluna.id} className="border border-black text-xs font-bold py-1">
+                      {coluna.label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dadosRelatorio.dados.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.categoria_animal || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{m.categoria_nova || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.quantidade_animais} cab</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.area_origem_nome || m.area_destino_nome || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 max-w-[150px] truncate">{m.observacoes || '-'}</TableCell>
-                  </TableRow>
-                ))}
+                {dadosRelatorio.dados.map((m) => {
+                  const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
+                  return (
+                    <TableRow key={m.id}>
+                      {colunasOrdenadas.map((coluna) => {
+                        switch (coluna.id) {
+                          case 'data': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>;
+                          case 'tipo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.tipo || ''}</TableCell>;
+                          case 'motivo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>;
+                          case 'quantidade': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.quantidade_animais || ''}</TableCell>;
+                          case 'categoria': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_animal || ''}</TableCell>;
+                          case 'categoria_nova': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_nova || ''}</TableCell>;
+                          case 'marca': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.marca || ''}</TableCell>;
+                          case 'sexo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.sexo || ''}</TableCell>;
+                          case 'peso_medio': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : ''}</TableCell>;
+                          case 'peso_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : ''}</TableCell>;
+                          case 'area_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_origem_nome || ''}</TableCell>;
+                          case 'area_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_destino_nome || ''}</TableCell>;
+                          case 'area': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{areaExibir || ''}</TableCell>;
+                          case 'fornecedor': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || ''}</TableCell>;
+                          case 'comprador': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>;
+                          case 'nota_fiscal': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>;
+                          case 'gta': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>;
+                          case 'causa_morte': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>;
+                          case 'transf_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>;
+                          case 'transf_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>;
+                          case 'valor_unitario': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : ''}</TableCell>;
+                          case 'valor_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : ''}</TableCell>;
+                          case 'observacoes': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || ''}</TableCell>;
+                          case 'responsavel': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>;
+                          default: return null;
+                        }
+                      })}
+                    </TableRow>
+                  );
+                })}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell colSpan={3} className="border border-black text-xs py-1">TOTAL</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))} cab</TableCell>
-                  <TableCell colSpan={3} className="border border-black text-xs py-1"></TableCell>
+                  <TableCell colSpan={colunasOrdenadas.length} className="border border-black text-xs py-1">
+                    TOTAL: {formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))} cab
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           )}
 
-          {/* Relatório de Peso - Tabela Simples */}
+          {/* Relatório de Peso - Usa Colunas Selecionáveis */}
           {dadosRelatorio.tipo === 'peso' && (
             <Table>
               <TableHeader>
                 <TableRow className="border-black">
-                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Qtd</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Peso Médio</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Peso Total</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>
+                  {colunasOrdenadas.map((coluna) => (
+                    <TableHead key={coluna.id} className="border border-black text-xs font-bold py-1">
+                      {coluna.label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dadosRelatorio.dados.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{m.quantidade_animais}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.peso_medio ? `${formatarNumero(m.peso_medio)} kg` : '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.peso_total ? `${formatarNumero(m.peso_total)} kg` : '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome || '-'}</TableCell>
-                  </TableRow>
-                ))}
+                {dadosRelatorio.dados.map((m) => {
+                  const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
+                  return (
+                    <TableRow key={m.id}>
+                      {colunasOrdenadas.map((coluna) => {
+                        switch (coluna.id) {
+                          case 'data': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>;
+                          case 'tipo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.tipo || ''}</TableCell>;
+                          case 'motivo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>;
+                          case 'quantidade': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.quantidade_animais || ''}</TableCell>;
+                          case 'categoria': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_animal || ''}</TableCell>;
+                          case 'categoria_nova': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_nova || ''}</TableCell>;
+                          case 'marca': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.marca || ''}</TableCell>;
+                          case 'sexo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.sexo || ''}</TableCell>;
+                          case 'peso_medio': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : ''}</TableCell>;
+                          case 'peso_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : ''}</TableCell>;
+                          case 'area_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_origem_nome || ''}</TableCell>;
+                          case 'area_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_destino_nome || ''}</TableCell>;
+                          case 'area': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{areaExibir || ''}</TableCell>;
+                          case 'fornecedor': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || ''}</TableCell>;
+                          case 'comprador': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>;
+                          case 'nota_fiscal': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>;
+                          case 'gta': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>;
+                          case 'causa_morte': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>;
+                          case 'transf_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>;
+                          case 'transf_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>;
+                          case 'valor_unitario': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : ''}</TableCell>;
+                          case 'valor_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : ''}</TableCell>;
+                          case 'observacoes': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || ''}</TableCell>;
+                          case 'responsavel': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>;
+                          default: return null;
+                        }
+                      })}
+                    </TableRow>
+                  );
+                })}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell colSpan={5} className="border border-black text-xs py-1">TOTAL</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))}</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">-</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(totalPeso)} kg</TableCell>
-                  <TableCell className="border border-black text-xs py-1"></TableCell>
+                  <TableCell colSpan={colunasOrdenadas.length} className="border border-black text-xs py-1">
+                    TOTAL: {formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))} cab | Peso Total: {formatarNumero(totalPeso)} kg
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           )}
 
-          {/* Relatório Financeiro - Tabela Simples */}
+          {/* Relatório Financeiro - Usa Colunas Selecionáveis */}
           {dadosRelatorio.tipo === 'financeiro' && (
             <Table>
               <TableHeader>
                 <TableRow className="border-black">
-                  <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Tipo</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Motivo</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Qtd</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Unit.</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Total</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">Fornec./Comprador</TableHead>
-                  <TableHead className="border border-black text-xs font-bold py-1">NF</TableHead>
+                  {colunasOrdenadas.map((coluna) => (
+                    <TableHead key={coluna.id} className="border border-black text-xs font-bold py-1">
+                      {coluna.label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dadosRelatorio.dados.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.tipo}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.motivo || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.categoria_animal || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.marca || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{m.quantidade_animais}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1 text-right font-bold">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || m.destino_venda || '-'}</TableCell>
-                    <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || '-'}</TableCell>
-                  </TableRow>
-                ))}
+                {dadosRelatorio.dados.map((m) => {
+                  const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
+                  return (
+                    <TableRow key={m.id}>
+                      {colunasOrdenadas.map((coluna) => {
+                        switch (coluna.id) {
+                          case 'data': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>;
+                          case 'tipo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.tipo || ''}</TableCell>;
+                          case 'motivo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>;
+                          case 'quantidade': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.quantidade_animais || ''}</TableCell>;
+                          case 'categoria': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_animal || ''}</TableCell>;
+                          case 'categoria_nova': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_nova || ''}</TableCell>;
+                          case 'marca': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.marca || ''}</TableCell>;
+                          case 'sexo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.sexo || ''}</TableCell>;
+                          case 'peso_medio': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : ''}</TableCell>;
+                          case 'peso_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : ''}</TableCell>;
+                          case 'area_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_origem_nome || ''}</TableCell>;
+                          case 'area_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_destino_nome || ''}</TableCell>;
+                          case 'area': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{areaExibir || ''}</TableCell>;
+                          case 'fornecedor': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || ''}</TableCell>;
+                          case 'comprador': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>;
+                          case 'nota_fiscal': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>;
+                          case 'gta': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>;
+                          case 'causa_morte': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>;
+                          case 'transf_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>;
+                          case 'transf_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>;
+                          case 'valor_unitario': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : ''}</TableCell>;
+                          case 'valor_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : ''}</TableCell>;
+                          case 'observacoes': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || ''}</TableCell>;
+                          case 'responsavel': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>;
+                          default: return null;
+                        }
+                      })}
+                    </TableRow>
+                  );
+                })}
                 <TableRow className="bg-gray-100 font-bold">
-                  <TableCell colSpan={5} className="border border-black text-xs py-1">TOTAL</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">{formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))}</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">-</TableCell>
-                  <TableCell className="border border-black text-xs py-1 text-right">R$ {totalValor.toFixed(2)}</TableCell>
-                  <TableCell colSpan={2} className="border border-black text-xs py-1"></TableCell>
+                  <TableCell colSpan={colunasOrdenadas.length} className="border border-black text-xs py-1">
+                    TOTAL: {formatarNumero(dadosRelatorio.dados.reduce((s, m) => s + (m.quantidade_animais || 0), 0))} cab | Valor Total: R$ {totalValor.toFixed(2)}
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
