@@ -154,11 +154,32 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      return await base44.entities.MovimentacaoPecuaria.update(id, data);
+      // Buscar o registro para verificar se é mudança de categoria
+      const registro = movimentacoes.find(m => m.id === id);
+      
+      await base44.entities.MovimentacaoPecuaria.update(id, data);
+      
+      // Se tem vínculo de mudança de categoria, atualizar também o registro vinculado
+      if (registro?.vinculo_mudanca_categoria && data.quantidade_animais !== undefined) {
+        const registroVinculado = movimentacoes.find(
+          m => m.vinculo_mudanca_categoria === registro.vinculo_mudanca_categoria && m.id !== id
+        );
+        
+        if (registroVinculado) {
+          await base44.entities.MovimentacaoPecuaria.update(registroVinculado.id, {
+            quantidade_animais: data.quantidade_animais,
+            peso_medio: data.peso_medio,
+            peso_total: data.peso_total,
+          });
+        }
+        return { updatedCount: 2 };
+      }
+      
+      return { updatedCount: 1 };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-      toast.success('Movimentação atualizada');
+      toast.success(result?.updatedCount === 2 ? 'Mudança de categoria atualizada (saída + entrada)' : 'Movimentação atualizada');
       setShowEdit(false);
       setEditando(null);
     },
