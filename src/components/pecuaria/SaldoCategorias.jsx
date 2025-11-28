@@ -29,43 +29,6 @@ export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
     });
   };
 
-  const toggleSetor = () => {
-    setIsVisibleSetor(prev => {
-      const newValue = !prev;
-      localStorage.setItem('saldo_setor_visivel', JSON.stringify(newValue));
-      return newValue;
-    });
-  };
-
-  // Calcular saldo por setor
-  const calcularSaldosSetor = () => {
-    const saldos = {};
-
-    movimentacoes.forEach(mov => {
-      const setorId = mov.setor_id;
-      const setorNome = mov.setor_nome || 'Sem Setor';
-      
-      const chave = setorId || 'sem_setor';
-
-      if (!saldos[chave]) {
-        saldos[chave] = { setorId, setorNome, entradas: 0, saidas: 0, saldo: 0 };
-      }
-
-      const qtd = mov.quantidade_animais || 0;
-
-      if (mov.tipo === "Entrada") {
-        saldos[chave].entradas += qtd;
-        saldos[chave].saldo += qtd;
-      } else if (mov.tipo === "Saída") {
-        saldos[chave].saidas += qtd;
-        saldos[chave].saldo -= qtd;
-      }
-    });
-
-    return Object.values(saldos)
-      .sort((a, b) => a.setorNome.localeCompare(b.setorNome, 'pt-BR'));
-  };
-
   // Calcular saldo por categoria
   const calcularSaldos = () => {
     const saldos = {};
