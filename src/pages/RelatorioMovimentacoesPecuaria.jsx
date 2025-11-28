@@ -880,28 +880,7 @@ export default function RelatorioMovimentacoesPecuaria() {
             </div>
           </div>
 
-          {/* Subtotais por Setor */}
-          {saldosPorSetor.length > 1 && (
-            <div className="mb-4">
-              <div className="bg-indigo-100 border border-indigo-300 px-2 py-1 mb-1">
-                <h3 className="font-bold text-xs">SALDO POR SETOR/FAZENDA</h3>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {saldosPorSetor.map((item, idx) => (
-                  <div key={idx} className="border border-gray-300 p-2 rounded bg-white">
-                    <div className="font-bold text-xs text-indigo-800 truncate" title={item.setor}>{item.setor}</div>
-                    <div className="flex justify-between text-[10px] mt-1">
-                      <span className="text-green-700">+{formatarNumero(item.entradas)}</span>
-                      <span className="text-red-700">-{formatarNumero(item.saidas)}</span>
-                      <span className={`font-bold ${item.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                        = {formatarNumero(item.saldo)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           {/* Conteúdo do Relatório */}
           {dadosRelatorio.tipo === 'sintetico' && (
