@@ -198,23 +198,48 @@ export default function RelatorioMovimentacoesPecuaria() {
     return filtered;
   }, [movimentacoes, tipoSelecionado, categoriasSelecionadas, marcasSelecionadas, motivosSelecionados, dataInicio, dataFim, ordenacao]);
 
+  // Função para obter valor do campo de agrupamento
+  const getValorAgrupamento = (m, campo) => {
+    switch (campo) {
+      case 'categoria': return m.categoria_animal || 'Sem Categoria';
+      case 'marca': return m.marca || 'Sem Marca';
+      case 'motivo': return m.motivo || 'Sem Motivo';
+      case 'tipo': return m.tipo || 'Sem Tipo';
+      case 'area_origem': return m.area_origem_nome || 'Sem Origem';
+      case 'area_destino': return m.area_destino_nome || 'Sem Destino';
+      case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
+      case 'comprador': return m.destino_venda || 'Sem Comprador';
+      case 'sexo': return m.sexo || 'Sem Sexo';
+      case 'mes': 
+        if (!m.data_movimentacao) return 'Sem Data';
+        const d = new Date(m.data_movimentacao);
+        return format(d, 'MM/yyyy', { locale: ptBR });
+      default: return 'Sem classificação';
+    }
+  };
+
   // Dados para relatório
   const dadosRelatorio = useMemo(() => {
+    const agrupamentos = agrupamentosAtivos.length > 0 ? agrupamentosAtivos : ['categoria'];
+
     if (tipoRelatorio === 'sintetico') {
-      const campoAgrupamento = agrupamentosAtivos[0] || 'categoria';
       const grupos = {};
       
       movimentacoesFiltradas.forEach(m => {
-        let chave;
-        switch (campoAgrupamento) {
-          case 'categoria': chave = m.categoria_animal || 'Sem Categoria'; break;
-          case 'marca': chave = m.marca || 'Sem Marca'; break;
-          case 'motivo': chave = m.motivo || 'Sem Motivo'; break;
-          default: chave = 'Sem classificação';
-        }
+        // Gera chave composta para múltiplos agrupamentos
+        const partesChave = agrupamentos.map(ag => getValorAgrupamento(m, ag));
+        const chave = partesChave.join(' | ');
         
         if (!grupos[chave]) {
-          grupos[chave] = { agrupamento: chave, entradas: 0, saidas: 0, saldo: 0 };
+          grupos[chave] = { 
+            agrupamento: chave, 
+            partes: partesChave,
+            entradas: 0, 
+            saidas: 0, 
+            saldo: 0,
+            peso_total: 0,
+            valor_total: 0
+          };
         }
         
         const qtd = m.quantidade_animais || 0;
@@ -225,29 +250,29 @@ export default function RelatorioMovimentacoesPecuaria() {
           grupos[chave].saidas += qtd;
           grupos[chave].saldo -= qtd;
         }
+        grupos[chave].peso_total += m.peso_total || 0;
+        grupos[chave].valor_total += m.valor_total || 0;
       });
       
-      return { tipo: 'sintetico', dados: Object.values(grupos).sort((a, b) => a.agrupamento.localeCompare(b.agrupamento)) };
+      return { 
+        tipo: 'sintetico', 
+        dados: Object.values(grupos).sort((a, b) => a.agrupamento.localeCompare(b.agrupamento)),
+        agrupamentos
+      };
     } else {
-      // Analítico com agrupamento opcional
+      // Analítico com agrupamento opcional (múltiplos níveis)
       if (agrupamentosAtivos.length === 0) {
-        return { tipo: 'analitico', dados: { "Todas as Movimentações": movimentacoesFiltradas } };
+        return { tipo: 'analitico', dados: { "Todas as Movimentações": movimentacoesFiltradas }, agrupamentos: [] };
       }
 
       const grupos = {};
       movimentacoesFiltradas.forEach(m => {
-        let chave;
-        const campoAgrupamento = agrupamentosAtivos[0];
-        switch (campoAgrupamento) {
-          case "categoria": chave = m.categoria_animal || "Sem Categoria"; break;
-          case "marca": chave = m.marca || "Sem Marca"; break;
-          case "motivo": chave = m.motivo || "Sem Motivo"; break;
-          default: chave = "Sem classificação";
-        }
+        const partesChave = agrupamentos.map(ag => getValorAgrupamento(m, ag));
+        const chave = partesChave.join(' | ');
         if (!grupos[chave]) grupos[chave] = [];
         grupos[chave].push(m);
       });
-      return { tipo: 'analitico', dados: grupos };
+      return { tipo: 'analitico', dados: grupos, agrupamentos };
     }
   }, [tipoRelatorio, movimentacoesFiltradas, agrupamentosAtivos]);
 
