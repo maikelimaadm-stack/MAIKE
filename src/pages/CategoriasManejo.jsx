@@ -142,8 +142,8 @@ export default function CategoriasManejo() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.nome || !formData.sigla || !formData.categoria_oficial) {
-      toast.error('Preencha nome, sigla e categoria oficial!');
+    if (!formData.nome || !formData.sigla) {
+      toast.error('Preencha nome e sigla!');
       return;
     }
 
@@ -152,7 +152,10 @@ export default function CategoriasManejo() {
       nome: formData.nome.toUpperCase(),
       sigla: formData.sigla.toUpperCase(),
       especie: formData.especie,
-      categoria_oficial: formData.categoria_oficial,
+      sexo: formData.sexo || null,
+      idade_minima_meses: formData.idade_minima_meses ? parseInt(formData.idade_minima_meses) : null,
+      idade_maxima_meses: formData.idade_maxima_meses ? parseInt(formData.idade_maxima_meses) : null,
+      categoria_oficial: formData.categoria_oficial || null,
       ganho_peso_anual_kg: formData.ganho_peso_anual_kg ? parseFloat(formData.ganho_peso_anual_kg) : null,
       gmd_janeiro: formData.gmd_janeiro ? parseFloat(formData.gmd_janeiro) : null,
       gmd_fevereiro: formData.gmd_fevereiro ? parseFloat(formData.gmd_fevereiro) : null,
