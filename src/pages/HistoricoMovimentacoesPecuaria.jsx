@@ -34,6 +34,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import FormularioLancamentoManual from "@/components/pecuaria/FormularioLancamentoManual";
+import SaldoCategorias from "@/components/pecuaria/SaldoCategorias";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
