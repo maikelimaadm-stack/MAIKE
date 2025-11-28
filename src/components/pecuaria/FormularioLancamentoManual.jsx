@@ -406,20 +406,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-sm font-medium">Sexo</Label>
-              <Select value={formData.sexo} onValueChange={(v) => setFormData({ ...formData, sexo: v })}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Macho" className="text-sm">Macho</SelectItem>
-                  <SelectItem value="Fêmea" className="text-sm">Fêmea</SelectItem>
-                </SelectContent>
-              </Select>
-              {formData.categoria_animal && categoriasManejo.find(c => c.nome === formData.categoria_animal)?.sexo && (
-                <p className="text-[10px] text-slate-500">Auto-preenchido da categoria</p>
-              )}
-            </div>
+                <Label className="text-sm font-medium">Sexo</Label>
+                <Input
+                  value={formData.sexo || ""}
+                  readOnly
+                  disabled
+                  className="h-9 text-sm bg-slate-100 cursor-not-allowed"
+                  placeholder="Definido pela categoria"
+                />
+                <p className="text-[10px] text-slate-500">Preenchido automaticamente pela categoria</p>
+              </div>
 
             <div className="space-y-1">
               <Label className="text-sm font-medium">Área</Label>

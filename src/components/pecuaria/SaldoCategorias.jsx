@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TrendingUp, TrendingDown, Scale } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [] }) {
+  const [isVisible, setIsVisible] = useState(true);
   // Calcular saldo por categoria
   const calcularSaldos = () => {
     const saldos = {};
@@ -59,12 +61,23 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
   return (
     <Card className="shadow-sm border-slate-200 mb-4">
       <CardHeader className="bg-slate-50 border-b py-2 px-4">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Scale className="w-4 h-4" />
-          Saldo por Categoria
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Scale className="w-4 h-4" />
+            Saldo por Categoria
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsVisible(!isVisible)}
+            className="h-7 gap-1 text-xs"
+          >
+            {isVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {isVisible ? 'Ocultar' : 'Mostrar'}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="p-0">
+      {isVisible && <CardContent className="p-0">
         <div className="overflow-auto">
           <Table>
             <TableHeader>
@@ -114,8 +127,8 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
               </TableRow>
             </TableBody>
           </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+          </div>
+          </CardContent>}
+          </Card>
+          );
+          }
