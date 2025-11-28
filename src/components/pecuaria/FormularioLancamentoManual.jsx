@@ -20,6 +20,7 @@ const MOTIVOS_ENTRADA = [
   "Compra",
   "Nascimento", 
   "Transferência (Recebimento)",
+  "Saldo Inicial",
   "Inventário",
   "Ajuste Positivo",
   "Doação Recebida",
@@ -31,6 +32,7 @@ const MOTIVOS_SAIDA = [
   "Morte",
   "Abate",
   "Transferência (Envio)",
+  "Transferência entre Setores",
   "Mudança de Categoria",
   "Ajuste Negativo",
   "Doação",
@@ -54,6 +56,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     peso_total: item?.peso_total || "",
     valor_unitario: item?.valor_unitario || "",
     valor_total: item?.valor_total || "",
+    setor_id: item?.setor_id || "",
+    setor_origem_id: item?.setor_origem_id || "",
+    setor_destino_id: item?.setor_destino_id || "",
     area_origem_id: item?.area_origem_id || "",
     area_destino_id: item?.area_destino_id || "",
     fornecedor_origem: item?.fornecedor_origem || "",
@@ -81,6 +86,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     queryFn: async () => {
       const all = await base44.entities.CategoriaManejo.list();
       return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Carregar setores
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter(s => s.empresa_id === empresaSelecionadaId && s.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -130,12 +145,56 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       } else if (mov.tipo === "Saída") {
         saldos[categoria] -= qtd;
       }
+    });
+    
+    return saldos;
+  }, [movimentacoes]);
+
+  // Calcular saldo por setor
+  const saldoPorSetor = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoes.forEach(mov => {
+      const setorId = mov.setor_id;
+      if (!setorId) return;
       
-      // Mudança de categoria
-      if (mov.motivo === "Mudança de Categoria" && mov.categoria_nova && mov.tipo === "Entrada") {
-        saldos[categoria] -= qtd;
-        if (!saldos[mov.categoria_nova]) saldos[mov.categoria_nova] = 0;
-        saldos[mov.categoria_nova] += qtd;
+      if (!saldos[setorId]) {
+        saldos[setorId] = 0;
+      }
+      
+      const qtd = mov.quantidade_animais || 0;
+      
+      if (mov.tipo === "Entrada") {
+        saldos[setorId] += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[setorId] -= qtd;
+      }
+    });
+    
+    return saldos;
+  }, [movimentacoes]);
+
+  // Calcular saldo por setor + categoria + marca
+  const saldoPorSetorCategoriaMarca = useMemo(() => {
+    const saldos = {};
+    
+    movimentacoes.forEach(mov => {
+      const setorId = mov.setor_id;
+      const categoria = mov.categoria_animal;
+      const marca = mov.marca;
+      if (!setorId || !categoria || !marca) return;
+      
+      const chave = `${setorId}|||${categoria}|||${marca}`;
+      if (!saldos[chave]) {
+        saldos[chave] = { setorId, categoria, marca, saldo: 0 };
+      }
+      
+      const qtd = mov.quantidade_animais || 0;
+      
+      if (mov.tipo === "Entrada") {
+        saldos[chave].saldo += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[chave].saldo -= qtd;
       }
     });
     
@@ -203,8 +262,78 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
       const areaOrigem = areas.find(a => a.id === data.area_origem_id);
       const areaDestino = areas.find(a => a.id === data.area_destino_id);
+      const setor = setores.find(s => s.id === data.setor_id);
+      const setorOrigem = setores.find(s => s.id === data.setor_origem_id);
+      const setorDestino = setores.find(s => s.id === data.setor_destino_id);
 
       const results = [];
+
+      // Se é transferência entre setores, criar 2 registros interligados
+      if (data.motivo === "Transferência entre Setores" && data.setor_origem_id && data.setor_destino_id) {
+        const idVinculo = `TS-${Date.now()}`;
+        
+        // 1. Saída do setor de origem
+        const payloadSaida = {
+          empresa_id: empresaSelecionadaId,
+          numero_movimentacao: String(maxNum + 1),
+          tipo: "Saída",
+          data_movimentacao: new Date(data.data_movimentacao).toISOString(),
+          quantidade_animais: parseInt(data.quantidade_animais) || 1,
+          categoria_animal: data.categoria_animal || null,
+          marca: data.marca || null,
+          sexo: data.sexo || null,
+          peso_medio: parseFloat(data.peso_medio) || null,
+          peso_total: parseFloat(data.peso_total) || null,
+          setor_id: data.setor_origem_id,
+          setor_nome: setorOrigem?.nome || null,
+          setor_origem_id: data.setor_origem_id,
+          setor_origem_nome: setorOrigem?.nome || null,
+          setor_destino_id: data.setor_destino_id,
+          setor_destino_nome: setorDestino?.nome || null,
+          area_origem_id: data.area_origem_id || null,
+          area_origem_nome: areaOrigem?.nome || null,
+          nota_fiscal: data.nota_fiscal || null,
+          gta: data.gta || null,
+          motivo: "Transferência entre Setores",
+          transferencia_origem: setorOrigem?.nome || null,
+          transferencia_destino: setorDestino?.nome || null,
+          vinculo_transferencia_setor: idVinculo,
+          observacoes: data.observacoes || null,
+        };
+
+        // 2. Entrada no setor de destino
+        const payloadEntrada = {
+          empresa_id: empresaSelecionadaId,
+          numero_movimentacao: String(maxNum + 2),
+          tipo: "Entrada",
+          data_movimentacao: new Date(data.data_movimentacao).toISOString(),
+          quantidade_animais: parseInt(data.quantidade_animais) || 1,
+          categoria_animal: data.categoria_animal || null,
+          marca: data.marca || null,
+          sexo: data.sexo || null,
+          peso_medio: parseFloat(data.peso_medio) || null,
+          peso_total: parseFloat(data.peso_total) || null,
+          setor_id: data.setor_destino_id,
+          setor_nome: setorDestino?.nome || null,
+          setor_origem_id: data.setor_origem_id,
+          setor_origem_nome: setorOrigem?.nome || null,
+          setor_destino_id: data.setor_destino_id,
+          setor_destino_nome: setorDestino?.nome || null,
+          area_destino_id: data.area_destino_id || null,
+          area_destino_nome: areaDestino?.nome || null,
+          nota_fiscal: data.nota_fiscal || null,
+          gta: data.gta || null,
+          motivo: "Transferência entre Setores",
+          transferencia_origem: setorOrigem?.nome || null,
+          transferencia_destino: setorDestino?.nome || null,
+          vinculo_transferencia_setor: idVinculo,
+          observacoes: data.observacoes || null,
+        };
+
+        const resSaida = await base44.entities.MovimentacaoPecuaria.create(payloadSaida);
+        const resEntrada = await base44.entities.MovimentacaoPecuaria.create(payloadEntrada);
+        return { saida: resSaida, entrada: resEntrada };
+      }
 
       // Se é mudança de categoria, criar 2 registros interligados: saída + entrada
       if (data.motivo === "Mudança de Categoria" && data.categoria_nova) {
@@ -278,7 +407,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         return { saida: resSaida, entrada: resEntrada };
       }
 
-      // Lançamento normal (não é mudança de categoria)
+      // Lançamento normal (não é mudança de categoria nem transferência entre setores)
       const payload = {
         empresa_id: empresaSelecionadaId,
         numero_movimentacao: String(maxNum + 1),
@@ -293,6 +422,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
         peso_total: parseFloat(data.peso_total) || null,
         valor_unitario: parseFloat(data.valor_unitario) || null,
         valor_total: parseFloat(data.valor_total) || null,
+        setor_id: data.setor_id || null,
+        setor_nome: setor?.nome || null,
         area_origem_id: data.area_origem_id || null,
         area_origem_nome: areaOrigem?.nome || null,
         area_destino_id: data.area_destino_id || null,
@@ -380,6 +511,46 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Linha 0: Setor */}
+          {setores.length > 0 && formData.motivo !== "Transferência entre Setores" && (
+            <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-sm font-medium">Setor / Fazenda *</Label>
+                  <Select value={formData.setor_id} onValueChange={(v) => setFormData({ ...formData, setor_id: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione o setor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {setores.map(setor => {
+                        const saldo = saldoPorSetor[setor.id] || 0;
+                        return (
+                          <SelectItem key={setor.id} value={setor.id} className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
+                              <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
+                                {setor.tipo}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px]">
+                                {saldo} cab
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.setor_id && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-500">Saldo no setor:</span>
+                    <span className="font-bold text-indigo-700">{saldoPorSetor[formData.setor_id] || 0} cab</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Linha 1: Tipo, Motivo, Data, Quantidade */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <div className="space-y-1">
@@ -750,7 +921,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
           )}
 
-          {/* Campos para Transferência */}
+          {/* Campos para Transferência Externa */}
           {(formData.motivo === "Transferência (Envio)" || formData.motivo === "Transferência (Recebimento)") && (
             <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -771,6 +942,69 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                     options={destinosTransfExistentes}
                     placeholder="Para onde foi/veio"
                   />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Campos para Transferência entre Setores */}
+          {formData.motivo === "Transferência entre Setores" && (
+            <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <p className="text-xs text-indigo-700 font-semibold mb-2">Transferência entre Setores/Fazendas (cria saída + entrada automaticamente)</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Setor de Origem *</Label>
+                  <Select value={formData.setor_origem_id} onValueChange={(v) => setFormData({ ...formData, setor_origem_id: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="De onde sai" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {setores.map(setor => {
+                        const saldo = saldoPorSetor[setor.id] || 0;
+                        return (
+                          <SelectItem key={setor.id} value={setor.id} className="text-sm" disabled={saldo <= 0}>
+                            <div className="flex items-center gap-2">
+                              <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
+                              <Badge variant={saldo > 0 ? 'default' : 'destructive'} className="text-[10px]">
+                                {saldo} cab
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {formData.setor_origem_id && (
+                    <p className="text-xs text-slate-500">Saldo: <span className="font-semibold">{saldoPorSetor[formData.setor_origem_id] || 0} cab</span></p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Setor de Destino *</Label>
+                  <Select value={formData.setor_destino_id} onValueChange={(v) => setFormData({ ...formData, setor_destino_id: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Para onde vai" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {setores.filter(s => s.id !== formData.setor_origem_id).map(setor => (
+                        <SelectItem key={setor.id} value={setor.id} className="text-sm">
+                          <div className="flex items-center gap-2">
+                            <span>{setor.sigla ? `${setor.sigla} - ` : ''}{setor.nome}</span>
+                            <Badge variant={setor.tipo === 'Próprio' ? 'default' : 'secondary'} className="text-[10px]">
+                              {setor.tipo}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Nota Fiscal</Label>
