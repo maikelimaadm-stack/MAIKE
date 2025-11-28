@@ -250,14 +250,27 @@ export default function CadastroSetores() {
           </h1>
           <p className="text-xs text-slate-600">Gerencie setores, fazendas próprias, arrendadas e parceiras</p>
         </div>
-        <Button 
-          onClick={() => { resetForm(); setShowForm(true); }} 
-          size="sm" 
-          className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Novo Setor
-        </Button>
+        <div className="flex gap-2">
+                    {movimentacoesSemSetor.length > 0 && (
+                      <Button 
+                        onClick={() => setShowAtribuirSetor(true)} 
+                        size="sm" 
+                        variant="outline"
+                        className="h-8 gap-1 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Atribuir Setor ({movimentacoesSemSetor.length})
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => { resetForm(); setShowForm(true); }} 
+                      size="sm" 
+                      className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Novo Setor
+                    </Button>
+                  </div>
       </div>
 
       {/* Formulário */}
