@@ -481,15 +481,18 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Nova Categoria (Para)</Label>
-                  <ComboboxComNovo
-                    value={formData.categoria_nova}
-                    onChange={(v) => setFormData({ ...formData, categoria_nova: v })}
-                    options={[
-                      ...categoriasLancadas,
-                      ...(categoriasManejo.map(c => c.nome).filter(n => !categoriasLancadas.includes(n)))
-                    ].sort()}
-                    placeholder="Para qual categoria?"
-                  />
+                  <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Para qual categoria?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasManejo.map(cat => (
+                        <SelectItem key={cat.id} value={cat.nome} className="text-sm">
+                          {cat.nome} {cat.sexo ? `(${cat.sexo})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
