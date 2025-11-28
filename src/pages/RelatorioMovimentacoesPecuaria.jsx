@@ -64,6 +64,8 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'valor_unitario', label: 'Vlr. Unit.', default: false },
   { id: 'valor_total', label: 'Vlr. Total', default: false },
   { id: 'fornecedor', label: 'Fornec./Comprador', default: false },
+  { id: 'nf', label: 'Nota Fiscal', default: false },
+  { id: 'gta', label: 'GTA', default: false },
   { id: 'causa_morte', label: 'Causa Morte', default: false },
   { id: 'transferencia', label: 'Origem/Destino Transf.', default: false },
   { id: 'observacoes', label: 'Observações', default: false },
@@ -604,6 +606,8 @@ export default function RelatorioMovimentacoesPecuaria() {
                 {colunasVisiveis.includes('valor_unitario') && <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Unit.</TableHead>}
                 {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold py-1 text-right">Vlr Total</TableHead>}
                 {colunasVisiveis.includes('fornecedor') && <TableHead className="border border-black text-xs font-bold py-1">Fornec./Comprador</TableHead>}
+                {colunasVisiveis.includes('nf') && <TableHead className="border border-black text-xs font-bold py-1">NF</TableHead>}
+                {colunasVisiveis.includes('gta') && <TableHead className="border border-black text-xs font-bold py-1">GTA</TableHead>}
                 {colunasVisiveis.includes('causa_morte') && <TableHead className="border border-black text-xs font-bold py-1">Causa Morte</TableHead>}
                 {colunasVisiveis.includes('transferencia') && <TableHead className="border border-black text-xs font-bold py-1">Origem/Destino</TableHead>}
                 {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>}
@@ -633,6 +637,8 @@ export default function RelatorioMovimentacoesPecuaria() {
                     {colunasVisiveis.includes('valor_unitario') && <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : '-'}</TableCell>}
                     {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs py-1 text-right">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : '-'}</TableCell>}
                     {colunasVisiveis.includes('fornecedor') && <TableCell className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || m.destino_venda || '-'}</TableCell>}
+                    {colunasVisiveis.includes('nf') && <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || '-'}</TableCell>}
+                    {colunasVisiveis.includes('gta') && <TableCell className="border border-gray-300 text-xs py-1">{m.gta || '-'}</TableCell>}
                     {colunasVisiveis.includes('causa_morte') && <TableCell className="border border-gray-300 text-xs py-1">{m.causa_morte || '-'}</TableCell>}
                     {colunasVisiveis.includes('transferencia') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_origem || m.transferencia_destino ? `${m.transferencia_origem || ''} → ${m.transferencia_destino || ''}` : '-'}</TableCell>}
                     {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[150px] truncate">{m.observacoes || '-'}</TableCell>}
