@@ -327,7 +327,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!formData.tipo) {
       toast.error('Selecione o tipo de movimentação');
       return;
@@ -343,6 +343,28 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     if (!formData.marca) {
       toast.error('Selecione a marca');
       return;
+    }
+
+    // Validar saldo para saídas e mudanças de categoria
+    if (formData.tipo === "Saída" || formData.motivo === "Mudança de Categoria") {
+      const saldoCategoria = saldoPorCategoria[formData.categoria_animal] || 0;
+      const qtdSolicitada = parseInt(formData.quantidade_animais) || 0;
+
+      if (qtdSolicitada > saldoCategoria) {
+        toast.error(`Saldo insuficiente! Categoria "${formData.categoria_animal}" possui apenas ${saldoCategoria} cabeça(s) disponível(is).`);
+        return;
+      }
+
+      // Validar também por marca (se aplicável)
+      if (formData.marca && formData.tipo === "Saída") {
+        const chave = `${formData.categoria_animal}|||${formData.marca}`;
+        const saldoMarca = saldoPorCategoriaMarca[chave]?.saldo || 0;
+
+        if (qtdSolicitada > saldoMarca) {
+          toast.error(`Saldo insuficiente! Marca "${formData.marca}" na categoria "${formData.categoria_animal}" possui apenas ${saldoMarca} cabeça(s) disponível(is).`);
+          return;
+        }
+      }
     }
 
     createMutation.mutate(formData);
