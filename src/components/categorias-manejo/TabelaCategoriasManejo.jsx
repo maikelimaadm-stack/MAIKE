@@ -15,7 +15,9 @@ import { toast } from "sonner";
 const COLUNAS_DISPONIVEIS = [
   { id: 'nome', label: 'Nome', default: true },
   { id: 'sigla', label: 'Sigla', default: true },
-  { id: 'especie', label: 'Espécie', default: true },
+  { id: 'sexo', label: 'Sexo', default: true },
+  { id: 'idade', label: 'Faixa Idade', default: true },
+  { id: 'especie', label: 'Espécie', default: false },
   { id: 'categoria_oficial', label: 'Categoria Oficial', default: true },
   { id: 'ganho_anual', label: 'Ganho Anual (kg)', default: false },
   { id: 'gmd_jan', label: 'GMD Jan', default: false },
