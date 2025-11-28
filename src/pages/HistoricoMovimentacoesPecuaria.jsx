@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
   TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload, FileSpreadsheet, AlertTriangle
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload, FileSpreadsheet, AlertTriangle, Copy
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -837,6 +837,19 @@ export default function HistoricoMovimentacoesPecuaria() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEdit(mov)} className="text-xs">
                                 Editar Rápido
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => { 
+                                  // Duplicar: copia os dados sem o id para abrir no formulário como novo
+                                  const { id, numero_movimentacao, created_date, updated_date, created_by, ...dadosDuplicados } = mov;
+                                  setItemEditandoManual({ ...dadosDuplicados, data_movimentacao: new Date().toISOString() }); 
+                                  setShowNovoLancamento(true); 
+                                }} 
+                                className="text-xs"
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                Duplicar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDelete(mov.id)} className="text-xs text-red-600">
