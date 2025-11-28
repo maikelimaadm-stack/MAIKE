@@ -20,7 +20,6 @@ const MOTIVOS_ENTRADA = [
   "Compra",
   "Nascimento", 
   "Transferência (Recebimento)",
-  "Mudança de Categoria",
   "Inventário",
   "Ajuste Positivo",
   "Doação Recebida",
