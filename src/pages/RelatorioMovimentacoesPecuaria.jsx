@@ -34,7 +34,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 
 const formatarNumero = (numero) => {
-  if (!numero && numero !== 0) return "0";
+  if (!numero && numero !== 0) return "";
+  if (numero === 0) return "";
   return numero.toLocaleString('pt-BR');
 };
 
