@@ -934,36 +934,36 @@ export default function RelatorioMovimentacoesPecuaria() {
               )}
 
               {/* Quadros lado a lado: Categoria e Marca */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Quadro por Categoria */}
                 {opcoesRelatorio.mostrar_categorias && (
                   <div>
-                    <div className="bg-black text-white px-3 py-2">
-                      <h3 className="font-bold text-sm">POR CATEGORIA</h3>
+                    <div className="bg-gray-200 border border-gray-400 px-2 py-1">
+                      <h3 className="font-bold text-xs">POR CATEGORIA</h3>
                     </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="border border-black text-sm font-bold py-2 bg-gray-100">Categoria</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Ent.</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Saí.</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Saldo</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 bg-gray-100">Categoria</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Ent.</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Saí.</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Saldo</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {dadosRelatorio.dados.porCategoriaGeral?.map((item, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="border border-gray-400 text-sm py-2 font-medium">{item.categoria}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{item.entradas ? `+${formatarNumero(item.entradas)}` : ''}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{item.saidas ? `-${formatarNumero(item.saidas)}` : ''}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-bold">{formatarNumero(item.saldo)}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1">{item.categoria}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right">{item.entradas ? `+${formatarNumero(item.entradas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right">{item.saidas ? `-${formatarNumero(item.saidas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{formatarNumero(item.saldo)}</TableCell>
                           </TableRow>
                         ))}
-                        <TableRow className="bg-gray-200">
-                          <TableCell className="border border-black text-sm py-2 font-bold">TOTAL</TableCell>
-                          <TableCell className="border border-black text-sm py-2 text-right font-bold">+{formatarNumero(totalEntradas)}</TableCell>
-                          <TableCell className="border border-black text-sm py-2 text-right font-bold">-{formatarNumero(totalSaidas)}</TableCell>
-                          <TableCell className="border border-black text-sm py-2 text-right font-bold">{formatarNumero(saldoPeriodo)}</TableCell>
+                        <TableRow className="bg-gray-100">
+                          <TableCell className="border border-gray-400 text-xs py-1 font-bold">TOTAL</TableCell>
+                          <TableCell className="border border-gray-400 text-xs py-1 text-right font-bold">+{formatarNumero(totalEntradas)}</TableCell>
+                          <TableCell className="border border-gray-400 text-xs py-1 text-right font-bold">-{formatarNumero(totalSaidas)}</TableCell>
+                          <TableCell className="border border-gray-400 text-xs py-1 text-right font-bold">{formatarNumero(saldoPeriodo)}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -973,25 +973,25 @@ export default function RelatorioMovimentacoesPecuaria() {
                 {/* Quadro por Marca */}
                 {opcoesRelatorio.mostrar_marcas && (
                   <div>
-                    <div className="bg-black text-white px-3 py-2">
-                      <h3 className="font-bold text-sm">POR MARCA</h3>
+                    <div className="bg-gray-200 border border-gray-400 px-2 py-1">
+                      <h3 className="font-bold text-xs">POR MARCA</h3>
                     </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="border border-black text-sm font-bold py-2 bg-gray-100">Marca</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Ent.</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Saí.</TableHead>
-                          <TableHead className="border border-black text-sm font-bold py-2 text-right bg-gray-100">Saldo</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 bg-gray-100">Marca</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Ent.</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Saí.</TableHead>
+                          <TableHead className="border border-gray-400 text-xs font-bold py-1 text-right bg-gray-100">Saldo</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {dadosRelatorio.dados.porMarca?.map((item, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="border border-gray-400 text-sm py-2 font-medium">{item.marca}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{item.entradas ? `+${formatarNumero(item.entradas)}` : ''}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-semibold">{item.saidas ? `-${formatarNumero(item.saidas)}` : ''}</TableCell>
-                            <TableCell className="border border-gray-400 text-sm py-2 text-right font-bold">{formatarNumero(item.saldo)}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1">{item.marca}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right">{item.entradas ? `+${formatarNumero(item.entradas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right">{item.saidas ? `-${formatarNumero(item.saidas)}` : ''}</TableCell>
+                            <TableCell className="border border-gray-300 text-xs py-1 text-right font-semibold">{formatarNumero(item.saldo)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
