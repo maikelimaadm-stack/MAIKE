@@ -12,26 +12,32 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const TIPOS_MOVIMENTACAO = [
-  { value: "Entrada", label: "Entrada (Compra)", cor: "bg-green-100 text-green-800" },
-  { value: "Saída", label: "Saída (Venda)", cor: "bg-red-100 text-red-800" },
-  { value: "Transferência de Área", label: "Transferência entre Áreas", cor: "bg-blue-100 text-blue-800" },
-  { value: "Nascimento", label: "Nascimento", cor: "bg-emerald-100 text-emerald-800" },
-  { value: "Morte", label: "Morte", cor: "bg-gray-100 text-gray-800" },
-  { value: "Abate", label: "Abate", cor: "bg-orange-100 text-orange-800" },
-  { value: "Mudança de Categoria", label: "Mudança de Categoria", cor: "bg-purple-100 text-purple-800" },
-  { value: "Pesagem", label: "Pesagem", cor: "bg-cyan-100 text-cyan-800" },
+  { value: "Entrada", label: "Entrada", cor: "bg-green-100 text-green-800" },
+  { value: "Saída", label: "Saída", cor: "bg-red-100 text-red-800" },
+];
+
+const MOTIVOS_ENTRADA = [
+  "Compra",
+  "Nascimento", 
+  "Transferência (Recebimento)",
+  "Inventário",
+  "Ajuste Positivo",
+  "Doação Recebida",
+  "Outros"
+];
+
+const MOTIVOS_SAIDA = [
+  "Venda",
+  "Morte",
+  "Abate",
+  "Transferência (Envio)",
+  "Ajuste Negativo",
+  "Doação",
+  "Perda/Roubo",
+  "Outros"
 ];
 
 // Categorias serão carregadas das Categorias de Manejo cadastradas
-
-const CAUSAS_MORTE = [
-  "Doença",
-  "Acidente",
-  "Ataque de predador",
-  "Parto complicado",
-  "Desconhecida",
-  "Outro"
-];
 
 export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -232,15 +238,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     }));
   };
 
-  // Campos específicos por tipo
-  const mostrarCamposEntrada = formData.tipo === "Entrada";
-  const mostrarCamposSaida = formData.tipo === "Saída";
-  const mostrarCamposTransferencia = formData.tipo === "Transferência de Área";
-  const mostrarCamposMorte = formData.tipo === "Morte";
-  const mostrarCamposAbate = formData.tipo === "Abate";
-  const mostrarCamposNascimento = formData.tipo === "Nascimento";
-  const mostrarCamposPesagem = formData.tipo === "Pesagem";
-  const mostrarCamposMudancaCategoria = formData.tipo === "Mudança de Categoria";
+  // Validação simplificada
+  const precisaMotivo = formData.tipo === "Entrada" || formData.tipo === "Saída";
 
   return (
     <Card className="shadow-lg border-slate-200">
@@ -252,18 +251,18 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       </CardHeader>
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Linha 1: Tipo, Data, Quantidade, Sexo */}
+          {/* Linha 1: Tipo, Motivo, Data, Quantidade */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="space-y-1 col-span-2">
-              <Label className="text-xs">Tipo *</Label>
-              <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v })}>
-                <SelectTrigger className="h-8 text-xs">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Tipo *</Label>
+              <Select value={formData.tipo} onValueChange={(v) => setFormData({ ...formData, tipo: v, motivo: "" })}>
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS_MOVIMENTACAO.map(tipo => (
-                    <SelectItem key={tipo.value} value={tipo.value} className="text-xs">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] ${tipo.cor}`}>{tipo.label}</span>
+                    <SelectItem key={tipo.value} value={tipo.value} className="text-sm">
+                      <span className={`px-2 py-0.5 rounded ${tipo.cor}`}>{tipo.label}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -271,47 +270,65 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Data *</Label>
+              <Label className="text-sm font-medium">Motivo *</Label>
+              <Select value={formData.motivo} onValueChange={(v) => setFormData({ ...formData, motivo: v })}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {formData.tipo === "Entrada" ? (
+                    MOTIVOS_ENTRADA.map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                  ) : formData.tipo === "Saída" ? (
+                    MOTIVOS_SAIDA.map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                  ) : (
+                    <SelectItem value={null} disabled className="text-sm">Selecione o tipo primeiro</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Data *</Label>
               <Input
                 type="date"
                 value={formData.data_movimentacao}
                 onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })}
-                className="h-8 text-xs"
+                className="h-9 text-sm"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Qtd Animais *</Label>
+              <Label className="text-sm font-medium">Qtd Animais *</Label>
               <Input
                 type="number"
                 min="1"
                 value={formData.quantidade_animais}
                 onChange={(e) => setFormData({ ...formData, quantidade_animais: e.target.value })}
-                className="h-8 text-xs"
+                className="h-9 text-sm"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Peso Médio</Label>
+              <Label className="text-sm font-medium">Peso Médio (kg)</Label>
               <Input
                 type="number"
                 step="0.1"
                 value={formData.peso_medio}
                 onChange={(e) => setFormData({ ...formData, peso_medio: e.target.value })}
-                className="h-8 text-xs"
-                placeholder="kg"
+                className="h-9 text-sm"
+                placeholder="0"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Peso Total</Label>
+              <Label className="text-sm font-medium">Peso Total</Label>
               <Input
                 type="number"
                 step="0.1"
                 value={formData.peso_total}
-                className="h-8 text-xs bg-slate-50"
+                className="h-9 text-sm bg-slate-50"
                 readOnly
               />
             </div>
@@ -319,16 +336,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Linha 2: Lote, Categoria, Marca, Sexo */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            <div className="space-y-1 col-span-2 md:col-span-1">
-              <Label className="text-xs">Lote</Label>
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Lote</Label>
               <Select value={formData.lote_id} onValueChange={handleLoteChange}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sem_lote" className="text-xs">Sem lote</SelectItem>
+                  <SelectItem value="sem_lote" className="text-sm">Sem lote</SelectItem>
                   {lotes.map(lote => (
-                    <SelectItem key={lote.id} value={lote.id} className="text-xs">
+                    <SelectItem key={lote.id} value={lote.id} className="text-sm">
                       {lote.nome} ({lote.quantidade_cabecas || 0})
                     </SelectItem>
                   ))}
@@ -337,27 +354,27 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Categoria</Label>
+              <Label className="text-sm font-medium">Categoria</Label>
               <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   {categoriasManejo.length > 0 ? (
                     categoriasManejo.map(cat => (
-                      <SelectItem key={cat.id} value={cat.nome} className="text-xs">
+                      <SelectItem key={cat.id} value={cat.nome} className="text-sm">
                         {cat.sigla} - {cat.nome}
                       </SelectItem>
                     ))
                   ) : (
                     <>
-                      <SelectItem value="Bezerro(a)" className="text-xs">Bezerro(a)</SelectItem>
-                      <SelectItem value="Novilho(a)" className="text-xs">Novilho(a)</SelectItem>
-                      <SelectItem value="Garrote" className="text-xs">Garrote</SelectItem>
-                      <SelectItem value="Boi" className="text-xs">Boi</SelectItem>
-                      <SelectItem value="Vaca" className="text-xs">Vaca</SelectItem>
-                      <SelectItem value="Touro" className="text-xs">Touro</SelectItem>
-                      <SelectItem value="Matriz" className="text-xs">Matriz</SelectItem>
+                      <SelectItem value="Bezerro(a)" className="text-sm">Bezerro(a)</SelectItem>
+                      <SelectItem value="Novilho(a)" className="text-sm">Novilho(a)</SelectItem>
+                      <SelectItem value="Garrote" className="text-sm">Garrote</SelectItem>
+                      <SelectItem value="Boi" className="text-sm">Boi</SelectItem>
+                      <SelectItem value="Vaca" className="text-sm">Vaca</SelectItem>
+                      <SelectItem value="Touro" className="text-sm">Touro</SelectItem>
+                      <SelectItem value="Matriz" className="text-sm">Matriz</SelectItem>
                     </>
                   )}
                 </SelectContent>
@@ -365,275 +382,129 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Marca</Label>
+              <Label className="text-sm font-medium">Marca</Label>
               <div className="flex gap-1">
                 <Select value={formData.marca} onValueChange={(v) => setFormData({ ...formData, marca: v })}>
-                  <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectTrigger className="h-9 text-sm flex-1">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sem_marca" className="text-xs">Sem marca</SelectItem>
+                    <SelectItem value="sem_marca" className="text-sm">Sem marca</SelectItem>
                     {marcasDisponiveis.map(marca => (
-                      <SelectItem key={marca} value={marca} className="text-xs">{marca}</SelectItem>
+                      <SelectItem key={marca} value={marca} className="text-sm">{marca}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setShowAddMarca(true)}>
-                  <Plus className="w-3.5 h-3.5" />
+                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowAddMarca(true)}>
+                  <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Sexo</Label>
+              <Label className="text-sm font-medium">Sexo</Label>
               <Select value={formData.sexo} onValueChange={(v) => setFormData({ ...formData, sexo: v })}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Sel." />
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                  <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
+                  <SelectItem value="Macho" className="text-sm">Macho</SelectItem>
+                  <SelectItem value="Fêmea" className="text-sm">Fêmea</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Área</Label>
+              <Select 
+                value={formData.tipo === "Entrada" ? formData.area_destino_id : formData.area_origem_id} 
+                onValueChange={(v) => {
+                  if (formData.tipo === "Entrada") {
+                    setFormData({ ...formData, area_destino_id: v });
+                  } else {
+                    setFormData({ ...formData, area_origem_id: v });
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map(area => (
+                    <SelectItem key={area.id} value={area.id} className="text-sm">
+                      {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Campos para Entrada/Compra */}
-          {mostrarCamposEntrada && (
-            <div className="p-2 bg-green-50 border border-green-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-green-800">Dados da Entrada/Compra</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {/* Campos adicionais para Compra/Venda */}
+          {(formData.motivo === "Compra" || formData.motivo === "Venda") && (
+            <div className={`p-2 ${formData.tipo === "Entrada" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"} border rounded-lg`}>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Fornecedor</Label>
-                  <Select value={formData.fornecedor_origem} onValueChange={(v) => setFormData({ ...formData, fornecedor_origem: v })}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fornecedores.map(f => (
-                        <SelectItem key={f.id} value={f.nome} className="text-xs">{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">{formData.tipo === "Entrada" ? "Fornecedor" : "Comprador"}</Label>
+                  {formData.tipo === "Entrada" ? (
+                    <Select value={formData.fornecedor_origem} onValueChange={(v) => setFormData({ ...formData, fornecedor_origem: v })}>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {fornecedores.map(f => (<SelectItem key={f.id} value={f.nome} className="text-sm">{f.nome}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={formData.destino_venda} onChange={(e) => setFormData({ ...formData, destino_venda: e.target.value })} className="h-9 text-sm" placeholder="Nome" />
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Área Destino</Label>
-                  <Select value={formData.area_destino_id} onValueChange={(v) => setFormData({ ...formData, area_destino_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Área" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (
-                        <SelectItem key={area.id} value={area.id} className="text-xs">
-                          {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">Vlr Unit. (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" placeholder="0,00" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Vlr Unit. (R$)</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-8 text-xs" placeholder="0,00" />
+                  <Label className="text-sm font-medium">Vlr Total</Label>
+                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Vlr Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-8 text-xs bg-slate-50" readOnly />
+                  <Label className="text-sm font-medium">Nota Fiscal</Label>
+                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">NF</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-8 text-xs" placeholder="Nº" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Saída/Venda */}
-          {mostrarCamposSaida && (
-            <div className="p-2 bg-red-50 border border-red-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-red-800">Dados da Saída/Venda</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Área Origem</Label>
-                  <Select value={formData.area_origem_id} onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Área" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (
-                        <SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Comprador</Label>
-                  <Input value={formData.destino_venda} onChange={(e) => setFormData({ ...formData, destino_venda: e.target.value })} className="h-8 text-xs" placeholder="Nome" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Vlr Unit.</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-8 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Vlr Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-8 text-xs bg-slate-50" readOnly />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">NF</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-8 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-8 text-xs" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Transferência */}
-          {mostrarCamposTransferencia && (
-            <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-blue-800">Transferência entre Áreas</h4>
-              <div className="grid grid-cols-3 gap-2 items-end">
-                <div className="space-y-1">
-                  <Label className="text-xs">Origem</Label>
-                  <Select value={formData.area_origem_id} onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="De onde?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (
-                        <SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-center">
-                  <ArrowRight className="w-5 h-5 text-blue-500" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Destino</Label>
-                  <Select value={formData.area_destino_id} onValueChange={(v) => setFormData({ ...formData, area_destino_id: v })}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Para onde?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (
-                        <SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Morte */}
-          {mostrarCamposMorte && (
-            <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-gray-800">Dados da Morte</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Área</Label>
-                  <Select value={formData.area_origem_id} onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Onde?" /></SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (<SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Causa</Label>
-                  <Select value={formData.causa_morte} onValueChange={(v) => setFormData({ ...formData, causa_morte: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Causa" /></SelectTrigger>
-                    <SelectContent>
-                      {CAUSAS_MORTE.map(causa => (<SelectItem key={causa} value={causa} className="text-xs">{causa}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
                 </div>
               </div>
             </div>
           )}
 
           {/* Campos para Abate */}
-          {mostrarCamposAbate && (
-            <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-orange-800">Dados do Abate</h4>
+          {formData.motivo === "Abate" && (
+            <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Área</Label>
-                  <Select value={formData.area_origem_id} onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Área" /></SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (<SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">Frigorífico</Label>
+                  <Input value={formData.destino_abate} onChange={(e) => setFormData({ ...formData, destino_abate: e.target.value })} className="h-9 text-sm" placeholder="Nome" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Frigorífico</Label>
-                  <Input value={formData.destino_abate} onChange={(e) => setFormData({ ...formData, destino_abate: e.target.value })} className="h-8 text-xs" placeholder="Nome" />
+                  <Label className="text-sm font-medium">Vlr/@ (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Vlr/@</Label>
-                  <Input type="number" step="0.01" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} className="h-8 text-xs" />
+                  <Label className="text-sm font-medium">Vlr Total</Label>
+                  <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Total</Label>
-                  <Input type="number" value={formData.valor_total} className="h-8 text-xs bg-slate-50" readOnly />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Nascimento */}
-          {mostrarCamposNascimento && (
-            <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-emerald-800">Nascimento</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Área</Label>
-                  <Select value={formData.area_destino_id} onValueChange={(v) => setFormData({ ...formData, area_destino_id: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Onde?" /></SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (<SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Pesagem */}
-          {mostrarCamposPesagem && (
-            <div className="p-2 bg-cyan-50 border border-cyan-200 rounded-lg space-y-2">
-              <h4 className="text-xs font-semibold text-cyan-800">Pesagem</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Área</Label>
-                  <Select value={formData.area_origem_id} onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Onde?" /></SelectTrigger>
-                    <SelectContent>
-                      {areas.map(area => (<SelectItem key={area.id} value={area.id} className="text-xs">{area.sigla ? `${area.sigla} - ` : ''}{area.nome}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">GTA</Label>
+                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
                 </div>
               </div>
             </div>
           )}
 
           {/* Observações */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Motivo</Label>
-              <Input value={formData.motivo} onChange={(e) => setFormData({ ...formData, motivo: e.target.value })} className="h-8 text-xs" placeholder="Motivo/Justificativa" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Observações</Label>
-              <Input value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="h-8 text-xs" placeholder="Obs..." />
-            </div>
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Observações</Label>
+            <Input value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="h-9 text-sm" placeholder="Observações adicionais..." />
           </div>
 
           {/* Botões */}

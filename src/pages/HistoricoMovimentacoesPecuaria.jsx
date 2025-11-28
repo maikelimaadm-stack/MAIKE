@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowRightLeft, X, Edit2, Trash2, Search, Calendar,
   TrendingUp, FileText, Filter, Settings, MoreVertical, GripVertical,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Plus, Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -66,23 +66,14 @@ const formatarDataSimples = (dataString) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
-  { id: 'empresa', label: 'Fazenda', default: false, sortable: false },
+  { id: 'motivo', label: 'Motivo', default: true, sortable: true },
   { id: 'lote', label: 'Lote', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
   { id: 'categoria', label: 'Categoria', default: true, sortable: false },
   { id: 'marca', label: 'Marca', default: true, sortable: false },
-  { id: 'peso_medio', label: 'Peso Médio (kg)', default: false, sortable: false },
-  { id: 'area_origem', label: 'Área Origem', default: true, sortable: false },
-  { id: 'codigo_area_origem', label: 'Código Área Origem', default: false, sortable: false },
-  { id: 'area_destino', label: 'Área Destino', default: true, sortable: false },
-  { id: 'codigo_area_destino', label: 'Código Área Destino', default: false, sortable: false },
-  { id: 'categoria_origem', label: 'Categoria Origem', default: false, sortable: false },
-  { id: 'categoria_destino', label: 'Categoria Destino', default: false, sortable: false },
   { id: 'sexo', label: 'Sexo', default: false, sortable: false },
-  { id: 'causa_morte', label: 'Causa Morte', default: false, sortable: false },
-  { id: 'destino_abate', label: 'Destino Abate', default: false, sortable: false },
-  { id: 'peso_vivo', label: 'Peso Vivo (kg)', default: false, sortable: false },
-  { id: 'peso_carcaca', label: 'Peso Carcaça (kg)', default: false, sortable: false },
+  { id: 'peso_medio', label: 'Peso Médio', default: false, sortable: false },
+  { id: 'area', label: 'Área', default: true, sortable: false },
   { id: 'observacoes', label: 'Observações', default: false, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
 ];
@@ -92,14 +83,6 @@ const ITEMS_PER_PAGE = 50;
 const tipoColors = {
   'Entrada': 'bg-green-100 text-green-800 border-green-300',
   'Saída': 'bg-red-100 text-red-800 border-red-300',
-  'Transferência de Área': 'bg-blue-100 text-blue-800 border-blue-300',
-  'Venda': 'bg-red-100 text-red-800 border-red-300',
-  'Compra': 'bg-green-100 text-green-800 border-green-300',
-  'Morte': 'bg-gray-100 text-gray-800 border-gray-300',
-  'Nascimento': 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  'Abate': 'bg-orange-100 text-orange-800 border-orange-300',
-  'Mudança de Categoria': 'bg-purple-100 text-purple-800 border-purple-300',
-  'Pesagem': 'bg-cyan-100 text-cyan-800 border-cyan-300',
 };
 
 export default function HistoricoMovimentacoesPecuaria() {
@@ -444,9 +427,8 @@ export default function HistoricoMovimentacoesPecuaria() {
             </Badge>
           </TableCell>
         );
-      case 'empresa':
-        const empresa = empresas.find(e => e.id === mov.empresa_id);
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{empresa?.apelido || empresa?.nome || '-'}</TableCell>;
+      case 'motivo':
+        return <TableCell className="text-xs font-medium border-r border-slate-200">{mov.motivo || '-'}</TableCell>;
       case 'lote':
         return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote || '-'}</TableCell>;
       case 'quantidade':
@@ -455,85 +437,15 @@ export default function HistoricoMovimentacoesPecuaria() {
         return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_animal || '-'}</TableCell>;
       case 'marca':
         return <TableCell className="text-xs font-semibold text-blue-700 border-r border-slate-200">{mov.marca || '-'}</TableCell>;
+      case 'sexo':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.sexo || '-'}</TableCell>;
       case 'peso_medio':
         return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? formatarNumero(mov.peso_medio) : '-'}</TableCell>;
-      case 'area_origem':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_origem_nome || '-'}</TableCell>;
-      case 'codigo_area_origem':
-        const areaOrigem = areas.find(a => a.id === mov.area_origem_id);
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{areaOrigem?.codigo || '-'}</TableCell>;
-      case 'area_destino':
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.area_destino_nome || '-'}</TableCell>;
-      case 'codigo_area_destino':
-        const areaDestino = areas.find(a => a.id === mov.area_destino_id);
-        return <TableCell className="text-xs font-mono border-r border-slate-200">{areaDestino?.codigo || '-'}</TableCell>;
-      case 'categoria_origem':
-        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.categoria_origem || dadosObs.categoria || '-'}</TableCell>;
-      case 'categoria_destino':
-        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.categoria_destino || '-'}</TableCell>;
-      case 'sexo':
-        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.sexo || '-'}</TableCell>;
-      case 'causa_morte':
-        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.causa || '-'}</TableCell>;
-      case 'destino_abate':
-        return <TableCell className="text-xs border-r border-slate-200">{dadosObs.destino || '-'}</TableCell>;
-      case 'peso_vivo':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{dadosObs.peso_vivo || '-'}</TableCell>;
-      case 'peso_carcaca':
-        return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{dadosObs.peso_carcaca || '-'}</TableCell>;
+      case 'area':
+        const areaExibir = mov.tipo === 'Entrada' ? mov.area_destino_nome : mov.area_origem_nome;
+        return <TableCell className="text-xs border-r border-slate-200">{areaExibir || '-'}</TableCell>;
       case 'observacoes':
-        const dadosCompletos = extrairDadosObservacoes(mov.observacoes);
-        return (
-          <TableCell className="text-xs border-r border-slate-200">
-            <div className="space-y-1 max-w-[300px]">
-              {mov.tipo === 'Nascimento' && (
-                <div className="space-y-0.5 bg-green-50 border border-green-200 rounded p-2">
-                  {dadosCompletos.categoria_mae && <div><span className="font-semibold">Mãe:</span> {dadosCompletos.categoria_mae}</div>}
-                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
-                  {dadosCompletos.categoria_filhote && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria_filhote}</div>}
-                  {mov.area_destino_nome && <div><span className="font-semibold">Área:</span> {mov.area_destino_nome}</div>}
-                </div>
-              )}
-              {mov.tipo === 'Morte' && (
-                <div className="space-y-0.5 bg-red-50 border border-red-200 rounded p-2">
-                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
-                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
-                  {dadosCompletos.causa && <div><span className="font-semibold">Causa:</span> {dadosCompletos.causa}</div>}
-                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
-                </div>
-              )}
-              {mov.tipo === 'Abate' && (
-                <div className="space-y-0.5 bg-orange-50 border border-orange-200 rounded p-2">
-                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
-                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
-                  {dadosCompletos.peso_vivo && <div><span className="font-semibold">Peso vivo:</span> {dadosCompletos.peso_vivo}kg</div>}
-                  {dadosCompletos.peso_carcaca && <div><span className="font-semibold">Carcaça:</span> {dadosCompletos.peso_carcaca}kg</div>}
-                  {dadosCompletos.destino && <div><span className="font-semibold">Destino:</span> {dadosCompletos.destino}</div>}
-                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
-                </div>
-              )}
-              {mov.tipo === 'Mudança de Categoria' && dadosCompletos.categoria_origem && dadosCompletos.categoria_destino && (
-                <div className="space-y-0.5 bg-purple-50 border border-purple-200 rounded p-2">
-                  <div><span className="font-semibold">{dadosCompletos.categoria_origem}</span> → <span className="font-bold">{dadosCompletos.categoria_destino}</span></div>
-                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
-                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
-                </div>
-              )}
-              {mov.tipo === 'Pesagem' && (
-                <div className="space-y-0.5 bg-emerald-50 border border-emerald-200 rounded p-2">
-                  {dadosCompletos.categoria && <div><span className="font-semibold">Categoria:</span> {dadosCompletos.categoria}</div>}
-                  {dadosCompletos.sexo && <div><span className="font-semibold">Sexo:</span> {dadosCompletos.sexo}</div>}
-                  {dadosCompletos.peso_anterior && <div><span className="font-semibold">Anterior:</span> {dadosCompletos.peso_anterior}kg</div>}
-                  {dadosCompletos.ganho && <div><span className="font-semibold">Ganho:</span> {dadosCompletos.ganho}kg</div>}
-                  {mov.area_origem_nome && <div><span className="font-semibold">Área:</span> {mov.area_origem_nome}</div>}
-                </div>
-              )}
-              {mov.observacoes && !['Nascimento', 'Morte', 'Abate', 'Mudança de Categoria', 'Pesagem'].includes(mov.tipo) && (
-                <div className="text-slate-600 truncate" title={mov.observacoes}>{mov.observacoes}</div>
-              )}
-            </div>
-          </TableCell>
-        );
+        return <TableCell className="text-xs border-r border-slate-200 max-w-[200px] truncate" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
       case 'responsavel':
         return <TableCell className="text-xs border-r border-slate-200">{mov.created_by || '-'}</TableCell>;
       default:
@@ -550,6 +462,10 @@ export default function HistoricoMovimentacoesPecuaria() {
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Upload className="w-3.5 h-3.5" />
+              Importar
+            </Button>
             <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
               <Download className="w-3.5 h-3.5" />
               Exportar
