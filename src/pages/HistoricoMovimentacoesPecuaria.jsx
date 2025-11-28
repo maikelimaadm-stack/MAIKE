@@ -413,8 +413,8 @@ export default function HistoricoMovimentacoesPecuaria() {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
-    const exemplo = ['01/01/2025', 'Entrada', 'Compra', '50', 'Bezerro(a)', 'NELORE', 'Macho', '180', 'Pasto 1', 'Fazenda XYZ', '1500', '75000', '12345', '67890', '', '', '', 'Lote de bezerros'];
+    const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Setor', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
+    const exemplo = ['01/01/2025', 'Entrada', 'Compra', '50', 'Bezerro(a)', 'NELORE', 'Macho', '180', 'Fazenda Santa Maria', 'Pasto 1', 'Fazenda XYZ', '1500', '75000', '12345', '67890', '', '', '', 'Lote de bezerros'];
     
     const csvRows = [headers.join(';'), exemplo.join(';')];
     const csvString = csvRows.join('\n');
@@ -519,6 +519,22 @@ export default function HistoricoMovimentacoesPecuaria() {
             transferencia_destino: values[headers.indexOf('transferência destino')] || null,
             observacoes: values[headers.indexOf('observações')] || null,
           };
+
+          // Buscar setor pelo nome
+          const setorNome = values[headers.indexOf('setor')] || '';
+          if (setorNome) {
+            const setor = setores.find(s => 
+              s.nome?.trim().toLowerCase() === setorNome.trim().toLowerCase() || 
+              s.sigla?.trim().toLowerCase() === setorNome.trim().toLowerCase()
+            );
+            if (setor) {
+              record.setor_id = setor.id;
+              record.setor_nome = setor.nome;
+            } else {
+              // Se não encontrar o setor, guardar apenas o nome para referência
+              record.setor_nome = setorNome;
+            }
+          }
 
           // Buscar área
           const areaNome = values[headers.indexOf('área')] || '';
@@ -659,6 +675,15 @@ export default function HistoricoMovimentacoesPecuaria() {
     queryKey: ['areas-pastagem'],
     queryFn: () => base44.entities.AreaPastagem.list(),
     initialData: [],
+  });
+
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Setor.list();
+      return all.filter(s => s.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
   });
 
   const renderCell = (coluna, mov) => {
