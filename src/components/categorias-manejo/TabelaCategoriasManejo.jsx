@@ -111,10 +111,30 @@ export default function TabelaCategoriasManejo({ categorias, onEdit, onDelete, i
         );
       case 'sigla':
         return <TableCell className="text-xs font-mono border-r">{cat.sigla || '-'}</TableCell>;
+      case 'sexo':
+        return (
+          <TableCell className="text-xs border-r">
+            {cat.sexo ? (
+              <Badge className={`text-xs ${cat.sexo === 'Macho' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
+                {cat.sexo}
+              </Badge>
+            ) : '-'}
+          </TableCell>
+        );
+      case 'idade':
+        return (
+          <TableCell className="text-xs border-r">
+            {cat.idade_minima_meses || cat.idade_maxima_meses ? (
+              <span className="text-slate-600">
+                {cat.idade_minima_meses || 0} - {cat.idade_maxima_meses || '∞'} meses
+              </span>
+            ) : '-'}
+          </TableCell>
+        );
       case 'especie':
         return <TableCell className="text-xs border-r"><Badge className="text-xs">{cat.especie}</Badge></TableCell>;
       case 'categoria_oficial':
-        return <TableCell className="text-xs text-slate-600 border-r">{cat.categoria_oficial}</TableCell>;
+        return <TableCell className="text-xs text-slate-600 border-r">{cat.categoria_oficial || '-'}</TableCell>;
       case 'ganho_anual':
         return <TableCell className="text-xs text-right border-r">{cat.ganho_peso_anual_kg ? `${cat.ganho_peso_anual_kg} kg` : '-'}</TableCell>;
       case 'gmd_jan':
