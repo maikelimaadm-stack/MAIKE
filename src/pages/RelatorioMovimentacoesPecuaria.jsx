@@ -113,6 +113,35 @@ const TIPOS_RELATORIO = [
   { id: 'mudanca_categoria', label: 'Mudanças de Categoria' },
 ];
 
+const OPCOES_POR_TIPO = {
+  geral: [
+    { id: 'mostrar_resumo', label: 'Resumo Geral', default: true },
+    { id: 'mostrar_categorias', label: 'Quadro por Categoria', default: true },
+    { id: 'mostrar_marcas', label: 'Quadro por Marca', default: true },
+    { id: 'mostrar_motivos', label: 'Quadros por Motivo', default: true },
+    { id: 'mostrar_detalhes', label: 'Detalhamento dos Registros', default: false },
+    { id: 'todos_registros', label: 'Mostrar Todos os Registros', default: false },
+  ],
+  transferencia: [
+    { id: 'mostrar_resumo', label: 'Resumo por Fazenda', default: true },
+    { id: 'mostrar_detalhes', label: 'Detalhamento', default: true },
+    { id: 'todos_registros', label: 'Todos os Registros', default: false },
+  ],
+  mudanca_categoria: [
+    { id: 'mostrar_resumo', label: 'Resumo DE/PARA', default: true },
+    { id: 'mostrar_detalhes', label: 'Detalhamento', default: true },
+    { id: 'todos_registros', label: 'Todos os Registros', default: false },
+  ],
+  peso: [
+    { id: 'mostrar_resumo', label: 'Resumo por Categoria', default: true },
+    { id: 'todos_registros', label: 'Todos os Registros', default: false },
+  ],
+  financeiro: [
+    { id: 'mostrar_resumo', label: 'Resumo por Categoria', default: true },
+    { id: 'todos_registros', label: 'Todos os Registros', default: false },
+  ],
+};
+
 const ORDENACAO_OPCOES = [
   { value: 'data_desc', label: 'Data (Mais Recente)' },
   { value: 'data_asc', label: 'Data (Mais Antigo)' },
