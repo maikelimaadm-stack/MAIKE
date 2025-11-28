@@ -873,7 +873,7 @@ export default function RelatorioMovimentacoesPecuaria() {
           {/* Rodapé */}
           <div className="mt-4 border-t-2 border-black pt-2">
             <div className="flex justify-between items-center">
-              <div className="text-xs font-bold">TOTAL: {movimentacoesFiltradas.length} registro(s)</div>
+              <div className="text-xs font-bold">TOTAL: {movimentacoesPorTipoRelatorio.length} registro(s)</div>
               <div className="text-xs font-bold">
                 Entradas: +{formatarNumero(totalEntradas)} cab | Saídas: -{formatarNumero(totalSaidas)} cab | Saldo: {saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab
               </div>
