@@ -131,6 +131,7 @@ const DEFAULT_MENU = [
       { id: "rel-fornecedores", title: "Lista de Fornecedores", url: "RelatorioFornecedores" },
       { id: "rel-produtos", title: "Lista de Produtos", url: "RelatorioProdutos" },
       { id: "rel-suplementacao", title: "Relatorio de Suplementacao", url: "RelatorioSuplementacao" },
+      { id: "rel-movimentacoes-pecuaria", title: "Relatorio Mov. Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
     ],
   },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
