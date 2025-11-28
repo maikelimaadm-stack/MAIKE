@@ -226,6 +226,26 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     return saldos;
   }, [movimentacoes]);
 
+  // Categorias disponíveis no setor selecionado (para saída)
+  const categoriasNoSetor = useMemo(() => {
+    if (!formData.setor_id) return [];
+    
+    return Object.values(saldoPorSetorCategoria)
+      .filter(item => item.setorId === formData.setor_id && item.saldo > 0)
+      .map(item => ({ categoria: item.categoria, saldo: item.saldo }))
+      .sort((a, b) => a.categoria.localeCompare(b.categoria));
+  }, [saldoPorSetorCategoria, formData.setor_id]);
+
+  // Marcas disponíveis no setor + categoria selecionados (para saída)
+  const marcasNoSetorCategoria = useMemo(() => {
+    if (!formData.setor_id || !formData.categoria_animal) return [];
+    
+    return Object.values(saldoPorSetorCategoriaMarca)
+      .filter(item => item.setorId === formData.setor_id && item.categoria === formData.categoria_animal && item.saldo > 0)
+      .map(item => ({ marca: item.marca, saldo: item.saldo }))
+      .sort((a, b) => a.marca.localeCompare(b.marca));
+  }, [saldoPorSetorCategoriaMarca, formData.setor_id, formData.categoria_animal]);
+
   // Calcular saldo por categoria + marca (para saída)
   const saldoPorCategoriaMarca = useMemo(() => {
     const saldos = {};
