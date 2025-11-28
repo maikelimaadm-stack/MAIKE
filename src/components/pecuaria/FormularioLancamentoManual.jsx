@@ -384,9 +384,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 </SelectTrigger>
                 <SelectContent>
                   {formData.tipo === "Entrada" ? (
-                    MOTIVOS_ENTRADA.map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                    [...MOTIVOS_ENTRADA, ...(formData.motivo && !MOTIVOS_ENTRADA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
                   ) : formData.tipo === "Saída" ? (
-                    MOTIVOS_SAIDA.map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
+                    [...MOTIVOS_SAIDA, ...(formData.motivo && !MOTIVOS_SAIDA.includes(formData.motivo) ? [formData.motivo] : [])].map(m => (<SelectItem key={m} value={m} className="text-sm">{m}</SelectItem>))
                   ) : (
                     <SelectItem value={null} disabled className="text-sm">Selecione o tipo primeiro</SelectItem>
                   )}
