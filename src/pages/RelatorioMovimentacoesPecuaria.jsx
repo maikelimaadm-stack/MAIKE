@@ -255,6 +255,8 @@ export default function RelatorioMovimentacoesPecuaria() {
       case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
       case 'comprador': return m.destino_venda || 'Sem Comprador';
       case 'sexo': return m.sexo || 'Sem Sexo';
+      case 'transf_origem': return m.transferencia_origem || 'Sem Origem';
+      case 'transf_destino': return m.transferencia_destino || 'Sem Destino';
       case 'mes': 
         if (!m.data_movimentacao) return 'Sem Data';
         const d = new Date(m.data_movimentacao);
