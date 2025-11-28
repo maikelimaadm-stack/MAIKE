@@ -19,7 +19,6 @@ const TIPOS_MOVIMENTACAO = [
 const MOTIVOS_ENTRADA = [
   "Compra",
   "Nascimento", 
-  "Transferência (Recebimento)",
   "Saldo Inicial",
   "Inventário",
   "Ajuste Positivo",
@@ -31,7 +30,6 @@ const MOTIVOS_SAIDA = [
   "Venda",
   "Morte",
   "Abate",
-  "Transferência (Envio)",
   "Transferência entre Setores",
   "Mudança de Categoria",
   "Ajuste Negativo",
@@ -117,8 +115,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
   const fornecedoresExistentes = [...new Set(movimentacoes.map(m => m.fornecedor_origem).filter(Boolean))].sort();
   const compradoresExistentes = [...new Set(movimentacoes.map(m => m.destino_venda).filter(Boolean))].sort();
   const causasMorteExistentes = [...new Set(movimentacoes.map(m => m.causa_morte).filter(Boolean))].sort();
-  const origensTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_origem).filter(Boolean))].sort();
-  const destinosTransfExistentes = [...new Set(movimentacoes.map(m => m.transferencia_destino).filter(Boolean))].sort();
+
 
   // Extrair categorias já lançadas nas movimentações
   const categoriasLancadas = useMemo(() => {
@@ -908,40 +905,6 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Vlr Total</Label>
                   <Input type="number" value={formData.valor_total} className="h-9 text-sm bg-slate-50" readOnly />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nota Fiscal</Label>
-                  <Input value={formData.nota_fiscal} onChange={(e) => setFormData({ ...formData, nota_fiscal: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">GTA</Label>
-                  <Input value={formData.gta} onChange={(e) => setFormData({ ...formData, gta: e.target.value })} className="h-9 text-sm" placeholder="Nº" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campos para Transferência Externa */}
-          {(formData.motivo === "Transferência (Envio)" || formData.motivo === "Transferência (Recebimento)") && (
-            <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Origem (Fazenda/Local)</Label>
-                  <ComboboxComNovo
-                    value={formData.transferencia_origem}
-                    onChange={(v) => setFormData({ ...formData, transferencia_origem: v })}
-                    options={origensTransfExistentes}
-                    placeholder="De onde veio/saiu"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Destino (Fazenda/Local)</Label>
-                  <ComboboxComNovo
-                    value={formData.transferencia_destino}
-                    onChange={(v) => setFormData({ ...formData, transferencia_destino: v })}
-                    options={destinosTransfExistentes}
-                    placeholder="Para onde foi/veio"
-                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Nota Fiscal</Label>
