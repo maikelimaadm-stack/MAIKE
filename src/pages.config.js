@@ -47,6 +47,7 @@ import ControleAreas from './pages/ControleAreas';
 import FichaOperador from './pages/FichaOperador';
 import FichaOperadorImpressao from './pages/FichaOperadorImpressao';
 import ControlePecuaria from './pages/ControlePecuaria';
+import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
 import __Layout from './Layout.jsx';
 
 
@@ -100,6 +101,7 @@ export const PAGES = {
     "FichaOperador": FichaOperador,
     "FichaOperadorImpressao": FichaOperadorImpressao,
     "ControlePecuaria": ControlePecuaria,
+    "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
 }
 
 export const pagesConfig = {
