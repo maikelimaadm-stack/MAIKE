@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag, Landmark } from "lucide-react";
+import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
   const [isVisibleCategoria, setIsVisibleCategoria] = useState(() => {
