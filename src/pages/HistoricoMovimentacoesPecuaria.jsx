@@ -66,9 +66,11 @@ const formatarDataSimples = (dataString) => {
 const COLUNAS_DISPONIVEIS = [
   { id: 'data', label: 'Data', default: true, sortable: true },
   { id: 'tipo', label: 'Tipo', default: true, sortable: true },
-  { id: 'empresa', label: 'Fazenda', default: true, sortable: false },
+  { id: 'empresa', label: 'Fazenda', default: false, sortable: false },
   { id: 'lote', label: 'Lote', default: true, sortable: true },
   { id: 'quantidade', label: 'Quantidade', default: true, sortable: true },
+  { id: 'categoria', label: 'Categoria', default: true, sortable: false },
+  { id: 'marca', label: 'Marca', default: true, sortable: false },
   { id: 'peso_medio', label: 'Peso Médio (kg)', default: false, sortable: false },
   { id: 'area_origem', label: 'Área Origem', default: true, sortable: false },
   { id: 'codigo_area_origem', label: 'Código Área Origem', default: false, sortable: false },
@@ -81,7 +83,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'destino_abate', label: 'Destino Abate', default: false, sortable: false },
   { id: 'peso_vivo', label: 'Peso Vivo (kg)', default: false, sortable: false },
   { id: 'peso_carcaca', label: 'Peso Carcaça (kg)', default: false, sortable: false },
-  { id: 'observacoes', label: 'Observações', default: true, sortable: false },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: false },
   { id: 'responsavel', label: 'Responsável', default: false, sortable: false },
 ];
 
@@ -446,9 +448,13 @@ export default function HistoricoMovimentacoesPecuaria() {
         const empresa = empresas.find(e => e.id === mov.empresa_id);
         return <TableCell className="text-xs font-semibold border-r border-slate-200">{empresa?.apelido || empresa?.nome || '-'}</TableCell>;
       case 'lote':
-        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote}</TableCell>;
+        return <TableCell className="text-xs font-semibold border-r border-slate-200">{mov.lote || '-'}</TableCell>;
       case 'quantidade':
         return <TableCell className="text-right font-mono font-semibold text-emerald-700 text-xs border-r border-slate-200">{mov.quantidade_animais} cab</TableCell>;
+      case 'categoria':
+        return <TableCell className="text-xs border-r border-slate-200">{mov.categoria_animal || '-'}</TableCell>;
+      case 'marca':
+        return <TableCell className="text-xs font-semibold text-blue-700 border-r border-slate-200">{mov.marca || '-'}</TableCell>;
       case 'peso_medio':
         return <TableCell className="text-right font-mono text-xs border-r border-slate-200">{mov.peso_medio ? formatarNumero(mov.peso_medio) : '-'}</TableCell>;
       case 'area_origem':
@@ -537,43 +543,47 @@ export default function HistoricoMovimentacoesPecuaria() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Histórico de Movimentações</h1>
-          <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
+      {!showNovoLancamento && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Histórico de Movimentações</h1>
+            <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
+              <Download className="w-3.5 h-3.5" />
+              Exportar
+            </Button>
+            <Button 
+              onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
+              size="sm" 
+              className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Lançamento
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-            <Download className="w-3.5 h-3.5" />
-            Exportar
-          </Button>
-          <Button 
-            onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
-            size="sm" 
-            className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Novo Lançamento
-          </Button>
-        </div>
-      </div>
-
-      {showNovoLancamento && (
-        <FormularioLancamentoManual
-          item={itemEditandoManual}
-          onSave={() => {
-            setShowNovoLancamento(false);
-            setItemEditandoManual(null);
-            queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
-          }}
-          onCancel={() => {
-            setShowNovoLancamento(false);
-            setItemEditandoManual(null);
-          }}
-        />
       )}
 
-      <Card className="shadow-sm border-slate-300">
+      <AnimatePresence mode="wait">
+        {showNovoLancamento && (
+          <FormularioLancamentoManual
+            item={itemEditandoManual}
+            onSave={() => {
+              setShowNovoLancamento(false);
+              setItemEditandoManual(null);
+              queryClient.invalidateQueries({ queryKey: ['movimentacoes-pecuaria'] });
+            }}
+            onCancel={() => {
+              setShowNovoLancamento(false);
+              setItemEditandoManual(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {!showNovoLancamento && <Card className="shadow-sm border-slate-300">
         <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
           <div className="flex items-center justify-between gap-4">
             <CardTitle className="text-sm font-semibold text-slate-900">
@@ -744,7 +754,7 @@ export default function HistoricoMovimentacoesPecuaria() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
