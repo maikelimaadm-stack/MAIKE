@@ -13,11 +13,6 @@ export default function SaldoCategorias({ movimentacoes = [], setores = [] }) {
     const saved = localStorage.getItem('saldo_marca_visivel');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [isVisibleSetor, setIsVisibleSetor] = useState(() => {
-    const saved = localStorage.getItem('saldo_setor_visivel');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
   const toggleCategoria = () => {
     setIsVisibleCategoria(prev => {
       const newValue = !prev;
