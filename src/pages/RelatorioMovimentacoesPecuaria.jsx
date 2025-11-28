@@ -157,6 +157,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [orientacao, setOrientacao] = useState("paisagem");
   const [ordenacao, setOrdenacao] = useState('data_desc');
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
+  const [opcoesRelatorio, setOpcoesRelatorio] = useState({});
   
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
