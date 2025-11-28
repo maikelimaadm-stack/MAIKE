@@ -110,18 +110,21 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
       return;
     }
     try {
+      const marcaUpperCase = novaMarca.trim().toUpperCase();
       await base44.entities.ConfiguracaoIcone.create({
         empresa_id: empresaSelecionadaId,
-        tipo_entidade: 'Lote',
-        marca: novaMarca.toUpperCase(),
+        tipo_entidade: 'Marca',
+        nome: marcaUpperCase,
+        marca: marcaUpperCase,
         ativo: true
       });
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
-      setFormData({ ...formData, marca: novaMarca.toUpperCase() });
+      await queryClient.invalidateQueries({ queryKey: ['configuracao-icones'] });
+      setFormData(prev => ({ ...prev, marca: marcaUpperCase }));
       setNovaMarca("");
       setShowAddMarca(false);
-      toast.success('Marca cadastrada!');
+      toast.success('Marca cadastrada com sucesso!');
     } catch (error) {
+      console.error('Erro ao cadastrar marca:', error);
       toast.error('Erro ao cadastrar marca');
     }
   };
