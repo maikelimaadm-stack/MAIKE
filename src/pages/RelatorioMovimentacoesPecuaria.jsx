@@ -155,6 +155,10 @@ export default function RelatorioMovimentacoesPecuaria() {
   const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal))].filter(Boolean).sort();
   const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca))].filter(Boolean).sort();
   const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo))].filter(Boolean).sort();
+  const areasOrigemUnicas = [...new Set(movimentacoes.map(m => m.area_origem_nome))].filter(Boolean).sort();
+  const areasDestinoUnicas = [...new Set(movimentacoes.map(m => m.area_destino_nome))].filter(Boolean).sort();
+  const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_origem))].filter(Boolean).sort();
+  const compradoresUnicos = [...new Set(movimentacoes.map(m => m.destino_venda))].filter(Boolean).sort();
 
   const movimentacoesFiltradas = useMemo(() => {
     let filtered = movimentacoes.filter(m => {
