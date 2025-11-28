@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp, Tag } from "lucide-react";
 
 export default function SaldoCategorias({ movimentacoes = [] }) {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisibleCategoria, setIsVisibleCategoria] = useState(true);
+  const [isVisibleMarca, setIsVisibleMarca] = useState(true);
   // Calcular saldo por categoria
   const calcularSaldos = () => {
     const saldos = {};
@@ -49,35 +50,72 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
       .sort((a, b) => a.categoria.localeCompare(b.categoria, 'pt-BR'));
   };
 
+  // Calcular saldo por marca
+  const calcularSaldosMarca = () => {
+    const saldos = {};
+
+    movimentacoes.forEach(mov => {
+      const marca = mov.marca;
+      if (!marca) return;
+
+      if (!saldos[marca]) {
+        saldos[marca] = { entradas: 0, saidas: 0, saldo: 0 };
+      }
+
+      const qtd = mov.quantidade_animais || 0;
+
+      if (mov.tipo === "Entrada") {
+        saldos[marca].entradas += qtd;
+        saldos[marca].saldo += qtd;
+      } else if (mov.tipo === "Saída") {
+        saldos[marca].saidas += qtd;
+        saldos[marca].saldo -= qtd;
+      }
+    });
+
+    return Object.entries(saldos)
+      .map(([marca, dados]) => ({ marca, ...dados }))
+      .sort((a, b) => a.marca.localeCompare(b.marca, 'pt-BR'));
+  };
+
   const saldos = calcularSaldos();
+  const saldosMarca = calcularSaldosMarca();
+  
   const totalEntradas = saldos.reduce((sum, s) => sum + s.entradas, 0);
   const totalSaidas = saldos.reduce((sum, s) => sum + s.saidas, 0);
   const totalSaldo = saldos.reduce((sum, s) => sum + s.saldo, 0);
 
-  if (saldos.length === 0) {
+  const totalEntradasMarca = saldosMarca.reduce((sum, s) => sum + s.entradas, 0);
+  const totalSaidasMarca = saldosMarca.reduce((sum, s) => sum + s.saidas, 0);
+  const totalSaldoMarca = saldosMarca.reduce((sum, s) => sum + s.saldo, 0);
+
+  if (saldos.length === 0 && saldosMarca.length === 0) {
     return null;
   }
 
   return (
-    <Card className="shadow-sm border-slate-200 mb-4">
-      <CardHeader className="bg-slate-50 border-b py-2 px-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Scale className="w-4 h-4" />
-            Saldo por Categoria
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsVisible(!isVisible)}
-            className="h-7 gap-1 text-xs"
-          >
-            {isVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            {isVisible ? 'Ocultar' : 'Mostrar'}
-          </Button>
-        </div>
-      </CardHeader>
-      {isVisible && <CardContent className="p-0">
+    <div className="space-y-4 mb-4">
+      {/* Saldo por Categoria */}
+      {saldos.length > 0 && (
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="bg-slate-50 border-b py-2 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Scale className="w-4 h-4" />
+                Saldo por Categoria
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsVisibleCategoria(!isVisibleCategoria)}
+                className="h-7 gap-1 text-xs"
+              >
+                {isVisibleCategoria ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {isVisibleCategoria ? 'Ocultar' : 'Mostrar'}
+              </Button>
+            </div>
+          </CardHeader>
+          {isVisibleCategoria && <CardContent className="p-0">
         <div className="overflow-auto">
           <Table>
             <TableHeader>
@@ -130,5 +168,82 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
           </div>
           </CardContent>}
           </Card>
+          )}
+
+          {/* Saldo por Marca */}
+          {saldosMarca.length > 0 && (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="bg-blue-50 border-b py-2 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Saldo por Marca
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsVisibleMarca(!isVisibleMarca)}
+                  className="h-7 gap-1 text-xs"
+                >
+                  {isVisibleMarca ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  {isVisibleMarca ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              </div>
+            </CardHeader>
+            {isVisibleMarca && <CardContent className="p-0">
+              <div className="overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-blue-50">
+                      <TableHead className="text-xs font-semibold">Marca</TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-green-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          Entradas
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-red-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendingDown className="w-3 h-3" />
+                          Saídas
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-center text-blue-700">Saldo Atual</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {saldosMarca.map((item) => (
+                      <TableRow key={item.marca} className="hover:bg-blue-50/50">
+                        <TableCell className="text-xs font-medium">{item.marca}</TableCell>
+                        <TableCell className="text-xs text-center font-mono text-green-700 font-semibold">
+                          +{item.entradas}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono text-red-700 font-semibold">
+                          -{item.saidas}
+                        </TableCell>
+                        <TableCell className={`text-xs text-center font-mono font-bold ${item.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                          {item.saldo} cab
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-blue-100 border-t-2 border-blue-300">
+                      <TableCell className="text-xs font-bold">TOTAL GERAL</TableCell>
+                      <TableCell className="text-xs text-center font-mono text-green-700 font-bold">
+                        +{totalEntradasMarca}
+                      </TableCell>
+                      <TableCell className="text-xs text-center font-mono text-red-700 font-bold">
+                        -{totalSaidasMarca}
+                      </TableCell>
+                      <TableCell className={`text-xs text-center font-mono font-bold ${totalSaldoMarca >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {totalSaldoMarca} cab
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>}
+          </Card>
+          )}
+          </div>
           );
           }
