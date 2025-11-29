@@ -343,7 +343,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex items-center gap-3">
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
-                  {empresaAtual?.apelido || empresaAtual?.nome || 'FAZENDA PALMITAL'}
+                  {empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'}
                 </h1>
                 <p className="text-xs text-slate-600">Sistema de Gestao</p>
               </div>
