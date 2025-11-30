@@ -814,6 +814,21 @@ export default function MapaGeral() {
         });
 
         // Label com nome do pasto e hectares abaixo do marcador
+        // Definir texto baseado no zoom
+        const currentZoom = mapInstanceRef.current?.getZoom() || 15;
+        
+        let nomeExibir = area.nome || '';
+        let mostrarHa = true;
+        
+        if (currentZoom < 13) {
+          // Zoom muito distante: só sigla/número
+          nomeExibir = area.sigla || area.numero_area || area.nome?.substring(0, 3) || '';
+          mostrarHa = false;
+        } else if (currentZoom < 15) {
+          // Zoom médio: sigla ou nome curto
+          nomeExibir = area.sigla || area.numero_area || (area.nome?.length > 10 ? area.nome.substring(0, 8) + '..' : area.nome) || '';
+        }
+
         const labelDiv = document.createElement('div');
         labelDiv.innerHTML = `
           <div style="
@@ -821,14 +836,13 @@ export default function MapaGeral() {
             color: white;
             padding: 2px 6px;
             border-radius: 3px;
-            font-size: 11px;
+            font-size: ${currentZoom >= 15 ? '11px' : '9px'};
             font-weight: 600;
             text-align: center;
             white-space: nowrap;
             transform: translateY(8px);
           ">
-            ${area.nome}<br/>
-            <span style="font-size: 10px; font-weight: 400;">${areaHa.toFixed(0)}ha</span>
+            ${nomeExibir}${mostrarHa ? `<br/><span style="font-size: 10px; font-weight: 400;">${areaHa.toFixed(0)}ha</span>` : ''}
           </div>
         `;
 
