@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical, Link2, Package, MapPin, Truck } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -41,17 +43,15 @@ const formatarMoeda = (valor) => {
 
 const TIPOS_DETALHADOS = {
   'Entrada': ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Devolução de Cliente', 'Doação Recebida', 'Bonificação', 'Produção', 'Importação', 'Transferência Recebida', 'Acerto de Estoque', 'Outros'],
-  'Saída': ['Venda', 'Venda à Vista', 'Venda a Prazo', 'Devolução ao Fornecedor', 'Doação', 'Perda', 'Quebra', 'Consumo Interno', 'Produção', 'Transferência Enviada', 'Acerto de Estoque', 'Outros'],
+  'Saída': ['Venda', 'Venda à Vista', 'Venda a Prazo', 'Devolução ao Fornecedor', 'Doação', 'Perda', 'Quebra', 'Consumo Interno', 'Produção', 'Transferência Enviada', 'Acerto de Estoque', 'Suplementação', 'Aplicação em Área', 'Manutenção de Máquina', 'Outros'],
   'Transferência': ['Entre Locais', 'Entre Empresas', 'Entre Filiais', 'Outros'],
   'Ajuste': ['Ajuste Positivo', 'Ajuste Negativo', 'Inventário', 'Correção', 'Outros']
 };
 
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
   const [formData, setFormData] = useState(() => {
-    // Se estiver editando uma movimentação existente (sem produtos_selecionados), montar o produto
     let produtosSelecionados = initialData?.produtos_selecionados || [];
     
-    // Se é uma edição de movimentação existente (tem produto_id mas não tem produtos_selecionados)
     if (initialData?.produto_id && produtosSelecionados.length === 0) {
       produtosSelecionados = [{
         produto_id: initialData.produto_id,
@@ -81,7 +81,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       centro_custo_id: initialData?.centro_custo_id || "",
       motivo_movimentacao: initialData?.motivo_movimentacao || "",
       observacoes: initialData?.observacoes || "",
-      produtos_selecionados: produtosSelecionados
+      produtos_selecionados: produtosSelecionados,
+      // Campos de vínculo
+      vinculado: initialData?.vinculado || false,
+      tipo_vinculo: initialData?.tipo_vinculo || "",
+      lote_vinculado_id: initialData?.lote_vinculado_id || "",
+      area_vinculada_id: initialData?.area_vinculada_id || "",
+      maquina_vinculada_id: initialData?.maquina_vinculada_id || ""
     };
   });
 
@@ -113,12 +119,116 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     initialData: [],
   });
 
+  const { data: lotes = [] } = useQuery({
+    queryKey: ['lotes_mov', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Lote.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas_mov', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.AreaPastagem.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: maquinas = [] } = useQuery({
+    queryKey: ['maquinas_mov', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Maquina.list();
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativo');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: movimentacoesEstoque = [] } = useQuery({
+    queryKey: ['movimentacoes_estoque_form', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.MovimentacaoEstoque.list();
+      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const { data: locaisEmpresaDestino = [] } = useQuery({
     queryKey: ['locais_empresa_destino', formData.empresa_destino_id],
     queryFn: () => base44.entities.LocalEstoque.list(),
     enabled: !!formData.empresa_destino_id,
     initialData: [],
   });
+
+  // Calcular estoque por local
+  const estoquePorLocal = useMemo(() => {
+    const estoques = {};
+    
+    produtos.forEach(produto => {
+      if (!estoques[produto.id]) {
+        estoques[produto.id] = {};
+      }
+    });
+
+    movimentacoesEstoque.forEach(mov => {
+      if (!mov.produto_id) return;
+      
+      if (!estoques[mov.produto_id]) {
+        estoques[mov.produto_id] = {};
+      }
+
+      const localOrigem = mov.local_estoque_origem;
+      const localDestino = mov.local_estoque_destino;
+      const qtd = mov.quantidade || 0;
+
+      if (mov.tipo_movimentacao === 'Entrada' && localDestino) {
+        if (!estoques[mov.produto_id][localDestino]) estoques[mov.produto_id][localDestino] = 0;
+        estoques[mov.produto_id][localDestino] += qtd;
+      } else if (mov.tipo_movimentacao === 'Saída' && localOrigem) {
+        if (!estoques[mov.produto_id][localOrigem]) estoques[mov.produto_id][localOrigem] = 0;
+        estoques[mov.produto_id][localOrigem] -= qtd;
+      } else if (mov.tipo_movimentacao === 'Transferência') {
+        if (localOrigem) {
+          if (!estoques[mov.produto_id][localOrigem]) estoques[mov.produto_id][localOrigem] = 0;
+          estoques[mov.produto_id][localOrigem] -= qtd;
+        }
+        if (localDestino) {
+          if (!estoques[mov.produto_id][localDestino]) estoques[mov.produto_id][localDestino] = 0;
+          estoques[mov.produto_id][localDestino] += qtd;
+        }
+      } else if (mov.tipo_movimentacao === 'Ajuste') {
+        const local = localDestino || localOrigem;
+        if (local) {
+          if (!estoques[mov.produto_id][local]) estoques[mov.produto_id][local] = 0;
+          if (mov.tipo_detalhado?.toUpperCase().includes('POSITIVO')) {
+            estoques[mov.produto_id][local] += qtd;
+          } else {
+            estoques[mov.produto_id][local] -= qtd;
+          }
+        }
+      }
+    });
+
+    return estoques;
+  }, [produtos, movimentacoesEstoque]);
+
+  // Produtos disponíveis no local selecionado (para saída)
+  const produtosComEstoqueNoLocal = useMemo(() => {
+    if (!formData.local_estoque || formData.tipo_movimentacao !== 'Saída') {
+      return produtos;
+    }
+
+    return produtos.map(produto => {
+      const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
+      return {
+        ...produto,
+        estoque_no_local: estoqueNoLocal,
+        nome_com_estoque: `${produto.nome_produto} (${estoqueNoLocal.toFixed(2)} ${produto.unidade_medida || 'UN'})`
+      };
+    }).filter(p => p.estoque_no_local > 0 || formData.tipo_movimentacao !== 'Saída');
+  }, [produtos, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -150,8 +260,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
             if (produto) {
               updated.produto_nome = produto.nome_produto;
               updated.unidade = produto.unidade_medida;
+              updated.preco_custo = produto.preco_custo || 0;
+              updated.preco_venda = produto.preco_venda || 0;
+              updated.estoque_no_local = estoquePorLocal[valor]?.[formData.local_estoque] || 0;
+              
+              // Para saídas, preencher automaticamente o valor baseado no custo
+              if (formData.tipo_movimentacao === 'Saída' && produto.preco_custo) {
+                // Não preencher valor automático por enquanto, deixar usuário definir
+              }
             }
           }
+
+          // Calcular valor total baseado na quantidade
+          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {
+            const qtd = parseNumero(valor);
+            updated.valor_total = formatarNumero(qtd * updated.preco_custo);
+          }
+
           return updated;
         }
         return p;
@@ -173,11 +298,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     }
 
     const produtosIncompletos = formData.produtos_selecionados.filter(p =>
-      !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
+      !p.produto_id || parseNumero(p.quantidade) <= 0
     );
     if (produtosIncompletos.length > 0) {
       toast.error('Preencha todos os campos dos produtos!');
       return;
+    }
+
+    // Validar estoque para saídas
+    if (formData.tipo_movimentacao === 'Saída') {
+      for (const prod of formData.produtos_selecionados) {
+        const estoqueDisponivel = estoquePorLocal[prod.produto_id]?.[formData.local_estoque] || 0;
+        const qtdSaida = parseNumero(prod.quantidade);
+        if (qtdSaida > estoqueDisponivel) {
+          toast.error(`Estoque insuficiente de ${prod.produto_nome}. Disponível: ${estoqueDisponivel.toFixed(2)}`);
+          return;
+        }
+      }
     }
 
     if ((formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Saída') && !formData.local_estoque) {
@@ -200,9 +337,33 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
+    // Validar vínculo
+    if (formData.vinculado && !formData.tipo_vinculo) {
+      toast.error('Selecione o tipo de vínculo!');
+      return;
+    }
+
+    if (formData.vinculado) {
+      if (formData.tipo_vinculo === 'lote' && !formData.lote_vinculado_id) {
+        toast.error('Selecione o lote vinculado!');
+        return;
+      }
+      if (formData.tipo_vinculo === 'area' && !formData.area_vinculada_id) {
+        toast.error('Selecione a área vinculada!');
+        return;
+      }
+      if (formData.tipo_vinculo === 'maquina' && !formData.maquina_vinculada_id) {
+        toast.error('Selecione a máquina vinculada!');
+        return;
+      }
+    }
+
     const centro = centros.find(c => c.id === formData.centro_custo_id);
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
     const empresaDestino = empresas.find(e => e.id === formData.empresa_destino_id);
+    const loteVinculado = lotes.find(l => l.id === formData.lote_vinculado_id);
+    const areaVinculada = areas.find(a => a.id === formData.area_vinculada_id);
+    const maquinaVinculada = maquinas.find(m => m.id === formData.maquina_vinculada_id);
 
     const produtosProcessados = formData.produtos_selecionados.map(p => {
       const qtd = parseNumero(p.quantidade);
@@ -245,7 +406,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       motivo_movimentacao: formData.motivo_movimentacao,
       observacoes: formData.observacoes || undefined,
       data_movimentacao: new Date().toISOString(),
-      status: 'Ativa'
+      status: 'Ativa',
+      // Dados de vínculo
+      vinculado: formData.vinculado,
+      tipo_vinculo: formData.vinculado ? formData.tipo_vinculo : undefined,
+      lote_vinculado_id: formData.tipo_vinculo === 'lote' ? formData.lote_vinculado_id : undefined,
+      lote_vinculado_nome: loteVinculado?.identificacao || loteVinculado?.nome,
+      area_vinculada_id: formData.tipo_vinculo === 'area' ? formData.area_vinculada_id : undefined,
+      area_vinculada_nome: areaVinculada?.nome,
+      maquina_vinculada_id: formData.tipo_vinculo === 'maquina' ? formData.maquina_vinculada_id : undefined,
+      maquina_vinculada_nome: maquinaVinculada?.nome || maquinaVinculada?.identificacao
     };
 
     onSubmit({ ...dadosComuns, produtos: produtosProcessados });
@@ -258,19 +428,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           (formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some(t => formData.tipo_detalhado.includes(t)));
   const mostrarLocalDestino = formData.tipo_movimentacao === 'Transferência';
   const mostrarEmpresaDestino = formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas';
+  const mostrarVinculo = formData.tipo_movimentacao === 'Saída';
 
   const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
     const total = parseNumero(p.valor_total || "0");
     const desc = parseNumero(p.desconto_item || "0");
     return sum + (total - desc);
-  }, 0);
-
-  const totalProdutosBruto = formData.produtos_selecionados.reduce((sum, p) => {
-    return sum + parseNumero(p.valor_total || "0");
-  }, 0);
-
-  const totalDescontos = formData.produtos_selecionados.reduce((sum, p) => {
-    return sum + parseNumero(p.desconto_item || "0");
   }, 0);
 
   return (
@@ -287,7 +450,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo de Movimentação *</Label>
-                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => { handleChange('tipo_movimentacao', v); handleChange('tipo_detalhado', ''); }} required>
+                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => { handleChange('tipo_movimentacao', v); handleChange('tipo_detalhado', ''); handleChange('vinculado', false); handleChange('tipo_vinculo', ''); }} required>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
@@ -347,6 +510,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       onChange={(id) => {
                         const local = locais.find(l => l.id === id);
                         handleChange('local_estoque', local?.nome || "");
+                        // Limpar produtos selecionados ao mudar o local (para saídas)
+                        if (formData.tipo_movimentacao === 'Saída') {
+                          handleChange('produtos_selecionados', []);
+                        }
                       }}
                       placeholder="Selecione o local"
                       displayField="nome"
@@ -443,6 +610,120 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 )}
               </div>
 
+              {/* Seção de Vínculo para Saídas */}
+              {mostrarVinculo && (
+                <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/50">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Link2 className="w-4 h-4 text-blue-600" />
+                    <Label className="text-xs font-semibold text-blue-900">Vincular Saída</Label>
+                    <Switch
+                      checked={formData.vinculado}
+                      onCheckedChange={(checked) => {
+                        handleChange('vinculado', checked);
+                        if (!checked) {
+                          handleChange('tipo_vinculo', '');
+                          handleChange('lote_vinculado_id', '');
+                          handleChange('area_vinculada_id', '');
+                          handleChange('maquina_vinculada_id', '');
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {formData.vinculado && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tipo de Vínculo *</Label>
+                        <Select value={formData.tipo_vinculo} onValueChange={(v) => {
+                          handleChange('tipo_vinculo', v);
+                          handleChange('lote_vinculado_id', '');
+                          handleChange('area_vinculada_id', '');
+                          handleChange('maquina_vinculada_id', '');
+                        }}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lote" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Package className="w-3 h-3" />
+                                Lote (Pecuária)
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="area" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-3 h-3" />
+                                Área / Pasto
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="maquina" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-3 h-3" />
+                                Máquina / Veículo
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {formData.tipo_vinculo === 'lote' && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">Lote *</Label>
+                          <Select value={formData.lote_vinculado_id} onValueChange={(v) => handleChange('lote_vinculado_id', v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione o lote" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {lotes.map(lote => (
+                                <SelectItem key={lote.id} value={lote.id} className="text-xs">
+                                  {lote.identificacao || lote.nome} - {lote.quantidade_animais || 0} cab
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {formData.tipo_vinculo === 'area' && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">Área *</Label>
+                          <Select value={formData.area_vinculada_id} onValueChange={(v) => handleChange('area_vinculada_id', v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione a área" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {areas.map(area => (
+                                <SelectItem key={area.id} value={area.id} className="text-xs">
+                                  {area.nome} {area.tamanho_hectares ? `(${area.tamanho_hectares} ha)` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {formData.tipo_vinculo === 'maquina' && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">Máquina *</Label>
+                          <Select value={formData.maquina_vinculada_id} onValueChange={(v) => handleChange('maquina_vinculada_id', v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione a máquina" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {maquinas.map(maq => (
+                                <SelectItem key={maq.id} value={maq.id} className="text-xs">
+                                  {maq.nome || maq.identificacao} {maq.placa ? `(${maq.placa})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {mostrarDadosNFe && (
                 <>
                   <div className="grid grid-cols-3 gap-3">
@@ -506,12 +787,25 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
-                  <Label className="text-xs font-semibold">Produtos</Label>
-                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1">
+                  <div>
+                    <Label className="text-xs font-semibold">Produtos</Label>
+                    {formData.tipo_movimentacao === 'Saída' && formData.local_estoque && (
+                      <p className="text-[10px] text-blue-600">
+                        Mostrando produtos com estoque em: {formData.local_estoque}
+                      </p>
+                    )}
+                  </div>
+                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={formData.tipo_movimentacao === 'Saída' && !formData.local_estoque}>
                     <Plus className="w-3.5 h-3.5" />
                     Adicionar
                   </Button>
                 </div>
+
+                {formData.tipo_movimentacao === 'Saída' && !formData.local_estoque && (
+                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                    ⚠️ Selecione o local de estoque para visualizar os produtos disponíveis
+                  </div>
+                )}
 
                 {formData.produtos_selecionados.length > 0 && (
                   <div className="border rounded bg-white">
@@ -519,9 +813,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8 text-xs"></TableHead>
-                          <TableHead className="min-w-[180px] text-xs">Produto *</TableHead>
+                          <TableHead className="min-w-[200px] text-xs">Produto *</TableHead>
+                          {formData.tipo_movimentacao === 'Saída' && (
+                            <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
+                          )}
                           <TableHead className="text-center w-16 text-xs">Qtd *</TableHead>
-                          <TableHead className="text-center w-20 text-xs">Total *</TableHead>
+                          <TableHead className="text-center w-20 text-xs">Total</TableHead>
                           <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
                           <TableHead className="text-center w-24 text-xs">Líquido</TableHead>
                           <TableHead className="text-center w-12 text-xs">UN</TableHead>
@@ -534,6 +831,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           const liquido = total - desc;
                           const qtd = parseNumero(produto.quantidade || "0");
                           const unitario = qtd > 0 ? (liquido / qtd) : 0;
+                          const estoqueDisponivel = estoquePorLocal[produto.produto_id]?.[formData.local_estoque] || 0;
 
                           return (
                             <TableRow key={index}>
@@ -552,18 +850,25 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
-                              <TableCell className="min-w-[180px]">
+                              <TableCell className="min-w-[200px]">
                                 <AutocompleteGenerico
-                                  items={produtos}
+                                  items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtos}
                                   value={produto.produto_id}
                                   onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
                                   placeholder="Buscar produto..."
-                                  displayField="nome_produto"
+                                  displayField={formData.tipo_movimentacao === 'Saída' ? "nome_com_estoque" : "nome_produto"}
                                   searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
                                   renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
                                   className="w-full"
                                 />
                               </TableCell>
+                              {formData.tipo_movimentacao === 'Saída' && (
+                                <TableCell className="w-20 text-center">
+                                  <Badge variant="outline" className={`text-[10px] ${estoqueDisponivel > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                    {estoqueDisponivel.toFixed(2)}
+                                  </Badge>
+                                </TableCell>
+                              )}
                               <TableCell className="w-16">
                                 <Input 
                                   value={produto.quantidade} 
@@ -617,15 +922,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 {formData.produtos_selecionados.length > 0 && (
                   <div className="mt-3 bg-white border border-slate-300 rounded p-3">
                     <div className="space-y-1 text-xs">
-                      <div className="font-semibold text-slate-800 mb-1">Valor a Pagar</div>
+                      <div className="font-semibold text-slate-800 mb-1">Resumo</div>
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Produtos (líquido):</span>
+                        <span className="text-slate-600">Total Produtos:</span>
                         <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
                       </div>
-                      <div className="flex justify-between font-bold border-t pt-1 mt-1 text-slate-900">
-                        <span>TOTAL A PAGAR:</span>
-                        <span className="font-mono text-base">{formatarMoeda(totalProdutosLiquido)}</span>
-                      </div>
+                      {formData.vinculado && formData.tipo_vinculo && (
+                        <div className="flex justify-between text-blue-700">
+                          <span>Vinculado a:</span>
+                          <span className="font-semibold">
+                            {formData.tipo_vinculo === 'lote' && lotes.find(l => l.id === formData.lote_vinculado_id)?.identificacao}
+                            {formData.tipo_vinculo === 'area' && areas.find(a => a.id === formData.area_vinculada_id)?.nome}
+                            {formData.tipo_vinculo === 'maquina' && (maquinas.find(m => m.id === formData.maquina_vinculada_id)?.nome || maquinas.find(m => m.id === formData.maquina_vinculada_id)?.identificacao)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
