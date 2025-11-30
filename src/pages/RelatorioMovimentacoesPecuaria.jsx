@@ -587,44 +587,7 @@ export default function RelatorioMovimentacoesPecuaria() {
           <p className="text-xs text-slate-600">Análise de entradas, saídas e saldos do rebanho</p>
         </div>
         <Button 
-          onClick={() => {
-            // Em dispositivos móveis, usar uma abordagem diferente
-            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-              // Criar uma nova janela com o conteúdo para impressão
-              const printContent = document.querySelector('.print-area');
-              if (printContent) {
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(`
-                  <html>
-                    <head>
-                      <title>Relatório de Movimentações</title>
-                      <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-                        th, td { border: 1px solid #000; padding: 4px; font-size: 11px; }
-                        th { background: #f0f0f0; font-weight: bold; }
-                        .bg-gray-200, .bg-gray-100 { background: #e5e5e5; }
-                        .font-bold { font-weight: bold; }
-                        .text-right { text-align: right; }
-                        .text-center { text-align: center; }
-                        .text-xs { font-size: 11px; }
-                        .mb-4 { margin-bottom: 16px; }
-                        .mt-1 { margin-top: 4px; }
-                        .border-black { border-color: #000; }
-                      </style>
-                    </head>
-                    <body>${printContent.innerHTML}</body>
-                  </html>
-                `);
-                printWindow.document.close();
-                setTimeout(() => {
-                  printWindow.print();
-                }, 500);
-              }
-            } else {
-              window.print();
-            }
-          }} 
+          onClick={() => window.print()} 
           size="sm" 
           className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
         >
