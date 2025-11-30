@@ -1343,12 +1343,13 @@ export default function RelatorioMovimentacoesPecuaria() {
               const totalGrupoEntradas = registros.filter(r => r.tipo === 'Entrada').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
               const totalGrupoSaidas = registros.filter(r => r.tipo === 'Saída').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
               const saldoGrupo = totalGrupoEntradas - totalGrupoSaidas;
+              const pesoGrupo = registros.reduce((s, r) => s + (r.peso_total || 0), 0);
               
               return (
                 <div key={idx} className="mb-4">
                   {agrupamentosAtivos.length > 0 && (
                     <div className="bg-gray-200 px-2 py-1 mb-1">
-                      <h3 className="font-bold text-xs">{grupo} ({registros.length} registro(s)) • Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)}</h3>
+                      <h3 className="font-bold text-xs">{grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'})</h3>
                     </div>
                   )}
                   <Table>
@@ -1398,6 +1399,22 @@ export default function RelatorioMovimentacoesPecuaria() {
                           </TableRow>
                         );
                       })}
+                    </TableBody>
+                  </Table>
+                  {/* Subtotal do Grupo */}
+                  <Table className="mt-1">
+                    <TableBody>
+                      <TableRow className="bg-gray-100 font-bold">
+                        <TableCell colSpan={colunasOrdenadas.length - (colunasVisiveis.includes('quantidade') ? 1 : 0)} className="border border-black text-xs py-1">
+                          SUBTOTAL ({registros.length} {registros.length === 1 ? 'registro' : 'registros'}) • Ent: +{formatarNumero(totalGrupoEntradas)} cab • Saí: -{formatarNumero(totalGrupoSaidas)} cab • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
+                          {pesoGrupo > 0 && ` • Peso: ${formatarNumero(pesoGrupo)} kg`}
+                        </TableCell>
+                        {colunasVisiveis.includes('quantidade') && (
+                          <TableCell className="border border-black text-xs text-right py-1 font-bold">
+                            {formatarNumero(registros.reduce((s, r) => s + (r.quantidade_animais || 0), 0))} cab
+                          </TableCell>
+                        )}
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </div>
