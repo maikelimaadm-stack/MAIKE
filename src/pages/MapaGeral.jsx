@@ -314,7 +314,7 @@ export default function MapaGeral() {
     if (mapInstanceRef.current && mapReady) {
       renderMap();
     }
-  }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas, userLocation, showUserLocation, tarefasMapa]);
+  }, [areas, pontos, linhas, lotesFiltrados, pontosSuplementacao, showAreas, showPontos, showLinhas, showLotes, showPontosSuplementacao, iconesConfig, mapReady, showAlertas, userLocation, showUserLocation, tarefasMapa, zoomLevel]);
 
   useEffect(() => {
     const handleAtualizarMapa = () => {
