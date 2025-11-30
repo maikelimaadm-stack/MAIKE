@@ -451,41 +451,66 @@ export default function MapaGeral() {
           areaHa = areaM2 / 10000;
         }
 
-        // Label com nome do pasto e hectares no centro da área
-        const areaLabelDiv = document.createElement('div');
-        areaLabelDiv.innerHTML = `
-          <div style="
-            color: white;
-            text-align: center;
-            white-space: nowrap;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-            pointer-events: none;
-            font-family: Arial, sans-serif;
-          ">
-            <div style="font-size: 12px; font-weight: 500;">${area.nome || 'Sem nome'}</div>
-            <div style="font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.9;">${areaHa.toFixed(0)}ha</div>
-          </div>
-        `;
+        // Verificar se tem lote nesta área
+        const lotesNaArea = lotesFiltrados.filter(l => l.area_atual_id === area.id);
+        const temLote = showLotes && lotesNaArea.length > 0;
 
-        const areaLabelOverlay = new google.maps.OverlayView();
-        areaLabelOverlay.onAdd = function() {
-          const pane = this.getPanes().floatPane;
-          pane.appendChild(areaLabelDiv);
-        };
-        areaLabelOverlay.draw = function() {
-          const projection = this.getProjection();
-          const position = projection.fromLatLngToDivPixel(center);
-          areaLabelDiv.style.position = 'absolute';
-          areaLabelDiv.style.left = position.x + 'px';
-          areaLabelDiv.style.top = position.y + 'px';
-          areaLabelDiv.style.transform = 'translate(-50%, -50%)';
-          areaLabelDiv.style.zIndex = '9999';
-        };
-        areaLabelOverlay.onRemove = function() {
-          areaLabelDiv.parentNode?.removeChild(areaLabelDiv);
-        };
-        areaLabelOverlay.setMap(mapInstanceRef.current);
-        markersRef.current.push({ setMap: (m) => areaLabelOverlay.setMap(m) });
+        // Se tem lote, não mostrar o label da área (o label vai aparecer junto com o ícone do lote)
+        if (!temLote) {
+          // Definir texto baseado no zoom
+          // Zoom >= 15: nome completo + hectares
+          // Zoom 13-14: sigla ou número + hectares
+          // Zoom < 13: apenas número/sigla
+          const currentZoom = mapInstanceRef.current?.getZoom() || 15;
+          
+          let nomeExibir = area.nome || 'Sem nome';
+          let mostrarHa = true;
+          
+          if (currentZoom < 13) {
+            // Zoom muito distante: só sigla/número
+            nomeExibir = area.sigla || area.numero_area || area.nome?.substring(0, 3) || '';
+            mostrarHa = false;
+          } else if (currentZoom < 15) {
+            // Zoom médio: sigla ou nome curto
+            nomeExibir = area.sigla || area.numero_area || (area.nome?.length > 10 ? area.nome.substring(0, 8) + '..' : area.nome) || '';
+          }
+
+          // Label com nome do pasto e hectares no centro da área
+          const areaLabelDiv = document.createElement('div');
+          areaLabelDiv.innerHTML = `
+            <div style="
+              color: white;
+              text-align: center;
+              white-space: nowrap;
+              text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+              pointer-events: none;
+              font-family: Arial, sans-serif;
+            ">
+              <div style="font-size: ${currentZoom >= 15 ? '12px' : '10px'}; font-weight: 500;">${nomeExibir}</div>
+              ${mostrarHa ? `<div style="font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.9;">${areaHa.toFixed(0)}ha</div>` : ''}
+            </div>
+          `;
+
+          const areaLabelOverlay = new google.maps.OverlayView();
+          areaLabelOverlay.onAdd = function() {
+            const pane = this.getPanes().floatPane;
+            pane.appendChild(areaLabelDiv);
+          };
+          areaLabelOverlay.draw = function() {
+            const projection = this.getProjection();
+            const position = projection.fromLatLngToDivPixel(center);
+            areaLabelDiv.style.position = 'absolute';
+            areaLabelDiv.style.left = position.x + 'px';
+            areaLabelDiv.style.top = position.y + 'px';
+            areaLabelDiv.style.transform = 'translate(-50%, -50%)';
+            areaLabelDiv.style.zIndex = '9999';
+          };
+          areaLabelOverlay.onRemove = function() {
+            areaLabelDiv.parentNode?.removeChild(areaLabelDiv);
+          };
+          areaLabelOverlay.setMap(mapInstanceRef.current);
+          markersRef.current.push({ setMap: (m) => areaLabelOverlay.setMap(m) });
+        }
       });
     }
 
