@@ -292,6 +292,11 @@ export default function MapaGeral() {
         }, 100);
       });
 
+      // Listener para mudança de zoom
+      map.addListener('zoom_changed', () => {
+        setZoomLevel(map.getZoom());
+      });
+
 
     }).catch((error) => {
       console.error('Erro ao carregar mapa:', error);
