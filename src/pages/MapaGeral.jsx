@@ -75,6 +75,7 @@ export default function MapaGeral() {
   const markersRef = useRef([]);
   const polylinesRef = useRef([]);
   const userMarkerRef = useRef(null);
+  const [zoomLevel, setZoomLevel] = useState(15);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
