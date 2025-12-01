@@ -50,6 +50,7 @@ import ControlePecuaria from './pages/ControlePecuaria';
 import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
 import CadastroSetores from './pages/CadastroSetores';
 import PesagensIndividuais from './pages/PesagensIndividuais';
+import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
 import __Layout from './Layout.jsx';
 
 
@@ -106,6 +107,7 @@ export const PAGES = {
     "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
     "CadastroSetores": CadastroSetores,
     "PesagensIndividuais": PesagensIndividuais,
+    "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
 }
 
 export const pagesConfig = {
