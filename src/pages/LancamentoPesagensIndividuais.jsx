@@ -604,11 +604,11 @@ export default function LancamentoPesagensIndividuais() {
                 <Button 
                   ref={salvarBtnRef}
                   onClick={handleSalvar} 
-                  disabled={saveMutation.isPending}
+                  disabled={isSaving}
                   className="h-8 bg-emerald-600 hover:bg-emerald-700 gap-1"
                 >
                   <Save className="w-4 h-4" />
-                  {saveMutation.isPending ? '...' : 'Salvar'}
+                  {isSaving ? '...' : 'Salvar'}
                 </Button>
               </div>
 
