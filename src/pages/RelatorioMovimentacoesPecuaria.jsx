@@ -469,7 +469,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       </div>
                     )}
 
-                    {tipoRelatorio === 'analitico' && (
+                    {tipoRelatorio === 'analitico' ? (
                       <Table>
                         <TableHeader>
                           <TableRow className="border-black">
@@ -521,6 +521,49 @@ export default function RelatorioMovimentacoesPecuaria() {
                           })}
                         </TableBody>
                       </Table>
+                    ) : (
+                      /* Sintético - mostrar tabela resumida por categoria/marca dentro do grupo */
+                      (() => {
+                        const resumoPorCategoria = {};
+                        registros.forEach(m => {
+                          const cat = m.categoria_animal || 'Sem Categoria';
+                          if (!resumoPorCategoria[cat]) {
+                            resumoPorCategoria[cat] = { entradas: 0, saidas: 0, peso: 0, valor: 0 };
+                          }
+                          const qtd = m.quantidade_animais || 0;
+                          if (m.tipo === 'Entrada') resumoPorCategoria[cat].entradas += qtd;
+                          else resumoPorCategoria[cat].saidas += qtd;
+                          resumoPorCategoria[cat].peso += m.peso_total || 0;
+                          resumoPorCategoria[cat].valor += m.valor_total || 0;
+                        });
+
+                        return (
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-black">
+                                <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
+                                <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>
+                                <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>
+                                <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>
+                                <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total</TableHead>
+                                <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {Object.entries(resumoPorCategoria).sort(([a], [b]) => a.localeCompare(b)).map(([cat, dados]) => (
+                                <TableRow key={cat}>
+                                  <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{cat}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.entradas > 0 ? `+${formatarNumero(dados.entradas)}` : ''}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.saidas > 0 ? `-${formatarNumero(dados.saidas)}` : ''}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(dados.entradas - dados.saidas)}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.peso > 0 ? `${formatarNumero(dados.peso)} kg` : ''}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.valor > 0 ? `R$ ${dados.valor.toFixed(2)}` : ''}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        );
+                      })()
                     )}
 
                     <Table className="mt-1">
