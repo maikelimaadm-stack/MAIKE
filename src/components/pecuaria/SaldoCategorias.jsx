@@ -154,6 +154,25 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
                     </TableCell>
                   </TableRow>
                 ))}
+                {/* Linha de Total por Marca */}
+                <TableRow className="bg-emerald-50 border-t-2 border-slate-400">
+                  <TableCell className="font-bold border-r border-slate-300 sticky left-0 bg-emerald-50 z-10 py-1.5">
+                    TOTAL POR MARCA
+                  </TableCell>
+                  {marcas.map(marca => (
+                    <TableCell 
+                      key={marca} 
+                      className={`text-center font-mono font-bold border-r border-slate-200 py-1.5 ${
+                        totaisPorMarca[marca] > 0 ? 'text-emerald-800' : totaisPorMarca[marca] < 0 ? 'text-red-600' : ''
+                      }`}
+                    >
+                      {totaisPorMarca[marca] !== 0 ? totaisPorMarca[marca]?.toLocaleString('pt-BR') : ''}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-center font-mono font-bold bg-emerald-100 text-emerald-900 py-1.5">
+                    {totalGeral.toLocaleString('pt-BR')}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </div>
