@@ -515,54 +515,76 @@ const EIXO_Y_OPCOES = [
               <p>Nenhuma movimentação encontrada com os filtros aplicados.</p>
             </div>
           ) : tipoRelatorio === 'sintetico' ? (
-            /* RELATÓRIO SINTÉTICO - MATRIZ CATEGORIA x EIXO SELECIONADO */
+            /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA */
             (() => {
-              // Construir matriz: linhas = categorias, colunas = eixo X selecionado
-              const getEixoXValue = (m) => {
-                switch (eixoXSintetico) {
+              // Função para obter valor do eixo
+              const getValorEixo = (m, eixo) => {
+                switch (eixo) {
+                  case 'categoria': return m.categoria_animal || 'Sem Categoria';
                   case 'setor': return m.setor_nome || 'Sem Setor';
                   case 'marca': return m.marca || 'Sem Marca';
                   case 'motivo': return m.motivo || 'Sem Motivo';
                   case 'sexo': return m.sexo || 'Sem Sexo';
+                  case 'tipo': return m.tipo || 'Sem Tipo';
+                  case 'causa_morte': return m.causa_morte || 'Sem Causa';
+                  case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
+                  case 'comprador': return m.destino_venda || 'Sem Comprador';
+                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || 'Sem Área';
                   default: return 'Outros';
                 }
               };
 
-              const categorias = [...new Set(movimentacoesFiltradas.map(m => m.categoria_animal))].filter(Boolean).sort();
-              const colunasEixoX = [...new Set(movimentacoesFiltradas.map(getEixoXValue))].filter(Boolean).sort();
+              const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
+              const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
 
-              // Matriz: { categoria: { coluna: saldo } }
+              // Matriz: { linha: { coluna: { entradas, saidas, saldo } } }
               const matriz = {};
-              const totaisPorColuna = {};
-              const totaisPorCategoria = {};
+              const totaisPorColuna = { entradas: {}, saidas: {}, saldo: {} };
+              const totaisPorLinha = {};
 
-              categorias.forEach(cat => {
-                matriz[cat] = {};
-                totaisPorCategoria[cat] = 0;
-                colunasEixoX.forEach(col => {
-                  matriz[cat][col] = 0;
+              linhasY.forEach(linha => {
+                matriz[linha] = {};
+                totaisPorLinha[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasX.forEach(col => {
+                  matriz[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
                 });
               });
-              colunasEixoX.forEach(col => {
-                totaisPorColuna[col] = 0;
+              colunasX.forEach(col => {
+                totaisPorColuna.entradas[col] = 0;
+                totaisPorColuna.saidas[col] = 0;
+                totaisPorColuna.saldo[col] = 0;
               });
 
               movimentacoesFiltradas.forEach(m => {
-                const cat = m.categoria_animal;
-                const col = getEixoXValue(m);
-                if (!cat || !col) return;
+                const linha = getValorEixo(m, eixoYSintetico);
+                const col = getValorEixo(m, eixoXSintetico);
+                if (!linha || !col) return;
 
                 const qtd = m.quantidade_animais || 0;
 
-                if (matriz[cat] && matriz[cat][col] !== undefined) {
-                  matriz[cat][col] += qtd;
-                  totaisPorColuna[col] += qtd;
-                  totaisPorCategoria[cat] += qtd;
+                if (matriz[linha] && matriz[linha][col]) {
+                  if (m.tipo === 'Entrada') {
+                    matriz[linha][col].entradas += qtd;
+                    totaisPorColuna.entradas[col] += qtd;
+                    totaisPorLinha[linha].entradas += qtd;
+                  } else {
+                    matriz[linha][col].saidas += qtd;
+                    totaisPorColuna.saidas[col] += qtd;
+                    totaisPorLinha[linha].saidas += qtd;
+                  }
+                  matriz[linha][col].saldo = matriz[linha][col].entradas - matriz[linha][col].saidas;
+                  totaisPorColuna.saldo[col] = totaisPorColuna.entradas[col] - totaisPorColuna.saidas[col];
+                  totaisPorLinha[linha].saldo = totaisPorLinha[linha].entradas - totaisPorLinha[linha].saidas;
                 }
               });
 
-              const totalGeral = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
-              const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
+              const totalGeral = {
+                entradas: Object.values(totaisPorLinha).reduce((a, b) => a + b.entradas, 0),
+                saidas: Object.values(totaisPorLinha).reduce((a, b) => a + b.saidas, 0),
+                saldo: Object.values(totaisPorLinha).reduce((a, b) => a + b.saldo, 0),
+              };
+
+              const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
 
               return (
                 <div className="overflow-x-auto">
@@ -570,26 +592,33 @@ const EIXO_Y_OPCOES = [
                     <TableHeader>
                       <TableRow>
                         <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
-                          Categoria de Manejo
+                          {eixoYLabel}
                         </TableHead>
-                        {colunasEixoX.map(col => (
+                        {colunasX.map(col => (
                           <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[90px]">
-                          Total Cabeças
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                          Entradas
+                        </TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                          Saídas
+                        </TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                          Saldo
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {categorias.map((cat) => (
-                        <TableRow key={cat}>
+                      {linhasY.map((linha) => (
+                        <TableRow key={linha}>
                           <TableCell className="border border-gray-300 text-xs font-semibold py-1">
-                            {cat}
+                            {linha}
                           </TableCell>
-                          {colunasEixoX.map(col => {
-                            const valor = matriz[cat][col];
+                          {colunasX.map(col => {
+                            const celula = matriz[linha][col];
+                            const valor = celula.saldo;
                             return (
                               <TableCell 
                                 key={col} 
@@ -599,23 +628,35 @@ const EIXO_Y_OPCOES = [
                               </TableCell>
                             );
                           })}
+                          <TableCell className="border border-black text-xs text-center font-mono py-1">
+                            {formatarNumero(totaisPorLinha[linha].entradas)}
+                          </TableCell>
+                          <TableCell className="border border-black text-xs text-center font-mono py-1">
+                            {formatarNumero(totaisPorLinha[linha].saidas)}
+                          </TableCell>
                           <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
-                            {formatarNumero(totaisPorCategoria[cat])}
+                            {formatarNumero(totaisPorLinha[linha].saldo)}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
                       <TableRow className="font-bold">
                         <TableCell className="border border-black text-xs font-bold py-1">
-                          Total Cabeças
+                          TOTAL
                         </TableCell>
-                        {colunasEixoX.map(col => (
+                        {colunasX.map(col => (
                           <TableCell key={col} className="border border-black text-xs text-center font-mono font-bold py-1">
-                            {formatarNumero(totaisPorColuna[col])}
+                            {formatarNumero(totaisPorColuna.saldo[col])}
                           </TableCell>
                         ))}
                         <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
-                          {formatarNumero(totalGeral)}
+                          {formatarNumero(totalGeral.entradas)}
+                        </TableCell>
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                          {formatarNumero(totalGeral.saidas)}
+                        </TableCell>
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                          {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
