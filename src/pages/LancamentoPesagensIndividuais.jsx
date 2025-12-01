@@ -687,11 +687,31 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* Botão Salvar */}
+            {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} className="h-9 gap-2 bg-emerald-600 hover:bg-emerald-700 px-4">
               <Save className="w-4 h-4" />
-              {isSaving ? 'Salvando...' : 'Salvar Registro'}
+              {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar Registro')}
             </Button>
+            {editingId && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setEditingId(null);
+                  setNumeroAnimal("");
+                  setPeso("");
+                  setObservacao("");
+                  setLoteTransferencia("");
+                  if (!fixarSexo) setSexo("M");
+                  if (!fixarRaca) setRaca("Nelore");
+                  if (!fixarMarca) setMarca("");
+                  setTimeout(() => numeroInputRef.current?.focus(), 50);
+                }} 
+                className="h-9 gap-2 px-4"
+              >
+                <X className="w-4 h-4" />
+                Cancelar Edição
+              </Button>
+            )}
           </div>
           
           {/* Linha 2: Apartação e Transferência de Lote */}
