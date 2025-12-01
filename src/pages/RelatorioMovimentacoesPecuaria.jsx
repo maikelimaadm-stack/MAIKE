@@ -658,6 +658,16 @@ const EIXO_Y_OPCOES = [
               const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
               const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
 
+              // Se não há dados válidos
+              if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
+                return (
+                  <div className="text-center py-8 text-slate-500">
+                    <p>Nenhum dado encontrado para os eixos selecionados.</p>
+                    <p className="text-xs mt-1">Tente selecionar outras opções de Linhas/Colunas.</p>
+                  </div>
+                );
+              }
+
               return (
                 <div className="overflow-x-auto">
                   {/* Cabeçalho do Agrupamento */}
@@ -677,48 +687,48 @@ const EIXO_Y_OPCOES = [
                         <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
                           {eixoYLabel}
                         </TableHead>
-                        {colunasX.map(col => (
+                        {colunasXValidas.map(col => (
                           <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
                           Entradas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
                           Saídas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
                           Saldo
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {linhasY.map((linha) => (
+                      {linhasYValidas.map((linha) => (
                         <TableRow key={linha}>
                           <TableCell className="border border-gray-300 text-xs font-semibold py-1">
                             {linha}
                           </TableCell>
-                          {colunasX.map(col => {
-                            const celula = matriz[linha][col];
+                          {colunasXValidas.map(col => {
+                            const celula = matrizFinal[linha][col];
                             const valor = celula.saldo;
                             return (
                               <TableCell 
                                 key={col} 
-                                className="border border-gray-300 text-xs text-center py-1 font-mono"
+                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${valor < 0 ? 'text-red-600' : ''}`}
                               >
                                 {valor !== 0 ? formatarNumero(valor) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-black text-xs text-center font-mono py-1">
-                            {formatarNumero(totaisPorLinha[linha].entradas)}
+                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-green-50 text-green-700">
+                            {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono py-1">
-                            {formatarNumero(totaisPorLinha[linha].saidas)}
+                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-red-50 text-red-700">
+                            {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
-                            {formatarNumero(totaisPorLinha[linha].saldo)}
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-50">
+                            {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -727,18 +737,18 @@ const EIXO_Y_OPCOES = [
                         <TableCell className="border border-black text-xs font-bold py-1">
                           TOTAL
                         </TableCell>
-                        {colunasX.map(col => (
-                          <TableCell key={col} className="border border-black text-xs text-center font-mono font-bold py-1">
-                            {formatarNumero(totaisPorColuna.saldo[col])}
+                        {colunasXValidas.map(col => (
+                          <TableCell key={col} className={`border border-black text-xs text-center font-mono font-bold py-1 ${totaisColunaFinal.saldo[col] < 0 ? 'text-red-600' : ''}`}>
+                            {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
                           </TableCell>
                         ))}
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-green-100 text-green-800">
                           {formatarNumero(totalGeral.entradas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-red-100 text-red-800">
                           {formatarNumero(totalGeral.saidas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-100 text-blue-800">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
