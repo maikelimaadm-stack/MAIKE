@@ -239,6 +239,10 @@ export default function LancamentoPesagensIndividuais() {
           valA = a.nome_lote || '';
           valB = b.nome_lote || '';
           break;
+        case 'numero_lancamento':
+          valA = pesagens.indexOf(a) !== -1 ? pesagens.indexOf(a) : -1;
+          valB = pesagens.indexOf(b) !== -1 ? pesagens.indexOf(b) : -1;
+          break;
         case 'created_date':
         default:
           valA = new Date(a.created_date || 0);
@@ -760,7 +764,12 @@ export default function LancamentoPesagensIndividuais() {
                   <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow>
                       <TableHead className="text-xs w-10">Ações</TableHead>
-                      <TableHead className="text-xs w-16">Nº</TableHead>
+                      <TableHead 
+                        className="text-xs w-16 cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('numero_lancamento')}
+                      >
+                        <div className="flex items-center">Nº <SortIcon column="numero_lancamento" /></div>
+                      </TableHead>
                       <TableHead 
                         className="text-xs cursor-pointer hover:bg-slate-200 select-none"
                         onClick={() => handleSort('numero_animal')}
