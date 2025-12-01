@@ -540,22 +540,18 @@ const EIXO_Y_OPCOES = [
                   case 'motivo': return m.motivo || null;
                   case 'sexo': return m.sexo || null;
                   case 'tipo': return m.tipo || null;
-                  // Causa morte só se aplica a mortes
                   case 'causa_morte': 
                     if (m.motivo !== 'Morte') return null;
                     return m.causa_morte || 'Não Informada';
-                  // Fornecedor só se aplica a compras
                   case 'fornecedor': 
                     if (m.motivo !== 'Compra') return null;
                     return m.fornecedor_origem || 'Não Informado';
-                  // Comprador só se aplica a vendas/abates
                   case 'comprador': 
                     if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
                     return m.destino_venda || 'Não Informado';
                   case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
                   case 'nota_fiscal': return m.nota_fiscal || null;
                   case 'gta': return m.gta || null;
-                  // Categoria nova só se aplica a mudança de categoria
                   case 'categoria_nova': 
                     if (m.motivo !== 'Mudança de Categoria') return null;
                     return m.categoria_nova || 'Não Informada';
@@ -569,41 +565,17 @@ const EIXO_Y_OPCOES = [
                 }
               };
 
-
-
-              const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
-              const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
-
-              // Matriz: { linha: { coluna: { entradas, saidas, saldo } } }
-              const matriz = {};
-              const totaisPorColuna = { entradas: {}, saidas: {}, saldo: {} };
-              const totaisPorLinha = {};
-
-              linhasY.forEach(linha => {
-                matriz[linha] = {};
-                totaisPorLinha[linha] = { entradas: 0, saidas: 0, saldo: 0 };
-                colunasX.forEach(col => {
-                  matriz[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
-                });
-              });
-              colunasX.forEach(col => {
-                totaisPorColuna.entradas[col] = 0;
-                totaisPorColuna.saidas[col] = 0;
-                totaisPorColuna.saldo[col] = 0;
-              });
-
-              // Primeiro, filtrar movimentações que se aplicam aos eixos selecionados
+              // Filtrar movimentações válidas
               const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
                 const linha = getValorEixo(m, eixoYSintetico);
                 const col = getValorEixo(m, eixoXSintetico);
                 return linha !== null && col !== null;
               });
 
-              // Recalcular linhas e colunas baseado nas movimentações válidas
               const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
               const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
 
-              // Reinicializar matriz com valores válidos
+              // Inicializar matriz
               const matrizFinal = {};
               const totaisLinhaFinal = {};
               const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
@@ -639,7 +611,7 @@ const EIXO_Y_OPCOES = [
                 }
               });
 
-              // Calcular saldos após processar todas as movimentações
+              // Calcular saldos
               linhasYValidas.forEach(linha => {
                 totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
                 colunasXValidas.forEach(col => {
@@ -659,7 +631,6 @@ const EIXO_Y_OPCOES = [
               const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
               const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
 
-              // Se não há dados válidos
               if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
                 return (
                   <div className="text-center py-8 text-slate-500">
@@ -672,28 +643,22 @@ const EIXO_Y_OPCOES = [
               return (
                 <div className="overflow-x-auto">
                   <div className="text-xs mb-1">
-                    <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel}
+                    <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel} | <strong>Valores:</strong> Qtd / Entradas / Saídas
                   </div>
                   
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
+                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[120px]">
                           {eixoYLabel}
                         </TableHead>
                         {colunasXValidas.map(col => (
-                          <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
+                          <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[100px] whitespace-nowrap">
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
-                          Entradas
-                        </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
-                          Saídas
-                        </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
-                          Saldo
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[100px] bg-emerald-50">
+                          TOTAL
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -705,45 +670,47 @@ const EIXO_Y_OPCOES = [
                           </TableCell>
                           {colunasXValidas.map(col => {
                             const celula = matrizFinal[linha][col];
-                            const valor = celula.saldo;
                             return (
-                              <TableCell 
-                                key={col} 
-                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${valor < 0 ? 'text-red-600' : ''}`}
-                              >
-                                {valor !== 0 ? formatarNumero(valor) : ''}
+                              <TableCell key={col} className="border border-gray-300 text-xs text-center py-1 font-mono">
+                                {(celula.entradas > 0 || celula.saidas > 0) ? (
+                                  <div className="leading-tight">
+                                    <div className="font-semibold">{celula.saldo}</div>
+                                    <div className="text-[10px] text-green-600">+{celula.entradas}</div>
+                                    <div className="text-[10px] text-red-600">-{celula.saidas}</div>
+                                  </div>
+                                ) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-green-50 text-green-700">
-                            {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
-                          </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-red-50 text-red-700">
-                            {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
-                          </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-50">
-                            {formatarNumero(totaisLinhaFinal[linha].saldo)}
+                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-emerald-50">
+                            <div className="leading-tight">
+                              <div className="font-bold">{totaisLinhaFinal[linha].saldo}</div>
+                              <div className="text-[10px] text-green-600">+{totaisLinhaFinal[linha].entradas}</div>
+                              <div className="text-[10px] text-red-600">-{totaisLinhaFinal[linha].saidas}</div>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
                       <TableRow className="font-bold">
-                        <TableCell className="border border-black text-xs font-bold py-1">
+                        <TableCell className="border border-black text-xs font-bold py-1 bg-emerald-50">
                           TOTAL
                         </TableCell>
                         {colunasXValidas.map(col => (
-                          <TableCell key={col} className={`border border-black text-xs text-center font-mono font-bold py-1 ${totaisColunaFinal.saldo[col] < 0 ? 'text-red-600' : ''}`}>
-                            {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
+                          <TableCell key={col} className="border border-black text-xs text-center font-mono py-1 bg-emerald-50">
+                            <div className="leading-tight">
+                              <div className="font-bold">{totaisColunaFinal.saldo[col]}</div>
+                              <div className="text-[10px] text-green-600">+{totaisColunaFinal.entradas[col]}</div>
+                              <div className="text-[10px] text-red-600">-{totaisColunaFinal.saidas[col]}</div>
+                            </div>
                           </TableCell>
                         ))}
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-green-100 text-green-800">
-                          {formatarNumero(totalGeral.entradas)}
-                        </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-red-100 text-red-800">
-                          {formatarNumero(totalGeral.saidas)}
-                        </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-100 text-blue-800">
-                          {formatarNumero(totalGeral.saldo)}
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-emerald-100">
+                          <div className="leading-tight">
+                            <div className="font-bold text-emerald-900">{totalGeral.saldo}</div>
+                            <div className="text-[10px] text-green-700">+{totalGeral.entradas}</div>
+                            <div className="text-[10px] text-red-700">-{totalGeral.saidas}</div>
+                          </div>
                         </TableCell>
                       </TableRow>
                     </TableBody>
