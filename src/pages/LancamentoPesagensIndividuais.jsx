@@ -658,7 +658,7 @@ export default function LancamentoPesagensIndividuais() {
                     {isLoading ? (
                       <TableRow><TableCell colSpan={8} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
                     ) : pesagensDia.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
                     ) : (
                       pesagensDia.map((p, idx) => (
                         <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
