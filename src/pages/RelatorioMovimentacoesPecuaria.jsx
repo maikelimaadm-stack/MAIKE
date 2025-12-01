@@ -535,7 +535,11 @@ export default function RelatorioMovimentacoesPecuaria() {
                                 {colunasVisiveis.includes('comprador') && <TableCell className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>}
                                 {colunasVisiveis.includes('nota_fiscal') && <TableCell className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>}
                                 {colunasVisiveis.includes('gta') && <TableCell className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>}
+                                {colunasVisiveis.includes('causa_morte') && <TableCell className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>}
+                                {colunasVisiveis.includes('transferencia_origem') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>}
+                                {colunasVisiveis.includes('transferencia_destino') && <TableCell className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>}
                                 {colunasVisiveis.includes('observacoes') && <TableCell className="border border-gray-300 text-xs py-1 max-w-[100px] truncate">{m.observacoes || ''}</TableCell>}
+                                {colunasVisiveis.includes('responsavel') && <TableCell className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>}
                               </TableRow>
                             );
                           })}
