@@ -105,6 +105,11 @@ const EIXO_Y_OPCOES = [
   { value: 'fornecedor', label: 'Fornecedor' },
   { value: 'comprador', label: 'Comprador/Destino' },
   { value: 'area', label: 'Área' },
+  { value: 'nota_fiscal', label: 'Nota Fiscal' },
+  { value: 'gta', label: 'GTA' },
+  { value: 'categoria_nova', label: 'Categoria Nova' },
+  { value: 'transferencia_origem', label: 'Transferência Origem' },
+  { value: 'transferencia_destino', label: 'Transferência Destino' },
 ];
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
