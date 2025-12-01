@@ -1276,47 +1276,37 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirApartacao = async (id) => {
-        const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
-        if (pesagensVinculadas.length > 0) {
-          toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
-          return;
-        }
+    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
+      return;
+    }
 
-        if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
 
-        if (navigator.onLine) {
-          const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
-          for (const l of lotesVinculados) {
-            await base44.entities.LoteApartacao.delete(l.id);
-          }
+    if (navigator.onLine) {
+      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+      for (const l of lotesVinculados) {
+        await base44.entities.LoteApartacao.delete(l.id);
+      }
 
-          await base44.entities.Apartacao.delete(id);
-          toast.success("Apartação excluída!");
-          onRefresh();
-        } else {
-          // OFFLINE: Excluir localmente
-          const cachedApartacoes = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
-          const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
+      await base44.entities.Apartacao.delete(id);
+      toast.success("Apartação excluída!");
+      onRefresh();
+    } else {
+      // OFFLINE: Registrar exclusão no IndexedDB
+      if (dbReady && !id.startsWith('offline_')) {
+        await saveApartacaoOffline('delete', { id });
+      } else if (!dbReady && !id.startsWith('offline_')) {
+        const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+        pending.push({ action: 'delete', id, timestamp: Date.now() });
+        localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+      }
 
-          // Remover lotes vinculados
-          const lotesAtualizados = cachedLotes.filter(l => l.apartacao_id !== id);
-          localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(lotesAtualizados));
-
-          // Remover apartação
-          const apartacoesAtualizadas = cachedApartacoes.filter(a => a.id !== id);
-          localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(apartacoesAtualizadas));
-
-          // Registrar exclusão pendente (se não for item criado offline)
-          if (!id.startsWith('offline_')) {
-            const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-            pending.push({ action: 'delete', id, timestamp: Date.now() });
-            localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
-          }
-
-          toast.success("Apartação excluída offline!");
-          onRefresh();
-        }
-      };
+      toast.success("Apartação excluída offline!");
+      onRefresh();
+    }
+  };
 
   const excluirLote = async (id) => {
         const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
