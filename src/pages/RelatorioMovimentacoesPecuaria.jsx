@@ -86,6 +86,21 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('data_desc');
   const [eixoXSintetico, setEixoXSintetico] = useState('setor'); // Coluna do eixo X na matriz sintética
+  const [eixoYSintetico, setEixoYSintetico] = useState('categoria'); // Linha do eixo Y na matriz sintética
+
+// Opções de linha para o eixo Y do relatório sintético (matriz)
+const EIXO_Y_OPCOES = [
+  { value: 'categoria', label: 'Categoria de Manejo' },
+  { value: 'marca', label: 'Marca' },
+  { value: 'setor', label: 'Setor/Fazenda' },
+  { value: 'motivo', label: 'Motivo' },
+  { value: 'sexo', label: 'Sexo' },
+  { value: 'tipo', label: 'Tipo (Entrada/Saída)' },
+  { value: 'causa_morte', label: 'Causa Morte' },
+  { value: 'fornecedor', label: 'Fornecedor' },
+  { value: 'comprador', label: 'Comprador/Destino' },
+  { value: 'area', label: 'Área' },
+];
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_mov_pecuaria');
