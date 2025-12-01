@@ -36,6 +36,7 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'motivo', label: 'Motivo', default: true },
   { id: 'quantidade', label: 'Quantidade', default: true },
   { id: 'categoria', label: 'Categoria', default: true },
+  { id: 'categoria_nova', label: 'Categoria Nova', default: false },
   { id: 'marca', label: 'Marca', default: true },
   { id: 'sexo', label: 'Sexo', default: false },
   { id: 'setor', label: 'Setor', default: false },
@@ -48,7 +49,19 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'comprador', label: 'Comprador', default: false },
   { id: 'nota_fiscal', label: 'Nota Fiscal', default: false },
   { id: 'gta', label: 'GTA', default: false },
+  { id: 'causa_morte', label: 'Causa Morte', default: false },
+  { id: 'transferencia_origem', label: 'Transf. Origem', default: false },
+  { id: 'transferencia_destino', label: 'Transf. Destino', default: false },
   { id: 'observacoes', label: 'Observações', default: false },
+  { id: 'responsavel', label: 'Responsável', default: false },
+];
+
+// Opções de coluna para o eixo X do relatório sintético (matriz)
+const EIXO_X_OPCOES = [
+  { value: 'setor', label: 'Setor/Fazenda' },
+  { value: 'marca', label: 'Marca' },
+  { value: 'motivo', label: 'Motivo' },
+  { value: 'sexo', label: 'Sexo' },
 ];
 
 const ORDENACAO_OPCOES = [
