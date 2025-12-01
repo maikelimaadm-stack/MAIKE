@@ -667,13 +667,6 @@ const EIXO_Y_OPCOES = [
 
               return (
                 <div className="overflow-x-auto">
-                  {/* Cabeçalho do Agrupamento */}
-                  {agrupamentoTexto && (
-                    <div className="border border-black px-2 py-1 mb-1 font-bold text-xs">
-                      {agrupamentoTexto}
-                    </div>
-                  )}
-                  
                   <div className="text-xs mb-1">
                     <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel}
                   </div>
