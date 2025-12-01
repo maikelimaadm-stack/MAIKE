@@ -142,14 +142,24 @@ export default function LancamentoPesagensIndividuais() {
     enabled: !!apartacaoSelecionada,
   });
 
-  // Fetch pesagens do dia
+  // Fetch pesagens do dia (com cache offline)
   const { data: pesagensDia = [], isLoading, refetch } = useQuery({
     queryKey: ['pesagens-dia', empresaSelecionadaId, dataPesagem],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        // Retornar do cache se offline
+        const cached = localStorage.getItem(`cache_pesagens_${empresaSelecionadaId}_${dataPesagem}`);
+        if (cached) return JSON.parse(cached);
+        return [];
+      }
       const all = await base44.entities.PesagemIndividual.list('-created_date');
-      return all.filter(p => p.empresa_id === empresaSelecionadaId && p.data_pesagem === dataPesagem);
+      const filtered = all.filter(p => p.empresa_id === empresaSelecionadaId && p.data_pesagem === dataPesagem);
+      // Salvar em cache
+      localStorage.setItem(`cache_pesagens_${empresaSelecionadaId}_${dataPesagem}`, JSON.stringify(filtered));
+      return filtered;
     },
     enabled: !!empresaSelecionadaId && !!dataPesagem,
+    staleTime: 30000,
   });
 
   // Fetch todas pesagens para histórico
