@@ -528,27 +528,31 @@ export default function RelatorioPesagensIndividuais() {
                     const gmdMedioApt = todosAnimaisApt.filter(p => p.gmd).length > 0 
                       ? todosAnimaisApt.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / todosAnimaisApt.filter(p => p.gmd).length 
                       : 0;
+                    const pesoTotalApt = todosAnimaisApt.reduce((s, p) => s + (p.peso || 0), 0);
 
                     return (
-                      <div key={apartacao} className="border border-black overflow-hidden">
+                      <div key={apartacao} className="border-2 border-slate-300 rounded-lg overflow-hidden">
                         {/* Cabeçalho da Apartação */}
-                        <div className="bg-gray-200 border-b border-black px-3 py-2">
+                        <div className="bg-gray-200 px-3 py-2">
                           <h3 className="font-bold text-sm">APARTAÇÃO: {apartacao}</h3>
+                          <p className="text-xs">
+                            {fmtInteiro(totalApt)} animais | Peso Médio: {fmtDecimal(pesoMedioApt)} kg | GMD Médio: {fmtDecimal(gmdMedioApt, 3)} kg/dia
+                          </p>
                         </div>
 
                         {/* Tabela de Lotes */}
                         <Table>
                           <TableHeader>
-                            <TableRow className="bg-gray-100 border-b border-black">
-                              <TableHead className="text-xs font-bold py-2 border-r border-gray-400">Lote</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Qtd</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Faixa Exigida</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Menor</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Maior</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Peso Médio</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Peso Total</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">GMD Médio</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Machos</TableHead>
+                            <TableRow className="bg-gray-100">
+                              <TableHead className="text-xs font-bold py-2">Lote</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Faixa Exigida</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Menor</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Maior</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
+                              <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
                               <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -568,26 +572,37 @@ export default function RelatorioPesagensIndividuais() {
                               const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
 
                               return (
-                                <TableRow key={lote}>
-                                  <TableCell className="text-xs font-semibold py-1 border-r border-gray-300">{lote}</TableCell>
-                                  <TableCell className="text-xs text-center font-bold py-1 border-r border-gray-300">{fmtInteiro(qtd)}</TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono border-r border-gray-300">
+                                <TableRow key={lote} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
+                                  <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                                  <TableCell className="text-xs text-center py-2 font-mono">
                                     {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
                                   </TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono border-r border-gray-300">{fmtInteiro(menorPeso)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono border-r border-gray-300">{fmtInteiro(maiorPeso)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono font-semibold border-r border-gray-300">{fmtDecimal(pesoMedioLote)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono border-r border-gray-300">{fmtDecimal(pesoTotalLote)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-1 font-mono font-semibold border-r border-gray-300">
+                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                                  <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
+                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
+                                  <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                     {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
                                   </TableCell>
-                                  <TableCell className="text-xs text-center py-1 border-r border-gray-300">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                  <TableCell className="text-xs text-center py-1">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                  <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
+                                  <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
                                 </TableRow>
                               );
                             })}
                           </TableBody>
                         </Table>
+
+                        {/* Subtotal da Apartação */}
+                        <div className="bg-gray-200 px-3 py-2 border-t">
+                          <div className="grid grid-cols-5 gap-4 text-xs">
+                            <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
+                            <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
+                            <div><strong>Peso Total:</strong> {fmtDecimal(pesoTotalApt)} kg</div>
+                            <div><strong>GMD Médio:</strong> {fmtDecimal(gmdMedioApt, 3)} kg/dia</div>
+                            <div><strong>Lotes:</strong> {fmtInteiro(Object.keys(lotes).length)}</div>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -597,14 +612,14 @@ export default function RelatorioPesagensIndividuais() {
                     <h4 className="font-bold text-sm mb-2">RESUMO GERAL</h4>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-gray-200 border border-black">
-                          <TableHead className="text-xs font-bold py-2 border-r border-gray-400">Apartação</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Lotes</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Animais</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Menor Peso</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Maior Peso</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Peso Médio</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2 border-r border-gray-400">Peso Total</TableHead>
+                        <TableRow className="bg-gray-200">
+                          <TableHead className="text-xs font-bold py-2">Apartação</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Lotes</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Animais</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Maior Peso</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -621,18 +636,15 @@ export default function RelatorioPesagensIndividuais() {
                             ? todosAnimais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / todosAnimais.filter(a => a.gmd).length 
                             : 0;
 
-                          const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
-                          const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
-
                           return (
-                            <TableRow key={apartacao} className="border-b border-gray-300">
-                              <TableCell className="text-xs font-semibold py-2 border-r border-gray-300">{apartacao}</TableCell>
-                              <TableCell className="text-xs text-center py-2 border-r border-gray-300">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
-                              <TableCell className="text-xs text-center font-bold py-2 border-r border-gray-300">{fmtInteiro(qtd)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-300">{fmtInteiro(menorPeso)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-300">{fmtInteiro(maiorPeso)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold border-r border-gray-300">{fmtDecimal(pesoMedioApt)} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-300">{fmtDecimal(pesoTotalApt)} kg</TableCell>
+                            <TableRow key={apartacao}>
+                              <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
+                              <TableCell className="text-xs text-center py-2">{fmtInteiro(Object.keys(lotes).length)}</TableCell>
+                              <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)} kg</TableCell>
                               <TableCell className="text-xs text-center py-2 font-mono font-semibold">
                                 {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
@@ -640,14 +652,14 @@ export default function RelatorioPesagensIndividuais() {
                           );
                         })}
                         {/* Linha Total */}
-                        <TableRow className="bg-gray-200 font-bold border-t-2 border-black">
-                          <TableCell className="text-xs font-bold py-2 border-r border-gray-400">TOTAL GERAL</TableCell>
-                          <TableCell className="text-xs text-center font-bold py-2 border-r border-gray-400">{Object.values(porApartacao).reduce((s, lotes) => s + Object.keys(lotes).length, 0).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center font-bold py-2 border-r border-gray-400">{totalAnimais.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-400">{pesagensFiltradas.length > 0 ? Math.min(...pesagensFiltradas.map(p => p.peso || 999999).filter(p => p > 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-400">{pesagensFiltradas.length > 0 ? Math.max(...pesagensFiltradas.map(p => p.peso || 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono font-bold border-r border-gray-400">{pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono border-r border-gray-400">{pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
+                        <TableRow className="bg-gray-200 font-bold">
+                          <TableCell className="text-xs font-bold py-2">TOTAL GERAL</TableCell>
+                          <TableCell className="text-xs text-center font-bold py-2">{Object.values(porApartacao).reduce((s, lotes) => s + Object.keys(lotes).length, 0).toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center font-bold py-2">{totalAnimais.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.min(...pesagensFiltradas.map(p => p.peso || 999999).filter(p => p > 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.max(...pesagensFiltradas.map(p => p.peso || 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono font-bold">{pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono font-bold">{gmdMedio.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
                         </TableRow>
                       </TableBody>
