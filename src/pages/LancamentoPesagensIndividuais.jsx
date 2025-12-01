@@ -204,60 +204,18 @@ export default function LancamentoPesagensIndividuais() {
     }
   };
 
-  // Sincronizar apartações e lotes pendentes
-  const syncPendingApartacoesLotes = async () => {
-    const pendingApartacoes = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-    const pendingLotes = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
-    
-    // Sincronizar apartações
-    for (const item of pendingApartacoes) {
-      try {
-        if (item.action === 'create') {
-          const { _offlineId, id, created_date, ...data } = item.data;
-          await base44.entities.Apartacao.create(data);
-        } else if (item.action === 'update') {
-          await base44.entities.Apartacao.update(item.id, item.data);
-        } else if (item.action === 'delete') {
-          await base44.entities.Apartacao.delete(item.id);
-        }
-      } catch (error) {
-        console.error('Erro ao sincronizar apartação:', error);
+  const updatePendingCount = async () => {
+    try {
+      if (dbReady) {
+        const counts = await getPendingCounts();
+        setPendingCount(counts.total);
+      } else {
+        const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+        setPendingCount(pending.length);
       }
+    } catch (error) {
+      console.error('Erro ao atualizar contagem de pendentes:', error);
     }
-    
-    // Sincronizar lotes
-    for (const item of pendingLotes) {
-      try {
-        if (item.action === 'create') {
-          const { _offlineId, id, created_date, ...data } = item.data;
-          // Verificar se apartacao_id era offline e buscar o novo ID
-          if (data.apartacao_id?.startsWith('offline_')) {
-            const apartacoesAtuais = await base44.entities.Apartacao.list();
-            const apt = apartacoesAtuais.find(a => a.nome_apartacao === data.nome_apartacao && a.empresa_id === data.empresa_id);
-            if (apt) data.apartacao_id = apt.id;
-          }
-          await base44.entities.LoteApartacao.create(data);
-        } else if (item.action === 'update') {
-          await base44.entities.LoteApartacao.update(item.id, item.data);
-        } else if (item.action === 'delete') {
-          await base44.entities.LoteApartacao.delete(item.id);
-        }
-      } catch (error) {
-        console.error('Erro ao sincronizar lote:', error);
-      }
-    }
-    
-    // Limpar pendentes
-    if (pendingApartacoes.length > 0 || pendingLotes.length > 0) {
-      localStorage.setItem('pending_apartacoes', '[]');
-      localStorage.setItem('pending_lotes', '[]');
-      toast.success('Apartações/Lotes sincronizados!');
-    }
-  };
-
-  const updatePendingCount = () => {
-    const pending = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
-    setPendingCount(pending.length);
   };
 
   // ========== SINCRONIZAÇÃO ==========
