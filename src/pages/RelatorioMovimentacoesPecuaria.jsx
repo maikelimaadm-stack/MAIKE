@@ -639,20 +639,20 @@ const EIXO_Y_OPCOES = [
               });
 
               // Calcular saldos após processar todas as movimentações
-              linhasY.forEach(linha => {
-                totaisPorLinha[linha].saldo = totaisPorLinha[linha].entradas - totaisPorLinha[linha].saidas;
-                colunasX.forEach(col => {
-                  matriz[linha][col].saldo = matriz[linha][col].entradas - matriz[linha][col].saidas;
+              linhasYValidas.forEach(linha => {
+                totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col].saldo = matrizFinal[linha][col].entradas - matrizFinal[linha][col].saidas;
                 });
               });
-              colunasX.forEach(col => {
-                totaisPorColuna.saldo[col] = (totaisPorColuna.entradas[col] || 0) - (totaisPorColuna.saidas[col] || 0);
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.saldo[col] = (totaisColunaFinal.entradas[col] || 0) - (totaisColunaFinal.saidas[col] || 0);
               });
 
               const totalGeral = {
-                entradas: Object.values(totaisPorLinha).reduce((a, b) => a + b.entradas, 0),
-                saidas: Object.values(totaisPorLinha).reduce((a, b) => a + b.saidas, 0),
-                saldo: Object.values(totaisPorLinha).reduce((a, b) => a + b.saldo, 0),
+                entradas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.entradas, 0),
+                saidas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saidas, 0),
+                saldo: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saldo, 0),
               };
 
               const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
