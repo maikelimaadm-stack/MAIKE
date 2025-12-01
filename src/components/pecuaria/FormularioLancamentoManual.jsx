@@ -100,12 +100,16 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
 
 
-  // Carregar todas as movimentações para extrair dados únicos
+  // Carregar todas as movimentações MANUAIS para extrair dados únicos
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ['movimentacoes-pecuaria-dados', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list();
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      // Filtrar APENAS movimentações manuais (sem lote)
+      return all.filter(m => 
+        m.empresa_id === empresaSelecionadaId && 
+        !m.lote_id
+      );
     },
     enabled: !!empresaSelecionadaId,
   });

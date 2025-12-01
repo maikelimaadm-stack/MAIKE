@@ -148,7 +148,11 @@ export default function HistoricoMovimentacoesPecuaria() {
     queryKey: ['movimentacoes-pecuaria', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-created_date');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      // Mostrar APENAS movimentações manuais (sem lote_id)
+      return all.filter(m => 
+        m.empresa_id === empresaSelecionadaId && 
+        !m.lote_id
+      );
     },
     enabled: !!empresaSelecionadaId,
   });

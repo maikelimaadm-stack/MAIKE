@@ -227,7 +227,11 @@ export default function RelatorioMovimentacoesPecuaria() {
     queryKey: ['movimentacoes-pecuaria-relatorio', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list('-data_movimentacao');
-      return all.filter(m => m.empresa_id === empresaSelecionadaId);
+      // Filtrar APENAS movimentações manuais (excluir as de movimentação a pasto/lotes)
+      return all.filter(m => 
+        m.empresa_id === empresaSelecionadaId && 
+        !m.lote_id // Excluir movimentações que são de lotes/pasto
+      );
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -587,7 +591,13 @@ export default function RelatorioMovimentacoesPecuaria() {
           <p className="text-xs text-slate-600">Análise de entradas, saídas e saldos do rebanho</p>
         </div>
         <Button 
-          onClick={() => window.print()} 
+          onClick={() => {
+            try {
+              window.print();
+            } catch (error) {
+              toast.error('Erro ao imprimir. Tente usar o menu do navegador.');
+            }
+          }} 
           size="sm" 
           className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
         >
