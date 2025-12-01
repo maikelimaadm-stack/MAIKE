@@ -436,8 +436,36 @@ export default function LancamentoPesagensIndividuais() {
         <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <Scale className="w-5 h-5" />
           Lançamento de Pesagens
+          {/* Indicador de status de conexão */}
+          {isOnline ? (
+            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+              <Wifi className="w-3 h-3 mr-1" />
+              Online
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+              <WifiOff className="w-3 h-3 mr-1" />
+              Offline
+            </Badge>
+          )}
+          {pendingCount > 0 && (
+            <Badge className="text-[10px] bg-blue-500">
+              {pendingCount} pendente(s)
+            </Badge>
+          )}
         </h1>
         <div className="flex gap-2">
+          {pendingCount > 0 && isOnline && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={syncPendingPesagens} 
+              className="h-7 text-xs gap-1 text-blue-600 border-blue-200"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Sincronizar ({pendingCount})
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-7 text-xs gap-1">
             <Settings className="w-3 h-3" />
             Apartações/Lotes
