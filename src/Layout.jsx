@@ -63,6 +63,7 @@ const DEFAULT_MENU = [
       { id: "pec-dashboard-supl", title: "Dashboard Suplementacao", url: "DashboardSuplementacao" },
       { id: "pec-historico", title: "Historico de Movimentacoes", url: "HistoricoMovimentacoesPecuaria" },
       { id: "pec-pesagens-ind", title: "Pesagens Individuais", url: "PesagensIndividuais" },
+            { id: "pec-lanc-pesagens", title: "Lançar Pesagens", url: "LancamentoPesagensIndividuais" },
       { id: "pec-mapa-cadastro", title: "Mapa - Areas/Pontos/Linhas", url: "MapaCadastro" },
       { id: "pec-mapa-geral", title: "Mapa Geral - Manejo", url: "MapaGeral" },
       { id: "pec-relatorio", title: "Relatorio Suplementacao", url: "RelatorioSuplementacao" },
