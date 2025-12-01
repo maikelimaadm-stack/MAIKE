@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, Lock, Unlock, MoreVertical } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +26,6 @@ const CACHE_KEYS = {
   APARTACOES: 'offline_apartacoes',
   LOTES: 'offline_lotes_apartacao',
   PENDING: 'pending_pesagens_individuais',
-  PENDING_APARTACOES: 'pending_apartacoes',
-  PENDING_LOTES: 'pending_lotes',
 };
 
 const formatarData = (dataString) => {
@@ -70,10 +69,13 @@ export default function LancamentoPesagensIndividuais() {
   const [loteTransferencia, setLoteTransferencia] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   
-  // Travas para manter valores
-  const [travaSexo, setTravaSexo] = useState(true);
-  const [travaRaca, setTravaRaca] = useState(true);
-  const [travaMarca, setTravaMarca] = useState(false);
+  // Checkboxes para fixar valores (quando marcado, campo fica desabilitado)
+  const [fixarSexo, setFixarSexo] = useState(true);
+  const [fixarRaca, setFixarRaca] = useState(true);
+  const [fixarMarca, setFixarMarca] = useState(false);
+
+  // Campo de pesquisa
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
@@ -156,7 +158,6 @@ export default function LancamentoPesagensIndividuais() {
     setIsSyncing(true);
     let successCount = 0;
 
-    // Sincronizar pesagens pendentes
     const pendingPesagens = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
     const failedPesagens = [];
 
@@ -182,13 +183,27 @@ export default function LancamentoPesagensIndividuais() {
     setIsSyncing(false);
   };
 
-  // ========== PESAGENS DO DIA + PENDENTES ==========
+  // ========== PESAGENS DO DIA + PENDENTES + FILTRO ==========
   const pesagensDia = useMemo(() => {
     const pendentes = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]')
       .filter(p => p.data_pesagem === dataPesagem && p.empresa_id === empresaSelecionadaId);
     const sincronizadas = pesagens.filter(p => p.data_pesagem === dataPesagem);
-    return [...pendentes, ...sincronizadas];
-  }, [pesagens, dataPesagem, pendingCount, empresaSelecionadaId]);
+    let resultado = [...pendentes, ...sincronizadas];
+    
+    // Aplicar filtro de pesquisa
+    if (searchTerm.trim()) {
+      const termo = searchTerm.toLowerCase().trim();
+      resultado = resultado.filter(p => 
+        p.numero_animal?.toLowerCase().includes(termo) ||
+        p.nome_lote?.toLowerCase().includes(termo) ||
+        p.nome_apartacao?.toLowerCase().includes(termo) ||
+        p.raca?.toLowerCase().includes(termo) ||
+        p.marca?.toLowerCase().includes(termo)
+      );
+    }
+    
+    return resultado;
+  }, [pesagens, dataPesagem, pendingCount, empresaSelecionadaId, searchTerm]);
 
   // ========== LOTES DA APARTAÇÃO SELECIONADA ==========
   const lotesApartacaoAtual = useMemo(() => {
@@ -325,17 +340,14 @@ export default function LancamentoPesagensIndividuais() {
 
     try {
       if (navigator.onLine && !editingId) {
-        // Online - salvar direto
         await base44.entities.PesagemIndividual.create(data);
         toast.success('✓ Salvo!');
         await loadAllData();
       } else if (navigator.onLine && editingId) {
-        // Online - editar
         await base44.entities.PesagemIndividual.update(editingId, data);
         toast.success('✓ Atualizado!');
         await loadAllData();
       } else {
-        // Offline - salvar localmente
         const pending = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
         pending.push({
           ...data,
@@ -347,13 +359,13 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('💾 Salvo offline');
       }
 
-      // Limpar formulário (mantém campos travados)
+      // Limpar formulário (mantém campos fixados)
       setEditingId(null);
       setNumeroAnimal("");
       setPeso("");
-      if (!travaSexo) setSexo("");
-      if (!travaRaca) setRaca("");
-      if (!travaMarca) setMarca("");
+      if (!fixarSexo) setSexo("");
+      if (!fixarRaca) setRaca("");
+      if (!fixarMarca) setMarca("");
       setObservacao("");
       setLoteTransferencia("");
       setTimeout(() => numeroInputRef.current?.focus(), 50);
@@ -367,14 +379,12 @@ export default function LancamentoPesagensIndividuais() {
   // ========== EXCLUIR PESAGEM ==========
   const handleExcluir = async (pesagem) => {
     if (pesagem._offlineId) {
-      // Pendente offline - remover do localStorage
       const pending = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
       const updated = pending.filter(p => p._offlineId !== pesagem._offlineId);
       localStorage.setItem(CACHE_KEYS.PENDING, JSON.stringify(updated));
       updatePendingCount();
       toast.success('Removido');
     } else if (navigator.onLine) {
-      // Online - excluir do servidor
       await base44.entities.PesagemIndividual.delete(pesagem.id);
       toast.success('Excluído');
       await loadAllData();
@@ -394,6 +404,7 @@ export default function LancamentoPesagensIndividuais() {
     setPeso(String(p.peso));
     setSexo(p.sexo || "M");
     setRaca(p.raca || "Nelore");
+    setMarca(p.marca || "");
     setObservacao(p.observacao || "");
     if (p.apartacao_id) setApartacaoSelecionada(p.apartacao_id);
     if (p.lote_id) setLoteTransferencia(p.lote_id);
@@ -414,13 +425,14 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== EXPORTAR EXCEL ==========
   const exportarExcel = () => {
-    const headers = ['Identificação', 'Peso', 'Data', 'Sexo', 'Raça', 'Apartação', 'Lote'];
+    const headers = ['Identificação', 'Peso', 'Data', 'Sexo', 'Raça', 'Marca', 'Apartação', 'Lote'];
     const rows = pesagensDia.map(p => [
       p.numero_animal,
       p.peso,
       formatarData(p.data_pesagem),
       p.sexo || '',
       p.raca || '',
+      p.marca || '',
       p.nome_apartacao || '',
       p.nome_lote || ''
     ]);
@@ -441,7 +453,7 @@ export default function LancamentoPesagensIndividuais() {
       {/* HEADER */}
       <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-bold text-slate-800">Lançamento</h1>
+          <h1 className="text-base font-bold text-slate-800">Lançamento de Pesagens</h1>
           {isOnline ? (
             <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
               <Wifi className="w-3 h-3 mr-1" />Online
@@ -486,71 +498,73 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* Sexo com Trava */}
+            {/* Sexo com Checkbox para fixar */}
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Sexo</Label>
-              <div className="flex items-center gap-1">
-                <Select value={sexo} onValueChange={setSexo}>
-                  <SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="M">M</SelectItem>
-                    <SelectItem value="F">F</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button 
-                  variant={travaSexo ? "default" : "outline"} 
-                  size="icon" 
-                  className={`h-9 w-9 ${travaSexo ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                  onClick={() => setTravaSexo(!travaSexo)}
-                  title={travaSexo ? "Travado - clique para destravar" : "Destravado - clique para travar"}
-                >
-                  {travaSexo ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                </Button>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium">Sexo</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarSexo" 
+                    checked={fixarSexo} 
+                    onCheckedChange={setFixarSexo}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
+              <Select value={sexo} onValueChange={setSexo} disabled={fixarSexo && sexo}>
+                <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-slate-100' : ''}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="M">M</SelectItem>
+                  <SelectItem value="F">F</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            {/* Raça com Trava */}
+            {/* Raça com Checkbox para fixar */}
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Raça</Label>
-              <div className="flex items-center gap-1">
-                <Input 
-                  value={raca} 
-                  onChange={(e) => setRaca(e.target.value)} 
-                  className="h-9 text-sm w-28"
-                  placeholder="Nelore"
-                />
-                <Button 
-                  variant={travaRaca ? "default" : "outline"} 
-                  size="icon" 
-                  className={`h-9 w-9 ${travaRaca ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                  onClick={() => setTravaRaca(!travaRaca)}
-                  title={travaRaca ? "Travado - clique para destravar" : "Destravado - clique para travar"}
-                >
-                  {travaRaca ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                </Button>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium">Raça</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarRaca" 
+                    checked={fixarRaca} 
+                    onCheckedChange={setFixarRaca}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
+              <Input 
+                value={raca} 
+                onChange={(e) => setRaca(e.target.value)} 
+                className={`h-9 text-sm w-28 ${fixarRaca ? 'bg-slate-100' : ''}`}
+                placeholder="Nelore"
+                disabled={fixarRaca && raca}
+              />
             </div>
 
-            {/* Marca com Trava */}
+            {/* Marca com Checkbox para fixar */}
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Marca</Label>
-              <div className="flex items-center gap-1">
-                <Input 
-                  value={marca} 
-                  onChange={(e) => setMarca(e.target.value)} 
-                  className="h-9 text-sm w-24"
-                  placeholder="Ex: ABC"
-                />
-                <Button 
-                  variant={travaMarca ? "default" : "outline"} 
-                  size="icon" 
-                  className={`h-9 w-9 ${travaMarca ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                  onClick={() => setTravaMarca(!travaMarca)}
-                  title={travaMarca ? "Travado - clique para destravar" : "Destravado - clique para travar"}
-                >
-                  {travaMarca ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                </Button>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium">Marca</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarMarca" 
+                    checked={fixarMarca} 
+                    onCheckedChange={setFixarMarca}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
+              <Input 
+                value={marca} 
+                onChange={(e) => setMarca(e.target.value)} 
+                className={`h-9 text-sm w-24 ${fixarMarca ? 'bg-slate-100' : ''}`}
+                placeholder="Ex: ABC"
+                disabled={fixarMarca && marca}
+              />
             </div>
             
             {/* Nº Identificação */}
@@ -638,6 +652,27 @@ export default function LancamentoPesagensIndividuais() {
         {/* TABELA DE PESAGENS */}
         <div className="lg:col-span-3">
           <Card className="shadow-sm">
+            <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
+              {/* Campo de Pesquisa */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
+                <Input 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Pesquisar animal, lote..."
+                  className="h-7 text-xs pl-7 w-48"
+                />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                  >
+                    <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
+                  </button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[400px]">
                 <Table>
@@ -778,14 +813,15 @@ export default function LancamentoPesagensIndividuais() {
         empresaId={empresaSelecionadaId}
         apartacoes={apartacoes}
         lotes={lotesApartacao}
+        pesagens={pesagens}
         onRefresh={loadAllData}
       />
     </div>
   );
 }
 
-// ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES (OFFLINE) ==========
-function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, onRefresh }) {
+// ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
+function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh }) {
   const [tab, setTab] = useState('apartacoes');
   const [isSaving, setIsSaving] = useState(false);
   
@@ -801,8 +837,29 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   const [pesoMaximo, setPesoMaximo] = useState("");
   const [editingLoteId, setEditingLoteId] = useState(null);
 
+  // Lotes filtrados pela apartação selecionada
+  const lotesFiltrados = useMemo(() => {
+    if (!apartacaoIdLote) return lotes;
+    return lotes.filter(l => l.apartacao_id === apartacaoIdLote);
+  }, [lotes, apartacaoIdLote]);
+
   const salvarApartacao = async () => {
-    if (!nomeApartacao.trim()) { toast.error("Nome obrigatório"); return; }
+    if (!nomeApartacao.trim()) { 
+      toast.error("Nome obrigatório"); 
+      return; 
+    }
+
+    // Verificar duplicado
+    const nomeNormalizado = nomeApartacao.trim().toUpperCase();
+    const duplicado = apartacoes.find(a => 
+      a.nome_apartacao.toUpperCase() === nomeNormalizado && 
+      a.id !== editingApartacaoId
+    );
+    if (duplicado) {
+      toast.error("Já existe uma apartação com esse nome!");
+      return;
+    }
+
     setIsSaving(true);
 
     const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
@@ -810,21 +867,32 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     try {
       if (navigator.onLine) {
         if (editingApartacaoId) {
+          // Atualizar apartação
           await base44.entities.Apartacao.update(editingApartacaoId, data);
+          
+          // Propagar alteração do nome para pesagens existentes
+          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+          
+          // Atualizar lotes também
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+          for (const l of lotesVinculados) {
+            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+          
+          toast.success("Apartação atualizada!");
         } else {
           await base44.entities.Apartacao.create(data);
+          toast.success("Apartação criada!");
         }
-        toast.success("Salvo!");
         onRefresh();
       } else {
-        // Offline - salvar localmente
-        const cached = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
-        cached.push({ ...data, id: `offline_${Date.now()}`, _offlineId: Date.now() });
-        localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cached));
-        toast.success("Salvo offline!");
-        onRefresh();
+        toast.error("Operação não disponível offline");
       }
-      setNomeApartacao(""); setEditingApartacaoId(null);
+      setNomeApartacao(""); 
+      setEditingApartacaoId(null);
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {
@@ -833,9 +901,34 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const salvarLote = async () => {
-    if (!apartacaoIdLote) { toast.error("Selecione apartação"); return; }
-    if (!nomeLote.trim()) { toast.error("Nome obrigatório"); return; }
-    if (!pesoMinimo || !pesoMaximo) { toast.error("Peso obrigatório"); return; }
+    if (!apartacaoIdLote) { 
+      toast.error("Selecione uma apartação"); 
+      return; 
+    }
+    if (!nomeLote.trim()) { 
+      toast.error("Nome do lote obrigatório"); 
+      return; 
+    }
+    if (!pesoMinimo || !pesoMaximo) { 
+      toast.error("Peso mínimo e máximo obrigatórios"); 
+      return; 
+    }
+    if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
+      toast.error("Peso mínimo não pode ser maior que o máximo");
+      return;
+    }
+
+    // Verificar duplicado na mesma apartação
+    const nomeNormalizado = nomeLote.trim().toUpperCase();
+    const duplicado = lotes.find(l => 
+      l.apartacao_id === apartacaoIdLote &&
+      l.nome_lote.toUpperCase() === nomeNormalizado && 
+      l.id !== editingLoteId
+    );
+    if (duplicado) {
+      toast.error("Já existe um lote com esse nome nesta apartação!");
+      return;
+    }
     
     setIsSaving(true);
     const apt = apartacoes.find(a => a.id === apartacaoIdLote);
@@ -854,20 +947,27 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       if (navigator.onLine) {
         if (editingLoteId) {
           await base44.entities.LoteApartacao.update(editingLoteId, data);
+          
+          // Propagar alteração do nome para pesagens existentes
+          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+          }
+          
+          toast.success("Lote atualizado!");
         } else {
           await base44.entities.LoteApartacao.create(data);
+          toast.success("Lote criado!");
         }
-        toast.success("Salvo!");
         onRefresh();
       } else {
-        // Offline
-        const cached = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
-        cached.push({ ...data, id: `offline_${Date.now()}`, _offlineId: Date.now() });
-        localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(cached));
-        toast.success("Salvo offline!");
-        onRefresh();
+        toast.error("Operação não disponível offline");
       }
-      setNomeLote(""); setQtdMaxima("500"); setPesoMinimo(""); setPesoMaximo(""); setEditingLoteId(null);
+      setNomeLote(""); 
+      setQtdMaxima("500"); 
+      setPesoMinimo(""); 
+      setPesoMaximo(""); 
+      setEditingLoteId(null);
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {
@@ -876,38 +976,54 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirApartacao = async (id) => {
-    if (!confirm("Excluir?")) return;
-    if (navigator.onLine && !id.toString().startsWith('offline_')) {
+    // Verificar se há pesagens vinculadas
+    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
+      return;
+    }
+
+    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+    
+    if (navigator.onLine) {
+      // Excluir lotes vinculados primeiro
+      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+      for (const l of lotesVinculados) {
+        await base44.entities.LoteApartacao.delete(l.id);
+      }
+      
       await base44.entities.Apartacao.delete(id);
-      toast.success("Excluído!");
+      toast.success("Apartação excluída!");
       onRefresh();
     } else {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
-      localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cached.filter(a => a.id !== id)));
-      toast.success("Removido!");
-      onRefresh();
+      toast.error("Operação não disponível offline");
     }
   };
 
   const excluirLote = async (id) => {
-    if (!confirm("Excluir?")) return;
-    if (navigator.onLine && !id.toString().startsWith('offline_')) {
+    // Verificar se há pesagens vinculadas
+    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
+      return;
+    }
+
+    if (!confirm("Excluir lote?")) return;
+    
+    if (navigator.onLine) {
       await base44.entities.LoteApartacao.delete(id);
-      toast.success("Excluído!");
+      toast.success("Lote excluído!");
       onRefresh();
     } else {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
-      localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(cached.filter(l => l.id !== id)));
-      toast.success("Removido!");
-      onRefresh();
+      toast.error("Operação não disponível offline");
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Apartações e Lotes</DialogTitle>
+          <DialogTitle>Gerenciar Apartações e Lotes</DialogTitle>
         </DialogHeader>
         
         <div className="flex gap-2 border-b pb-2">
@@ -918,48 +1034,85 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         <div className="flex-1 overflow-auto">
           {tab === 'apartacoes' ? (
             <div className="space-y-3">
-              <div className="flex gap-2 items-end">
+              <div className="flex gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Nome da Apartação</Label>
-                  <Input value={nomeApartacao} onChange={(e) => setNomeApartacao(e.target.value)} className="h-8 text-xs" placeholder="Ex: ROTINA" />
+                  <Input 
+                    value={nomeApartacao} 
+                    onChange={(e) => setNomeApartacao(e.target.value)} 
+                    className="h-9 text-sm" 
+                    placeholder="Ex: ROTINA" 
+                  />
                 </div>
-                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700">
+                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
                   <Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}
                 </Button>
+                {editingApartacaoId && (
+                  <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
+                    Cancelar
+                  </Button>
+                )}
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Nome</TableHead>
-                    <TableHead className="text-xs w-20">Ações</TableHead>
+                    <TableHead className="text-xs text-center">Lotes</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
+                    <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apartacoes.map(a => (
-                    <TableRow key={a.id}>
-                      <TableCell className="text-xs font-medium">{a.nome_apartacao}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setNomeApartacao(a.nome_apartacao); setEditingApartacaoId(a.id);
-                          }}><Edit2 className="w-3 h-3" /></Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => excluirApartacao(a.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                  {apartacoes.map(a => {
+                    const qtdLotes = lotes.filter(l => l.apartacao_id === a.id).length;
+                    const qtdPesagens = pesagens.filter(p => p.apartacao_id === a.id).length;
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-xs font-medium">{a.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs text-center">{qtdLotes}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setNomeApartacao(a.nome_apartacao); 
+                              setEditingApartacaoId(a.id);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirApartacao(a.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {apartacoes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-6">
+                        Nenhuma apartação cadastrada
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-6 gap-2 items-end">
+              <div className="grid grid-cols-6 gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="space-y-1">
                   <Label className="text-xs">Apartação</Label>
                   <Select value={apartacaoIdLote} onValueChange={setApartacaoIdLote}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
                     </SelectContent>
@@ -967,23 +1120,36 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Nome Lote</Label>
-                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-8 text-xs" placeholder="Ex: BOIADA" />
+                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" placeholder="Ex: BOIADA" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Qtd Máx</Label>
-                  <Input type="number" value={qtdMaxima} onChange={(e) => setQtdMaxima(e.target.value)} className="h-8 text-xs" />
+                  <Input type="number" value={qtdMaxima} onChange={(e) => setQtdMaxima(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Peso Mín</Label>
-                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-8 text-xs" />
+                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Peso Máx</Label>
-                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-8 text-xs" />
+                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
                 </div>
-                <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}
-                </Button>
+                <div className="flex gap-1">
+                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}
+                  </Button>
+                  {editingLoteId && (
+                    <Button variant="outline" size="sm" className="h-9" onClick={() => { 
+                      setEditingLoteId(null); 
+                      setNomeLote(""); 
+                      setQtdMaxima("500"); 
+                      setPesoMinimo(""); 
+                      setPesoMaximo(""); 
+                    }}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <Table>
                 <TableHeader>
@@ -993,31 +1159,57 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                     <TableHead className="text-xs text-center">Qtd Máx</TableHead>
                     <TableHead className="text-xs text-center">Peso Mín</TableHead>
                     <TableHead className="text-xs text-center">Peso Máx</TableHead>
-                    <TableHead className="text-xs w-20">Ações</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
+                    <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lotes.map(l => (
-                    <TableRow key={l.id}>
-                      <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
-                      <TableCell className="text-xs font-medium">{l.nome_lote}</TableCell>
-                      <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setApartacaoIdLote(l.apartacao_id); setNomeLote(l.nome_lote);
-                            setQtdMaxima(String(l.quantidade_maxima)); setPesoMinimo(String(l.peso_minimo));
-                            setPesoMaximo(String(l.peso_maximo)); setEditingLoteId(l.id);
-                          }}><Edit2 className="w-3 h-3" /></Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => excluirLote(l.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                  {lotesFiltrados.map(l => {
+                    const qtdPesagens = pesagens.filter(p => p.lote_id === l.id).length;
+                    return (
+                      <TableRow key={l.id}>
+                        <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs font-medium">{l.nome_lote}</TableCell>
+                        <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setApartacaoIdLote(l.apartacao_id); 
+                              setNomeLote(l.nome_lote);
+                              setQtdMaxima(String(l.quantidade_maxima)); 
+                              setPesoMinimo(String(l.peso_minimo));
+                              setPesoMaximo(String(l.peso_maximo)); 
+                              setEditingLoteId(l.id);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirLote(l.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {lotesFiltrados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-6">
+                        {apartacaoIdLote ? 'Nenhum lote nesta apartação' : 'Selecione uma apartação ou cadastre lotes'}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
