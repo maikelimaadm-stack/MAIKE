@@ -609,7 +609,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       </div>
                     )}
 
-                    {tipoRelatorio === 'analitico' ? (
+                    {(
                       <Table>
                         <TableHeader>
                           <TableRow className="border-black">
