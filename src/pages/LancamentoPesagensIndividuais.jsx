@@ -639,10 +639,15 @@ export default function LancamentoPesagensIndividuais() {
         </div>
         <div className="flex gap-2">
           {pendingCount > 0 && isOnline && (
-            <Button variant="outline" size="sm" onClick={syncAll} disabled={isSyncing} className="h-7 text-xs gap-1">
+            <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-7 text-xs gap-1">
               <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar
             </Button>
+          )}
+          {dbReady && (
+            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+              <Database className="w-3 h-3 mr-1" />Persistente
+            </Badge>
           )}
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-7 text-xs gap-1">
             <Settings className="w-3 h-3" />Apartações
