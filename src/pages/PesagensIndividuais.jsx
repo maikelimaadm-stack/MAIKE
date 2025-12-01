@@ -303,6 +303,23 @@ export default function PesagensIndividuais() {
     setCurrentPage(1);
   };
 
+  const baixarModelo = () => {
+    const headers = ['ID', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Peso', 'NomeLote', 'NomeApartacao', 'Observacao', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const exemplo1 = ['22207', '01/12/2025', '4368', 'M', 'Nelore', '206', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
+    const exemplo2 = ['22206', '01/12/2025', '4369', 'M', 'Nelore', '287', 'BOIADA', 'ROTINA', '', '', '', '', '', ''];
+    const exemplo3 = ['22205', '01/12/2025', '4370', 'M', 'Nelore', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
+    
+    const csv = [headers.join(';'), exemplo1.join(';'), exemplo2.join(';'), exemplo3.join(';')].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo_pesagens_individuais.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Modelo baixado!');
+  };
+
   const exportarCSV = () => {
     const headers = ['ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
     const rows = pesagensFiltradas.map(p => [
@@ -364,6 +381,10 @@ export default function PesagensIndividuais() {
           <Button variant="outline" size="sm" onClick={exportarCSV} className="h-8 text-xs gap-1">
             <Download className="w-3.5 h-3.5" />
             Exportar
+          </Button>
+          <Button variant="outline" size="sm" onClick={baixarModelo} className="h-8 text-xs gap-1">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Modelo CSV
           </Button>
           <label>
             <Button size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 cursor-pointer" asChild>
