@@ -219,38 +219,28 @@ export default function LancamentoPesagensIndividuais() {
   };
 
   // ========== SINCRONIZAÇÃO ==========
-  const syncAll = async () => {
+  const handleSyncAll = async () => {
     if (!navigator.onLine) {
       toast.error("Sem conexão");
       return;
     }
 
     setIsSyncing(true);
-    let successCount = 0;
-
-    const pendingPesagens = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
-    const failedPesagens = [];
-
-    for (const pesagem of pendingPesagens) {
-      try {
-        const { _offlineId, _offlineTimestamp, ...data } = pesagem;
-        await base44.entities.PesagemIndividual.create(data);
-        successCount++;
-      } catch (error) {
-        console.error('Erro ao sincronizar pesagem:', error);
-        failedPesagens.push(pesagem);
+    
+    try {
+      const result = await syncAll(empresaSelecionadaId);
+      
+      if (result.success) {
+        await loadAllData();
+      } else if (result.message) {
+        toast.error(result.message);
       }
+    } catch (error) {
+      console.error('Erro na sincronização:', error);
+      toast.error('Erro na sincronização');
+    } finally {
+      setIsSyncing(false);
     }
-
-    localStorage.setItem(CACHE_KEYS.PENDING, JSON.stringify(failedPesagens));
-    updatePendingCount();
-
-    if (successCount > 0) {
-      toast.success(`✅ ${successCount} registro(s) sincronizado(s)!`);
-      await loadAllData();
-    }
-
-    setIsSyncing(false);
   };
 
   // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
