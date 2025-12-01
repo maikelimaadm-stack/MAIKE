@@ -880,7 +880,7 @@ export default function RelatorioMovimentacoesPecuaria() {
           {dadosRelatorio.tipo === 'sintetico' && (
             <>
               {agrupamentosAtivos.length > 0 ? (
-                // Com agrupamento - mostrar grupos com cabeçalho
+                // Com agrupamento - mostrar grupos com cabeçalho simples e dados detalhados
                 Object.entries(
                   movimentacoesPorTipoRelatorio.reduce((acc, m) => {
                     const chave = agrupamentosAtivos.map(ag => getValorAgrupamento(m, ag)).join(' | ');
@@ -888,7 +888,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                     acc[chave].push(m);
                     return acc;
                   }, {})
-                ).map(([grupo, registros], idx) => {
+                ).sort(([a], [b]) => a.localeCompare(b)).map(([grupo, registros], idx) => {
                   const totalGrupoEntradas = registros.filter(r => r.tipo === 'Entrada').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
                   const totalGrupoSaidas = registros.filter(r => r.tipo === 'Saída').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
                   const saldoGrupo = totalGrupoEntradas - totalGrupoSaidas;
@@ -897,15 +897,12 @@ export default function RelatorioMovimentacoesPecuaria() {
                   
                   return (
                     <div key={idx} className="mb-4">
+                      {/* Cabeçalho do grupo - apenas o nome */}
                       <div className="bg-gray-200 px-2 py-1 mb-1">
-                        <h3 className="font-bold text-xs">
-                          {grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'}) • 
-                          Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • 
-                          Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
-                          {pesoGrupo > 0 && ` • Peso: ${formatarNumero(pesoGrupo)} kg`}
-                          {valorGrupo > 0 && ` • Valor: R$ ${valorGrupo.toFixed(2)}`}
-                        </h3>
+                        <h3 className="font-bold text-xs">{grupo}</h3>
                       </div>
+                      
+                      {/* Tabela com os registros */}
                       <Table>
                         <TableHeader>
                           <TableRow className="border-black">
@@ -953,13 +950,10 @@ export default function RelatorioMovimentacoesPecuaria() {
                               </TableRow>
                             );
                           })}
-                        </TableBody>
-                      </Table>
-                      <Table className="mt-1">
-                        <TableBody>
+                          {/* Linha de subtotal dentro da mesma tabela */}
                           <TableRow className="bg-gray-100 font-bold">
                             <TableCell colSpan={colunasOrdenadas.length} className="border border-black text-xs py-1">
-                              SUBTOTAL: Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
+                              SUBTOTAL ({registros.length} reg): Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
                               {pesoGrupo > 0 && ` • Peso: ${formatarNumero(pesoGrupo)} kg`}
                               {valorGrupo > 0 && ` • Valor: R$ ${valorGrupo.toFixed(2)}`}
                             </TableCell>
@@ -970,15 +964,11 @@ export default function RelatorioMovimentacoesPecuaria() {
                   );
                 })
               ) : (
-                // Sem agrupamento - mostrar tabela sintética normal
+                // Sem agrupamento - mostrar tabela sintética com totais por categoria (padrão)
                 <Table>
                   <TableHeader>
                     <TableRow className="border-black">
-                      {dadosRelatorio.agrupamentos?.map((ag, i) => (
-                        <TableHead key={ag} className="border border-black text-xs font-bold py-1">
-                          {AGRUPAMENTOS_DISPONIVEIS.find(a => a.id === ag)?.label || ag}
-                        </TableHead>
-                      ))}
+                      <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>
                       {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>}
                       {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>}
                       {colunasVisiveis.includes('saldo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>}
@@ -990,9 +980,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                   <TableBody>
                     {dadosRelatorio.dados.map((grupo, idx) => (
                       <TableRow key={idx}>
-                        {grupo.partes?.map((parte, i) => (
-                          <TableCell key={i} className="border border-gray-300 text-xs py-1 font-semibold">{parte}</TableCell>
-                        ))}
+                        <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{grupo.partes?.[0] || grupo.agrupamento}</TableCell>
                         {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.entradas ? formatarNumero(grupo.entradas) : ''}</TableCell>}
                         {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.saidas ? formatarNumero(grupo.saidas) : ''}</TableCell>}
                         {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{grupo.saldo ? `${formatarNumero(grupo.saldo)} cab` : ''}</TableCell>}
@@ -1002,7 +990,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       </TableRow>
                     ))}
                     <TableRow className="bg-gray-100 font-bold">
-                      <TableCell colSpan={dadosRelatorio.agrupamentos?.length || 1} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
+                      <TableCell className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
                       {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1">{totalEntradas ? formatarNumero(totalEntradas) : ''}</TableCell>}
                       {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1">{totalSaidas ? formatarNumero(totalSaidas) : ''}</TableCell>}
                       {colunasVisiveis.includes('saldo') && <TableCell className="border border-black text-xs text-right py-1">{saldoPeriodo ? `${formatarNumero(saldoPeriodo)} cab` : ''}</TableCell>}
