@@ -340,7 +340,7 @@ export default function LancamentoPesagensIndividuais() {
     });
     
     return resultado;
-  }, [pesagens, dataPesagem, pendingCount, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
+  }, [pesagens, dataPesagem, pendingPesagensDB, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
 
   // Função para alternar ordenação
   const handleSort = (column) => {
