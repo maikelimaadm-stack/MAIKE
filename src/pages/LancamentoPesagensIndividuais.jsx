@@ -162,14 +162,22 @@ export default function LancamentoPesagensIndividuais() {
     staleTime: 30000,
   });
 
-  // Fetch todas pesagens para histórico
+  // Fetch todas pesagens para histórico (com cache offline)
   const { data: todasPesagens = [] } = useQuery({
     queryKey: ['todas-pesagens', empresaSelecionadaId],
     queryFn: async () => {
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem(`cache_todas_pesagens_${empresaSelecionadaId}`);
+        if (cached) return JSON.parse(cached);
+        return [];
+      }
       const all = await base44.entities.PesagemIndividual.list('-data_pesagem');
-      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+      const filtered = all.filter(p => p.empresa_id === empresaSelecionadaId);
+      localStorage.setItem(`cache_todas_pesagens_${empresaSelecionadaId}`, JSON.stringify(filtered));
+      return filtered;
     },
     enabled: !!empresaSelecionadaId,
+    staleTime: 60000,
   });
 
   // Resumo de lotes
