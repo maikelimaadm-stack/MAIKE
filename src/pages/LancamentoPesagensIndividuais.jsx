@@ -101,9 +101,22 @@ export default function LancamentoPesagensIndividuais() {
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
 
-  // ========== OFFLINE FIRST - CARREGAR DADOS ==========
+  // ========== OFFLINE FIRST - INICIALIZAR IndexedDB E CARREGAR DADOS ==========
   useEffect(() => {
-    loadAllData();
+    const init = async () => {
+      try {
+        await initDB();
+        setDbReady(true);
+        await loadAllData();
+      } catch (error) {
+        console.error('Erro ao inicializar IndexedDB:', error);
+        // Fallback para localStorage se IndexedDB falhar
+        setDbReady(false);
+        await loadAllData();
+      }
+    };
+    
+    init();
     
     const handleOnline = () => {
       setIsOnline(true);
@@ -117,9 +130,17 @@ export default function LancamentoPesagensIndividuais() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Listener para sincronização automática
+    const unsubscribe = addSyncListener((event) => {
+      if (event.type === 'complete') {
+        loadAllData();
+      }
+    });
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      unsubscribe();
     };
   }, [empresaSelecionadaId]);
 
