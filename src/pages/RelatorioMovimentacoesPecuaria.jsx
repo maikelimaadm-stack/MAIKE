@@ -540,9 +540,19 @@ const EIXO_Y_OPCOES = [
                   case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
                   case 'comprador': return m.destino_venda || 'Sem Comprador';
                   case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || 'Sem Área';
+                  case 'nota_fiscal': return m.nota_fiscal || 'Sem NF';
+                  case 'gta': return m.gta || 'Sem GTA';
+                  case 'categoria_nova': return m.categoria_nova || 'Sem Cat.Nova';
+                  case 'transferencia_origem': return m.transferencia_origem || 'Sem Transf.Origem';
+                  case 'transferencia_destino': return m.transferencia_destino || 'Sem Transf.Destino';
                   default: return 'Outros';
                 }
               };
+
+              // Texto do agrupamento aplicado
+              const agrupamentoTexto = agrupamentosAtivos.length > 0 
+                ? `Agrupado por: ${agrupamentosAtivos.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(' → ')}`
+                : null;
 
               const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
               const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
