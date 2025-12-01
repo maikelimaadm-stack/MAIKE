@@ -191,8 +191,14 @@ export default function LancamentoPesagensIndividuais() {
   const pesagensDia = useMemo(() => {
     const pendentes = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]')
       .filter(p => p.data_pesagem === dataPesagem && p.empresa_id === empresaSelecionadaId)
-      .map((p, idx) => ({ ...p, _numero_lancamento: `P${idx + 1}` }));
-    const sincronizadas = pesagens.filter(p => p.data_pesagem === dataPesagem);
+      .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
+    
+    // Ordenar por created_date para atribuir número sequencial fixo
+    const sincronizadas = pesagens
+      .filter(p => p.data_pesagem === dataPesagem)
+      .sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0))
+      .map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
+    
     let resultado = [...pendentes, ...sincronizadas];
     
     // Aplicar filtro de pesquisa
@@ -239,9 +245,12 @@ export default function LancamentoPesagensIndividuais() {
           valA = a.nome_lote || '';
           valB = b.nome_lote || '';
           break;
-        case 'numero_lancamento':
-          valA = pesagens.indexOf(a) !== -1 ? pesagens.indexOf(a) : -1;
-          valB = pesagens.indexOf(b) !== -1 ? pesagens.indexOf(b) : -1;
+        case 'numero_registro':
+          // Pendentes (P1, P2) ficam no topo, depois por número
+          const numA = typeof a._numero_registro === 'string' ? -1000 + parseInt(a._numero_registro.replace('P', '')) : a._numero_registro;
+          const numB = typeof b._numero_registro === 'string' ? -1000 + parseInt(b._numero_registro.replace('P', '')) : b._numero_registro;
+          valA = numA;
+          valB = numB;
           break;
         case 'created_date':
         default:
@@ -766,9 +775,9 @@ export default function LancamentoPesagensIndividuais() {
                       <TableHead className="text-xs w-10">Ações</TableHead>
                       <TableHead 
                         className="text-xs w-16 cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('numero_lancamento')}
+                        onClick={() => handleSort('numero_registro')}
                       >
-                        <div className="flex items-center">Nº <SortIcon column="numero_lancamento" /></div>
+                        <div className="flex items-center">Nº <SortIcon column="numero_registro" /></div>
                       </TableHead>
                       <TableHead 
                         className="text-xs cursor-pointer hover:bg-slate-200 select-none"
@@ -841,7 +850,7 @@ export default function LancamentoPesagensIndividuais() {
                             </DropdownMenu>
                           </TableCell>
                           <TableCell className="text-xs font-mono text-slate-500">
-                            {p._offlineId ? p._numero_lancamento : (pesagensDia.indexOf(p) + 1)}
+                            {p._numero_registro}
                           </TableCell>
                           <TableCell className="text-xs font-bold">
                             {p.numero_animal}
