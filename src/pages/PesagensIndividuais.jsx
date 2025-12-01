@@ -167,22 +167,24 @@ export default function PesagensIndividuais() {
         const delimitador = lines[0].includes('\t') ? '\t' : ';';
         const headers = lines[0].split(delimitador).map(h => h.trim().toLowerCase());
         
-        // Mapear colunas
+        // Mapear colunas (normaliza removendo espaços, acentos e underscores)
+        const normalizar = (str) => str.toLowerCase().replace(/[_\s]/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
         const colMap = {
-          id: headers.findIndex(h => h === 'id'),
-          data: headers.findIndex(h => h === 'data'),
-          numero_animal: headers.findIndex(h => h === 'numeroanimal' || h === 'numero_animal' || h === 'animal'),
-          sexo: headers.findIndex(h => h === 'sexo'),
-          raca: headers.findIndex(h => h === 'raça' || h === 'raca'),
-          peso: headers.findIndex(h => h === 'peso'),
-          nome_lote: headers.findIndex(h => h === 'nomelote' || h === 'nome_lote' || h === 'lote'),
-          nome_apartacao: headers.findIndex(h => h === 'nomeapartacao' || h === 'nome_apartacao' || h === 'apartacao'),
-          observacao: headers.findIndex(h => h === 'observacao' || h === 'obs'),
-          data_anterior: headers.findIndex(h => h === 'dataanterior' || h === 'data_anterior'),
-          peso_anterior: headers.findIndex(h => h === 'pesoanterior' || h === 'peso_anterior'),
-          dias: headers.findIndex(h => h === 'dias'),
-          ganho: headers.findIndex(h => h === 'ganho'),
-          gmd: headers.findIndex(h => h === 'gmd'),
+          id: headers.findIndex(h => normalizar(h) === 'id' || normalizar(h) === 'idexterno' || normalizar(h) === 'id_externo'),
+          data: headers.findIndex(h => normalizar(h) === 'data'),
+          numero_animal: headers.findIndex(h => normalizar(h) === 'numeroanimal' || normalizar(h) === 'animal'),
+          sexo: headers.findIndex(h => normalizar(h) === 'sexo'),
+          raca: headers.findIndex(h => normalizar(h) === 'raca' || normalizar(h) === 'raça'),
+          peso: headers.findIndex(h => normalizar(h) === 'peso'),
+          nome_lote: headers.findIndex(h => normalizar(h) === 'lote' || normalizar(h) === 'nomelote'),
+          nome_apartacao: headers.findIndex(h => normalizar(h) === 'apartacao' || normalizar(h) === 'nomeapartacao'),
+          observacao: headers.findIndex(h => normalizar(h) === 'observacao' || normalizar(h) === 'obs'),
+          data_anterior: headers.findIndex(h => normalizar(h) === 'dataanterior'),
+          peso_anterior: headers.findIndex(h => normalizar(h) === 'pesoanterior'),
+          dias: headers.findIndex(h => normalizar(h) === 'dias'),
+          ganho: headers.findIndex(h => normalizar(h) === 'ganho'),
+          gmd: headers.findIndex(h => normalizar(h) === 'gmd'),
         };
 
         const dados = [];
@@ -303,6 +305,23 @@ export default function PesagensIndividuais() {
     setCurrentPage(1);
   };
 
+  const baixarModelo = () => {
+    const headers = ['ID_Externo', 'Data', 'Numero Animal', 'Sexo', 'Raça', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const exemplo1 = ['22207', '01/12/2025', '4368', 'M', 'Nelore', '206', 'MEIO', 'ROTINA', '', '15/11/2025', '180', '16', '26', '1.625'];
+    const exemplo2 = ['22206', '01/12/2025', '4369', 'M', 'Nelore', '287', 'BOIADA', 'ROTINA', '', '15/11/2025', '260', '16', '27', '1.687'];
+    const exemplo3 = ['22205', '01/12/2025', '4370', 'F', 'Nelore', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
+    
+    const csv = [headers.join(';'), exemplo1.join(';'), exemplo2.join(';'), exemplo3.join(';')].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo_pesagens_individuais.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Modelo baixado!');
+  };
+
   const exportarCSV = () => {
     const headers = ['ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
     const rows = pesagensFiltradas.map(p => [
@@ -364,6 +383,10 @@ export default function PesagensIndividuais() {
           <Button variant="outline" size="sm" onClick={exportarCSV} className="h-8 text-xs gap-1">
             <Download className="w-3.5 h-3.5" />
             Exportar
+          </Button>
+          <Button variant="outline" size="sm" onClick={baixarModelo} className="h-8 text-xs gap-1">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Modelo CSV
           </Button>
           <label>
             <Button size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 cursor-pointer" asChild>
