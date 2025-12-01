@@ -565,10 +565,7 @@ const EIXO_Y_OPCOES = [
                 }
               };
 
-              // Texto do agrupamento aplicado
-              const agrupamentoTexto = agrupamentosAtivos.length > 0 
-                ? `Agrupado por: ${agrupamentosAtivos.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(' → ')}`
-                : null;
+
 
               const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
               const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
