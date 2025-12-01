@@ -520,13 +520,11 @@ export default function RelatorioMovimentacoesPecuaria() {
                 if (!cat || !col) return;
 
                 const qtd = m.quantidade_animais || 0;
-                const sinal = m.tipo === 'Entrada' ? 1 : -1;
-                const valor = qtd * sinal;
 
                 if (matriz[cat] && matriz[cat][col] !== undefined) {
-                  matriz[cat][col] += valor;
-                  totaisPorColuna[col] += valor;
-                  totaisPorCategoria[cat] += valor;
+                  matriz[cat][col] += qtd;
+                  totaisPorColuna[col] += qtd;
+                  totaisPorCategoria[cat] += qtd;
                 }
               });
 
