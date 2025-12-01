@@ -878,47 +878,142 @@ export default function RelatorioMovimentacoesPecuaria() {
 
           {/* Conteúdo do Relatório */}
           {dadosRelatorio.tipo === 'sintetico' && (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-black">
-                  {dadosRelatorio.agrupamentos?.map((ag, i) => (
-                    <TableHead key={ag} className="border border-black text-xs font-bold py-1">
-                      {AGRUPAMENTOS_DISPONIVEIS.find(a => a.id === ag)?.label || ag}
-                    </TableHead>
-                  ))}
-                  {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>}
-                  {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>}
-                  {colunasVisiveis.includes('saldo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>}
-                  {colunasVisiveis.includes('peso_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total</TableHead>}
-                  {colunasVisiveis.includes('peso_medio') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Médio</TableHead>}
-                  {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dadosRelatorio.dados.map((grupo, idx) => (
-                  <TableRow key={idx}>
-                    {grupo.partes?.map((parte, i) => (
-                      <TableCell key={i} className="border border-gray-300 text-xs py-1 font-semibold">{parte}</TableCell>
+            <>
+              {agrupamentosAtivos.length > 0 ? (
+                // Com agrupamento - mostrar grupos com cabeçalho
+                Object.entries(
+                  movimentacoesPorTipoRelatorio.reduce((acc, m) => {
+                    const chave = agrupamentosAtivos.map(ag => getValorAgrupamento(m, ag)).join(' | ');
+                    if (!acc[chave]) acc[chave] = [];
+                    acc[chave].push(m);
+                    return acc;
+                  }, {})
+                ).map(([grupo, registros], idx) => {
+                  const totalGrupoEntradas = registros.filter(r => r.tipo === 'Entrada').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
+                  const totalGrupoSaidas = registros.filter(r => r.tipo === 'Saída').reduce((s, r) => s + (r.quantidade_animais || 0), 0);
+                  const saldoGrupo = totalGrupoEntradas - totalGrupoSaidas;
+                  const pesoGrupo = registros.reduce((s, r) => s + (r.peso_total || 0), 0);
+                  const valorGrupo = registros.reduce((s, r) => s + (r.valor_total || 0), 0);
+                  
+                  return (
+                    <div key={idx} className="mb-4">
+                      <div className="bg-gray-200 px-2 py-1 mb-1">
+                        <h3 className="font-bold text-xs">
+                          {grupo} ({registros.length} {registros.length === 1 ? 'registro' : 'registros'}) • 
+                          Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • 
+                          Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
+                          {pesoGrupo > 0 && ` • Peso: ${formatarNumero(pesoGrupo)} kg`}
+                          {valorGrupo > 0 && ` • Valor: R$ ${valorGrupo.toFixed(2)}`}
+                        </h3>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-black">
+                            {colunasOrdenadas.map((coluna) => (
+                              <TableHead key={coluna.id} className="border border-black text-xs font-bold py-1">
+                                {coluna.label}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {registros.map((m) => {
+                            const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
+                            return (
+                              <TableRow key={m.id}>
+                                {colunasOrdenadas.map((coluna) => {
+                                  switch (coluna.id) {
+                                    case 'data': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>;
+                                    case 'tipo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.tipo || ''}</TableCell>;
+                                    case 'motivo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.motivo || ''}</TableCell>;
+                                    case 'quantidade': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.quantidade_animais || ''}</TableCell>;
+                                    case 'categoria': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_animal || ''}</TableCell>;
+                                    case 'categoria_nova': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.categoria_nova || ''}</TableCell>;
+                                    case 'marca': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.marca || ''}</TableCell>;
+                                    case 'sexo': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.sexo || ''}</TableCell>;
+                                    case 'peso_medio': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_medio ? `${m.peso_medio} kg` : ''}</TableCell>;
+                                    case 'peso_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.peso_total ? `${m.peso_total} kg` : ''}</TableCell>;
+                                    case 'area_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_origem_nome || ''}</TableCell>;
+                                    case 'area_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.area_destino_nome || ''}</TableCell>;
+                                    case 'area': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{areaExibir || ''}</TableCell>;
+                                    case 'fornecedor': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.fornecedor_origem || ''}</TableCell>;
+                                    case 'comprador': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.destino_venda || ''}</TableCell>;
+                                    case 'nota_fiscal': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.nota_fiscal || ''}</TableCell>;
+                                    case 'gta': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.gta || ''}</TableCell>;
+                                    case 'causa_morte': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.causa_morte || ''}</TableCell>;
+                                    case 'transf_origem': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_origem || ''}</TableCell>;
+                                    case 'transf_destino': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.transferencia_destino || ''}</TableCell>;
+                                    case 'valor_unitario': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_unitario ? `R$ ${m.valor_unitario.toFixed(2)}` : ''}</TableCell>;
+                                    case 'valor_total': return <TableCell key={coluna.id} className="border border-gray-300 text-xs text-right py-1">{m.valor_total ? `R$ ${m.valor_total.toFixed(2)}` : ''}</TableCell>;
+                                    case 'observacoes': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1 max-w-[100px] truncate" title={m.observacoes}>{m.observacoes || ''}</TableCell>;
+                                    case 'responsavel': return <TableCell key={coluna.id} className="border border-gray-300 text-xs py-1">{m.created_by || ''}</TableCell>;
+                                    default: return null;
+                                  }
+                                })}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <Table className="mt-1">
+                        <TableBody>
+                          <TableRow className="bg-gray-100 font-bold">
+                            <TableCell colSpan={colunasOrdenadas.length} className="border border-black text-xs py-1">
+                              SUBTOTAL: Ent: +{formatarNumero(totalGrupoEntradas)} • Saí: -{formatarNumero(totalGrupoSaidas)} • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
+                              {pesoGrupo > 0 && ` • Peso: ${formatarNumero(pesoGrupo)} kg`}
+                              {valorGrupo > 0 && ` • Valor: R$ ${valorGrupo.toFixed(2)}`}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                })
+              ) : (
+                // Sem agrupamento - mostrar tabela sintética normal
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-black">
+                      {dadosRelatorio.agrupamentos?.map((ag, i) => (
+                        <TableHead key={ag} className="border border-black text-xs font-bold py-1">
+                          {AGRUPAMENTOS_DISPONIVEIS.find(a => a.id === ag)?.label || ag}
+                        </TableHead>
+                      ))}
+                      {colunasVisiveis.includes('entradas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Entradas</TableHead>}
+                      {colunasVisiveis.includes('saidas') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saídas</TableHead>}
+                      {colunasVisiveis.includes('saldo') && <TableHead className="border border-black text-xs font-bold text-right py-1">Saldo</TableHead>}
+                      {colunasVisiveis.includes('peso_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total</TableHead>}
+                      {colunasVisiveis.includes('peso_medio') && <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Médio</TableHead>}
+                      {colunasVisiveis.includes('valor_total') && <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dadosRelatorio.dados.map((grupo, idx) => (
+                      <TableRow key={idx}>
+                        {grupo.partes?.map((parte, i) => (
+                          <TableCell key={i} className="border border-gray-300 text-xs py-1 font-semibold">{parte}</TableCell>
+                        ))}
+                        {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.entradas ? formatarNumero(grupo.entradas) : ''}</TableCell>}
+                        {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.saidas ? formatarNumero(grupo.saidas) : ''}</TableCell>}
+                        {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{grupo.saldo ? `${formatarNumero(grupo.saldo)} cab` : ''}</TableCell>}
+                        {colunasVisiveis.includes('peso_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.peso_total ? `${formatarNumero(grupo.peso_total)} kg` : ''}</TableCell>}
+                        {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.peso_medio ? `${grupo.peso_medio.toFixed(2)} kg` : ''}</TableCell>}
+                        {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.valor_total ? `R$ ${grupo.valor_total.toFixed(2)}` : ''}</TableCell>}
+                      </TableRow>
                     ))}
-                    {colunasVisiveis.includes('entradas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.entradas ? formatarNumero(grupo.entradas) : ''}</TableCell>}
-                    {colunasVisiveis.includes('saidas') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.saidas ? formatarNumero(grupo.saidas) : ''}</TableCell>}
-                    {colunasVisiveis.includes('saldo') && <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{grupo.saldo ? `${formatarNumero(grupo.saldo)} cab` : ''}</TableCell>}
-                    {colunasVisiveis.includes('peso_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.peso_total ? `${formatarNumero(grupo.peso_total)} kg` : ''}</TableCell>}
-                    {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.peso_medio ? `${grupo.peso_medio.toFixed(2)} kg` : ''}</TableCell>}
-                    {colunasVisiveis.includes('valor_total') && <TableCell className="border border-gray-300 text-xs text-right py-1">{grupo.valor_total ? `R$ ${grupo.valor_total.toFixed(2)}` : ''}</TableCell>}
-                  </TableRow>
-                ))}
-                <TableRow className="bg-gray-100 font-bold">
-                  <TableCell colSpan={dadosRelatorio.agrupamentos?.length || 1} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
-                  {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1">{totalEntradas ? formatarNumero(totalEntradas) : ''}</TableCell>}
-                  {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1">{totalSaidas ? formatarNumero(totalSaidas) : ''}</TableCell>}
-                  {colunasVisiveis.includes('saldo') && <TableCell className="border border-black text-xs text-right py-1">{saldoPeriodo ? `${formatarNumero(saldoPeriodo)} cab` : ''}</TableCell>}
-                  {colunasVisiveis.includes('peso_total') && <TableCell className="border border-black text-xs text-right py-1">{totalPeso ? `${formatarNumero(totalPeso)} kg` : ''}</TableCell>}
-                  {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-black text-xs text-right py-1">-</TableCell>}
-                  {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">{totalValor ? `R$ ${totalValor.toFixed(2)}` : ''}</TableCell>}
-                </TableRow>
-              </TableBody>
-            </Table>
+                    <TableRow className="bg-gray-100 font-bold">
+                      <TableCell colSpan={dadosRelatorio.agrupamentos?.length || 1} className="border border-black text-xs py-1">TOTAL GERAL</TableCell>
+                      {colunasVisiveis.includes('entradas') && <TableCell className="border border-black text-xs text-right py-1">{totalEntradas ? formatarNumero(totalEntradas) : ''}</TableCell>}
+                      {colunasVisiveis.includes('saidas') && <TableCell className="border border-black text-xs text-right py-1">{totalSaidas ? formatarNumero(totalSaidas) : ''}</TableCell>}
+                      {colunasVisiveis.includes('saldo') && <TableCell className="border border-black text-xs text-right py-1">{saldoPeriodo ? `${formatarNumero(saldoPeriodo)} cab` : ''}</TableCell>}
+                      {colunasVisiveis.includes('peso_total') && <TableCell className="border border-black text-xs text-right py-1">{totalPeso ? `${formatarNumero(totalPeso)} kg` : ''}</TableCell>}
+                      {colunasVisiveis.includes('peso_medio') && <TableCell className="border border-black text-xs text-right py-1">-</TableCell>}
+                      {colunasVisiveis.includes('valor_total') && <TableCell className="border border-black text-xs text-right py-1">{totalValor ? `R$ ${totalValor.toFixed(2)}` : ''}</TableCell>}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </>
           )}
 
           {/* Relatório de Mudança de Categoria - Usa Colunas Selecionáveis */}
