@@ -416,7 +416,7 @@ export default function LancamentoPesagensIndividuais() {
       dias, ganho: ganho ? parseFloat(ganho.toFixed(2)) : null, gmd,
     };
 
-    saveMutation.mutate(data);
+    salvarPesagem(data);
   };
 
   const handleKeyDown = (e, nextRef) => {
