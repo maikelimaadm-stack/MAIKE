@@ -591,22 +591,49 @@ const EIXO_Y_OPCOES = [
                 totaisPorColuna.saldo[col] = 0;
               });
 
-              movimentacoesFiltradas.forEach(m => {
+              // Primeiro, filtrar movimentações que se aplicam aos eixos selecionados
+              const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
                 const linha = getValorEixo(m, eixoYSintetico);
                 const col = getValorEixo(m, eixoXSintetico);
-                if (!linha || !col) return;
+                return linha !== null && col !== null;
+              });
 
+              // Recalcular linhas e colunas baseado nas movimentações válidas
+              const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
+              const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
+
+              // Reinicializar matriz com valores válidos
+              const matrizFinal = {};
+              const totaisLinhaFinal = {};
+              const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
+
+              linhasYValidas.forEach(linha => {
+                matrizFinal[linha] = {};
+                totaisLinhaFinal[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
+                });
+              });
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.entradas[col] = 0;
+                totaisColunaFinal.saidas[col] = 0;
+                totaisColunaFinal.saldo[col] = 0;
+              });
+
+              movimentacoesValidas.forEach(m => {
+                const linha = getValorEixo(m, eixoYSintetico);
+                const col = getValorEixo(m, eixoXSintetico);
                 const qtd = m.quantidade_animais || 0;
 
-                if (matriz[linha] && matriz[linha][col]) {
+                if (matrizFinal[linha] && matrizFinal[linha][col]) {
                   if (m.tipo === 'Entrada') {
-                    matriz[linha][col].entradas += qtd;
-                    totaisPorColuna.entradas[col] = (totaisPorColuna.entradas[col] || 0) + qtd;
-                    totaisPorLinha[linha].entradas += qtd;
+                    matrizFinal[linha][col].entradas += qtd;
+                    totaisColunaFinal.entradas[col] = (totaisColunaFinal.entradas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].entradas += qtd;
                   } else if (m.tipo === 'Saída') {
-                    matriz[linha][col].saidas += qtd;
-                    totaisPorColuna.saidas[col] = (totaisPorColuna.saidas[col] || 0) + qtd;
-                    totaisPorLinha[linha].saidas += qtd;
+                    matrizFinal[linha][col].saidas += qtd;
+                    totaisColunaFinal.saidas[col] = (totaisColunaFinal.saidas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].saidas += qtd;
                   }
                 }
               });
