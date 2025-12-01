@@ -553,9 +553,20 @@ const EIXO_Y_OPCOES = [
                 }
               };
 
+              // Filtrar movimentações para o sintético:
+              // - Excluir mudanças de categoria (não afetam saldo real de animais)
+              // - Excluir transferências entre setores (movimentos internos)
+              const movimentacoesSintetico = movimentacoesFiltradas.filter(m => {
+                // Excluir mudanças de categoria - são movimentos internos que não alteram quantidade real
+                if (m.motivo === 'Mudança de Categoria') return false;
+                // Excluir transferências entre setores - também são movimentos internos
+                if (m.motivo === 'Transferência entre Setores') return false;
+                return true;
+              });
+
               // Agrupar por eixo Y (ex: Setor) e depois por eixo X (ex: Categoria)
               const porGrupoY = {};
-              movimentacoesFiltradas.forEach(m => {
+              movimentacoesSintetico.forEach(m => {
                 const grupoY = getValorEixo(m, eixoYSintetico);
                 const grupoX = getValorEixo(m, eixoXSintetico);
                 if (!porGrupoY[grupoY]) porGrupoY[grupoY] = {};
@@ -567,6 +578,11 @@ const EIXO_Y_OPCOES = [
               const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Linha';
 
               const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
+
+              // Totais do sintético (sem mudanças de categoria e transferências)
+              const totalEntradasSint = movimentacoesSintetico.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+              const totalSaidasSint = movimentacoesSintetico.filter(m => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+              const saldoSint = totalEntradasSint - totalSaidasSint;
 
               return (
                 <div className="space-y-4">
@@ -672,10 +688,10 @@ const EIXO_Y_OPCOES = [
                         <TableRow className="bg-gray-200 font-bold">
                           <TableCell className="text-xs font-bold py-2">TOTAL GERAL</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2">{Object.values(porGrupoY).reduce((s, linhas) => s + Object.keys(linhas).length, 0).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center font-bold py-2">{(totalEntradas + totalSaidas).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-green-700">{totalEntradas.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-red-700">{totalSaidas.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className={`text-xs text-center py-2 font-mono font-bold ${saldoPeriodo < 0 ? 'text-red-700' : 'text-blue-700'}`}>{saldoPeriodo.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center font-bold py-2">{movimentacoesSintetico.reduce((s, m) => s + (m.quantidade_animais || 0), 0).toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-green-700">{totalEntradasSint.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-red-700">{totalSaidasSint.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className={`text-xs text-center py-2 font-mono font-bold ${saldoSint < 0 ? 'text-red-700' : 'text-blue-700'}`}>{saldoSint.toLocaleString('pt-BR')}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
