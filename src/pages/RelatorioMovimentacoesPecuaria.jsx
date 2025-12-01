@@ -345,22 +345,24 @@ const EIXO_Y_OPCOES = [
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Agrupar Por</Label>
-            <div className="flex flex-wrap gap-1">
-              {['tipo', 'categoria', 'marca', 'motivo', 'setor', 'sexo'].map((tipo) => (
-                <Button
-                  key={tipo}
-                  variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleAgrupamento(tipo)}
-                  className={`h-7 text-xs ${agrupamentosAtivos.includes(tipo) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
-                >
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                </Button>
-              ))}
+          {tipoRelatorio === 'analitico' && (
+            <div className="space-y-1">
+              <Label className="text-xs">Agrupar Por</Label>
+              <div className="flex flex-wrap gap-1">
+                {['tipo', 'categoria', 'marca', 'motivo', 'setor', 'sexo'].map((tipo) => (
+                  <Button
+                    key={tipo}
+                    variant={agrupamentosAtivos.includes(tipo) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleAgrupamento(tipo)}
+                    className={`h-7 text-xs ${agrupamentosAtivos.includes(tipo) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                  >
+                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex gap-2 flex-wrap">
             <Popover>
