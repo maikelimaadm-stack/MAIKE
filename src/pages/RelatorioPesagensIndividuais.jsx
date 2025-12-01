@@ -525,8 +525,11 @@ export default function RelatorioPesagensIndividuais() {
                     return (
                       <div key={apartacao} className="border-2 border-black overflow-hidden">
                         {/* Cabeçalho da Apartação */}
-                        <div className="bg-gray-800 text-white px-3 py-2">
+                        <div className="bg-gray-300 px-3 py-2 border-b border-black">
                           <h3 className="font-bold text-sm">APARTAÇÃO: {apartacao}</h3>
+                          <p className="text-xs">
+                            {formatarNumero(totalApt)} animais | Peso Médio: {pesoMedioApt.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg | GMD Médio: {gmdMedioApt > 0 ? gmdMedioApt.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : '-'} kg/dia
+                          </p>
                         </div>
 
                         {/* Tabela de Lotes */}
@@ -597,7 +600,7 @@ export default function RelatorioPesagensIndividuais() {
 
                   {/* Resumo Geral */}
                   <div className="mt-4 border-2 border-black">
-                    <div className="bg-gray-800 text-white px-3 py-2">
+                    <div className="bg-gray-300 px-3 py-2 border-b border-black">
                       <h4 className="font-bold text-sm">RESUMO GERAL</h4>
                     </div>
                     <Table>
