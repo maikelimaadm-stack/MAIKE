@@ -61,6 +61,7 @@ export default function LancamentoPesagensIndividuais() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
 
   // Refs para navegação rápida
   const numeroInputRef = useRef(null);
