@@ -372,8 +372,7 @@ export default function LancamentoPesagensIndividuais() {
     
     const todasPesagensApartacao = [
       ...pesagens.filter(p => p.apartacao_id === apartacaoSelecionada),
-      ...JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]')
-        .filter(p => p.apartacao_id === apartacaoSelecionada)
+      ...pendingPesagensDB.filter(p => p.apartacao_id === apartacaoSelecionada)
     ];
 
     return lotesApartacaoAtual.map(lote => {
