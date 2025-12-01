@@ -493,6 +493,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {colunasVisiveis.includes('quantidade') && <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd</TableHead>}
                             {colunasVisiveis.includes('categoria') && <TableHead className="border border-black text-xs font-bold py-1">Categoria</TableHead>}
                             {colunasVisiveis.includes('marca') && <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>}
+                            {colunasVisiveis.includes('categoria_nova') && <TableHead className="border border-black text-xs font-bold py-1">Cat.Nova</TableHead>}
                             {colunasVisiveis.includes('sexo') && <TableHead className="border border-black text-xs font-bold py-1">Sexo</TableHead>}
                             {colunasVisiveis.includes('setor') && <TableHead className="border border-black text-xs font-bold py-1">Setor</TableHead>}
                             {colunasVisiveis.includes('area') && <TableHead className="border border-black text-xs font-bold py-1">Área</TableHead>}
