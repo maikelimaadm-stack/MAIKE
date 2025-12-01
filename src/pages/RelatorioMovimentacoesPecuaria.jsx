@@ -468,6 +468,119 @@ export default function RelatorioMovimentacoesPecuaria() {
             <div className="text-center py-12 text-slate-400">
               <p>Nenhuma movimentação encontrada com os filtros aplicados.</p>
             </div>
+          ) : tipoRelatorio === 'sintetico' ? (
+            /* RELATÓRIO SINTÉTICO - MATRIZ CATEGORIA x EIXO SELECIONADO */
+            (() => {
+              // Construir matriz: linhas = categorias, colunas = eixo X selecionado
+              const getEixoXValue = (m) => {
+                switch (eixoXSintetico) {
+                  case 'setor': return m.setor_nome || 'Sem Setor';
+                  case 'marca': return m.marca || 'Sem Marca';
+                  case 'motivo': return m.motivo || 'Sem Motivo';
+                  case 'sexo': return m.sexo || 'Sem Sexo';
+                  default: return 'Outros';
+                }
+              };
+
+              const categorias = [...new Set(movimentacoesFiltradas.map(m => m.categoria_animal))].filter(Boolean).sort();
+              const colunasEixoX = [...new Set(movimentacoesFiltradas.map(getEixoXValue))].filter(Boolean).sort();
+
+              // Matriz: { categoria: { coluna: saldo } }
+              const matriz = {};
+              const totaisPorColuna = {};
+              const totaisPorCategoria = {};
+
+              categorias.forEach(cat => {
+                matriz[cat] = {};
+                totaisPorCategoria[cat] = 0;
+                colunasEixoX.forEach(col => {
+                  matriz[cat][col] = 0;
+                });
+              });
+              colunasEixoX.forEach(col => {
+                totaisPorColuna[col] = 0;
+              });
+
+              movimentacoesFiltradas.forEach(m => {
+                const cat = m.categoria_animal;
+                const col = getEixoXValue(m);
+                if (!cat || !col) return;
+
+                const qtd = m.quantidade_animais || 0;
+                const sinal = m.tipo === 'Entrada' ? 1 : -1;
+                const valor = qtd * sinal;
+
+                if (matriz[cat] && matriz[cat][col] !== undefined) {
+                  matriz[cat][col] += valor;
+                  totaisPorColuna[col] += valor;
+                  totaisPorCategoria[cat] += valor;
+                }
+              });
+
+              const totalGeral = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
+              const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
+
+              return (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-black bg-gray-100">
+                        <TableHead className="border border-black text-xs font-bold py-1 sticky left-0 bg-gray-100 z-10 min-w-[140px]">
+                          Categoria de Manejo
+                        </TableHead>
+                        {colunasEixoX.map(col => (
+                          <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
+                            {col}
+                          </TableHead>
+                        ))}
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 bg-yellow-100 min-w-[90px]">
+                          Total Cabeças
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categorias.map((cat, idx) => (
+                        <TableRow key={cat} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <TableCell className="border border-gray-300 text-xs font-semibold py-1 sticky left-0 bg-inherit z-10">
+                            {cat}
+                          </TableCell>
+                          {colunasEixoX.map(col => {
+                            const valor = matriz[cat][col];
+                            return (
+                              <TableCell 
+                                key={col} 
+                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${
+                                  valor > 0 ? 'text-slate-900' : valor < 0 ? 'text-red-600 font-semibold' : ''
+                                }`}
+                              >
+                                {valor !== 0 ? formatarNumero(valor) : ''}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-50">
+                            {formatarNumero(totaisPorCategoria[cat])}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Linha de Total */}
+                      <TableRow className="bg-gray-200 font-bold">
+                        <TableCell className="border border-black text-xs font-bold py-1 sticky left-0 bg-gray-200 z-10">
+                          Total Cabeças
+                        </TableCell>
+                        {colunasEixoX.map(col => (
+                          <TableCell key={col} className="border border-black text-xs text-center font-mono font-bold py-1">
+                            {formatarNumero(totaisPorColuna[col])}
+                          </TableCell>
+                        ))}
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-200">
+                          {formatarNumero(totalGeral)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()
           ) : (
             <>
               {Object.entries(movimentacoesAgrupadas).map(([grupo, registros], idx) => {
