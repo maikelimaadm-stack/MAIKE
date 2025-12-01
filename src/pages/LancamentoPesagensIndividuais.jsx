@@ -347,10 +347,13 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('💾 Salvo offline');
       }
 
-      // Limpar formulário
+      // Limpar formulário (mantém campos travados)
       setEditingId(null);
       setNumeroAnimal("");
       setPeso("");
+      if (!travaSexo) setSexo("");
+      if (!travaRaca) setRaca("");
+      if (!travaMarca) setMarca("");
       setObservacao("");
       setLoteTransferencia("");
       setTimeout(() => numeroInputRef.current?.focus(), 50);
