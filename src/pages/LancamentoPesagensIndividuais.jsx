@@ -627,14 +627,15 @@ export default function LancamentoPesagensIndividuais() {
           {/* Tabela de Pesagens do Dia */}
           <Card>
             <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Pesagens do Dia ({formatarData(dataPesagem)})</CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">{pesagensDia.length}</Badge>
-                <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-6 w-6">
-                  <RefreshCw className="w-3 h-3" />
-                </Button>
-              </div>
-            </CardHeader>
+                <CardTitle className="text-sm">Pesagens do Dia ({formatarData(dataPesagem)})</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">{pesagensDia.length + pendingCount}</Badge>
+                  {!isOnline && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-600">Cache</Badge>}
+                  <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-6 w-6" disabled={!isOnline}>
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                </div>
+              </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[300px]">
                 <Table>
