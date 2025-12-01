@@ -656,7 +656,7 @@ export default function LancamentoPesagensIndividuais() {
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={8} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
                     ) : pesagensDia.length === 0 ? (
                       <TableRow><TableCell colSpan={9} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
                     ) : (
