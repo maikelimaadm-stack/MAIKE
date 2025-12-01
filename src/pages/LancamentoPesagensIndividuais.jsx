@@ -473,64 +473,138 @@ export default function LancamentoPesagensIndividuais() {
 
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
-        <CardContent className="p-3">
-          <div className="flex flex-wrap items-end gap-3">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Data Pesagem */}
             <div className="space-y-1">
-              <Label className="text-xs">Data Pesagem</Label>
-              <Input type="date" value={dataPesagem} onChange={(e) => setDataPesagem(e.target.value)} className="h-8 text-xs w-32" />
+              <Label className="text-xs font-medium">Data Pesagem <span className="text-red-500">*</span></Label>
+              <Input 
+                type="date" 
+                value={dataPesagem} 
+                onChange={(e) => setDataPesagem(e.target.value)} 
+                className="h-9 text-sm w-40"
+              />
             </div>
+            
+            {/* Sexo com Trava */}
             <div className="space-y-1">
-              <Label className="text-xs">Sexo</Label>
-              <Select value={sexo} onValueChange={setSexo}>
-                <SelectTrigger className="h-8 text-xs w-16"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="M">M</SelectItem>
-                  <SelectItem value="F">F</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-medium">Sexo</Label>
+              <div className="flex items-center gap-1">
+                <Select value={sexo} onValueChange={setSexo}>
+                  <SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">M</SelectItem>
+                    <SelectItem value="F">F</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant={travaSexo ? "default" : "outline"} 
+                  size="icon" 
+                  className={`h-9 w-9 ${travaSexo ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setTravaSexo(!travaSexo)}
+                  title={travaSexo ? "Travado - clique para destravar" : "Destravado - clique para travar"}
+                >
+                  {travaSexo ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
             </div>
+            
+            {/* Raça com Trava */}
             <div className="space-y-1">
-              <Label className="text-xs">Raça</Label>
-              <Input value={raca} onChange={(e) => setRaca(e.target.value)} className="h-8 text-xs w-24" />
+              <Label className="text-xs font-medium">Raça</Label>
+              <div className="flex items-center gap-1">
+                <Input 
+                  value={raca} 
+                  onChange={(e) => setRaca(e.target.value)} 
+                  className="h-9 text-sm w-28"
+                  placeholder="Nelore"
+                />
+                <Button 
+                  variant={travaRaca ? "default" : "outline"} 
+                  size="icon" 
+                  className={`h-9 w-9 ${travaRaca ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setTravaRaca(!travaRaca)}
+                  title={travaRaca ? "Travado - clique para destravar" : "Destravado - clique para travar"}
+                >
+                  {travaRaca ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
             </div>
+
+            {/* Marca com Trava */}
             <div className="space-y-1">
-              <Label className="text-xs">Nº Ident./Nome</Label>
+              <Label className="text-xs font-medium">Marca</Label>
+              <div className="flex items-center gap-1">
+                <Input 
+                  value={marca} 
+                  onChange={(e) => setMarca(e.target.value)} 
+                  className="h-9 text-sm w-24"
+                  placeholder="Ex: ABC"
+                />
+                <Button 
+                  variant={travaMarca ? "default" : "outline"} 
+                  size="icon" 
+                  className={`h-9 w-9 ${travaMarca ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setTravaMarca(!travaMarca)}
+                  title={travaMarca ? "Travado - clique para destravar" : "Destravado - clique para travar"}
+                >
+                  {travaMarca ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+            </div>
+            
+            {/* Nº Identificação */}
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
               <Input 
                 ref={numeroInputRef}
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
-                className="h-8 text-xs w-28 font-bold"
+                className="h-9 text-sm w-32 font-bold border-2 border-slate-300 focus:border-emerald-500"
                 autoFocus
+                placeholder="Ex: 1234"
               />
             </div>
+            
+            {/* Peso */}
             <div className="space-y-1">
-              <Label className="text-xs">Peso</Label>
+              <Label className="text-xs font-medium">Peso (kg) <span className="text-red-500">*</span></Label>
               <Input 
                 ref={pesoInputRef}
                 type="number"
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, 'salvar')}
-                className="h-8 text-xs w-20 font-bold"
+                className="h-9 text-sm w-24 font-bold border-2 border-slate-300 focus:border-emerald-500"
+                placeholder="Ex: 320"
               />
             </div>
+            
+            {/* Observação */}
             <div className="space-y-1">
-              <Label className="text-xs">Observação</Label>
-              <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} className="h-8 text-xs w-36" />
+              <Label className="text-xs font-medium">Observação</Label>
+              <Input 
+                value={observacao} 
+                onChange={(e) => setObservacao(e.target.value)} 
+                className="h-9 text-sm w-44"
+                placeholder="Obs..."
+              />
             </div>
-            <Button onClick={handleSalvar} disabled={isSaving} className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700">
+            
+            {/* Botão Salvar */}
+            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 gap-2 bg-emerald-600 hover:bg-emerald-700 px-4">
               <Save className="w-4 h-4" />
-              {isSaving ? '...' : 'Salvar Registro'}
+              {isSaving ? 'Salvando...' : 'Salvar Registro'}
             </Button>
           </div>
           
           {/* Linha 2: Apartação e Transferência de Lote */}
-          <div className="flex flex-wrap items-end gap-3 mt-2 pt-2 border-t">
+          <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
             <div className="space-y-1">
-              <Label className="text-xs">Apartação</Label>
+              <Label className="text-xs font-medium">Apartação</Label>
               <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteTransferencia(""); }}>
-                <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm w-44"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Nenhuma</SelectItem>
                   {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
@@ -538,9 +612,9 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Transferência de Lote:</Label>
+              <Label className="text-xs font-medium">Transferência de Lote:</Label>
               <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
-                <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="Automático" /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm w-48"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
                   {lotesApartacaoAtual.map(l => (
@@ -550,9 +624,9 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             {peso && apartacaoSelecionada && !loteTransferencia && (
-              <div className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                <ChevronRight className="w-3 h-3 inline" />
-                {getLoteAutomatico(parseFloat(peso))?.nome_lote || 'Sem lote'}
+              <div className="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1.5 rounded border border-orange-200">
+                <ChevronRight className="w-4 h-4 inline" />
+                Lote: {getLoteAutomatico(parseFloat(peso))?.nome_lote || 'Não encontrado'}
               </div>
             )}
           </div>
