@@ -105,10 +105,11 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
     queryKey: ['movimentacoes-pecuaria-dados', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoPecuaria.list();
-      // Filtrar APENAS movimentações manuais (sem lote)
+      // Filtrar APENAS movimentações manuais (sem lote_id E sem lote nome)
       return all.filter(m => 
         m.empresa_id === empresaSelecionadaId && 
-        !m.lote_id
+        !m.lote_id &&
+        !m.lote
       );
     },
     enabled: !!empresaSelecionadaId,
