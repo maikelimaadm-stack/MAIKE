@@ -226,18 +226,41 @@ export default function LancamentoPesagensIndividuais() {
     }
   }, [peso, usarApartacao, apartacaoSelecionada, lotesApartacao]);
 
-  // Mutation para salvar
+  // Mutation para salvar (com suporte offline)
   const saveMutation = useMutation({
     mutationFn: async (data) => {
+      // Se estiver editando, precisa estar online
       if (editingId) {
+        if (!navigator.onLine) {
+          throw new Error('Edição não disponível offline');
+        }
         return base44.entities.PesagemIndividual.update(editingId, data);
       }
+
+      // Se offline, salvar localmente
+      if (!navigator.onLine) {
+        const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+        const pesagemOffline = {
+          ...data,
+          _offlineId: Date.now(),
+          _offlineTimestamp: new Date().toISOString()
+        };
+        pending.push(pesagemOffline);
+        localStorage.setItem('pending_pesagens_individuais', JSON.stringify(pending));
+        updatePendingCount();
+        return { offline: true, data: pesagemOffline };
+      }
+
       return base44.entities.PesagemIndividual.create(data);
     },
-    onSuccess: () => {
-      toast.success(editingId ? 'Atualizado!' : 'Salvo!');
-      queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
-      queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
+    onSuccess: (result) => {
+      if (result?.offline) {
+        toast.success('💾 Salvo offline - sincronizará quando conectar');
+      } else {
+        toast.success(editingId ? 'Atualizado!' : 'Salvo!');
+        queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
+        queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
+      }
       limparFormulario();
     },
     onError: (error) => toast.error('Erro: ' + error.message),
