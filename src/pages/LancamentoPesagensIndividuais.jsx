@@ -1096,90 +1096,84 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   }, [lotes, apartacaoIdLote]);
 
   const salvarApartacao = async () => {
-        if (!nomeApartacao.trim()) { 
-          toast.error("Nome obrigatório"); 
-          return; 
-        }
+    if (!nomeApartacao.trim()) { 
+      toast.error("Nome obrigatório"); 
+      return; 
+    }
 
-        // Verificar duplicado
-        const nomeNormalizado = nomeApartacao.trim().toUpperCase();
-        const duplicado = apartacoes.find(a => 
-          a.nome_apartacao.toUpperCase() === nomeNormalizado && 
-          a.id !== editingApartacaoId
-        );
-        if (duplicado) {
-          toast.error("Já existe uma apartação com esse nome!");
-          return;
-        }
+    // Verificar duplicado
+    const nomeNormalizado = nomeApartacao.trim().toUpperCase();
+    const duplicado = apartacoes.find(a => 
+      a.nome_apartacao.toUpperCase() === nomeNormalizado && 
+      a.id !== editingApartacaoId
+    );
+    if (duplicado) {
+      toast.error("Já existe uma apartação com esse nome!");
+      return;
+    }
 
-        setIsSaving(true);
+    setIsSaving(true);
 
-        const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
+    const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
 
-        try {
-          if (navigator.onLine) {
-            if (editingApartacaoId) {
-              await base44.entities.Apartacao.update(editingApartacaoId, data);
+    try {
+      if (navigator.onLine) {
+        if (editingApartacaoId) {
+          await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-              const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
-              for (const p of pesagensVinculadas) {
-                await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
-              }
-
-              const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
-              for (const l of lotesVinculados) {
-                await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-              }
-
-              toast.success("Apartação atualizada!");
-            } else {
-              await base44.entities.Apartacao.create(data);
-              toast.success("Apartação criada!");
-            }
-            onRefresh();
-          } else {
-            // OFFLINE: Salvar localmente
-            const cachedApartacoes = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
-
-            if (editingApartacaoId) {
-              const idx = cachedApartacoes.findIndex(a => a.id === editingApartacaoId);
-              if (idx !== -1) {
-                cachedApartacoes[idx] = { ...cachedApartacoes[idx], ...data };
-                localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cachedApartacoes));
-
-                // Salvar ação pendente para sincronizar depois
-                const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-                pending.push({ action: 'update', id: editingApartacaoId, data, timestamp: Date.now() });
-                localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
-
-                toast.success("Apartação atualizada offline!");
-              }
-            } else {
-              const novaApartacao = { 
-                ...data, 
-                id: `offline_${Date.now()}`, 
-                _offlineId: Date.now(),
-                created_date: new Date().toISOString() 
-              };
-              cachedApartacoes.push(novaApartacao);
-              localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cachedApartacoes));
-
-              const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-              pending.push({ action: 'create', data: novaApartacao, timestamp: Date.now() });
-              localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
-
-              toast.success("Apartação criada offline!");
-            }
-            onRefresh();
+          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
           }
-          setNomeApartacao(""); 
-          setEditingApartacaoId(null);
-        } catch (error) {
-          toast.error('Erro: ' + error.message);
-        } finally {
-          setIsSaving(false);
+
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+          for (const l of lotesVinculados) {
+            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+
+          toast.success("Apartação atualizada!");
+        } else {
+          await base44.entities.Apartacao.create(data);
+          toast.success("Apartação criada!");
         }
-      };
+        onRefresh();
+      } else {
+        // OFFLINE: Salvar no IndexedDB (persistente)
+        const novaApartacao = { 
+          ...data, 
+          id: `offline_${Date.now()}`, 
+          created_date: new Date().toISOString() 
+        };
+        
+        if (dbReady) {
+          if (editingApartacaoId) {
+            await saveApartacaoOffline('update', { id: editingApartacaoId, ...data });
+          } else {
+            await saveApartacaoOffline('create', novaApartacao);
+          }
+        } else {
+          // Fallback localStorage
+          const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+          pending.push({ 
+            action: editingApartacaoId ? 'update' : 'create', 
+            id: editingApartacaoId,
+            data: editingApartacaoId ? data : novaApartacao, 
+            timestamp: Date.now() 
+          });
+          localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+        }
+
+        toast.success(editingApartacaoId ? "Apartação atualizada offline!" : "Apartação criada offline!");
+        onRefresh();
+      }
+      setNomeApartacao(""); 
+      setEditingApartacaoId(null);
+    } catch (error) {
+      toast.error('Erro: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const salvarLote = async () => {
         if (!apartacaoIdLote) { 
