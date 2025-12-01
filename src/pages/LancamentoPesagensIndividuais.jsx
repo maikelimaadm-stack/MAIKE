@@ -244,15 +244,27 @@ export default function LancamentoPesagensIndividuais() {
     }
   }, [peso, usarApartacao, apartacaoSelecionada, lotesApartacao]);
 
-  // Mutation para salvar (com suporte offline)
-  const saveMutation = useMutation({
-    mutationFn: async (data) => {
+  // Estado de salvamento manual
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Função para salvar (com suporte offline)
+  const salvarPesagem = async (data) => {
+    setIsSaving(true);
+    try {
       // Se estiver editando, precisa estar online
       if (editingId) {
         if (!navigator.onLine) {
-          throw new Error('Edição não disponível offline');
+          toast.error('Edição não disponível offline');
+          setIsSaving(false);
+          return;
         }
-        return base44.entities.PesagemIndividual.update(editingId, data);
+        await base44.entities.PesagemIndividual.update(editingId, data);
+        toast.success('Atualizado!');
+        queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
+        queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
+        limparFormulario();
+        setIsSaving(false);
+        return;
       }
 
       // Se offline, salvar localmente
@@ -266,23 +278,24 @@ export default function LancamentoPesagensIndividuais() {
         pending.push(pesagemOffline);
         localStorage.setItem('pending_pesagens_individuais', JSON.stringify(pending));
         updatePendingCount();
-        return { offline: true, data: pesagemOffline };
+        toast.success('💾 Salvo offline - sincronizará quando conectar');
+        limparFormulario();
+        setIsSaving(false);
+        return;
       }
 
-      return base44.entities.PesagemIndividual.create(data);
-    },
-    onSuccess: (result) => {
-      if (result?.offline) {
-        toast.success('💾 Salvo offline - sincronizará quando conectar');
-      } else {
-        toast.success(editingId ? 'Atualizado!' : 'Salvo!');
-        queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
-        queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
-      }
+      // Online - salvar no servidor
+      await base44.entities.PesagemIndividual.create(data);
+      toast.success('Salvo!');
+      queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
+      queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
       limparFormulario();
-    },
-    onError: (error) => toast.error('Erro: ' + error.message),
-  });
+    } catch (error) {
+      toast.error('Erro: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Mutation para excluir
   const deleteMutation = useMutation({
