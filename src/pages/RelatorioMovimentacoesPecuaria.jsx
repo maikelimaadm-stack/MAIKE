@@ -505,7 +505,11 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {colunasVisiveis.includes('comprador') && <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>}
                             {colunasVisiveis.includes('nota_fiscal') && <TableHead className="border border-black text-xs font-bold py-1">NF</TableHead>}
                             {colunasVisiveis.includes('gta') && <TableHead className="border border-black text-xs font-bold py-1">GTA</TableHead>}
+                            {colunasVisiveis.includes('causa_morte') && <TableHead className="border border-black text-xs font-bold py-1">Causa Morte</TableHead>}
+                            {colunasVisiveis.includes('transferencia_origem') && <TableHead className="border border-black text-xs font-bold py-1">Transf.Orig</TableHead>}
+                            {colunasVisiveis.includes('transferencia_destino') && <TableHead className="border border-black text-xs font-bold py-1">Transf.Dest</TableHead>}
                             {colunasVisiveis.includes('observacoes') && <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>}
+                            {colunasVisiveis.includes('responsavel') && <TableHead className="border border-black text-xs font-bold py-1">Resp.</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
