@@ -445,7 +445,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                 </p>
               )}
               <p className="text-xs text-gray-600">
-                {movimentacoesFiltradas.length} registro(s) • Entradas: +{formatarNumero(totalEntradas)} cab • Saídas: -{formatarNumero(totalSaidas)} cab • Saldo: {saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab
+                {movimentacoesFiltradas.length} registros | Entradas: {formatarNumero(totalEntradas)} | Saídas: {formatarNumero(totalSaidas)} | Saldo: {formatarNumero(saldoPeriodo)} cab
               </p>
             </div>
           </div>
@@ -553,8 +553,8 @@ export default function RelatorioMovimentacoesPecuaria() {
                               {Object.entries(resumoPorCategoria).sort(([a], [b]) => a.localeCompare(b)).map(([cat, dados]) => (
                                 <TableRow key={cat}>
                                   <TableCell className="border border-gray-300 text-xs py-1 font-semibold">{cat}</TableCell>
-                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.entradas > 0 ? `+${formatarNumero(dados.entradas)}` : ''}</TableCell>
-                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.saidas > 0 ? `-${formatarNumero(dados.saidas)}` : ''}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.entradas > 0 ? formatarNumero(dados.entradas) : ''}</TableCell>
+                                  <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.saidas > 0 ? formatarNumero(dados.saidas) : ''}</TableCell>
                                   <TableCell className="border border-gray-300 text-xs text-right py-1 font-bold">{formatarNumero(dados.entradas - dados.saidas)}</TableCell>
                                   <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.peso > 0 ? `${formatarNumero(dados.peso)} kg` : ''}</TableCell>
                                   <TableCell className="border border-gray-300 text-xs text-right py-1">{dados.valor > 0 ? `R$ ${dados.valor.toFixed(2)}` : ''}</TableCell>
@@ -570,7 +570,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       <TableBody>
                         <TableRow className="bg-gray-100 font-bold">
                           <TableCell colSpan={20} className="border border-black text-xs py-1">
-                            SUBTOTAL ({registros.length} reg): Ent: +{formatarNumero(totalGrupoEnt)} • Saí: -{formatarNumero(totalGrupoSai)} • Saldo: {saldoGrupo >= 0 ? '+' : ''}{formatarNumero(saldoGrupo)} cab
+                            Subtotal: {registros.length} registros | Entradas: {formatarNumero(totalGrupoEnt)} | Saídas: {formatarNumero(totalGrupoSai)} | Saldo: {formatarNumero(saldoGrupo)} cab
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -582,10 +582,7 @@ export default function RelatorioMovimentacoesPecuaria() {
               {/* Total Geral */}
               <div className="mt-4 border-t-2 border-black pt-2">
                 <div className="flex justify-between items-center">
-                  <div className="text-xs font-bold">TOTAL GERAL: {movimentacoesFiltradas.length} registro(s)</div>
-                  <div className="text-xs font-bold">
-                    Entradas: +{formatarNumero(totalEntradas)} cab | Saídas: -{formatarNumero(totalSaidas)} cab | Saldo: {saldoPeriodo >= 0 ? '+' : ''}{formatarNumero(saldoPeriodo)} cab
-                  </div>
+                  <div className="text-xs font-bold">TOTAL GERAL: {movimentacoesFiltradas.length} registros | Entradas: {formatarNumero(totalEntradas)} | Saídas: {formatarNumero(totalSaidas)} | Saldo: {formatarNumero(saldoPeriodo)} cab</div>
                 </div>
               </div>
 
