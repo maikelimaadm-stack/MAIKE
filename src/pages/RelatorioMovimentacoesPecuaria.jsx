@@ -527,25 +527,41 @@ const EIXO_Y_OPCOES = [
           ) : tipoRelatorio === 'sintetico' ? (
             /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA */
             (() => {
-              // Função para obter valor do eixo
+              // Função para obter valor do eixo - retorna null se não aplicável
               const getValorEixo = (m, eixo) => {
                 switch (eixo) {
-                  case 'categoria': return m.categoria_animal || 'Sem Categoria';
-                  case 'setor': return m.setor_nome || 'Sem Setor';
-                  case 'marca': return m.marca || 'Sem Marca';
-                  case 'motivo': return m.motivo || 'Sem Motivo';
-                  case 'sexo': return m.sexo || 'Sem Sexo';
-                  case 'tipo': return m.tipo || 'Sem Tipo';
-                  case 'causa_morte': return m.causa_morte || 'Sem Causa';
-                  case 'fornecedor': return m.fornecedor_origem || 'Sem Fornecedor';
-                  case 'comprador': return m.destino_venda || 'Sem Comprador';
-                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || 'Sem Área';
-                  case 'nota_fiscal': return m.nota_fiscal || 'Sem NF';
-                  case 'gta': return m.gta || 'Sem GTA';
-                  case 'categoria_nova': return m.categoria_nova || 'Sem Cat.Nova';
-                  case 'transferencia_origem': return m.transferencia_origem || 'Sem Transf.Origem';
-                  case 'transferencia_destino': return m.transferencia_destino || 'Sem Transf.Destino';
-                  default: return 'Outros';
+                  case 'categoria': return m.categoria_animal || null;
+                  case 'setor': return m.setor_nome || null;
+                  case 'marca': return m.marca || null;
+                  case 'motivo': return m.motivo || null;
+                  case 'sexo': return m.sexo || null;
+                  case 'tipo': return m.tipo || null;
+                  // Causa morte só se aplica a mortes
+                  case 'causa_morte': 
+                    if (m.motivo !== 'Morte') return null;
+                    return m.causa_morte || 'Não Informada';
+                  // Fornecedor só se aplica a compras
+                  case 'fornecedor': 
+                    if (m.motivo !== 'Compra') return null;
+                    return m.fornecedor_origem || 'Não Informado';
+                  // Comprador só se aplica a vendas/abates
+                  case 'comprador': 
+                    if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
+                    return m.destino_venda || 'Não Informado';
+                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
+                  case 'nota_fiscal': return m.nota_fiscal || null;
+                  case 'gta': return m.gta || null;
+                  // Categoria nova só se aplica a mudança de categoria
+                  case 'categoria_nova': 
+                    if (m.motivo !== 'Mudança de Categoria') return null;
+                    return m.categoria_nova || 'Não Informada';
+                  case 'transferencia_origem': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_origem || 'Não Informada';
+                  case 'transferencia_destino': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_destino || 'Não Informada';
+                  default: return null;
                 }
               };
 
