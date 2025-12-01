@@ -64,10 +64,16 @@ export default function LancamentoPesagensIndividuais() {
   const [peso, setPeso] = useState("");
   const [sexo, setSexo] = useState("M");
   const [raca, setRaca] = useState("Nelore");
+  const [marca, setMarca] = useState("");
   const [observacao, setObservacao] = useState("");
   const [apartacaoSelecionada, setApartacaoSelecionada] = useState("");
   const [loteTransferencia, setLoteTransferencia] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Travas para manter valores
+  const [travaSexo, setTravaSexo] = useState(true);
+  const [travaRaca, setTravaRaca] = useState(true);
+  const [travaMarca, setTravaMarca] = useState(false);
 
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
