@@ -147,24 +147,34 @@ export default function LancamentoPesagensIndividuais() {
   const loadAllData = async () => {
     setIsLoading(true);
     
-    // Carregar do cache primeiro
-    const cachedPesagens = JSON.parse(localStorage.getItem(CACHE_KEYS.PESAGENS) || '[]');
-    const cachedApartacoes = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
-    const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
-    
-    setPesagens(cachedPesagens.filter(p => p.empresa_id === empresaSelecionadaId));
-    setApartacoes(cachedApartacoes.filter(a => a.empresa_id === empresaSelecionadaId));
-    setLotesApartacao(cachedLotes.filter(l => l.empresa_id === empresaSelecionadaId));
-    
-    updatePendingCount();
-    setIsLoading(false);
-
-    // Se online, sincronizar pendentes e atualizar do servidor
-    if (navigator.onLine) {
-      try {
-        // Sincronizar apartações pendentes
-        await syncPendingApartacoesLotes();
+    try {
+      // Tentar carregar do IndexedDB primeiro
+      if (dbReady) {
+        const [cachedPesagensDB, cachedApartacoesDB, cachedLotesDB] = await Promise.all([
+          getCachedPesagens(empresaSelecionadaId),
+          getCachedApartacoes(empresaSelecionadaId),
+          getCachedLotes(empresaSelecionadaId),
+        ]);
         
+        setPesagens(cachedPesagensDB);
+        setApartacoes(cachedApartacoesDB);
+        setLotesApartacao(cachedLotesDB);
+      } else {
+        // Fallback para localStorage
+        const cachedPesagens = JSON.parse(localStorage.getItem('offline_pesagens_individuais') || '[]');
+        const cachedApartacoes = JSON.parse(localStorage.getItem('offline_apartacoes') || '[]');
+        const cachedLotes = JSON.parse(localStorage.getItem('offline_lotes_apartacao') || '[]');
+        
+        setPesagens(cachedPesagens.filter(p => p.empresa_id === empresaSelecionadaId));
+        setApartacoes(cachedApartacoes.filter(a => a.empresa_id === empresaSelecionadaId));
+        setLotesApartacao(cachedLotes.filter(l => l.empresa_id === empresaSelecionadaId));
+      }
+      
+      await updatePendingCount();
+      setIsLoading(false);
+
+      // Se online, atualizar do servidor e salvar no IndexedDB
+      if (navigator.onLine) {
         const [allPesagens, allApartacoes, allLotes] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
@@ -175,16 +185,22 @@ export default function LancamentoPesagensIndividuais() {
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
 
-        localStorage.setItem(CACHE_KEYS.PESAGENS, JSON.stringify(pesagensEmpresa));
-        localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(apartacoesEmpresa));
-        localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(lotesEmpresa));
+        // Salvar no IndexedDB (persistente)
+        if (dbReady) {
+          await Promise.all([
+            cachePesagens(pesagensEmpresa),
+            cacheApartacoes(apartacoesEmpresa),
+            cacheLotes(lotesEmpresa),
+          ]);
+        }
 
         setPesagens(pesagensEmpresa);
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
-      } catch (error) {
-        console.error('Erro ao carregar dados online:', error);
       }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      setIsLoading(false);
     }
   };
 
