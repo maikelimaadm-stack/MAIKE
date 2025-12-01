@@ -330,7 +330,10 @@ export default function LancamentoPesagensIndividuais() {
 
     if (!editingId) {
       const duplicado = pesagensDia.find(p => p.numero_animal === numeroAnimal);
-      if (duplicado) { toast.error("Animal já pesado hoje"); return; }
+      // Verificar também nos pendentes offline
+      const pendingOffline = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+      const duplicadoOffline = pendingOffline.find(p => p.numero_animal === numeroAnimal && p.data_pesagem === dataPesagem);
+      if (duplicado || duplicadoOffline) { toast.error("Animal já pesado hoje"); return; }
     }
 
     if (usarSequencia && seqInicio && seqFinal) {
