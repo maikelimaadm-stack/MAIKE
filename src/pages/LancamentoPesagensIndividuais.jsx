@@ -240,14 +240,29 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== SALVAR PESAGEM ==========
   const handleSalvar = async () => {
-    if (!dataPesagem) { toast.error("Data obrigatória"); return; }
-    if (!numeroAnimal?.trim()) { toast.error("Número obrigatório"); return; }
-    if (!peso || isNaN(parseFloat(peso))) { toast.error("Peso inválido"); return; }
+    // Validações com avisos
+    if (!dataPesagem) { 
+      toast.error("⚠️ Campo obrigatório: Data da Pesagem"); 
+      return; 
+    }
+    if (!numeroAnimal?.trim()) { 
+      toast.error("⚠️ Campo obrigatório: Nº Identificação"); 
+      numeroInputRef.current?.focus();
+      return; 
+    }
+    if (!peso || isNaN(parseFloat(peso)) || parseFloat(peso) <= 0) { 
+      toast.error("⚠️ Campo obrigatório: Peso (deve ser maior que zero)"); 
+      pesoInputRef.current?.focus();
+      return; 
+    }
 
     // Verificar duplicado
     if (!editingId) {
       const duplicado = pesagensDia.find(p => p.numero_animal === numeroAnimal.trim());
-      if (duplicado) { toast.error("Animal já pesado hoje"); return; }
+      if (duplicado) { 
+        toast.error("⚠️ Animal já pesado hoje! Nº: " + numeroAnimal); 
+        return; 
+      }
     }
 
     setIsSaving(true);
@@ -273,7 +288,6 @@ export default function LancamentoPesagensIndividuais() {
     let loteId = null, nomeLote = null, apartacaoId = null, nomeApartacao = null;
     
     if (loteTransferencia) {
-      // Lote manual selecionado
       const lote = lotesApartacaoAtual.find(l => l.id === loteTransferencia);
       if (lote) {
         loteId = lote.id;
@@ -282,7 +296,6 @@ export default function LancamentoPesagensIndividuais() {
         nomeApartacao = apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || "";
       }
     } else if (apartacaoSelecionada) {
-      // Lote automático
       const loteAuto = getLoteAutomatico(pesoNum);
       if (loteAuto) {
         loteId = loteAuto.id;
@@ -298,6 +311,7 @@ export default function LancamentoPesagensIndividuais() {
       numero_animal: numeroAnimal.trim(),
       sexo: sexo || null,
       raca: raca || null,
+      marca: marca || null,
       peso: pesoNum,
       observacao: observacao || null,
       apartacao_id: apartacaoId,
