@@ -654,32 +654,68 @@ export default function LancamentoPesagensIndividuais() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow><TableCell colSpan={8} className="text-center py-4 text-slate-500 text-xs">Carregando...</TableCell></TableRow>
-                    ) : pesagensDia.length === 0 ? (
+                    ) : pesagensDia.length === 0 && pendingCount === 0 ? (
                       <TableRow><TableCell colSpan={8} className="text-center py-4 text-slate-500 text-xs">Nenhuma pesagem</TableCell></TableRow>
                     ) : (
-                      pesagensDia.map((p) => (
-                        <TableRow key={p.id} className="hover:bg-slate-50">
-                          <TableCell className="text-xs font-medium">{p.numero_animal}</TableCell>
-                          <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
-                          <TableCell className="text-xs">{p.raca || '-'}</TableCell>
-                          <TableCell className="text-xs text-right font-mono font-semibold">{p.peso}</TableCell>
-                          <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
-                          <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
-                          <TableCell className={`text-xs text-right font-mono ${p.gmd > 0 ? 'text-emerald-600' : p.gmd < 0 ? 'text-red-600' : ''}`}>
-                            {p.gmd?.toFixed(3) || '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-0.5">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditar(p)} className="h-5 w-5">
-                                <Edit2 className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(p.id)} className="h-5 w-5 text-red-500">
+                      <>
+                        {/* Pesagens pendentes (offline) */}
+                        {JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]')
+                          .filter(p => p.data_pesagem === dataPesagem)
+                          .map((p) => (
+                          <TableRow key={p._offlineId} className="hover:bg-amber-50 bg-amber-50/50">
+                            <TableCell className="text-xs font-medium">
+                              {p.numero_animal}
+                              <Badge variant="outline" className="ml-1 text-[9px] bg-amber-100 text-amber-700">Pendente</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
+                            <TableCell className="text-xs">{p.raca || '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-mono font-semibold">{p.peso}</TableCell>
+                            <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-mono">{p.gmd?.toFixed(3) || '-'}</TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => {
+                                  const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+                                  const updated = pending.filter(x => x._offlineId !== p._offlineId);
+                                  localStorage.setItem('pending_pesagens_individuais', JSON.stringify(updated));
+                                  updatePendingCount();
+                                  toast.success('Pesagem pendente removida');
+                                }} 
+                                className="h-5 w-5 text-red-500"
+                              >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {/* Pesagens sincronizadas */}
+                        {pesagensDia.map((p) => (
+                          <TableRow key={p.id} className="hover:bg-slate-50">
+                            <TableCell className="text-xs font-medium">{p.numero_animal}</TableCell>
+                            <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
+                            <TableCell className="text-xs">{p.raca || '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-mono font-semibold">{p.peso}</TableCell>
+                            <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
+                            <TableCell className={`text-xs text-right font-mono ${p.gmd > 0 ? 'text-emerald-600' : p.gmd < 0 ? 'text-red-600' : ''}`}>
+                              {p.gmd?.toFixed(3) || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-0.5">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditar(p)} className="h-5 w-5" disabled={!isOnline}>
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(p.id)} className="h-5 w-5 text-red-500" disabled={!isOnline}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
                     )}
                   </TableBody>
                 </Table>
