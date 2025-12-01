@@ -117,6 +117,15 @@ export default function RelatorioPesagensIndividuais() {
     enabled: !!empresaSelecionadaId,
   });
 
+  const { data: lotesApartacaoCadastrados = [] } = useQuery({
+    queryKey: ['lotes-apartacao-relatorio', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.LoteApartacao.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
   const lotesUnicos = [...new Set(pesagens.map(p => p.nome_lote))].filter(Boolean).sort();
   const apartacoesUnicas = [...new Set(pesagens.map(p => p.nome_apartacao))].filter(Boolean).sort();
   const sexosUnicos = [...new Set(pesagens.map(p => p.sexo))].filter(Boolean).sort();
