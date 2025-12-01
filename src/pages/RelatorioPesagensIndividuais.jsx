@@ -482,9 +482,7 @@ export default function RelatorioPesagensIndividuais() {
                   Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
                 </p>
               )}
-              <p className="text-xs text-gray-600">
-                {totalAnimais} pesagens | Peso Médio: {pesoMedio.toFixed(1)} kg | GMD Médio: {gmdMedio.toFixed(3)} kg/dia | Ganho Total: {formatarNumero(ganhoTotal.toFixed(1))} kg
-              </p>
+
             </div>
           </div>
 
@@ -535,9 +533,6 @@ export default function RelatorioPesagensIndividuais() {
                         {/* Cabeçalho da Apartação */}
                         <div className="bg-gray-200 px-3 py-2">
                           <h3 className="font-bold text-sm">APARTAÇÃO: {apartacao}</h3>
-                          <p className="text-xs">
-                            {fmtInteiro(totalApt)} animais | Peso Médio: {fmtDecimal(pesoMedioApt)} kg | GMD Médio: {fmtDecimal(gmdMedioApt, 3)} kg/dia
-                          </p>
                         </div>
 
                         {/* Tabela de Lotes */}
