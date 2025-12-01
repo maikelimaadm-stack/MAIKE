@@ -1067,10 +1067,17 @@ export default function LancamentoPesagensIndividuais() {
         lotes={lotesApartacao}
         pesagens={pesagens}
         onRefresh={loadAllData}
+        dbReady={dbReady}
       />
-    </div>
-  );
-}
+
+      {/* INDICADOR DE SINCRONIZAÇÃO OFFLINE */}
+      <OfflineSyncIndicator 
+        empresaId={empresaSelecionadaId}
+        onSyncComplete={loadAllData}
+      />
+      </div>
+      );
+      }
 
 // ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
