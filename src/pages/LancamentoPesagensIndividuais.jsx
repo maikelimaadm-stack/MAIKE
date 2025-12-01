@@ -1073,7 +1073,7 @@ export default function LancamentoPesagensIndividuais() {
 }
 
 // ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
-function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh }) {
+function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
   const [tab, setTab] = useState('apartacoes');
   const [isSaving, setIsSaving] = useState(false);
   
