@@ -655,21 +655,34 @@ export default function LancamentoPesagensIndividuais() {
             <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
               {/* Campo de Pesquisa */}
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
-                <Input 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Pesquisar animal, lote..."
-                  className="h-7 text-xs pl-7 w-48"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
+                  <Input 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Pesquisar animal, lote..."
+                    className="h-7 text-xs pl-7 w-48"
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    >
+                      <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
+                    </button>
+                  )}
+                </div>
                 {searchTerm && (
-                  <button 
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    className="h-7 text-xs gap-1"
                   >
-                    <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
-                  </button>
+                    <X className="w-3 h-3" />
+                    Limpar Filtro
+                  </Button>
                 )}
               </div>
             </CardHeader>
