@@ -272,10 +272,23 @@ export default function RelatorioMovimentacoesPecuaria() {
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="analitico">Analítico (Detalhado)</SelectItem>
-                  <SelectItem value="sintetico">Sintético (Resumido)</SelectItem>
+                  <SelectItem value="sintetico">Sintético (Matriz)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {tipoRelatorio === 'sintetico' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Colunas da Matriz</Label>
+                <Select value={eixoXSintetico} onValueChange={setEixoXSintetico}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EIXO_X_OPCOES.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-xs">Ordenar Por</Label>
               <Select value={ordenacao} onValueChange={setOrdenacao}>
