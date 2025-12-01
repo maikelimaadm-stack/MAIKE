@@ -529,157 +529,225 @@ const EIXO_Y_OPCOES = [
               <p>Nenhuma movimentação encontrada com os filtros aplicados.</p>
             </div>
           ) : tipoRelatorio === 'sintetico' ? (
-            /* RELATÓRIO SINTÉTICO - ESTILO POR AGRUPAMENTO/LINHA */
+            /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA */
             (() => {
-              // Função para obter valor do eixo
+              // Função para obter valor do eixo - retorna null se não aplicável
               const getValorEixo = (m, eixo) => {
                 switch (eixo) {
-                  case 'categoria': return m.categoria_animal || 'Sem Categoria';
-                  case 'setor': return m.setor_nome || 'Sem Setor';
-                  case 'marca': return m.marca || 'Sem Marca';
-                  case 'motivo': return m.motivo || 'Sem Motivo';
-                  case 'sexo': return m.sexo || 'Sem Sexo';
-                  case 'tipo': return m.tipo || 'Sem Tipo';
-                  case 'causa_morte': return m.causa_morte || 'Não Informada';
-                  case 'fornecedor': return m.fornecedor_origem || 'Não Informado';
-                  case 'comprador': return m.destino_venda || 'Não Informado';
-                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || 'Sem Área';
-                  case 'nota_fiscal': return m.nota_fiscal || 'Sem NF';
-                  case 'gta': return m.gta || 'Sem GTA';
-                  case 'categoria_nova': return m.categoria_nova || 'Não Informada';
-                  case 'transferencia_origem': return m.transferencia_origem || 'Não Informada';
-                  case 'transferencia_destino': return m.transferencia_destino || 'Não Informada';
-                  default: return 'N/A';
+                  case 'categoria': return m.categoria_animal || null;
+                  case 'setor': return m.setor_nome || null;
+                  case 'marca': return m.marca || null;
+                  case 'motivo': return m.motivo || null;
+                  case 'sexo': return m.sexo || null;
+                  case 'tipo': return m.tipo || null;
+                  // Causa morte só se aplica a mortes
+                  case 'causa_morte': 
+                    if (m.motivo !== 'Morte') return null;
+                    return m.causa_morte || 'Não Informada';
+                  // Fornecedor só se aplica a compras
+                  case 'fornecedor': 
+                    if (m.motivo !== 'Compra') return null;
+                    return m.fornecedor_origem || 'Não Informado';
+                  // Comprador só se aplica a vendas/abates
+                  case 'comprador': 
+                    if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
+                    return m.destino_venda || 'Não Informado';
+                  case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
+                  case 'nota_fiscal': return m.nota_fiscal || null;
+                  case 'gta': return m.gta || null;
+                  // Categoria nova só se aplica a mudança de categoria
+                  case 'categoria_nova': 
+                    if (m.motivo !== 'Mudança de Categoria') return null;
+                    return m.categoria_nova || 'Não Informada';
+                  case 'transferencia_origem': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_origem || 'Não Informada';
+                  case 'transferencia_destino': 
+                    if (m.motivo !== 'Transferência entre Setores' && m.motivo !== 'Mudança de Categoria') return null;
+                    return m.transferencia_destino || 'Não Informada';
+                  default: return null;
                 }
               };
 
-              // Agrupar por eixo Y (ex: Setor) e depois por eixo X (ex: Categoria)
-              const porGrupoY = {};
-              movimentacoesFiltradas.forEach(m => {
-                const grupoY = getValorEixo(m, eixoYSintetico);
-                const grupoX = getValorEixo(m, eixoXSintetico);
-                if (!porGrupoY[grupoY]) porGrupoY[grupoY] = {};
-                if (!porGrupoY[grupoY][grupoX]) porGrupoY[grupoY][grupoX] = [];
-                porGrupoY[grupoY][grupoX].push(m);
+
+
+              const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
+              const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
+
+              // Matriz: { linha: { coluna: { entradas, saidas, saldo } } }
+              const matriz = {};
+              const totaisPorColuna = { entradas: {}, saidas: {}, saldo: {} };
+              const totaisPorLinha = {};
+
+              linhasY.forEach(linha => {
+                matriz[linha] = {};
+                totaisPorLinha[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasX.forEach(col => {
+                  matriz[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
+                });
+              });
+              colunasX.forEach(col => {
+                totaisPorColuna.entradas[col] = 0;
+                totaisPorColuna.saidas[col] = 0;
+                totaisPorColuna.saldo[col] = 0;
               });
 
-              const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Grupo';
-              const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Linha';
+              // Primeiro, filtrar movimentações que se aplicam aos eixos selecionados
+              const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
+                const linha = getValorEixo(m, eixoYSintetico);
+                const col = getValorEixo(m, eixoXSintetico);
+                return linha !== null && col !== null;
+              });
 
-              const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
+              // Recalcular linhas e colunas baseado nas movimentações válidas
+              const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
+              const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
+
+              // Reinicializar matriz com valores válidos
+              const matrizFinal = {};
+              const totaisLinhaFinal = {};
+              const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
+
+              linhasYValidas.forEach(linha => {
+                matrizFinal[linha] = {};
+                totaisLinhaFinal[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
+                });
+              });
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.entradas[col] = 0;
+                totaisColunaFinal.saidas[col] = 0;
+                totaisColunaFinal.saldo[col] = 0;
+              });
+
+              movimentacoesValidas.forEach(m => {
+                const linha = getValorEixo(m, eixoYSintetico);
+                const col = getValorEixo(m, eixoXSintetico);
+                const qtd = m.quantidade_animais || 0;
+
+                if (matrizFinal[linha] && matrizFinal[linha][col]) {
+                  if (m.tipo === 'Entrada') {
+                    matrizFinal[linha][col].entradas += qtd;
+                    totaisColunaFinal.entradas[col] = (totaisColunaFinal.entradas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].entradas += qtd;
+                  } else if (m.tipo === 'Saída') {
+                    matrizFinal[linha][col].saidas += qtd;
+                    totaisColunaFinal.saidas[col] = (totaisColunaFinal.saidas[col] || 0) + qtd;
+                    totaisLinhaFinal[linha].saidas += qtd;
+                  }
+                }
+              });
+
+              // Calcular saldos após processar todas as movimentações
+              linhasYValidas.forEach(linha => {
+                totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
+                colunasXValidas.forEach(col => {
+                  matrizFinal[linha][col].saldo = matrizFinal[linha][col].entradas - matrizFinal[linha][col].saidas;
+                });
+              });
+              colunasXValidas.forEach(col => {
+                totaisColunaFinal.saldo[col] = (totaisColunaFinal.entradas[col] || 0) - (totaisColunaFinal.saidas[col] || 0);
+              });
+
+              const totalGeral = {
+                entradas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.entradas, 0),
+                saidas: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saidas, 0),
+                saldo: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saldo, 0),
+              };
+
+              const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
+              const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
+
+              // Se não há dados válidos
+              if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
+                return (
+                  <div className="text-center py-8 text-slate-500">
+                    <p>Nenhum dado encontrado para os eixos selecionados.</p>
+                    <p className="text-xs mt-1">Tente selecionar outras opções de Linhas/Colunas.</p>
+                  </div>
+                );
+              }
 
               return (
-                <div className="space-y-4">
-                  {Object.entries(porGrupoY).sort((a, b) => a[0].localeCompare(b[0])).map(([grupoY, linhas]) => {
-                    // Calcular totais do grupo
-                    const todosDoGrupo = Object.values(linhas).flat();
-                    const totalGrupo = todosDoGrupo.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                    const entradasGrupo = todosDoGrupo.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                    const saidasGrupo = todosDoGrupo.filter(m => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                    const saldoGrupo = entradasGrupo - saidasGrupo;
-
-                    return (
-                      <div key={grupoY} className="border-2 border-slate-300 rounded-lg overflow-hidden">
-                        {/* Cabeçalho do Grupo */}
-                        <div className="bg-gray-200 px-3 py-2">
-                          <h3 className="font-bold text-sm">{eixoYLabel.toUpperCase()}: {grupoY}</h3>
-                        </div>
-
-                        {/* Tabela de Linhas */}
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-gray-100">
-                              <TableHead className="text-xs font-bold py-2">{eixoXLabel}</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Entradas</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Saídas</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Saldo</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {Object.entries(linhas).sort((a, b) => a[0].localeCompare(b[0])).map(([linha, registros]) => {
-                              const qtd = registros.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                              const entradas = registros.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                              const saidas = registros.filter(m => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                              const saldo = entradas - saidas;
-                              const machos = registros.filter(m => m.sexo === 'Macho').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                              const femeas = registros.filter(m => m.sexo === 'Fêmea').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-
-                              return (
-                                <TableRow key={linha} className="hover:bg-gray-50">
-                                  <TableCell className="text-xs font-semibold py-2">{linha}</TableCell>
-                                  <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono text-green-600">{entradas > 0 ? fmtInteiro(entradas) : '-'}</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono text-red-600">{saidas > 0 ? fmtInteiro(saidas) : '-'}</TableCell>
-                                  <TableCell className={`text-xs text-center py-2 font-mono font-semibold ${saldo < 0 ? 'text-red-600' : 'text-blue-600'}`}>{fmtInteiro(saldo)}</TableCell>
-                                  <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                  <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-
-                        {/* Subtotal do Grupo */}
-                        <div className="bg-gray-200 px-3 py-2 border-t">
-                          <div className="grid grid-cols-4 gap-4 text-xs">
-                            <div><strong>Total:</strong> {fmtInteiro(totalGrupo)} animais</div>
-                            <div><strong>Entradas:</strong> {fmtInteiro(entradasGrupo)}</div>
-                            <div><strong>Saídas:</strong> {fmtInteiro(saidasGrupo)}</div>
-                            <div><strong>Saldo:</strong> {fmtInteiro(saldoGrupo)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Resumo Geral */}
-                  <div className="mt-4 border-t-2 border-black pt-3">
-                    <h4 className="font-bold text-sm mb-2">RESUMO GERAL</h4>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-200">
-                          <TableHead className="text-xs font-bold py-2">{eixoYLabel}</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Linhas</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Total</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Entradas</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Saídas</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Saldo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(porGrupoY).sort((a, b) => a[0].localeCompare(b[0])).map(([grupoY, linhas]) => {
-                          const todosDoGrupo = Object.values(linhas).flat();
-                          const totalGrupo = todosDoGrupo.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                          const entradasGrupo = todosDoGrupo.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                          const saidasGrupo = todosDoGrupo.filter(m => m.tipo === 'Saída').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-                          const saldoGrupo = entradasGrupo - saidasGrupo;
-
-                          return (
-                            <TableRow key={grupoY}>
-                              <TableCell className="text-xs font-semibold py-2">{grupoY}</TableCell>
-                              <TableCell className="text-xs text-center py-2">{fmtInteiro(Object.keys(linhas).length)}</TableCell>
-                              <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(totalGrupo)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono text-green-600">{fmtInteiro(entradasGrupo)}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono text-red-600">{fmtInteiro(saidasGrupo)}</TableCell>
-                              <TableCell className={`text-xs text-center py-2 font-mono font-semibold ${saldoGrupo < 0 ? 'text-red-600' : 'text-blue-600'}`}>{fmtInteiro(saldoGrupo)}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                        {/* Linha Total */}
-                        <TableRow className="bg-gray-200 font-bold">
-                          <TableCell className="text-xs font-bold py-2">TOTAL GERAL</TableCell>
-                          <TableCell className="text-xs text-center font-bold py-2">{Object.values(porGrupoY).reduce((s, linhas) => s + Object.keys(linhas).length, 0).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center font-bold py-2">{(totalEntradas + totalSaidas).toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-green-700">{totalEntradas.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2 font-mono font-bold text-red-700">{totalSaidas.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className={`text-xs text-center py-2 font-mono font-bold ${saldoPeriodo < 0 ? 'text-red-700' : 'text-blue-700'}`}>{saldoPeriodo.toLocaleString('pt-BR')}</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                <div className="overflow-x-auto">
+                  <div className="text-xs mb-1">
+                    <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel}
                   </div>
+                  
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
+                          {eixoYLabel}
+                        </TableHead>
+                        {colunasXValidas.map(col => (
+                          <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
+                            {col}
+                          </TableHead>
+                        ))}
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
+                          Entradas
+                        </TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
+                          Saídas
+                        </TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
+                          Saldo
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linhasYValidas.map((linha) => (
+                        <TableRow key={linha}>
+                          <TableCell className="border border-gray-300 text-xs font-semibold py-1">
+                            {linha}
+                          </TableCell>
+                          {colunasXValidas.map(col => {
+                            const celula = matrizFinal[linha][col];
+                            const valor = celula.saldo;
+                            return (
+                              <TableCell 
+                                key={col} 
+                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${valor < 0 ? 'text-red-600' : ''}`}
+                              >
+                                {valor !== 0 ? formatarNumero(valor) : ''}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-green-50 text-green-700">
+                            {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
+                          </TableCell>
+                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-red-50 text-red-700">
+                            {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
+                          </TableCell>
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-50">
+                            {formatarNumero(totaisLinhaFinal[linha].saldo)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Linha de Total */}
+                      <TableRow className="font-bold">
+                        <TableCell className="border border-black text-xs font-bold py-1">
+                          TOTAL
+                        </TableCell>
+                        {colunasXValidas.map(col => (
+                          <TableCell key={col} className={`border border-black text-xs text-center font-mono font-bold py-1 ${totaisColunaFinal.saldo[col] < 0 ? 'text-red-600' : ''}`}>
+                            {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
+                          </TableCell>
+                        ))}
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-green-100 text-green-800">
+                          {formatarNumero(totalGeral.entradas)}
+                        </TableCell>
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-red-100 text-red-800">
+                          {formatarNumero(totalGeral.saidas)}
+                        </TableCell>
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-100 text-blue-800">
+                          {formatarNumero(totalGeral.saldo)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
               );
             })()
