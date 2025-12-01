@@ -643,12 +643,13 @@ export default function LancamentoPesagensIndividuais() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow>
-                      <TableHead className="text-xs w-16">Ações</TableHead>
+                      <TableHead className="text-xs w-10">Ações</TableHead>
                       <TableHead className="text-xs">Identificação</TableHead>
                       <TableHead className="text-xs text-right">Peso</TableHead>
                       <TableHead className="text-xs">Data</TableHead>
                       <TableHead className="text-xs">Sexo</TableHead>
                       <TableHead className="text-xs">Raça</TableHead>
+                      <TableHead className="text-xs">Marca</TableHead>
                       <TableHead className="text-xs">Apartação Atual</TableHead>
                       <TableHead className="text-xs">Lote Atual</TableHead>
                     </TableRow>
