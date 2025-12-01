@@ -686,13 +686,13 @@ const EIXO_Y_OPCOES = [
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
                           Entradas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
                           Saídas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
                           Saldo
                         </TableHead>
                       </TableRow>
@@ -709,19 +709,19 @@ const EIXO_Y_OPCOES = [
                             return (
                               <TableCell 
                                 key={col} 
-                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${valor < 0 ? 'text-red-600' : ''}`}
+                                className="border border-gray-300 text-xs text-center py-1 font-mono"
                               >
                                 {valor !== 0 ? formatarNumero(valor) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-green-50 text-green-700">
+                          <TableCell className="border border-black text-xs text-center font-mono py-1">
                             {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono py-1 bg-red-50 text-red-700">
+                          <TableCell className="border border-black text-xs text-center font-mono py-1">
                             {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-50">
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                             {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
                         </TableRow>
@@ -732,17 +732,17 @@ const EIXO_Y_OPCOES = [
                           TOTAL
                         </TableCell>
                         {colunasXValidas.map(col => (
-                          <TableCell key={col} className={`border border-black text-xs text-center font-mono font-bold py-1 ${totaisColunaFinal.saldo[col] < 0 ? 'text-red-600' : ''}`}>
+                          <TableCell key={col} className="border border-black text-xs text-center font-mono font-bold py-1">
                             {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
                           </TableCell>
                         ))}
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-green-100 text-green-800">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                           {formatarNumero(totalGeral.entradas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-red-100 text-red-800">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                           {formatarNumero(totalGeral.saidas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-100 text-blue-800">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
