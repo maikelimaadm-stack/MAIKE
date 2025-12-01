@@ -13,8 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, Search, Trash2, FileSpreadsheet, Download, 
   ChevronUp, ChevronDown, RefreshCw, Filter, X, Scale,
-  AlertTriangle, CheckCircle2
+  AlertTriangle, CheckCircle2, Plus
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -376,10 +378,16 @@ export default function PesagensIndividuais() {
           <p className="text-xs text-slate-600">Importação e gestão de pesagens individuais</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs gap-1">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Atualizar
-          </Button>
+          <Link to={createPageUrl("LancamentoPesagensIndividuais")}>
+                            <Button size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
+                              <Plus className="w-3.5 h-3.5" />
+                              Lançar Pesagens
+                            </Button>
+                          </Link>
+                          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs gap-1">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Atualizar
+                          </Button>
           <Button variant="outline" size="sm" onClick={exportarCSV} className="h-8 text-xs gap-1">
             <Download className="w-3.5 h-3.5" />
             Exportar
