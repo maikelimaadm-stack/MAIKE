@@ -243,10 +243,28 @@ export default function LancamentoPesagensIndividuais() {
     }
   };
 
+  // Estado para pesagens pendentes do IndexedDB
+  const [pendingPesagensDB, setPendingPesagensDB] = useState([]);
+  
+  // Carregar pesagens pendentes do IndexedDB
+  useEffect(() => {
+    const loadPending = async () => {
+      if (dbReady) {
+        try {
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
+        } catch (error) {
+          console.error('Erro ao carregar pendentes:', error);
+        }
+      }
+    };
+    loadPending();
+  }, [dbReady, empresaSelecionadaId, pendingCount]);
+
   // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
   const pesagensDia = useMemo(() => {
-    const pendentes = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]')
-      .filter(p => p.data_pesagem === dataPesagem && p.empresa_id === empresaSelecionadaId)
+    const pendentes = pendingPesagensDB
+      .filter(p => p.data_pesagem === dataPesagem)
       .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
     
     // Ordenar por created_date para atribuir número sequencial fixo
