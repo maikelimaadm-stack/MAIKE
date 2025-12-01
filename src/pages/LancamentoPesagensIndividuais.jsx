@@ -387,7 +387,7 @@ export default function LancamentoPesagensIndividuais() {
         peso_medio: pesoMedio,
       };
     }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
-  }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pendingCount]);
+  }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pendingPesagensDB]);
 
   // ========== ESTATÍSTICAS DO DIA ==========
   const estatisticas = useMemo(() => {
