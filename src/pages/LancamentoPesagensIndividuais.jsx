@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +76,10 @@ export default function LancamentoPesagensIndividuais() {
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Ordenação
+  const [sortColumn, setSortColumn] = useState("created_date");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
@@ -183,10 +187,11 @@ export default function LancamentoPesagensIndividuais() {
     setIsSyncing(false);
   };
 
-  // ========== PESAGENS DO DIA + PENDENTES + FILTRO ==========
+  // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
   const pesagensDia = useMemo(() => {
     const pendentes = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]')
-      .filter(p => p.data_pesagem === dataPesagem && p.empresa_id === empresaSelecionadaId);
+      .filter(p => p.data_pesagem === dataPesagem && p.empresa_id === empresaSelecionadaId)
+      .map((p, idx) => ({ ...p, _numero_lancamento: `P${idx + 1}` }));
     const sincronizadas = pesagens.filter(p => p.data_pesagem === dataPesagem);
     let resultado = [...pendentes, ...sincronizadas];
     
@@ -201,9 +206,72 @@ export default function LancamentoPesagensIndividuais() {
         p.marca?.toLowerCase().includes(termo)
       );
     }
+
+    // Aplicar ordenação
+    resultado.sort((a, b) => {
+      let valA, valB;
+      switch (sortColumn) {
+        case 'numero_animal':
+          valA = a.numero_animal || '';
+          valB = b.numero_animal || '';
+          break;
+        case 'peso':
+          valA = a.peso || 0;
+          valB = b.peso || 0;
+          break;
+        case 'sexo':
+          valA = a.sexo || '';
+          valB = b.sexo || '';
+          break;
+        case 'raca':
+          valA = a.raca || '';
+          valB = b.raca || '';
+          break;
+        case 'marca':
+          valA = a.marca || '';
+          valB = b.marca || '';
+          break;
+        case 'nome_apartacao':
+          valA = a.nome_apartacao || '';
+          valB = b.nome_apartacao || '';
+          break;
+        case 'nome_lote':
+          valA = a.nome_lote || '';
+          valB = b.nome_lote || '';
+          break;
+        case 'created_date':
+        default:
+          valA = new Date(a.created_date || 0);
+          valB = new Date(b.created_date || 0);
+          break;
+      }
+      
+      if (typeof valA === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    });
     
     return resultado;
-  }, [pesagens, dataPesagem, pendingCount, empresaSelecionadaId, searchTerm]);
+  }, [pesagens, dataPesagem, pendingCount, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
+
+  // Função para alternar ordenação
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Renderizar ícone de ordenação
+  const SortIcon = ({ column }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+  };
 
   // ========== LOTES DA APARTAÇÃO SELECIONADA ==========
   const lotesApartacaoAtual = useMemo(() => {
@@ -692,21 +760,57 @@ export default function LancamentoPesagensIndividuais() {
                   <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow>
                       <TableHead className="text-xs w-10">Ações</TableHead>
-                      <TableHead className="text-xs">Identificação</TableHead>
-                      <TableHead className="text-xs text-right">Peso</TableHead>
+                      <TableHead className="text-xs w-16">Nº</TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('numero_animal')}
+                      >
+                        <div className="flex items-center">Identificação <SortIcon column="numero_animal" /></div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs text-right cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('peso')}
+                      >
+                        <div className="flex items-center justify-end">Peso <SortIcon column="peso" /></div>
+                      </TableHead>
                       <TableHead className="text-xs">Data</TableHead>
-                      <TableHead className="text-xs">Sexo</TableHead>
-                      <TableHead className="text-xs">Raça</TableHead>
-                      <TableHead className="text-xs">Marca</TableHead>
-                      <TableHead className="text-xs">Apartação Atual</TableHead>
-                      <TableHead className="text-xs">Lote Atual</TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('sexo')}
+                      >
+                        <div className="flex items-center">Sexo <SortIcon column="sexo" /></div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('raca')}
+                      >
+                        <div className="flex items-center">Raça <SortIcon column="raca" /></div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('marca')}
+                      >
+                        <div className="flex items-center">Marca <SortIcon column="marca" /></div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('nome_apartacao')}
+                      >
+                        <div className="flex items-center">Apartação <SortIcon column="nome_apartacao" /></div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
+                        onClick={() => handleSort('nome_lote')}
+                      >
+                        <div className="flex items-center">Lote <SortIcon column="nome_lote" /></div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
                     ) : pesagensDia.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
                     ) : (
                       pesagensDia.map((p, idx) => (
                         <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
@@ -726,6 +830,9 @@ export default function LancamentoPesagensIndividuais() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-slate-500">
+                            {p._offlineId ? p._numero_lancamento : (pesagensDia.indexOf(p) + 1)}
                           </TableCell>
                           <TableCell className="text-xs font-bold">
                             {p.numero_animal}
