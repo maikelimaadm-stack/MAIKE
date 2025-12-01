@@ -687,6 +687,7 @@ export default function LancamentoPesagensIndividuais() {
                           <TableCell className="text-xs">{formatarData(p.data_pesagem)}</TableCell>
                           <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
                           <TableCell className="text-xs">{p.raca || '-'}</TableCell>
+                          <TableCell className="text-xs">{p.marca || '-'}</TableCell>
                           <TableCell className="text-xs">{p.nome_apartacao || '-'}</TableCell>
                           <TableCell className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>
                         </TableRow>
