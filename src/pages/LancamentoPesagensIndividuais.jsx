@@ -121,9 +121,12 @@ export default function LancamentoPesagensIndividuais() {
     updatePendingCount();
     setIsLoading(false);
 
-    // Se online, atualizar do servidor em background
+    // Se online, sincronizar pendentes e atualizar do servidor
     if (navigator.onLine) {
       try {
+        // Sincronizar apartações pendentes
+        await syncPendingApartacoesLotes();
+        
         const [allPesagens, allApartacoes, allLotes] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
@@ -144,6 +147,57 @@ export default function LancamentoPesagensIndividuais() {
       } catch (error) {
         console.error('Erro ao carregar dados online:', error);
       }
+    }
+  };
+
+  // Sincronizar apartações e lotes pendentes
+  const syncPendingApartacoesLotes = async () => {
+    const pendingApartacoes = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+    const pendingLotes = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+    
+    // Sincronizar apartações
+    for (const item of pendingApartacoes) {
+      try {
+        if (item.action === 'create') {
+          const { _offlineId, id, created_date, ...data } = item.data;
+          await base44.entities.Apartacao.create(data);
+        } else if (item.action === 'update') {
+          await base44.entities.Apartacao.update(item.id, item.data);
+        } else if (item.action === 'delete') {
+          await base44.entities.Apartacao.delete(item.id);
+        }
+      } catch (error) {
+        console.error('Erro ao sincronizar apartação:', error);
+      }
+    }
+    
+    // Sincronizar lotes
+    for (const item of pendingLotes) {
+      try {
+        if (item.action === 'create') {
+          const { _offlineId, id, created_date, ...data } = item.data;
+          // Verificar se apartacao_id era offline e buscar o novo ID
+          if (data.apartacao_id?.startsWith('offline_')) {
+            const apartacoesAtuais = await base44.entities.Apartacao.list();
+            const apt = apartacoesAtuais.find(a => a.nome_apartacao === data.nome_apartacao && a.empresa_id === data.empresa_id);
+            if (apt) data.apartacao_id = apt.id;
+          }
+          await base44.entities.LoteApartacao.create(data);
+        } else if (item.action === 'update') {
+          await base44.entities.LoteApartacao.update(item.id, item.data);
+        } else if (item.action === 'delete') {
+          await base44.entities.LoteApartacao.delete(item.id);
+        }
+      } catch (error) {
+        console.error('Erro ao sincronizar lote:', error);
+      }
+    }
+    
+    // Limpar pendentes
+    if (pendingApartacoes.length > 0 || pendingLotes.length > 0) {
+      localStorage.setItem('pending_apartacoes', '[]');
+      localStorage.setItem('pending_lotes', '[]');
+      toast.success('Apartações/Lotes sincronizados!');
     }
   };
 
@@ -727,9 +781,9 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Transferência de Lote:</Label>
-              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
-                <SelectTrigger className="h-9 text-sm w-48"><SelectValue placeholder="Automático" /></SelectTrigger>
+                              <Label className="text-xs font-medium">Transferência de Lote:</Label>
+                              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
+                                <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
                   {lotesApartacaoAtual.map(l => (
@@ -1002,180 +1056,268 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   }, [lotes, apartacaoIdLote]);
 
   const salvarApartacao = async () => {
-    if (!nomeApartacao.trim()) { 
-      toast.error("Nome obrigatório"); 
-      return; 
-    }
-
-    // Verificar duplicado
-    const nomeNormalizado = nomeApartacao.trim().toUpperCase();
-    const duplicado = apartacoes.find(a => 
-      a.nome_apartacao.toUpperCase() === nomeNormalizado && 
-      a.id !== editingApartacaoId
-    );
-    if (duplicado) {
-      toast.error("Já existe uma apartação com esse nome!");
-      return;
-    }
-
-    setIsSaving(true);
-
-    const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
-
-    try {
-      if (navigator.onLine) {
-        if (editingApartacaoId) {
-          // Atualizar apartação
-          await base44.entities.Apartacao.update(editingApartacaoId, data);
-          
-          // Propagar alteração do nome para pesagens existentes
-          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
-          for (const p of pesagensVinculadas) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
-          }
-          
-          // Atualizar lotes também
-          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
-          for (const l of lotesVinculados) {
-            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-          }
-          
-          toast.success("Apartação atualizada!");
-        } else {
-          await base44.entities.Apartacao.create(data);
-          toast.success("Apartação criada!");
+        if (!nomeApartacao.trim()) { 
+          toast.error("Nome obrigatório"); 
+          return; 
         }
-        onRefresh();
-      } else {
-        toast.error("Operação não disponível offline");
-      }
-      setNomeApartacao(""); 
-      setEditingApartacaoId(null);
-    } catch (error) {
-      toast.error('Erro: ' + error.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+
+        // Verificar duplicado
+        const nomeNormalizado = nomeApartacao.trim().toUpperCase();
+        const duplicado = apartacoes.find(a => 
+          a.nome_apartacao.toUpperCase() === nomeNormalizado && 
+          a.id !== editingApartacaoId
+        );
+        if (duplicado) {
+          toast.error("Já existe uma apartação com esse nome!");
+          return;
+        }
+
+        setIsSaving(true);
+
+        const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
+
+        try {
+          if (navigator.onLine) {
+            if (editingApartacaoId) {
+              await base44.entities.Apartacao.update(editingApartacaoId, data);
+
+              const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+              for (const p of pesagensVinculadas) {
+                await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+              }
+
+              const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+              for (const l of lotesVinculados) {
+                await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+              }
+
+              toast.success("Apartação atualizada!");
+            } else {
+              await base44.entities.Apartacao.create(data);
+              toast.success("Apartação criada!");
+            }
+            onRefresh();
+          } else {
+            // OFFLINE: Salvar localmente
+            const cachedApartacoes = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
+
+            if (editingApartacaoId) {
+              const idx = cachedApartacoes.findIndex(a => a.id === editingApartacaoId);
+              if (idx !== -1) {
+                cachedApartacoes[idx] = { ...cachedApartacoes[idx], ...data };
+                localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cachedApartacoes));
+
+                // Salvar ação pendente para sincronizar depois
+                const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+                pending.push({ action: 'update', id: editingApartacaoId, data, timestamp: Date.now() });
+                localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+
+                toast.success("Apartação atualizada offline!");
+              }
+            } else {
+              const novaApartacao = { 
+                ...data, 
+                id: `offline_${Date.now()}`, 
+                _offlineId: Date.now(),
+                created_date: new Date().toISOString() 
+              };
+              cachedApartacoes.push(novaApartacao);
+              localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(cachedApartacoes));
+
+              const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+              pending.push({ action: 'create', data: novaApartacao, timestamp: Date.now() });
+              localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+
+              toast.success("Apartação criada offline!");
+            }
+            onRefresh();
+          }
+          setNomeApartacao(""); 
+          setEditingApartacaoId(null);
+        } catch (error) {
+          toast.error('Erro: ' + error.message);
+        } finally {
+          setIsSaving(false);
+        }
+      };
 
   const salvarLote = async () => {
-    if (!apartacaoIdLote) { 
-      toast.error("Selecione uma apartação"); 
-      return; 
-    }
-    if (!nomeLote.trim()) { 
-      toast.error("Nome do lote obrigatório"); 
-      return; 
-    }
-    if (!pesoMinimo || !pesoMaximo) { 
-      toast.error("Peso mínimo e máximo obrigatórios"); 
-      return; 
-    }
-    if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
-      toast.error("Peso mínimo não pode ser maior que o máximo");
-      return;
-    }
-
-    // Verificar duplicado na mesma apartação
-    const nomeNormalizado = nomeLote.trim().toUpperCase();
-    const duplicado = lotes.find(l => 
-      l.apartacao_id === apartacaoIdLote &&
-      l.nome_lote.toUpperCase() === nomeNormalizado && 
-      l.id !== editingLoteId
-    );
-    if (duplicado) {
-      toast.error("Já existe um lote com esse nome nesta apartação!");
-      return;
-    }
-    
-    setIsSaving(true);
-    const apt = apartacoes.find(a => a.id === apartacaoIdLote);
-    const data = {
-      empresa_id: empresaId,
-      apartacao_id: apartacaoIdLote,
-      nome_apartacao: apt?.nome_apartacao || "",
-      nome_lote: nomeLote.trim(),
-      quantidade_maxima: parseInt(qtdMaxima) || 500,
-      peso_minimo: parseFloat(pesoMinimo),
-      peso_maximo: parseFloat(pesoMaximo),
-      fechado: false,
-    };
-
-    try {
-      if (navigator.onLine) {
-        if (editingLoteId) {
-          await base44.entities.LoteApartacao.update(editingLoteId, data);
-          
-          // Propagar alteração do nome para pesagens existentes
-          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
-          for (const p of pesagensVinculadas) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
-          }
-          
-          toast.success("Lote atualizado!");
-        } else {
-          await base44.entities.LoteApartacao.create(data);
-          toast.success("Lote criado!");
+        if (!apartacaoIdLote) { 
+          toast.error("Selecione uma apartação"); 
+          return; 
         }
-        onRefresh();
-      } else {
-        toast.error("Operação não disponível offline");
-      }
-      setNomeLote(""); 
-      setQtdMaxima("500"); 
-      setPesoMinimo(""); 
-      setPesoMaximo(""); 
-      setEditingLoteId(null);
-    } catch (error) {
-      toast.error('Erro: ' + error.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+        if (!nomeLote.trim()) { 
+          toast.error("Nome do lote obrigatório"); 
+          return; 
+        }
+        if (!pesoMinimo || !pesoMaximo) { 
+          toast.error("Peso mínimo e máximo obrigatórios"); 
+          return; 
+        }
+        if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
+          toast.error("Peso mínimo não pode ser maior que o máximo");
+          return;
+        }
+
+        // Verificar duplicado na mesma apartação
+        const nomeNormalizado = nomeLote.trim().toUpperCase();
+        const duplicado = lotes.find(l => 
+          l.apartacao_id === apartacaoIdLote &&
+          l.nome_lote.toUpperCase() === nomeNormalizado && 
+          l.id !== editingLoteId
+        );
+        if (duplicado) {
+          toast.error("Já existe um lote com esse nome nesta apartação!");
+          return;
+        }
+
+        setIsSaving(true);
+        const apt = apartacoes.find(a => a.id === apartacaoIdLote);
+        const data = {
+          empresa_id: empresaId,
+          apartacao_id: apartacaoIdLote,
+          nome_apartacao: apt?.nome_apartacao || "",
+          nome_lote: nomeLote.trim(),
+          quantidade_maxima: parseInt(qtdMaxima) || 500,
+          peso_minimo: parseFloat(pesoMinimo),
+          peso_maximo: parseFloat(pesoMaximo),
+          fechado: false,
+        };
+
+        try {
+          if (navigator.onLine) {
+            if (editingLoteId) {
+              await base44.entities.LoteApartacao.update(editingLoteId, data);
+
+              const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
+              for (const p of pesagensVinculadas) {
+                await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+              }
+
+              toast.success("Lote atualizado!");
+            } else {
+              await base44.entities.LoteApartacao.create(data);
+              toast.success("Lote criado!");
+            }
+            onRefresh();
+          } else {
+            // OFFLINE: Salvar localmente
+            const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
+
+            if (editingLoteId) {
+              const idx = cachedLotes.findIndex(l => l.id === editingLoteId);
+              if (idx !== -1) {
+                cachedLotes[idx] = { ...cachedLotes[idx], ...data };
+                localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(cachedLotes));
+
+                const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+                pending.push({ action: 'update', id: editingLoteId, data, timestamp: Date.now() });
+                localStorage.setItem('pending_lotes', JSON.stringify(pending));
+
+                toast.success("Lote atualizado offline!");
+              }
+            } else {
+              const novoLote = { 
+                ...data, 
+                id: `offline_${Date.now()}`, 
+                _offlineId: Date.now(),
+                created_date: new Date().toISOString() 
+              };
+              cachedLotes.push(novoLote);
+              localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(cachedLotes));
+
+              const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+              pending.push({ action: 'create', data: novoLote, timestamp: Date.now() });
+              localStorage.setItem('pending_lotes', JSON.stringify(pending));
+
+              toast.success("Lote criado offline!");
+            }
+            onRefresh();
+          }
+          setNomeLote(""); 
+          setQtdMaxima("500"); 
+          setPesoMinimo(""); 
+          setPesoMaximo(""); 
+          setEditingLoteId(null);
+        } catch (error) {
+          toast.error('Erro: ' + error.message);
+        } finally {
+          setIsSaving(false);
+        }
+      };
 
   const excluirApartacao = async (id) => {
-    // Verificar se há pesagens vinculadas
-    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
-    if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
-      return;
-    }
+        const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+        if (pesagensVinculadas.length > 0) {
+          toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
+          return;
+        }
 
-    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
-    
-    if (navigator.onLine) {
-      // Excluir lotes vinculados primeiro
-      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
-      for (const l of lotesVinculados) {
-        await base44.entities.LoteApartacao.delete(l.id);
-      }
-      
-      await base44.entities.Apartacao.delete(id);
-      toast.success("Apartação excluída!");
-      onRefresh();
-    } else {
-      toast.error("Operação não disponível offline");
-    }
-  };
+        if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+
+        if (navigator.onLine) {
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+          for (const l of lotesVinculados) {
+            await base44.entities.LoteApartacao.delete(l.id);
+          }
+
+          await base44.entities.Apartacao.delete(id);
+          toast.success("Apartação excluída!");
+          onRefresh();
+        } else {
+          // OFFLINE: Excluir localmente
+          const cachedApartacoes = JSON.parse(localStorage.getItem(CACHE_KEYS.APARTACOES) || '[]');
+          const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
+
+          // Remover lotes vinculados
+          const lotesAtualizados = cachedLotes.filter(l => l.apartacao_id !== id);
+          localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(lotesAtualizados));
+
+          // Remover apartação
+          const apartacoesAtualizadas = cachedApartacoes.filter(a => a.id !== id);
+          localStorage.setItem(CACHE_KEYS.APARTACOES, JSON.stringify(apartacoesAtualizadas));
+
+          // Registrar exclusão pendente (se não for item criado offline)
+          if (!id.startsWith('offline_')) {
+            const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+            pending.push({ action: 'delete', id, timestamp: Date.now() });
+            localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+          }
+
+          toast.success("Apartação excluída offline!");
+          onRefresh();
+        }
+      };
 
   const excluirLote = async (id) => {
-    // Verificar se há pesagens vinculadas
-    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
-    if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
-      return;
-    }
+        const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+        if (pesagensVinculadas.length > 0) {
+          toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
+          return;
+        }
 
-    if (!confirm("Excluir lote?")) return;
-    
-    if (navigator.onLine) {
-      await base44.entities.LoteApartacao.delete(id);
-      toast.success("Lote excluído!");
-      onRefresh();
-    } else {
-      toast.error("Operação não disponível offline");
-    }
-  };
+        if (!confirm("Excluir lote?")) return;
+
+        if (navigator.onLine) {
+          await base44.entities.LoteApartacao.delete(id);
+          toast.success("Lote excluído!");
+          onRefresh();
+        } else {
+          // OFFLINE: Excluir localmente
+          const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
+          const lotesAtualizados = cachedLotes.filter(l => l.id !== id);
+          localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(lotesAtualizados));
+
+          if (!id.startsWith('offline_')) {
+            const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+            pending.push({ action: 'delete', id, timestamp: Date.now() });
+            localStorage.setItem('pending_lotes', JSON.stringify(pending));
+          }
+
+          toast.success("Lote excluído offline!");
+          onRefresh();
+        }
+      };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
