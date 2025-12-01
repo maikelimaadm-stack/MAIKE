@@ -503,15 +503,23 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('✓ Atualizado!');
         await loadAllData();
       } else {
-        const pending = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
-        pending.push({
-          ...data,
-          _offlineId: Date.now(),
-          _offlineTimestamp: new Date().toISOString()
-        });
-        localStorage.setItem(CACHE_KEYS.PENDING, JSON.stringify(pending));
-        updatePendingCount();
-        toast.success('💾 Salvo offline');
+        // Salvar no IndexedDB (persistente mesmo fechando o navegador)
+        if (dbReady) {
+          await savePesagemOffline(data);
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
+        } else {
+          // Fallback para localStorage
+          const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+          pending.push({
+            ...data,
+            _offlineId: Date.now(),
+            _offlineTimestamp: new Date().toISOString()
+          });
+          localStorage.setItem('pending_pesagens_individuais', JSON.stringify(pending));
+        }
+        await updatePendingCount();
+        toast.success('💾 Salvo offline (persistente)');
       }
 
       // Limpar formulário (mantém campos fixados)
