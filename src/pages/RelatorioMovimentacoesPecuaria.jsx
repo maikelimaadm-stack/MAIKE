@@ -585,17 +585,25 @@ const EIXO_Y_OPCOES = [
                 if (matriz[linha] && matriz[linha][col]) {
                   if (m.tipo === 'Entrada') {
                     matriz[linha][col].entradas += qtd;
-                    totaisPorColuna.entradas[col] += qtd;
+                    totaisPorColuna.entradas[col] = (totaisPorColuna.entradas[col] || 0) + qtd;
                     totaisPorLinha[linha].entradas += qtd;
-                  } else {
+                  } else if (m.tipo === 'Saída') {
                     matriz[linha][col].saidas += qtd;
-                    totaisPorColuna.saidas[col] += qtd;
+                    totaisPorColuna.saidas[col] = (totaisPorColuna.saidas[col] || 0) + qtd;
                     totaisPorLinha[linha].saidas += qtd;
                   }
-                  matriz[linha][col].saldo = matriz[linha][col].entradas - matriz[linha][col].saidas;
-                  totaisPorColuna.saldo[col] = totaisPorColuna.entradas[col] - totaisPorColuna.saidas[col];
-                  totaisPorLinha[linha].saldo = totaisPorLinha[linha].entradas - totaisPorLinha[linha].saidas;
                 }
+              });
+
+              // Calcular saldos após processar todas as movimentações
+              linhasY.forEach(linha => {
+                totaisPorLinha[linha].saldo = totaisPorLinha[linha].entradas - totaisPorLinha[linha].saidas;
+                colunasX.forEach(col => {
+                  matriz[linha][col].saldo = matriz[linha][col].entradas - matriz[linha][col].saidas;
+                });
+              });
+              colunasX.forEach(col => {
+                totaisPorColuna.saldo[col] = (totaisPorColuna.entradas[col] || 0) - (totaisPorColuna.saidas[col] || 0);
               });
 
               const totalGeral = {
