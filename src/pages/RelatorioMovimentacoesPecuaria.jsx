@@ -535,8 +535,8 @@ export default function RelatorioMovimentacoesPecuaria() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-black bg-gray-100">
-                        <TableHead className="border border-black text-xs font-bold py-1 sticky left-0 bg-gray-100 z-10 min-w-[140px]">
+                      <TableRow>
+                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
                           Categoria de Manejo
                         </TableHead>
                         {colunasEixoX.map(col => (
@@ -544,15 +544,15 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 bg-yellow-100 min-w-[90px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[90px]">
                           Total Cabeças
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {categorias.map((cat, idx) => (
-                        <TableRow key={cat} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <TableCell className="border border-gray-300 text-xs font-semibold py-1 sticky left-0 bg-inherit z-10">
+                      {categorias.map((cat) => (
+                        <TableRow key={cat}>
+                          <TableCell className="border border-gray-300 text-xs font-semibold py-1">
                             {cat}
                           </TableCell>
                           {colunasEixoX.map(col => {
@@ -560,22 +560,20 @@ export default function RelatorioMovimentacoesPecuaria() {
                             return (
                               <TableCell 
                                 key={col} 
-                                className={`border border-gray-300 text-xs text-center py-1 font-mono ${
-                                  valor > 0 ? 'text-slate-900' : valor < 0 ? 'text-red-600 font-semibold' : ''
-                                }`}
+                                className="border border-gray-300 text-xs text-center py-1 font-mono"
                               >
                                 {valor !== 0 ? formatarNumero(valor) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-50">
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                             {formatarNumero(totaisPorCategoria[cat])}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
-                      <TableRow className="bg-gray-200 font-bold">
-                        <TableCell className="border border-black text-xs font-bold py-1 sticky left-0 bg-gray-200 z-10">
+                      <TableRow className="font-bold">
+                        <TableCell className="border border-black text-xs font-bold py-1">
                           Total Cabeças
                         </TableCell>
                         {colunasEixoX.map(col => (
@@ -583,7 +581,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                             {formatarNumero(totaisPorColuna[col])}
                           </TableCell>
                         ))}
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-200">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
                           {formatarNumero(totalGeral)}
                         </TableCell>
                       </TableRow>
