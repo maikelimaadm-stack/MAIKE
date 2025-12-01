@@ -9,12 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { 
-  Scale, Plus, Save, Trash2, Edit2, RefreshCw, Settings, 
-  ChevronUp, ChevronDown, AlertTriangle, CheckCircle2
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,8 +29,11 @@ const formatarData = (dataString) => {
 export default function LancamentoPesagensIndividuais() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  const pesoInputRef = useRef(null);
+  
+  // Refs para navegação
   const numeroInputRef = useRef(null);
+  const pesoInputRef = useRef(null);
+  const salvarBtnRef = useRef(null);
 
   // Estado do formulário
   const [editingId, setEditingId] = useState(null);
@@ -45,13 +44,12 @@ export default function LancamentoPesagensIndividuais() {
   const [raca, setRaca] = useState("");
   const [observacao, setObservacao] = useState("");
   
-  // Apartação
+  // Opções fora do formulário
   const [usarApartacao, setUsarApartacao] = useState(false);
   const [apartacaoSelecionada, setApartacaoSelecionada] = useState("");
   const [loteManual, setLoteManual] = useState("");
-  const [sugestaoLote, setSugestaoLote] = useState({ nome: "", cor: "" });
+  const [sugestaoLote, setSugestaoLote] = useState({ nome: "", cor: "", loteId: null });
   
-  // Sequência
   const [usarSequencia, setUsarSequencia] = useState(false);
   const [seqInicio, setSeqInicio] = useState("");
   const [seqFinal, setSeqFinal] = useState("");
@@ -59,7 +57,7 @@ export default function LancamentoPesagensIndividuais() {
   // Cálculos
   const [calculoGanho, setCalculoGanho] = useState("");
   
-  // Dialog Apartações
+  // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
 
   // Fetch apartações
@@ -103,12 +101,10 @@ export default function LancamentoPesagensIndividuais() {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Resumo de lotes (quantidade por lote na apartação)
+  // Resumo de lotes
   const resumoLotes = useMemo(() => {
     if (!apartacaoSelecionada || lotesApartacao.length === 0) return [];
-    
     const pesagensApartacao = todasPesagens.filter(p => p.apartacao_id === apartacaoSelecionada);
-    
     return lotesApartacao.map(lote => {
       const qtdAnimais = pesagensApartacao.filter(p => p.lote_id === lote.id).length;
       return {
@@ -119,14 +115,13 @@ export default function LancamentoPesagensIndividuais() {
     }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
   }, [apartacaoSelecionada, lotesApartacao, todasPesagens]);
 
-  // Buscar dados do animal quando digitar o número
+  // Buscar dados do animal e calcular ganho
   useEffect(() => {
     if (!numeroAnimal || !dataPesagem) {
       setCalculoGanho("");
       return;
     }
 
-    // Buscar último registro do animal
     const historicoAnimal = todasPesagens
       .filter(p => p.numero_animal === numeroAnimal && p.data_pesagem < dataPesagem)
       .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
@@ -137,7 +132,6 @@ export default function LancamentoPesagensIndividuais() {
       if (!sexo && ultimo.sexo) setSexo(ultimo.sexo);
     }
 
-    // Calcular ganho de peso
     if (peso && historicoAnimal.length > 0) {
       const ultimo = historicoAnimal[0];
       if (ultimo.peso) {
@@ -149,21 +143,16 @@ export default function LancamentoPesagensIndividuais() {
     }
   }, [numeroAnimal, peso, dataPesagem, todasPesagens]);
 
-  // Sugestão de lote quando peso muda
+  // Sugestão de lote
   useEffect(() => {
     if (!usarApartacao || !apartacaoSelecionada || !peso) {
-      setSugestaoLote({ nome: "", cor: "" });
+      setSugestaoLote({ nome: "", cor: "", loteId: null });
       return;
     }
-
     const pesoNum = parseFloat(peso);
     if (isNaN(pesoNum)) return;
 
-    // Buscar lote na faixa de peso
-    const lotesNaFaixa = lotesApartacao.filter(l => 
-      pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo
-    );
-
+    const lotesNaFaixa = lotesApartacao.filter(l => pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo);
     const loteAberto = lotesNaFaixa.find(l => !l.fechado);
     const loteFechado = lotesNaFaixa.find(l => l.fechado);
 
@@ -181,28 +170,26 @@ export default function LancamentoPesagensIndividuais() {
     mutationFn: async (data) => {
       if (editingId) {
         return base44.entities.PesagemIndividual.update(editingId, data);
-      } else {
-        return base44.entities.PesagemIndividual.create(data);
       }
+      return base44.entities.PesagemIndividual.create(data);
     },
     onSuccess: () => {
-      toast.success(editingId ? 'Pesagem atualizada!' : 'Pesagem salva!');
+      toast.success(editingId ? 'Atualizado!' : 'Salvo!');
       queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
       queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
       limparFormulario();
     },
-    onError: (error) => toast.error('Erro ao salvar: ' + error.message),
+    onError: (error) => toast.error('Erro: ' + error.message),
   });
 
   // Mutation para excluir
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.PesagemIndividual.delete(id),
     onSuccess: () => {
-      toast.success('Registro excluído!');
+      toast.success('Excluído!');
       queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
       queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
     },
-    onError: () => toast.error('Erro ao excluir'),
   });
 
   const limparFormulario = () => {
@@ -210,89 +197,63 @@ export default function LancamentoPesagensIndividuais() {
     setPeso("");
     setObservacao("");
     setCalculoGanho("");
-    setSugestaoLote({ nome: "", cor: "" });
+    setSugestaoLote({ nome: "", cor: "", loteId: null });
     setLoteManual("");
+    // NÃO limpa sexo e raça
 
     if (usarSequencia && seqInicio && seqFinal) {
       const atual = parseInt(numeroAnimal);
       const proximo = atual + 1;
       if (proximo <= parseInt(seqFinal)) {
         setNumeroAnimal(String(proximo));
-        pesoInputRef.current?.focus();
+        setTimeout(() => pesoInputRef.current?.focus(), 50);
       } else {
-        toast.info(`Sequência finalizada. Último número: ${seqFinal}`);
+        toast.info(`Sequência finalizada!`);
         setNumeroAnimal("");
         setSeqInicio("");
         setSeqFinal("");
         setUsarSequencia(false);
-        numeroInputRef.current?.focus();
+        setTimeout(() => numeroInputRef.current?.focus(), 50);
       }
     } else {
       setNumeroAnimal("");
-      setSexo("");
-      setRaca("");
-      numeroInputRef.current?.focus();
+      setTimeout(() => numeroInputRef.current?.focus(), 50);
     }
   };
 
   const handleSalvar = async () => {
-    // Validações
-    if (!dataPesagem) {
-      toast.error("Data da pesagem é obrigatória");
-      return;
-    }
-    if (!numeroAnimal || numeroAnimal.trim() === "") {
-      toast.error("Número do animal é obrigatório");
-      return;
-    }
-    if (numeroAnimal.length > 15) {
-      toast.error("Número do animal: máximo 15 caracteres");
-      return;
-    }
-    if (!peso || isNaN(parseFloat(peso))) {
-      toast.error("Peso inválido");
-      return;
-    }
+    if (!dataPesagem) { toast.error("Data obrigatória"); return; }
+    if (!numeroAnimal?.trim()) { toast.error("Número obrigatório"); return; }
+    if (!peso || isNaN(parseFloat(peso))) { toast.error("Peso inválido"); return; }
 
-    // Verificar duplicidade
     if (!editingId) {
       const duplicado = pesagensDia.find(p => p.numero_animal === numeroAnimal);
-      if (duplicado) {
-        toast.error("Já existe pesagem deste animal na mesma data");
-        return;
-      }
+      if (duplicado) { toast.error("Animal já pesado hoje"); return; }
     }
 
-    // Validar sequência
     if (usarSequencia && seqInicio && seqFinal) {
       const atual = parseInt(numeroAnimal);
       if (atual < parseInt(seqInicio) || atual > parseInt(seqFinal)) {
-        toast.error(`Número fora da sequência (${seqInicio} a ${seqFinal})`);
+        toast.error(`Fora da sequência (${seqInicio}-${seqFinal})`);
         return;
       }
     }
 
     const pesoNum = parseFloat(peso);
-
-    // Buscar histórico para cálculos
     const historicoAnimal = todasPesagens
       .filter(p => p.numero_animal === numeroAnimal && p.data_pesagem < dataPesagem)
       .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
     let dataAnterior = null, pesoAnterior = null, dias = null, ganho = null, gmd = null;
-
-    if (historicoAnimal.length > 0) {
+    if (historicoAnimal.length > 0 && historicoAnimal[0].peso) {
       const ultimo = historicoAnimal[0];
-      if (ultimo.peso) {
-        dataAnterior = ultimo.data_pesagem;
-        pesoAnterior = ultimo.peso;
-        dias = Math.floor((new Date(dataPesagem) - new Date(dataAnterior)) / (1000 * 60 * 60 * 24));
-        ganho = pesoNum - pesoAnterior;
-        gmd = dias > 0 ? parseFloat((ganho / dias).toFixed(3)) : 0;
-      }
+      dataAnterior = ultimo.data_pesagem;
+      pesoAnterior = ultimo.peso;
+      dias = Math.floor((new Date(dataPesagem) - new Date(dataAnterior)) / (1000 * 60 * 60 * 24));
+      ganho = pesoNum - pesoAnterior;
+      gmd = dias > 0 ? parseFloat((ganho / dias).toFixed(3)) : 0;
     }
 
-    // Determinar lote/apartação
     let loteId = null, nomeLote = null, apartacaoId = null, nomeApartacao = null, fixaApartacao = false;
 
     if (usarApartacao && apartacaoSelecionada) {
@@ -302,22 +263,13 @@ export default function LancamentoPesagensIndividuais() {
       fixaApartacao = apt?.fixa_apartacao || false;
 
       if (loteManual) {
-        // Lote manual selecionado
         const lote = lotesApartacao.find(l => l.id === loteManual);
-        if (lote) {
-          loteId = lote.id;
-          nomeLote = lote.nome_lote;
-        }
+        if (lote) { loteId = lote.id; nomeLote = lote.nome_lote; }
       } else if (sugestaoLote.loteId) {
-        // Usar sugestão automática
         const lote = lotesApartacao.find(l => l.id === sugestaoLote.loteId);
-        if (lote) {
-          loteId = lote.id;
-          nomeLote = lote.nome_lote;
-        }
+        if (lote) { loteId = lote.id; nomeLote = lote.nome_lote; }
       }
     } else if (!editingId) {
-      // Verificar se animal tem apartação fixa anterior
       const regFixo = historicoAnimal.find(p => p.fixa_apartacao);
       if (regFixo) {
         loteId = regFixo.lote_id;
@@ -343,399 +295,310 @@ export default function LancamentoPesagensIndividuais() {
       fixa_apartacao: fixaApartacao,
       data_anterior: dataAnterior,
       peso_anterior: pesoAnterior,
-      dias: dias,
-      ganho: ganho ? parseFloat(ganho.toFixed(2)) : null,
-      gmd: gmd,
+      dias, ganho: ganho ? parseFloat(ganho.toFixed(2)) : null, gmd,
     };
 
     saveMutation.mutate(data);
+  };
 
-    // Atualizar raça e sexo nos registros anteriores do mesmo animal
-    if (raca && sexo) {
-      const registrosAnimal = todasPesagens.filter(p => p.numero_animal === numeroAnimal);
-      for (const reg of registrosAnimal) {
-        if (reg.raca !== raca || reg.sexo !== sexo) {
-          await base44.entities.PesagemIndividual.update(reg.id, { raca, sexo });
-        }
+  const handleKeyDown = (e, nextRef) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      if (nextRef === 'salvar') {
+        handleSalvar();
+      } else {
+        nextRef?.current?.focus();
       }
     }
   };
 
-  const handleEditar = (pesagem) => {
-    setEditingId(pesagem.id);
-    setDataPesagem(pesagem.data_pesagem);
-    setNumeroAnimal(pesagem.numero_animal);
-    setPeso(String(pesagem.peso));
-    setSexo(pesagem.sexo || "");
-    setRaca(pesagem.raca || "");
-    setObservacao(pesagem.observacao || "");
-    
-    if (pesagem.apartacao_id) {
+  const handleEditar = (p) => {
+    setEditingId(p.id);
+    setNumeroAnimal(p.numero_animal);
+    setPeso(String(p.peso));
+    setSexo(p.sexo || "");
+    setRaca(p.raca || "");
+    setObservacao(p.observacao || "");
+    if (p.apartacao_id) {
       setUsarApartacao(true);
-      setApartacaoSelecionada(pesagem.apartacao_id);
-      setLoteManual(pesagem.lote_id || "");
+      setApartacaoSelecionada(p.apartacao_id);
+      setLoteManual(p.lote_id || "");
     }
-  };
-
-  const handleExcluir = (id) => {
-    if (confirm("Deseja realmente excluir este registro?")) {
-      deleteMutation.mutate(id);
-    }
-  };
-
-  const handleNovoLancamento = () => {
-    setEditingId(null);
-    setNumeroAnimal("");
-    setPeso("");
-    setObservacao("");
-    setCalculoGanho("");
-    setSugestaoLote({ nome: "", cor: "" });
-    setLoteManual("");
-    setSexo("");
-    setRaca("");
-
-    if (usarSequencia && seqInicio) {
-      setNumeroAnimal(seqInicio);
-      pesoInputRef.current?.focus();
-    } else {
-      numeroInputRef.current?.focus();
-    }
+    numeroInputRef.current?.focus();
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 space-y-3">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Scale className="w-5 h-5" />
-            Lançamento de Pesagens Individuais
-          </h1>
-          <p className="text-xs text-slate-600">Registro de pesagens com cálculo automático de GMD</p>
-        </div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Scale className="w-5 h-5" />
+          Lançamento de Pesagens
+        </h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs gap-1">
-            <Settings className="w-3.5 h-3.5" />
+          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-7 text-xs gap-1">
+            <Settings className="w-3 h-3" />
             Apartações/Lotes
           </Button>
           <Link to={createPageUrl("PesagensIndividuais")}>
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              Ver Todos os Registros
-            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs">Ver Todos</Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Formulário */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="py-3 px-4 bg-slate-50 border-b">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between">
-              <span>{editingId ? 'Editar Pesagem' : 'Nova Pesagem'}</span>
-              <Button variant="ghost" size="sm" onClick={handleNovoLancamento} className="h-7 text-xs gap-1">
-                <Plus className="w-3 h-3" />
-                Novo
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3">
+      {/* Opções de Sequência e Apartação - FORA DO FORMULÁRIO */}
+      <Card className="bg-slate-50">
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center gap-4">
             {/* Data */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Data da Pesagem *</Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium whitespace-nowrap">Data:</Label>
               <Input 
                 type="date" 
                 value={dataPesagem} 
                 onChange={(e) => setDataPesagem(e.target.value)} 
-                className="h-8 text-xs"
+                className="h-7 text-xs w-32"
               />
             </div>
 
-            {/* Número Animal */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Número do Animal *</Label>
-              <Input 
-                ref={numeroInputRef}
-                value={numeroAnimal} 
-                onChange={(e) => setNumeroAnimal(e.target.value)} 
-                className="h-8 text-xs"
-                placeholder="Ex: 1234"
-                maxLength={15}
+            {/* Checkbox Sequência */}
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="seq" 
+                checked={usarSequencia} 
+                onCheckedChange={(c) => { setUsarSequencia(c); if (!c) { setSeqInicio(""); setSeqFinal(""); } }}
               />
+              <Label htmlFor="seq" className="text-xs cursor-pointer">Sequência</Label>
+              {usarSequencia && (
+                <>
+                  <Input type="number" value={seqInicio} onChange={(e) => setSeqInicio(e.target.value)} placeholder="Início" className="h-7 text-xs w-20" />
+                  <span className="text-xs">a</span>
+                  <Input type="number" value={seqFinal} onChange={(e) => setSeqFinal(e.target.value)} placeholder="Final" className="h-7 text-xs w-20" />
+                </>
+              )}
             </div>
-
-            {/* Sexo e Raça */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Sexo</Label>
-                <Select value={sexo} onValueChange={setSexo}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="M">Macho</SelectItem>
-                    <SelectItem value="F">Fêmea</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Raça</Label>
-                <Input 
-                  value={raca} 
-                  onChange={(e) => setRaca(e.target.value)} 
-                  className="h-8 text-xs"
-                  placeholder="Ex: Nelore"
-                />
-              </div>
-            </div>
-
-            {/* Peso */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Peso (kg) *</Label>
-              <Input 
-                ref={pesoInputRef}
-                type="number"
-                value={peso} 
-                onChange={(e) => setPeso(e.target.value)} 
-                className="h-8 text-xs"
-                placeholder="Ex: 320"
-                maxLength={4}
-              />
-            </div>
-
-            {/* Cálculo de Ganho */}
-            {calculoGanho && (
-              <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                <p className="text-xs text-blue-700 font-medium">{calculoGanho}</p>
-              </div>
-            )}
 
             {/* Checkbox Apartação */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Checkbox 
-                id="usarApartacao" 
+                id="apt" 
                 checked={usarApartacao} 
-                onCheckedChange={(checked) => {
-                  setUsarApartacao(checked);
-                  if (!checked) {
-                    setApartacaoSelecionada("");
-                    setLoteManual("");
-                    setSugestaoLote({ nome: "", cor: "" });
-                  }
-                }}
+                onCheckedChange={(c) => { setUsarApartacao(c); if (!c) { setApartacaoSelecionada(""); setLoteManual(""); } }}
               />
-              <Label htmlFor="usarApartacao" className="text-xs cursor-pointer">Usar Apartação</Label>
+              <Label htmlFor="apt" className="text-xs cursor-pointer">Apartação</Label>
+              {usarApartacao && (
+                <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteManual(""); }}>
+                  <SelectTrigger className="h-7 text-xs w-40"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Seleção de Apartação */}
-            {usarApartacao && (
-              <div className="space-y-2 pl-4 border-l-2 border-emerald-200">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Formulário de Lançamento - CENTRO/ESQUERDA */}
+        <div className="lg:col-span-2 space-y-3">
+          <Card>
+            <CardHeader className="py-2 px-3 bg-emerald-50 border-b">
+              <CardTitle className="text-sm font-semibold">{editingId ? 'Editar' : 'Novo Lançamento'}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                {/* Número */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium">Apartação</Label>
-                  <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteManual(""); }}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <Label className="text-xs">Número *</Label>
+                  <Input 
+                    ref={numeroInputRef}
+                    value={numeroAnimal} 
+                    onChange={(e) => setNumeroAnimal(e.target.value)} 
+                    onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
+                    className="h-8 text-sm font-semibold"
+                    placeholder="Ex: 1234"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Peso */}
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso (kg) *</Label>
+                  <Input 
+                    ref={pesoInputRef}
+                    type="number"
+                    value={peso} 
+                    onChange={(e) => setPeso(e.target.value)} 
+                    onKeyDown={(e) => handleKeyDown(e, 'salvar')}
+                    className="h-8 text-sm font-semibold"
+                    placeholder="Ex: 320"
+                  />
+                </div>
+
+                {/* Sexo */}
+                <div className="space-y-1">
+                  <Label className="text-xs">Sexo</Label>
+                  <Select value={sexo} onValueChange={setSexo}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                     <SelectContent>
-                      {apartacoes.map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>
-                      ))}
+                      <SelectItem value="M">Macho</SelectItem>
+                      <SelectItem value="F">Fêmea</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Sugestão de Lote */}
-                {sugestaoLote.nome && (
-                  <div className={`text-xs font-semibold ${sugestaoLote.cor}`}>
-                    Sugestão: {sugestaoLote.nome}
+                {/* Raça */}
+                <div className="space-y-1">
+                  <Label className="text-xs">Raça</Label>
+                  <Input value={raca} onChange={(e) => setRaca(e.target.value)} className="h-8 text-xs" placeholder="Nelore" />
+                </div>
+
+                {/* Botão Salvar */}
+                <Button 
+                  ref={salvarBtnRef}
+                  onClick={handleSalvar} 
+                  disabled={saveMutation.isPending}
+                  className="h-8 bg-emerald-600 hover:bg-emerald-700 gap-1"
+                >
+                  <Save className="w-4 h-4" />
+                  {saveMutation.isPending ? '...' : 'Salvar'}
+                </Button>
+              </div>
+
+              {/* Info adicional */}
+              <div className="flex gap-4 mt-2 flex-wrap">
+                {calculoGanho && (
+                  <div className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">{calculoGanho}</div>
+                )}
+                {sugestaoLote.nome && usarApartacao && (
+                  <div className={`text-xs font-semibold ${sugestaoLote.cor} bg-white px-2 py-1 rounded border`}>
+                    Lote: {sugestaoLote.nome}
                   </div>
                 )}
-
-                {/* Lote Manual */}
-                {apartacaoSelecionada && lotesApartacao.length > 0 && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Lote Manual (opcional)</Label>
-                    <Select value={loteManual} onValueChange={setLoteManual}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Automático" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={null}>Automático</SelectItem>
-                        {lotesApartacao.map(l => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.nome_lote} {l.fechado ? '(Fechado)' : ''} ({l.peso_minimo}-{l.peso_maximo}kg)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {usarApartacao && apartacaoSelecionada && lotesApartacao.length > 0 && (
+                  <Select value={loteManual} onValueChange={setLoteManual}>
+                    <SelectTrigger className="h-6 text-xs w-48"><SelectValue placeholder="Lote manual (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>Automático</SelectItem>
+                      {lotesApartacao.map(l => (
+                        <SelectItem key={l.id} value={l.id}>{l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg)</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            {/* Checkbox Sequência */}
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="usarSequencia" 
-                checked={usarSequencia} 
-                onCheckedChange={(checked) => {
-                  setUsarSequencia(checked);
-                  if (!checked) {
-                    setSeqInicio("");
-                    setSeqFinal("");
-                  }
-                }}
-              />
-              <Label htmlFor="usarSequencia" className="text-xs cursor-pointer">Usar Sequência</Label>
-            </div>
-
-            {/* Campos Sequência */}
-            {usarSequencia && (
-              <div className="grid grid-cols-2 gap-2 pl-4 border-l-2 border-blue-200">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Início</Label>
-                  <Input 
-                    type="number"
-                    value={seqInicio} 
-                    onChange={(e) => setSeqInicio(e.target.value)} 
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Final</Label>
-                  <Input 
-                    type="number"
-                    value={seqFinal} 
-                    onChange={(e) => setSeqFinal(e.target.value)} 
-                    className="h-8 text-xs"
-                  />
-                </div>
+          {/* Tabela de Pesagens do Dia */}
+          <Card>
+            <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Pesagens do Dia ({formatarData(dataPesagem)})</CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{pesagensDia.length}</Badge>
+                <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-6 w-6">
+                  <RefreshCw className="w-3 h-3" />
+                </Button>
               </div>
-            )}
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-auto max-h-[300px]">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-white">
+                    <TableRow>
+                      <TableHead className="text-xs">Animal</TableHead>
+                      <TableHead className="text-xs">Sexo</TableHead>
+                      <TableHead className="text-xs">Raça</TableHead>
+                      <TableHead className="text-xs text-right">Peso</TableHead>
+                      <TableHead className="text-xs">Lote</TableHead>
+                      <TableHead className="text-xs text-right">Dias</TableHead>
+                      <TableHead className="text-xs text-right">GMD</TableHead>
+                      <TableHead className="text-xs w-14"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow><TableCell colSpan={8} className="text-center py-4 text-slate-500 text-xs">Carregando...</TableCell></TableRow>
+                    ) : pesagensDia.length === 0 ? (
+                      <TableRow><TableCell colSpan={8} className="text-center py-4 text-slate-500 text-xs">Nenhuma pesagem</TableCell></TableRow>
+                    ) : (
+                      pesagensDia.map((p) => (
+                        <TableRow key={p.id} className="hover:bg-slate-50">
+                          <TableCell className="text-xs font-medium">{p.numero_animal}</TableCell>
+                          <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
+                          <TableCell className="text-xs">{p.raca || '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-mono font-semibold">{p.peso}</TableCell>
+                          <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
+                          <TableCell className={`text-xs text-right font-mono ${p.gmd > 0 ? 'text-emerald-600' : p.gmd < 0 ? 'text-red-600' : ''}`}>
+                            {p.gmd?.toFixed(3) || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-0.5">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditar(p)} className="h-5 w-5">
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(p.id)} className="h-5 w-5 text-red-500">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Observação */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Observação</Label>
-              <Textarea 
-                value={observacao} 
-                onChange={(e) => setObservacao(e.target.value)} 
-                className="text-xs min-h-[60px]"
-                placeholder="Observações..."
-              />
-            </div>
-
-            {/* Botão Salvar */}
-            <Button 
-              onClick={handleSalvar} 
-              disabled={saveMutation.isPending}
-              className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 gap-1"
-            >
-              <Save className="w-4 h-4" />
-              {saveMutation.isPending ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Tabela de Pesagens do Dia */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="py-3 px-4 bg-slate-50 border-b flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold">
-              Pesagens do Dia ({formatarData(dataPesagem)})
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">{pesagensDia.length} registros</Badge>
-              <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-7 w-7">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-auto max-h-[400px]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white">
-                  <TableRow>
-                    <TableHead className="text-xs">Animal</TableHead>
-                    <TableHead className="text-xs">Sexo</TableHead>
-                    <TableHead className="text-xs">Raça</TableHead>
-                    <TableHead className="text-xs text-right">Peso</TableHead>
-                    <TableHead className="text-xs">Lote</TableHead>
-                    <TableHead className="text-xs text-right">Dias</TableHead>
-                    <TableHead className="text-xs text-right">Ganho</TableHead>
-                    <TableHead className="text-xs text-right">GMD</TableHead>
-                    <TableHead className="text-xs w-16">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500">Carregando...</TableCell></TableRow>
-                  ) : pesagensDia.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500">Nenhuma pesagem nesta data</TableCell></TableRow>
-                  ) : (
-                    pesagensDia.map((p) => (
-                      <TableRow key={p.id} className="hover:bg-slate-50">
-                        <TableCell className="text-xs font-medium">{p.numero_animal}</TableCell>
-                        <TableCell className="text-xs">{p.sexo === 'M' ? 'M' : p.sexo === 'F' ? 'F' : '-'}</TableCell>
-                        <TableCell className="text-xs">{p.raca || '-'}</TableCell>
-                        <TableCell className="text-xs text-right font-mono font-semibold">{p.peso} kg</TableCell>
-                        <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
-                        <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
-                        <TableCell className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toFixed(2)}` : '-'}</TableCell>
-                        <TableCell className={`text-xs text-right font-mono ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
-                          {p.gmd ? p.gmd.toFixed(3) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditar(p)} className="h-6 w-6">
-                              <Edit2 className="w-3 h-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleExcluir(p.id)} className="h-6 w-6 text-red-500 hover:text-red-700">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
+        {/* Resumo de Lotes - LADO DIREITO */}
+        <div className="lg:col-span-1">
+          {usarApartacao && apartacaoSelecionada && resumoLotes.length > 0 ? (
+            <Card className="sticky top-16">
+              <CardHeader className="py-2 px-3 bg-emerald-50 border-b">
+                <CardTitle className="text-sm text-emerald-800">
+                  Lotes - {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Lote</TableHead>
+                      <TableHead className="text-xs text-center">Faixa</TableHead>
+                      <TableHead className="text-xs text-center">Qtd</TableHead>
+                      <TableHead className="text-xs text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resumoLotes.map((lote) => (
+                      <TableRow key={lote.id} className={sugestaoLote.loteId === lote.id ? 'bg-orange-50' : ''}>
+                        <TableCell className="text-xs font-medium">{lote.nome_lote}</TableCell>
+                        <TableCell className="text-xs text-center">{lote.peso_minimo}-{lote.peso_maximo}</TableCell>
+                        <TableCell className="text-xs text-center font-semibold">{lote.quantidade_atual}/{lote.quantidade_maxima}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge variant={lote.status === 'Aberto' ? 'default' : 'destructive'} className="text-[9px] px-1">
+                            {lote.status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-slate-50">
+              <CardContent className="p-4 text-center text-slate-500 text-xs">
+                {usarApartacao ? 'Selecione uma apartação para ver os lotes' : 'Ative a opção "Apartação" para ver os lotes'}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
-
-      {/* Resumo de Lotes (quando apartação ativa) */}
-      {usarApartacao && apartacaoSelecionada && resumoLotes.length > 0 && (
-        <Card>
-          <CardHeader className="py-2 px-4 bg-emerald-50 border-b">
-            <CardTitle className="text-sm font-semibold text-emerald-800">
-              Resumo dos Lotes - {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Lote</TableHead>
-                  <TableHead className="text-xs text-center">Peso Mín</TableHead>
-                  <TableHead className="text-xs text-center">Peso Máx</TableHead>
-                  <TableHead className="text-xs text-center">Qtd Máx</TableHead>
-                  <TableHead className="text-xs text-center">Qtd Atual</TableHead>
-                  <TableHead className="text-xs text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {resumoLotes.map((lote) => (
-                  <TableRow key={lote.id}>
-                    <TableCell className="text-xs font-medium">{lote.nome_lote}</TableCell>
-                    <TableCell className="text-xs text-center">{lote.peso_minimo} kg</TableCell>
-                    <TableCell className="text-xs text-center">{lote.peso_maximo} kg</TableCell>
-                    <TableCell className="text-xs text-center">{lote.quantidade_maxima}</TableCell>
-                    <TableCell className="text-xs text-center font-semibold">{lote.quantidade_atual}</TableCell>
-                    <TableCell className="text-xs text-center">
-                      <Badge variant={lote.status === 'Aberto' ? 'default' : 'destructive'} className="text-[10px]">
-                        {lote.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Dialog Apartações/Lotes */}
       <GerenciarApartacoesDialog 
@@ -747,17 +610,14 @@ export default function LancamentoPesagensIndividuais() {
   );
 }
 
-// Componente Dialog para gerenciar Apartações e Lotes
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('apartacoes');
   
-  // Apartação
   const [nomeApartacao, setNomeApartacao] = useState("");
   const [fixaApartacao, setFixaApartacao] = useState(false);
   const [editingApartacaoId, setEditingApartacaoId] = useState(null);
   
-  // Lote
   const [apartacaoIdLote, setApartacaoIdLote] = useState("");
   const [nomeLote, setNomeLote] = useState("");
   const [qtdMaxima, setQtdMaxima] = useState("");
@@ -784,62 +644,25 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
   });
 
   const salvarApartacao = async () => {
-    if (!nomeApartacao.trim()) {
-      toast.error("Nome da apartação é obrigatório");
-      return;
-    }
-
-    const data = {
-      empresa_id: empresaId,
-      nome_apartacao: nomeApartacao.trim(),
-      fixa_apartacao: fixaApartacao,
-    };
-
+    if (!nomeApartacao.trim()) { toast.error("Nome obrigatório"); return; }
+    const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim(), fixa_apartacao: fixaApartacao };
     if (editingApartacaoId) {
       await base44.entities.Apartacao.update(editingApartacaoId, data);
-      toast.success("Apartação atualizada!");
     } else {
       await base44.entities.Apartacao.create(data);
-      toast.success("Apartação criada!");
     }
-
-    setNomeApartacao("");
-    setFixaApartacao(false);
-    setEditingApartacaoId(null);
+    toast.success("Salvo!");
+    setNomeApartacao(""); setFixaApartacao(false); setEditingApartacaoId(null);
     refetchApartacoes();
     queryClient.invalidateQueries({ queryKey: ['apartacoes'] });
   };
 
-  const excluirApartacao = async (id) => {
-    const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
-    if (lotesVinculados.length > 0) {
-      toast.error("Exclua os lotes antes de excluir a apartação");
-      return;
-    }
-    if (confirm("Excluir esta apartação?")) {
-      await base44.entities.Apartacao.delete(id);
-      toast.success("Apartação excluída!");
-      refetchApartacoes();
-      queryClient.invalidateQueries({ queryKey: ['apartacoes'] });
-    }
-  };
-
   const salvarLote = async () => {
-    if (!apartacaoIdLote) {
-      toast.error("Selecione uma apartação");
-      return;
-    }
-    if (!nomeLote.trim()) {
-      toast.error("Nome do lote é obrigatório");
-      return;
-    }
-    if (!pesoMinimo || !pesoMaximo || parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
-      toast.error("Peso mínimo deve ser menor que peso máximo");
-      return;
-    }
-
+    if (!apartacaoIdLote) { toast.error("Selecione apartação"); return; }
+    if (!nomeLote.trim()) { toast.error("Nome obrigatório"); return; }
+    if (!pesoMinimo || !pesoMaximo) { toast.error("Peso obrigatório"); return; }
+    
     const apt = apartacoes.find(a => a.id === apartacaoIdLote);
-
     const data = {
       empresa_id: empresaId,
       apartacao_id: apartacaoIdLote,
@@ -853,65 +676,43 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
 
     if (editingLoteId) {
       await base44.entities.LoteApartacao.update(editingLoteId, data);
-      toast.success("Lote atualizado!");
     } else {
       await base44.entities.LoteApartacao.create(data);
-      toast.success("Lote criado!");
     }
-
-    setNomeLote("");
-    setQtdMaxima("");
-    setPesoMinimo("");
-    setPesoMaximo("");
-    setEditingLoteId(null);
+    toast.success("Salvo!");
+    setNomeLote(""); setQtdMaxima(""); setPesoMinimo(""); setPesoMaximo(""); setEditingLoteId(null);
     refetchLotes();
     queryClient.invalidateQueries({ queryKey: ['lotes-apartacao'] });
   };
 
-  const excluirLote = async (id) => {
-    if (confirm("Excluir este lote?")) {
-      await base44.entities.LoteApartacao.delete(id);
-      toast.success("Lote excluído!");
-      refetchLotes();
-      queryClient.invalidateQueries({ queryKey: ['lotes-apartacao'] });
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Gerenciar Apartações e Lotes</DialogTitle>
+          <DialogTitle>Apartações e Lotes</DialogTitle>
         </DialogHeader>
         
         <div className="flex gap-2 border-b pb-2">
-          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>
-            Apartações
-          </Button>
-          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>
-            Lotes
-          </Button>
+          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>Apartações</Button>
+          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>Lotes</Button>
         </div>
 
         <div className="flex-1 overflow-auto">
           {tab === 'apartacoes' ? (
-            <div className="space-y-4">
-              {/* Form Apartação */}
-              <div className="grid grid-cols-3 gap-2 items-end">
-                <div className="space-y-1">
+            <div className="space-y-3">
+              <div className="grid grid-cols-4 gap-2 items-end">
+                <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Nome da Apartação</Label>
                   <Input value={nomeApartacao} onChange={(e) => setNomeApartacao(e.target.value)} className="h-8 text-xs" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox id="fixa" checked={fixaApartacao} onCheckedChange={setFixaApartacao} />
-                  <Label htmlFor="fixa" className="text-xs">Fixa Apartação</Label>
+                  <Label htmlFor="fixa" className="text-xs">Fixa</Label>
                 </div>
                 <Button onClick={salvarApartacao} size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700">
                   {editingApartacaoId ? 'Atualizar' : 'Adicionar'}
                 </Button>
               </div>
-
-              {/* Lista Apartações */}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -928,15 +729,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setNomeApartacao(a.nome_apartacao);
-                            setFixaApartacao(a.fixa_apartacao);
-                            setEditingApartacaoId(a.id);
-                          }}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => excluirApartacao(a.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                            setNomeApartacao(a.nome_apartacao); setFixaApartacao(a.fixa_apartacao); setEditingApartacaoId(a.id);
+                          }}><Edit2 className="w-3 h-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={async () => {
+                            if (confirm("Excluir?")) { await base44.entities.Apartacao.delete(a.id); refetchApartacoes(); }
+                          }}><Trash2 className="w-3 h-3" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -945,8 +742,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
               </Table>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Form Lote */}
+            <div className="space-y-3">
               <div className="grid grid-cols-6 gap-2 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs">Apartação</Label>
@@ -977,8 +773,6 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
                   {editingLoteId ? 'Atualizar' : 'Adicionar'}
                 </Button>
               </div>
-
-              {/* Lista Lotes */}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -996,23 +790,18 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId }) {
                       <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
                       <TableCell className="text-xs">{l.nome_lote}</TableCell>
                       <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_minimo} kg</TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_maximo} kg</TableCell>
+                      <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
+                      <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                            setApartacaoIdLote(l.apartacao_id);
-                            setNomeLote(l.nome_lote);
-                            setQtdMaxima(String(l.quantidade_maxima));
-                            setPesoMinimo(String(l.peso_minimo));
-                            setPesoMaximo(String(l.peso_maximo));
-                            setEditingLoteId(l.id);
-                          }}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => excluirLote(l.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                            setApartacaoIdLote(l.apartacao_id); setNomeLote(l.nome_lote);
+                            setQtdMaxima(String(l.quantidade_maxima)); setPesoMinimo(String(l.peso_minimo));
+                            setPesoMaximo(String(l.peso_maximo)); setEditingLoteId(l.id);
+                          }}><Edit2 className="w-3 h-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={async () => {
+                            if (confirm("Excluir?")) { await base44.entities.LoteApartacao.delete(l.id); refetchLotes(); }
+                          }}><Trash2 className="w-3 h-3" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
