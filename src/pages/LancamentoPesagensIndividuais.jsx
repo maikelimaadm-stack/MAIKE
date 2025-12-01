@@ -542,10 +542,17 @@ export default function LancamentoPesagensIndividuais() {
   // ========== EXCLUIR PESAGEM ==========
   const handleExcluir = async (pesagem) => {
     if (pesagem._offlineId) {
-      const pending = JSON.parse(localStorage.getItem(CACHE_KEYS.PENDING) || '[]');
-      const updated = pending.filter(p => p._offlineId !== pesagem._offlineId);
-      localStorage.setItem(CACHE_KEYS.PENDING, JSON.stringify(updated));
-      updatePendingCount();
+      // Excluir do IndexedDB
+      if (dbReady) {
+        await deletePendingPesagem(pesagem._offlineId);
+        const pending = await getPendingPesagens(empresaSelecionadaId);
+        setPendingPesagensDB(pending);
+      } else {
+        const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+        const updated = pending.filter(p => p._offlineId !== pesagem._offlineId);
+        localStorage.setItem('pending_pesagens_individuais', JSON.stringify(updated));
+      }
+      await updatePendingCount();
       toast.success('Removido');
     } else if (navigator.onLine) {
       await base44.entities.PesagemIndividual.delete(pesagem.id);
