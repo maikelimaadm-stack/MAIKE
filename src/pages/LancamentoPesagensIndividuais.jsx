@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,12 +21,28 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const CACHE_KEYS = {
-  PESAGENS: 'offline_pesagens_individuais',
-  APARTACOES: 'offline_apartacoes',
-  LOTES: 'offline_lotes_apartacao',
-  PENDING: 'pending_pesagens_individuais',
-};
+// IndexedDB imports
+import {
+  initDB,
+  savePesagemOffline,
+  getPendingPesagens,
+  deletePendingPesagem,
+  cachePesagens,
+  getCachedPesagens,
+  saveApartacaoOffline,
+  getPendingApartacoes,
+  deletePendingApartacao,
+  cacheApartacoes,
+  getCachedApartacoes,
+  saveLoteOffline,
+  getPendingLotes,
+  deletePendingLote,
+  cacheLotes,
+  getCachedLotes,
+  getPendingCounts,
+} from "../components/offline/IndexedDBManager";
+import { syncAll, addSyncListener } from "../components/offline/SyncManager";
+import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
