@@ -28,13 +28,73 @@ const formatarData = (dataString) => {
 };
 
 export default function LancamentoPesagensIndividuais() {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
-  const queryClient = useQueryClient();
-  
-  // Refs para navegação
-  const numeroInputRef = useRef(null);
-  const pesoInputRef = useRef(null);
-  const salvarBtnRef = useRef(null);
+    const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+    const queryClient = useQueryClient();
+
+    // Estado de conexão
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    // Refs para navegação
+    const numeroInputRef = useRef(null);
+    const pesoInputRef = useRef(null);
+    const salvarBtnRef = useRef(null);
+
+    // Monitorar conexão
+    useEffect(() => {
+      const handleOnline = () => {
+        setIsOnline(true);
+        toast.success("Conexão restaurada!");
+        syncPendingPesagens();
+      };
+      const handleOffline = () => {
+        setIsOnline(false);
+        toast.warning("Modo offline ativado - pesagens serão salvas localmente");
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      // Carregar contagem de pendentes
+      updatePendingCount();
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }, []);
+
+    const updatePendingCount = () => {
+      const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+      setPendingCount(pending.length);
+    };
+
+    const syncPendingPesagens = async () => {
+      const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+      if (pending.length === 0) return;
+
+      let successCount = 0;
+      const failed = [];
+
+      for (const pesagem of pending) {
+        try {
+          await base44.entities.PesagemIndividual.create(pesagem);
+          successCount++;
+        } catch (error) {
+          console.error('Erro ao sincronizar:', error);
+          failed.push(pesagem);
+        }
+      }
+
+      localStorage.setItem('pending_pesagens_individuais', JSON.stringify(failed));
+      updatePendingCount();
+
+      if (successCount > 0) {
+        toast.success(`✅ ${successCount} pesagem(ns) sincronizada(s)!`);
+        queryClient.invalidateQueries({ queryKey: ['pesagens-dia'] });
+        queryClient.invalidateQueries({ queryKey: ['todas-pesagens'] });
+      }
+    };
 
   // Estado do formulário
   const [editingId, setEditingId] = useState(null);
