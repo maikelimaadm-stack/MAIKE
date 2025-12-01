@@ -518,6 +518,9 @@ const EIXO_Y_OPCOES = [
                   Período: {dataInicio ? formatarData(dataInicio) : "Início"} a {dataFim ? formatarData(dataFim) : "Hoje"}
                 </p>
               )}
+              <p className="text-xs text-gray-600">
+                {movimentacoesFiltradas.length} registros | Entradas: {formatarNumero(totalEntradas)} | Saídas: {formatarNumero(totalSaidas)} | Saldo: {formatarNumero(saldoPeriodo)} cab
+              </p>
             </div>
           </div>
 
@@ -537,18 +540,22 @@ const EIXO_Y_OPCOES = [
                   case 'motivo': return m.motivo || null;
                   case 'sexo': return m.sexo || null;
                   case 'tipo': return m.tipo || null;
+                  // Causa morte só se aplica a mortes
                   case 'causa_morte': 
                     if (m.motivo !== 'Morte') return null;
                     return m.causa_morte || 'Não Informada';
+                  // Fornecedor só se aplica a compras
                   case 'fornecedor': 
                     if (m.motivo !== 'Compra') return null;
                     return m.fornecedor_origem || 'Não Informado';
+                  // Comprador só se aplica a vendas/abates
                   case 'comprador': 
                     if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
                     return m.destino_venda || 'Não Informado';
                   case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
                   case 'nota_fiscal': return m.nota_fiscal || null;
                   case 'gta': return m.gta || null;
+                  // Categoria nova só se aplica a mudança de categoria
                   case 'categoria_nova': 
                     if (m.motivo !== 'Mudança de Categoria') return null;
                     return m.categoria_nova || 'Não Informada';
@@ -562,17 +569,41 @@ const EIXO_Y_OPCOES = [
                 }
               };
 
-              // Filtrar movimentações válidas
+
+
+              const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
+              const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
+
+              // Matriz: { linha: { coluna: { entradas, saidas, saldo } } }
+              const matriz = {};
+              const totaisPorColuna = { entradas: {}, saidas: {}, saldo: {} };
+              const totaisPorLinha = {};
+
+              linhasY.forEach(linha => {
+                matriz[linha] = {};
+                totaisPorLinha[linha] = { entradas: 0, saidas: 0, saldo: 0 };
+                colunasX.forEach(col => {
+                  matriz[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
+                });
+              });
+              colunasX.forEach(col => {
+                totaisPorColuna.entradas[col] = 0;
+                totaisPorColuna.saidas[col] = 0;
+                totaisPorColuna.saldo[col] = 0;
+              });
+
+              // Primeiro, filtrar movimentações que se aplicam aos eixos selecionados
               const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
                 const linha = getValorEixo(m, eixoYSintetico);
                 const col = getValorEixo(m, eixoXSintetico);
                 return linha !== null && col !== null;
               });
 
+              // Recalcular linhas e colunas baseado nas movimentações válidas
               const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
               const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
 
-              // Inicializar matriz
+              // Reinicializar matriz com valores válidos
               const matrizFinal = {};
               const totaisLinhaFinal = {};
               const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
@@ -608,7 +639,7 @@ const EIXO_Y_OPCOES = [
                 }
               });
 
-              // Calcular saldos
+              // Calcular saldos após processar todas as movimentações
               linhasYValidas.forEach(linha => {
                 totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
                 colunasXValidas.forEach(col => {
@@ -628,6 +659,7 @@ const EIXO_Y_OPCOES = [
               const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
               const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
 
+              // Se não há dados válidos
               if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
                 return (
                   <div className="text-center py-8 text-slate-500">
@@ -639,6 +671,10 @@ const EIXO_Y_OPCOES = [
 
               return (
                 <div className="overflow-x-auto">
+                  <div className="text-xs mb-1">
+                    <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel}
+                  </div>
+                  
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -656,14 +692,14 @@ const EIXO_Y_OPCOES = [
                         <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
                           Saídas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-yellow-50">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
                           Saldo
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {linhasYValidas.map((linha, idx) => (
-                        <TableRow key={linha} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      {linhasYValidas.map((linha) => (
+                        <TableRow key={linha}>
                           <TableCell className="border border-gray-300 text-xs font-semibold py-1">
                             {linha}
                           </TableCell>
@@ -685,13 +721,13 @@ const EIXO_Y_OPCOES = [
                           <TableCell className="border border-black text-xs text-center font-mono py-1 bg-red-50 text-red-700">
                             {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-50">
+                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-50">
                             {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
-                      <TableRow className="font-bold bg-emerald-50">
+                      <TableRow className="font-bold">
                         <TableCell className="border border-black text-xs font-bold py-1">
                           TOTAL
                         </TableCell>
@@ -706,7 +742,7 @@ const EIXO_Y_OPCOES = [
                         <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-red-100 text-red-800">
                           {formatarNumero(totalGeral.saidas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-yellow-100 text-yellow-900">
+                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1 bg-blue-100 text-blue-800">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
