@@ -609,8 +609,7 @@ export default function RelatorioMovimentacoesPecuaria() {
                       </div>
                     )}
 
-                    {(
-                      <Table>
+                    <Table>
                         <TableHeader>
                           <TableRow className="border-black">
                             {colunasVisiveis.includes('data') && <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>}
