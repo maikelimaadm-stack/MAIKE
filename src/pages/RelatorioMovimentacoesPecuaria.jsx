@@ -62,6 +62,11 @@ const EIXO_X_OPCOES = [
   { value: 'marca', label: 'Marca' },
   { value: 'motivo', label: 'Motivo' },
   { value: 'sexo', label: 'Sexo' },
+  { value: 'tipo', label: 'Tipo (Entrada/Saída)' },
+  { value: 'causa_morte', label: 'Causa Morte' },
+  { value: 'fornecedor', label: 'Fornecedor' },
+  { value: 'comprador', label: 'Comprador/Destino' },
+  { value: 'area', label: 'Área' },
 ];
 
 const ORDENACAO_OPCOES = [
