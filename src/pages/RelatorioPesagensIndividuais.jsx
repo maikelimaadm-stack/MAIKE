@@ -447,10 +447,7 @@ export default function RelatorioPesagensIndividuais() {
       <div className={`bg-white print:shadow-none ${orientacao === 'paisagem' ? 'print:landscape' : ''}`}>
         <style dangerouslySetInnerHTML={{__html: `
           @media print {
-            @page { 
-              size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'}; 
-              margin: 1.5cm 1cm 2cm 1cm;
-            }
+            @page { size: ${orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'}; margin: 1.5cm 1cm 2cm 1cm; }
             body * { visibility: hidden; }
             .print-area, .print-area * { visibility: visible; }
             .print-area { position: absolute; left: 0; top: 0; width: 100%; }
