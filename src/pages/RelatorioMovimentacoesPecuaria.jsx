@@ -670,7 +670,6 @@ export default function RelatorioMovimentacoesPecuaria() {
                           })}
                         </TableBody>
                       </Table>
-                    )}
 
                     <Table className="mt-1">
                       <TableBody>
