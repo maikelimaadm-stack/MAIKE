@@ -662,14 +662,21 @@ export default function LancamentoPesagensIndividuais() {
                       pesagensDia.map((p, idx) => (
                         <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
                           <TableCell className="text-xs">
-                            <div className="flex gap-0.5">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditar(p)} className="h-5 w-5" disabled={!!p._offlineId}>
-                                <Edit2 className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleExcluir(p)} className="h-5 w-5 text-red-500">
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
+                                  <Edit2 className="w-3 h-3 mr-2" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
+                                  <Trash2 className="w-3 h-3 mr-2" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                           <TableCell className="text-xs font-bold">
                             {p.numero_animal}
