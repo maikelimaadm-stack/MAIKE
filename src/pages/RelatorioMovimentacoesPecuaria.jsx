@@ -80,6 +80,7 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [orientacao, setOrientacao] = useState("paisagem");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('data_desc');
+  const [eixoXSintetico, setEixoXSintetico] = useState('setor'); // Coluna do eixo X na matriz sintética
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_mov_pecuaria');
