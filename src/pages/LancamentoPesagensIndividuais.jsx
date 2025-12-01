@@ -10,12 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, Plus } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, Plus, WifiOff, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { useOfflineMutation } from "@/components/offline/useOfflineMutation";
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
