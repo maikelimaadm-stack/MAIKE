@@ -700,7 +700,7 @@ const EIXO_Y_OPCOES = [
                     <TableBody>
                       {linhasYValidas.map((linha) => (
                         <TableRow key={linha}>
-                          <TableCell className="border border-gray-300 text-xs font-semibold py-1">
+                          <TableCell className="border border-gray-300 text-xs py-1">
                             {linha}
                           </TableCell>
                           {colunasXValidas.map(col => {
@@ -709,40 +709,40 @@ const EIXO_Y_OPCOES = [
                             return (
                               <TableCell 
                                 key={col} 
-                                className="border border-gray-300 text-xs text-center py-1 font-mono"
+                                className="border border-gray-300 text-xs text-center py-1"
                               >
                                 {valor !== 0 ? formatarNumero(valor) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-black text-xs text-center font-mono py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1">
                             {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1">
                             {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
                           </TableCell>
-                          <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1">
                             {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
-                      <TableRow className="font-bold">
-                        <TableCell className="border border-black text-xs font-bold py-1">
+                      <TableRow>
+                        <TableCell className="border border-gray-300 text-xs font-bold py-1">
                           TOTAL
                         </TableCell>
                         {colunasXValidas.map(col => (
-                          <TableCell key={col} className="border border-black text-xs text-center font-mono font-bold py-1">
+                          <TableCell key={col} className="border border-gray-300 text-xs text-center font-bold py-1">
                             {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
                           </TableCell>
                         ))}
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
                           {formatarNumero(totalGeral.entradas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
                           {formatarNumero(totalGeral.saidas)}
                         </TableCell>
-                        <TableCell className="border border-black text-xs text-center font-mono font-bold py-1">
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
