@@ -1309,34 +1309,32 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirLote = async (id) => {
-        const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
-        if (pesagensVinculadas.length > 0) {
-          toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
-          return;
-        }
+    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
+      return;
+    }
 
-        if (!confirm("Excluir lote?")) return;
+    if (!confirm("Excluir lote?")) return;
 
-        if (navigator.onLine) {
-          await base44.entities.LoteApartacao.delete(id);
-          toast.success("Lote excluído!");
-          onRefresh();
-        } else {
-          // OFFLINE: Excluir localmente
-          const cachedLotes = JSON.parse(localStorage.getItem(CACHE_KEYS.LOTES) || '[]');
-          const lotesAtualizados = cachedLotes.filter(l => l.id !== id);
-          localStorage.setItem(CACHE_KEYS.LOTES, JSON.stringify(lotesAtualizados));
+    if (navigator.onLine) {
+      await base44.entities.LoteApartacao.delete(id);
+      toast.success("Lote excluído!");
+      onRefresh();
+    } else {
+      // OFFLINE: Registrar exclusão no IndexedDB
+      if (dbReady && !id.startsWith('offline_')) {
+        await saveLoteOffline('delete', { id });
+      } else if (!dbReady && !id.startsWith('offline_')) {
+        const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+        pending.push({ action: 'delete', id, timestamp: Date.now() });
+        localStorage.setItem('pending_lotes', JSON.stringify(pending));
+      }
 
-          if (!id.startsWith('offline_')) {
-            const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
-            pending.push({ action: 'delete', id, timestamp: Date.now() });
-            localStorage.setItem('pending_lotes', JSON.stringify(pending));
-          }
-
-          toast.success("Lote excluído offline!");
-          onRefresh();
-        }
-      };
+      toast.success("Lote excluído offline!");
+      onRefresh();
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
