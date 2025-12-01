@@ -18,13 +18,16 @@ export default function SaldoCategorias({ movimentacoes = [] }) {
     });
   };
 
-  // Calcular matriz categoria x marca
+  // Calcular matriz categoria x marca (apenas movimentações manuais)
   const { matrizCategoriaMarca, marcas, categorias, totaisPorMarca, totaisPorCategoria, totalGeral } = useMemo(() => {
     const matriz = {};
     const marcasSet = new Set();
     const categoriasSet = new Set();
 
-    movimentacoes.forEach(mov => {
+    // Filtrar apenas movimentações manuais (sem lote_id)
+    const movimentacoesManuais = movimentacoes.filter(m => !m.lote_id);
+
+    movimentacoesManuais.forEach(mov => {
       const categoria = mov.categoria_animal;
       const marca = mov.marca || 'Sem Marca';
       if (!categoria) return;
