@@ -297,17 +297,30 @@ const EIXO_Y_OPCOES = [
               </Select>
             </div>
             {tipoRelatorio === 'sintetico' && (
-              <div className="space-y-1">
-                <Label className="text-xs">Colunas da Matriz</Label>
-                <Select value={eixoXSintetico} onValueChange={setEixoXSintetico}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EIXO_X_OPCOES.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Linhas (Eixo Y)</Label>
+                  <Select value={eixoYSintetico} onValueChange={setEixoYSintetico}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EIXO_Y_OPCOES.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Colunas (Eixo X)</Label>
+                  <Select value={eixoXSintetico} onValueChange={setEixoXSintetico}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EIXO_X_OPCOES.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
             <div className="space-y-1">
               <Label className="text-xs">Ordenar Por</Label>
