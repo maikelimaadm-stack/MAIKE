@@ -68,6 +68,8 @@ export default function PesagensIndividuais() {
   const [filtroSexo, setFiltroSexo] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroMarca, setFiltroMarca] = useState("");
+  const [filtroObservacao, setFiltroObservacao] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -181,6 +183,22 @@ export default function PesagensIndividuais() {
       if (filtroSexo && p.sexo !== filtroSexo) return false;
       if (filtroDataInicio && p.data_pesagem < filtroDataInicio) return false;
       if (filtroDataFim && p.data_pesagem > filtroDataFim) return false;
+      // Filtro de marca: "sem_marca" mostra os sem marca, ou filtra por marca específica
+      if (filtroMarca) {
+        if (filtroMarca === "sem_marca") {
+          if (p.marca && p.marca.trim() !== '') return false;
+        } else {
+          if (p.marca !== filtroMarca) return false;
+        }
+      }
+      // Filtro de observação: "sem_observacao" mostra os sem obs, "com_observacao" mostra os com obs
+      if (filtroObservacao) {
+        if (filtroObservacao === "sem_observacao") {
+          if (p.observacao && p.observacao.trim() !== '') return false;
+        } else if (filtroObservacao === "com_observacao") {
+          if (!p.observacao || p.observacao.trim() === '') return false;
+        }
+      }
       return true;
     });
 
@@ -206,7 +224,7 @@ export default function PesagensIndividuais() {
     });
 
     return filtered;
-  }, [pesagens, searchTerm, filtroLote, filtroApartacao, filtroSexo, filtroDataInicio, filtroDataFim, sortConfig]);
+  }, [pesagens, searchTerm, filtroLote, filtroApartacao, filtroSexo, filtroDataInicio, filtroDataFim, filtroMarca, filtroObservacao, sortConfig]);
 
   // Paginação
   const totalPages = Math.ceil(pesagensFiltradas.length / itemsPerPage);
@@ -435,6 +453,8 @@ export default function PesagensIndividuais() {
     setFiltroSexo("");
     setFiltroDataInicio("");
     setFiltroDataFim("");
+    setFiltroMarca("");
+    setFiltroObservacao("");
     setCurrentPage(1);
   };
 
@@ -537,7 +557,7 @@ export default function PesagensIndividuais() {
       {/* Filtros */}
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-9 gap-2">
             <div className="md:col-span-2 relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
@@ -567,6 +587,22 @@ export default function PesagensIndividuais() {
                 <SelectItem value={null}>Todos</SelectItem>
                 <SelectItem value="M">Macho</SelectItem>
                 <SelectItem value="F">Fêmea</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filtroMarca} onValueChange={setFiltroMarca}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Marca" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todas Marcas</SelectItem>
+                <SelectItem value="sem_marca">Sem Marca</SelectItem>
+                {marcasExistentes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filtroObservacao} onValueChange={setFiltroObservacao}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Observação" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todas</SelectItem>
+                <SelectItem value="com_observacao">Com Observação</SelectItem>
+                <SelectItem value="sem_observacao">Sem Observação</SelectItem>
               </SelectContent>
             </Select>
             <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
