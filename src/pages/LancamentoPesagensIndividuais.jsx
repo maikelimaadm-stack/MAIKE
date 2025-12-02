@@ -1146,3 +1146,376 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         const novaApartacao = { ...data, id: `offline_${Date.now()}`, created_date: new Date().toISOString() };
+        
+        if (dbReady) {
+          if (editingApartacaoId) {
+            await saveApartacaoOffline('update', { id: editingApartacaoId, ...data });
+          } else {
+            await saveApartacaoOffline('create', novaApartacao);
+          }
+        } else {
+          const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+          pending.push({ 
+            action: editingApartacaoId ? 'update' : 'create', 
+            id: editingApartacaoId,
+            data: editingApartacaoId ? data : novaApartacao, 
+            timestamp: Date.now() 
+          });
+          localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+        }
+
+        toast.success(editingApartacaoId ? "Apartação atualizada offline!" : "Apartação criada offline!");
+        onRefresh();
+      }
+      setNomeApartacao(""); 
+      setEditingApartacaoId(null);
+    } catch (error) {
+      toast.error('Erro: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const salvarLote = async () => {
+    if (!apartacaoIdLote) { 
+      toast.error("Selecione uma apartação"); 
+      return; 
+    }
+    if (!nomeLote.trim()) { 
+      toast.error("Nome do lote obrigatório"); 
+      return; 
+    }
+    if (!pesoMinimo || !pesoMaximo) { 
+      toast.error("Peso mínimo e máximo obrigatórios"); 
+      return; 
+    }
+    if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
+      toast.error("Peso mínimo não pode ser maior que o máximo");
+      return;
+    }
+
+    const nomeNormalizado = nomeLote.trim().toUpperCase();
+    const duplicado = lotes.find(l => 
+      l.apartacao_id === apartacaoIdLote &&
+      l.nome_lote.toUpperCase() === nomeNormalizado && 
+      l.id !== editingLoteId
+    );
+    if (duplicado) {
+      toast.error("Já existe um lote com esse nome nesta apartação!");
+      return;
+    }
+
+    setIsSaving(true);
+    const apt = apartacoes.find(a => a.id === apartacaoIdLote);
+    const data = {
+      empresa_id: empresaId,
+      apartacao_id: apartacaoIdLote,
+      nome_apartacao: apt?.nome_apartacao || "",
+      nome_lote: nomeLote.trim(),
+      quantidade_maxima: parseInt(qtdMaxima) || 500,
+      peso_minimo: parseFloat(pesoMinimo),
+      peso_maximo: parseFloat(pesoMaximo),
+      fechado: false,
+    };
+
+    try {
+      if (navigator.onLine) {
+        if (editingLoteId) {
+          await base44.entities.LoteApartacao.update(editingLoteId, data);
+          toast.success("Lote atualizado!");
+        } else {
+          await base44.entities.LoteApartacao.create(data);
+          toast.success("Lote criado!");
+        }
+        onRefresh();
+      } else {
+        const novoLote = { ...data, id: `offline_${Date.now()}`, created_date: new Date().toISOString() };
+        
+        if (dbReady) {
+          if (editingLoteId) {
+            await saveLoteOffline('update', { id: editingLoteId, ...data });
+          } else {
+            await saveLoteOffline('create', novoLote);
+          }
+        } else {
+          const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+          pending.push({ 
+            action: editingLoteId ? 'update' : 'create', 
+            id: editingLoteId,
+            data: editingLoteId ? data : novoLote, 
+            timestamp: Date.now() 
+          });
+          localStorage.setItem('pending_lotes', JSON.stringify(pending));
+        }
+
+        toast.success(editingLoteId ? "Lote atualizado offline!" : "Lote criado offline!");
+        onRefresh();
+      }
+      setNomeLote(""); 
+      setQtdMaxima("500"); 
+      setPesoMinimo(""); 
+      setPesoMaximo(""); 
+      setEditingLoteId(null);
+    } catch (error) {
+      toast.error('Erro: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const excluirApartacao = async (id) => {
+    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      return;
+    }
+
+    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+
+    if (navigator.onLine) {
+      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+      for (const l of lotesVinculados) {
+        await base44.entities.LoteApartacao.delete(l.id);
+      }
+      await base44.entities.Apartacao.delete(id);
+      toast.success("Apartação excluída!");
+      onRefresh();
+    } else {
+      if (dbReady && !id.startsWith('offline_')) {
+        await saveApartacaoOffline('delete', { id });
+      } else if (!dbReady && !id.startsWith('offline_')) {
+        const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
+        pending.push({ action: 'delete', id, timestamp: Date.now() });
+        localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
+      }
+      toast.success("Apartação excluída offline!");
+      onRefresh();
+    }
+  };
+
+  const excluirLote = async (id) => {
+    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      return;
+    }
+
+    if (!confirm("Excluir lote?")) return;
+
+    if (navigator.onLine) {
+      await base44.entities.LoteApartacao.delete(id);
+      toast.success("Lote excluído!");
+      onRefresh();
+    } else {
+      if (dbReady && !id.startsWith('offline_')) {
+        await saveLoteOffline('delete', { id });
+      } else if (!dbReady && !id.startsWith('offline_')) {
+        const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
+        pending.push({ action: 'delete', id, timestamp: Date.now() });
+        localStorage.setItem('pending_lotes', JSON.stringify(pending));
+      }
+      toast.success("Lote excluído offline!");
+      onRefresh();
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Gerenciar Apartações e Lotes</DialogTitle>
+        </DialogHeader>
+        
+        <div className="flex gap-2 border-b pb-2">
+          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')} className="text-xs">Apartações</Button>
+          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')} className="text-xs">Lotes</Button>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          {tab === 'apartacoes' ? (
+            <div className="space-y-3">
+              <div className="flex gap-2 items-end bg-slate-50 p-3 rounded">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Nome da Apartação</Label>
+                  <Input 
+                    value={nomeApartacao} 
+                    onChange={(e) => setNomeApartacao(e.target.value)} 
+                    className="h-9 text-sm" 
+                    placeholder="Ex: ROTINA" 
+                  />
+                </div>
+                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700 text-xs">
+                  {editingApartacaoId ? 'Atualizar' : 'Adicionar'}
+                </Button>
+                {editingApartacaoId && (
+                  <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Nome</TableHead>
+                    <TableHead className="text-xs text-center">Lotes</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
+                    <TableHead className="text-xs w-24">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {apartacoes.map(a => {
+                    const qtdLotes = lotes.filter(l => l.apartacao_id === a.id).length;
+                    const qtdPesagens = pesagens.filter(p => p.apartacao_id === a.id).length;
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-xs font-medium">{a.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs text-center">{qtdLotes}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setNomeApartacao(a.nome_apartacao); 
+                              setEditingApartacaoId(a.id);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirApartacao(a.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {apartacoes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-6">
+                        Nenhuma apartação cadastrada
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-6 gap-2 items-end bg-slate-50 p-3 rounded">
+                <div className="space-y-1">
+                  <Label className="text-xs">Apartação</Label>
+                  <Select value={apartacaoIdLote} onValueChange={setApartacaoIdLote}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nome Lote</Label>
+                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" placeholder="Ex: BOIADA" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Qtd Máx</Label>
+                  <Input type="number" value={qtdMaxima} onChange={(e) => setQtdMaxima(e.target.value)} className="h-9 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso Mín</Label>
+                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso Máx</Label>
+                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
+                </div>
+                <div className="flex gap-1">
+                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700 text-xs">
+                    {editingLoteId ? 'Atualizar' : 'Adicionar'}
+                  </Button>
+                  {editingLoteId && (
+                    <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => { 
+                      setEditingLoteId(null); 
+                      setNomeLote(""); 
+                      setQtdMaxima("500"); 
+                      setPesoMinimo(""); 
+                      setPesoMaximo(""); 
+                    }}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Apartação</TableHead>
+                    <TableHead className="text-xs">Lote</TableHead>
+                    <TableHead className="text-xs text-center">Qtd Máx</TableHead>
+                    <TableHead className="text-xs text-center">Peso Mín</TableHead>
+                    <TableHead className="text-xs text-center">Peso Máx</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
+                    <TableHead className="text-xs w-24">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lotesFiltrados.map(l => {
+                    const qtdPesagens = pesagens.filter(p => p.lote_id === l.id).length;
+                    return (
+                      <TableRow key={l.id}>
+                        <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs font-medium">{l.nome_lote}</TableCell>
+                        <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setApartacaoIdLote(l.apartacao_id); 
+                              setNomeLote(l.nome_lote);
+                              setQtdMaxima(String(l.quantidade_maxima)); 
+                              setPesoMinimo(String(l.peso_minimo));
+                              setPesoMaximo(String(l.peso_maximo)); 
+                              setEditingLoteId(l.id);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirLote(l.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {lotesFiltrados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-6">
+                        {apartacaoIdLote ? 'Nenhum lote nesta apartação' : 'Selecione uma apartação ou cadastre lotes'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
