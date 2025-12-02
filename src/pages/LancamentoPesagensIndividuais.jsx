@@ -895,6 +895,7 @@ export default function LancamentoPesagensIndividuais() {
                   setLoteTransferencia("");
                   if (!fixarSexo) setSexo("M");
                   if (!fixarRaca) setRaca("Nelore");
+                  if (!fixarEra) setEra("");
                   if (!fixarMarca) setMarca("");
                   setTimeout(() => numeroInputRef.current?.focus(), 50);
                 }} 

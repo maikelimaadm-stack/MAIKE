@@ -77,6 +77,7 @@ export default function PesagensIndividuais() {
     { id: 'numero_animal', label: 'Animal', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
     { id: 'raca', label: 'Raça', default: true },
+    { id: 'era', label: 'Era', default: true },
     { id: 'peso', label: 'Peso', default: true },
     { id: 'nome_lote', label: 'Lote', default: true },
     { id: 'nome_apartacao', label: 'Apartação', default: true },
@@ -603,6 +604,9 @@ export default function PesagensIndividuais() {
                         }
                         if (coluna.id === 'raca') {
                           return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'era') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.era || '-'}</TableCell>;
                         }
                         if (coluna.id === 'peso') {
                           return <TableCell key={coluna.id} className="text-xs text-right font-mono font-semibold">{p.peso?.toLocaleString('pt-BR')} kg</TableCell>;
