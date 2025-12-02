@@ -13,8 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, Search, Trash2, FileSpreadsheet, Download, 
   ChevronUp, ChevronDown, RefreshCw, Filter, X, Scale,
-  AlertTriangle, CheckCircle2, Plus
+  AlertTriangle, CheckCircle2, Plus, Settings, GripVertical
 } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
@@ -67,6 +68,69 @@ export default function PesagensIndividuais() {
   const [importErrors, setImportErrors] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+
+  // Configuração de colunas
+  const COLUNAS_DISPONIVEIS = [
+    { id: 'selecao', label: 'Seleção', default: true, fixo: true },
+    { id: 'data_pesagem', label: 'Data', default: true },
+    { id: 'numero_animal', label: 'Animal', default: true },
+    { id: 'sexo', label: 'Sexo', default: true },
+    { id: 'raca', label: 'Raça', default: true },
+    { id: 'peso', label: 'Peso', default: true },
+    { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'nome_apartacao', label: 'Apartação', default: true },
+    { id: 'dias', label: 'Dias', default: false },
+    { id: 'ganho', label: 'Ganho', default: false },
+    { id: 'gmd', label: 'GMD', default: true },
+    { id: 'marca', label: 'Marca', default: false },
+    { id: 'observacao', label: 'Observação', default: false },
+  ];
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_pesagens_individuais');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
+
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_visiveis_pesagens_individuais');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+
+  const toggleColuna = (colunaId) => {
+    const novasColunas = colunasVisiveis.includes(colunaId)
+      ? colunasVisiveis.filter(id => id !== colunaId)
+      : [...colunasVisiveis, colunaId];
+    setColunasVisiveis(novasColunas);
+    localStorage.setItem('colunas_visiveis_pesagens_individuais', JSON.stringify(novasColunas));
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_pesagens_individuais', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
 
   // Fetch pesagens
   const { data: pesagens = [], isLoading, refetch } = useQuery({
@@ -375,6 +439,9 @@ export default function PesagensIndividuais() {
           <p className="text-xs text-slate-600">Importação e gestão de pesagens individuais</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
+            Colunas
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
             Atualizar
           </Button>
@@ -464,44 +531,41 @@ export default function PesagensIndividuais() {
             <Table>
               <TableHeader className="sticky top-0 bg-white z-10">
                 <TableRow>
-                  <TableHead className="w-8">
-                    <Checkbox 
-                      checked={selectedItems.length === pesagensPaginadas.length && pesagensPaginadas.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs cursor-pointer" onClick={() => handleSort('data_pesagem')}>
-                    <div className="flex items-center gap-1">Data <SortIcon column="data_pesagem" /></div>
-                  </TableHead>
-                  <TableHead className="text-xs cursor-pointer" onClick={() => handleSort('numero_animal')}>
-                    <div className="flex items-center gap-1">Animal <SortIcon column="numero_animal" /></div>
-                  </TableHead>
-                  <TableHead className="text-xs">Sexo</TableHead>
-                  <TableHead className="text-xs">Raça</TableHead>
-                  <TableHead className="text-xs cursor-pointer text-right" onClick={() => handleSort('peso')}>
-                    <div className="flex items-center justify-end gap-1">Peso <SortIcon column="peso" /></div>
-                  </TableHead>
-                  <TableHead className="text-xs cursor-pointer" onClick={() => handleSort('nome_lote')}>
-                    <div className="flex items-center gap-1">Lote <SortIcon column="nome_lote" /></div>
-                  </TableHead>
-                  <TableHead className="text-xs">Apartação</TableHead>
-                  <TableHead className="text-xs text-right">Dias</TableHead>
-                  <TableHead className="text-xs cursor-pointer text-right" onClick={() => handleSort('ganho')}>
-                    <div className="flex items-center justify-end gap-1">Ganho <SortIcon column="ganho" /></div>
-                  </TableHead>
-                  <TableHead className="text-xs cursor-pointer text-right" onClick={() => handleSort('gmd')}>
-                    <div className="flex items-center justify-end gap-1">GMD <SortIcon column="gmd" /></div>
-                  </TableHead>
+                  {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === 'selecao') {
+                      return (
+                        <TableHead key="selecao" className="w-8">
+                          <Checkbox 
+                            checked={selectedItems.length === pesagensPaginadas.length && pesagensPaginadas.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
+                      );
+                    }
+                    const isSortable = ['data_pesagem', 'numero_animal', 'peso', 'nome_lote', 'ganho', 'gmd'].includes(coluna.id);
+                    const isRight = ['peso', 'dias', 'ganho', 'gmd'].includes(coluna.id);
+                    return (
+                      <TableHead 
+                        key={coluna.id}
+                        className={`text-xs ${isRight ? 'text-right' : ''} ${isSortable ? 'cursor-pointer' : ''}`}
+                        onClick={() => isSortable && handleSort(coluna.id)}
+                      >
+                        <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : ''}`}>
+                          {coluna.label} {isSortable && <SortIcon column={coluna.id} />}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-slate-500">Carregando...</TableCell>
+                    <TableCell colSpan={20} className="text-center py-8 text-slate-500">Carregando...</TableCell>
                   </TableRow>
                 ) : pesagensPaginadas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={20} className="text-center py-8 text-slate-500">
                       <FileSpreadsheet className="w-12 h-12 mx-auto mb-2 opacity-30" />
                       Nenhuma pesagem encontrada
                     </TableCell>
@@ -509,30 +573,67 @@ export default function PesagensIndividuais() {
                 ) : (
                   pesagensPaginadas.map((p) => (
                     <TableRow key={p.id} className="hover:bg-slate-50">
-                      <TableCell>
-                        <Checkbox 
-                          checked={selectedItems.includes(p.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedItems(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id));
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell className="text-xs">{formatarData(p.data_pesagem)}</TableCell>
-                      <TableCell className="text-xs font-medium">{p.numero_animal}</TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant={p.sexo === 'M' ? 'default' : 'secondary'} className="text-[10px]">
-                          {p.sexo === 'M' ? 'Macho' : p.sexo === 'F' ? 'Fêmea' : '-'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{p.raca || '-'}</TableCell>
-                      <TableCell className="text-xs text-right font-mono font-semibold">{p.peso?.toLocaleString('pt-BR')} kg</TableCell>
-                      <TableCell className="text-xs">{p.nome_lote || '-'}</TableCell>
-                      <TableCell className="text-xs">{p.nome_apartacao || '-'}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>
-                      <TableCell className={`text-xs text-right font-mono ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
-                        {p.gmd ? p.gmd.toFixed(3) : '-'}
-                      </TableCell>
+                      {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === 'selecao') {
+                          return (
+                            <TableCell key="selecao">
+                              <Checkbox 
+                                checked={selectedItems.includes(p.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedItems(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id));
+                                }}
+                              />
+                            </TableCell>
+                          );
+                        }
+                        if (coluna.id === 'data_pesagem') {
+                          return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
+                        }
+                        if (coluna.id === 'numero_animal') {
+                          return <TableCell key={coluna.id} className="text-xs font-medium">{p.numero_animal}</TableCell>;
+                        }
+                        if (coluna.id === 'sexo') {
+                          return (
+                            <TableCell key={coluna.id} className="text-xs">
+                              <Badge variant={p.sexo === 'M' ? 'default' : 'secondary'} className="text-[10px]">
+                                {p.sexo === 'M' ? 'Macho' : p.sexo === 'F' ? 'Fêmea' : '-'}
+                              </Badge>
+                            </TableCell>
+                          );
+                        }
+                        if (coluna.id === 'raca') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'peso') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono font-semibold">{p.peso?.toLocaleString('pt-BR')} kg</TableCell>;
+                        }
+                        if (coluna.id === 'nome_lote') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.nome_lote || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'nome_apartacao') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.nome_apartacao || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'dias') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'ganho') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'gmd') {
+                          return (
+                            <TableCell key={coluna.id} className={`text-xs text-right font-mono ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
+                              {p.gmd ? p.gmd.toFixed(3) : '-'}
+                            </TableCell>
+                          );
+                        }
+                        if (coluna.id === 'marca') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'observacao') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
+                        }
+                        return <TableCell key={coluna.id} className="text-xs">-</TableCell>;
+                      })}
                     </TableRow>
                   ))
                 )}
@@ -565,6 +666,76 @@ export default function PesagensIndividuais() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Configuração de Colunas */}
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna || coluna.fixo) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de Importação */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>

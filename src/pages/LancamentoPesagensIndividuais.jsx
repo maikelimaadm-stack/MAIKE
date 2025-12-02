@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { GripVertical } from "lucide-react";
 import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
 import {
   DropdownMenu,
@@ -100,6 +102,67 @@ export default function LancamentoPesagensIndividuais() {
 
   // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+
+  // Configuração de colunas
+  const COLUNAS_DISPONIVEIS = [
+    { id: 'acoes', label: 'Ações', default: true, fixo: true },
+    { id: 'numero_registro', label: 'Nº', default: true },
+    { id: 'numero_animal', label: 'Identificação', default: true },
+    { id: 'peso', label: 'Peso', default: true },
+    { id: 'data_pesagem', label: 'Data', default: true },
+    { id: 'sexo', label: 'Sexo', default: true },
+    { id: 'raca', label: 'Raça', default: true },
+    { id: 'marca', label: 'Marca', default: true },
+    { id: 'nome_apartacao', label: 'Apartação', default: true },
+    { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'observacao', label: 'Observação', default: false },
+  ];
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_lancamento_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
+
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_visiveis_lancamento_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+
+  const toggleColuna = (colunaId) => {
+    const novasColunas = colunasVisiveis.includes(colunaId)
+      ? colunasVisiveis.filter(id => id !== colunaId)
+      : [...colunasVisiveis, colunaId];
+    setColunasVisiveis(novasColunas);
+    localStorage.setItem('colunas_visiveis_lancamento_pesagens', JSON.stringify(novasColunas));
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_lancamento_pesagens', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
 
   // ========== OFFLINE FIRST - INICIALIZAR IndexedDB E CARREGAR DADOS ==========
   useEffect(() => {
@@ -648,6 +711,9 @@ export default function LancamentoPesagensIndividuais() {
               <Database className="w-3 h-3 mr-1" />Persistente
             </Badge>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
+            Colunas
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
             Apartações
           </Button>
@@ -883,97 +949,92 @@ export default function LancamentoPesagensIndividuais() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-slate-100">
                     <TableRow>
-                      <TableHead className="text-xs w-10">Ações</TableHead>
-                      <TableHead 
-                        className="text-xs w-16 cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('numero_registro')}
-                      >
-                        <div className="flex items-center">Nº <SortIcon column="numero_registro" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('numero_animal')}
-                      >
-                        <div className="flex items-center">Identificação <SortIcon column="numero_animal" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs text-right cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('peso')}
-                      >
-                        <div className="flex items-center justify-end">Peso <SortIcon column="peso" /></div>
-                      </TableHead>
-                      <TableHead className="text-xs">Data</TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('sexo')}
-                      >
-                        <div className="flex items-center">Sexo <SortIcon column="sexo" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('raca')}
-                      >
-                        <div className="flex items-center">Raça <SortIcon column="raca" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('marca')}
-                      >
-                        <div className="flex items-center">Marca <SortIcon column="marca" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('nome_apartacao')}
-                      >
-                        <div className="flex items-center">Apartação <SortIcon column="nome_apartacao" /></div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-xs cursor-pointer hover:bg-slate-200 select-none"
-                        onClick={() => handleSort('nome_lote')}
-                      >
-                        <div className="flex items-center">Lote <SortIcon column="nome_lote" /></div>
-                      </TableHead>
+                      {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === 'acoes') {
+                          return <TableHead key="acoes" className="text-xs w-10">Ações</TableHead>;
+                        }
+                        const isSortable = ['numero_registro', 'numero_animal', 'peso', 'sexo', 'raca', 'marca', 'nome_apartacao', 'nome_lote'].includes(coluna.id);
+                        return (
+                          <TableHead 
+                            key={coluna.id}
+                            className={`text-xs ${coluna.id === 'peso' ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-slate-200 select-none' : ''}`}
+                            onClick={() => isSortable && handleSort(coluna.id)}
+                          >
+                            <div className={`flex items-center ${coluna.id === 'peso' ? 'justify-end' : ''}`}>
+                              {coluna.label} {isSortable && <SortIcon column={coluna.id} />}
+                            </div>
+                          </TableHead>
+                        );
+                      })}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
                     ) : pesagensDia.length === 0 ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
                     ) : (
                       pesagensDia.map((p, idx) => (
                         <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
-                          <TableCell className="text-xs">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start">
-                                <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
-                                  <Edit2 className="w-3 h-3 mr-2" />Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
-                                  <Trash2 className="w-3 h-3 mr-2" />Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                          <TableCell className="text-xs font-mono text-slate-500">
-                            {p._numero_registro}
-                          </TableCell>
-                          <TableCell className="text-xs font-bold">
-                            {p.numero_animal}
-                            {p._offlineId && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100 text-amber-700">P</Badge>}
-                          </TableCell>
-                          <TableCell className="text-xs text-right font-mono">{p.peso}</TableCell>
-                          <TableCell className="text-xs">{formatarData(p.data_pesagem)}</TableCell>
-                          <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
-                          <TableCell className="text-xs">{p.raca || '-'}</TableCell>
-                          <TableCell className="text-xs">{p.marca || '-'}</TableCell>
-                          <TableCell className="text-xs">{p.nome_apartacao || '-'}</TableCell>
-                          <TableCell className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>
+                          {colunasOrdenadas.map((coluna) => {
+                            if (coluna.id === 'acoes') {
+                              return (
+                                <TableCell key="acoes" className="text-xs">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
+                                        <Edit2 className="w-3 h-3 mr-2" />Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
+                                        <Trash2 className="w-3 h-3 mr-2" />Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              );
+                            }
+                            if (coluna.id === 'numero_registro') {
+                              return <TableCell key={coluna.id} className="text-xs font-mono text-slate-500">{p._numero_registro}</TableCell>;
+                            }
+                            if (coluna.id === 'numero_animal') {
+                              return (
+                                <TableCell key={coluna.id} className="text-xs font-bold">
+                                  {p.numero_animal}
+                                  {p._offlineId && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100 text-amber-700">P</Badge>}
+                                </TableCell>
+                              );
+                            }
+                            if (coluna.id === 'peso') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
+                            }
+                            if (coluna.id === 'data_pesagem') {
+                              return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
+                            }
+                            if (coluna.id === 'sexo') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.sexo || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'raca') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'marca') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'nome_apartacao') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.nome_apartacao || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'nome_lote') {
+                              return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'observacao') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
+                            }
+                            return <TableCell key={coluna.id} className="text-xs">-</TableCell>;
+                          })}
                         </TableRow>
                       ))
                     )}
@@ -1067,14 +1128,84 @@ export default function LancamentoPesagensIndividuais() {
         dbReady={dbReady}
       />
 
+      {/* DIALOG DE CONFIGURAÇÃO DE COLUNAS */}
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna || coluna.fixo) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* INDICADOR DE SINCRONIZAÇÃO OFFLINE */}
       <OfflineSyncIndicator 
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData}
       />
-      </div>
-      );
-      }
+    </div>
+  );
+}
 
 // ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
