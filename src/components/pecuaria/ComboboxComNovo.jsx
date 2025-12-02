@@ -64,6 +64,12 @@ export default function ComboboxComNovo({
     setIsOpen(true);
   };
 
+  const handleFocus = () => {
+    setIsOpen(true);
+    // Ao focar, limpa o filtro para mostrar todas as opções
+    setInputValue("");
+  };
+
   const handleInputBlur = () => {
     // Pequeno delay para permitir clique nos itens
     setTimeout(() => {
@@ -90,9 +96,9 @@ export default function ComboboxComNovo({
         <Input
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={() => setIsOpen(true)}
+          onFocus={handleFocus}
           onBlur={handleInputBlur}
-          placeholder={placeholder}
+          placeholder={value || placeholder}
           className="h-9 text-sm pr-8"
         />
         <Button
