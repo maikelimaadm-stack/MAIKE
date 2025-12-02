@@ -35,36 +35,40 @@ const notifyListeners = (event) => {
 
 export const syncPesagens = async (empresaId) => {
   const pending = await getPendingPesagens(empresaId);
+  
+  if (pending.length === 0) {
+    return { successCount: 0, errors: [], total: 0 };
+  }
+  
   let successCount = 0;
   const errors = [];
-  const processedOfflineIds = new Set(); // Evitar processar mesmo _offlineId duas vezes
 
-  for (const pesagem of pending) {
+  // Processar um por vez para evitar duplicação
+  for (let i = 0; i < pending.length; i++) {
+    const pesagem = pending[i];
+    const offlineId = pesagem._offlineId;
+    
     try {
-      // Evitar processar o mesmo registro duas vezes
-      if (processedOfflineIds.has(pesagem._offlineId)) {
-        continue;
-      }
-      processedOfflineIds.add(pesagem._offlineId);
-
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
       
       // Verificar se é uma edição ou criação
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
-        successCount++;
       } else {
         await base44.entities.PesagemIndividual.create(data);
-        successCount++;
       }
       
-      // Sempre remover após processar
-      await deletePendingPesagem(_offlineId);
+      successCount++;
     } catch (error) {
       console.error('Erro ao sincronizar pesagem:', error);
       errors.push({ pesagem, error: error.message });
-      // Remover da fila mesmo com erro para evitar loop infinito
-      await deletePendingPesagem(pesagem._offlineId);
+    }
+    
+    // SEMPRE remover após processar (sucesso ou erro)
+    try {
+      await deletePendingPesagem(offlineId);
+    } catch (e) {
+      console.error('Erro ao remover pendente:', e);
     }
   }
 
