@@ -70,6 +70,7 @@ export default function PesagensIndividuais() {
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [filtroMarca, setFiltroMarca] = useState("");
   const [filtroObservacao, setFiltroObservacao] = useState("");
+  const [filtroDataEspecifica, setFiltroDataEspecifica] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -166,6 +167,15 @@ export default function PesagensIndividuais() {
   const marcasExistentes = [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort();
   const racasExistentes = [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort();
   const erasExistentes = [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort();
+  
+  // Datas únicas por apartação selecionada
+  const datasUnicasApartacao = useMemo(() => {
+    let pesagensFiltro = pesagens;
+    if (filtroApartacao) {
+      pesagensFiltro = pesagens.filter(p => p.nome_apartacao === filtroApartacao);
+    }
+    return [...new Set(pesagensFiltro.map(p => p.data_pesagem).filter(Boolean))].sort().reverse();
+  }, [pesagens, filtroApartacao]);
 
   // Filtrar e ordenar
   const pesagensFiltradas = useMemo(() => {
@@ -180,6 +190,7 @@ export default function PesagensIndividuais() {
       }
       if (filtroLote && p.nome_lote !== filtroLote) return false;
       if (filtroApartacao && p.nome_apartacao !== filtroApartacao) return false;
+      if (filtroDataEspecifica && p.data_pesagem !== filtroDataEspecifica) return false;
       if (filtroSexo && p.sexo !== filtroSexo) return false;
       if (filtroDataInicio && p.data_pesagem < filtroDataInicio) return false;
       if (filtroDataFim && p.data_pesagem > filtroDataFim) return false;
@@ -224,7 +235,7 @@ export default function PesagensIndividuais() {
     });
 
     return filtered;
-  }, [pesagens, searchTerm, filtroLote, filtroApartacao, filtroSexo, filtroDataInicio, filtroDataFim, filtroMarca, filtroObservacao, sortConfig]);
+  }, [pesagens, searchTerm, filtroLote, filtroApartacao, filtroDataEspecifica, filtroSexo, filtroDataInicio, filtroDataFim, filtroMarca, filtroObservacao, sortConfig]);
 
   // Paginação
   const totalPages = Math.ceil(pesagensFiltradas.length / itemsPerPage);
@@ -455,6 +466,7 @@ export default function PesagensIndividuais() {
     setFiltroDataFim("");
     setFiltroMarca("");
     setFiltroObservacao("");
+    setFiltroDataEspecifica("");
     setCurrentPage(1);
   };
 
@@ -557,7 +569,7 @@ export default function PesagensIndividuais() {
       {/* Filtros */}
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-9 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-10 gap-2">
             <div className="md:col-span-2 relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
@@ -574,11 +586,18 @@ export default function PesagensIndividuais() {
                 {lotesUnicos.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filtroApartacao} onValueChange={setFiltroApartacao}>
+            <Select value={filtroApartacao} onValueChange={(v) => { setFiltroApartacao(v); setFiltroDataEspecifica(""); }}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Apartação" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={null}>Todas</SelectItem>
                 {apartacoesUnicas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filtroDataEspecifica} onValueChange={setFiltroDataEspecifica}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Data Apar." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todas Datas</SelectItem>
+                {datasUnicasApartacao.map(d => <SelectItem key={d} value={d}>{formatarData(d)}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroSexo} onValueChange={setFiltroSexo}>
