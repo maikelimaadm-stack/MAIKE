@@ -552,25 +552,25 @@ export default function LancamentoPesagensIndividuais() {
             </div>
             
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Nº Identificação <span className="text-red-500">*</span></Label>
+              <Label className="text-xs">Nº Ident. <span className="text-red-500">*</span></Label>
               <Input 
                 ref={numeroInputRef}
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
-                className="h-14 w-48 font-bold text-amber-600 text-2xl text-center border-2 border-amber-300 bg-amber-50"
+                className="h-10 w-36 font-bold text-amber-500 text-lg"
                 autoFocus
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Peso (kg) <span className="text-red-500">*</span></Label>
+              <Label className="text-xs">Peso (kg) <span className="text-red-500">*</span></Label>
               <Input 
                 ref={pesoInputRef}
                 type="number"
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSalvar()}
-                className="h-14 w-40 font-bold text-amber-600 text-2xl text-center border-2 border-amber-300 bg-amber-50"
+                className="h-10 w-28 font-bold text-amber-500 text-lg"
               />
             </div>
             
@@ -704,61 +704,15 @@ export default function LancamentoPesagensIndividuais() {
         </CardContent>
       </Card>
 
-      {/* RODAPÉ COM ESTATÍSTICAS */}
-      <div className="flex items-center justify-between bg-white rounded px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-8">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-slate-900">{estatisticas.total}</div>
-            <div className="text-xs text-slate-500">Total</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-blue-600">{estatisticas.machos}</div>
-            <div className="text-xs text-slate-500">Machos</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-pink-600">{estatisticas.femeas}</div>
-            <div className="text-xs text-slate-500">Fêmeas</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-emerald-600">{estatisticas.pesoMedio.toFixed(1)} kg</div>
-            <div className="text-xs text-slate-500">Peso Médio</div>
-          </div>
+      {/* RODAPÉ */}
+      <div className="flex items-center justify-between bg-white rounded px-3 py-2 shadow-sm">
+        <div className="flex items-center gap-6 text-xs">
+          <div><span className="text-slate-500">Total:</span> <span className="font-bold text-lg">{estatisticas.total}</span></div>
+          <div><span className="text-slate-500">Machos:</span> <span className="font-bold">{estatisticas.machos}</span></div>
+          <div><span className="text-slate-500">Fêmeas:</span> <span className="font-bold">{estatisticas.femeas}</span></div>
+          <div><span className="text-slate-500">Peso Médio:</span> <span className="font-bold">{estatisticas.pesoMedio.toFixed(2)}</span></div>
         </div>
       </div>
-
-      {/* SEÇÃO DE DISTRIBUIÇÃO DE LOTES */}
-      {apartacaoSelecionada && lotesApartacaoAtual.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader className="py-2 px-3 bg-orange-50 border-b">
-            <CardTitle className="text-sm font-semibold text-orange-800">
-              📊 Distribuição por Lotes - {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {lotesApartacaoAtual.map(lote => {
-                const animaisNoLote = pesagensDia.filter(p => p.lote_id === lote.id);
-                const qtd = animaisNoLote.length;
-                const pesoMedioLote = qtd > 0 ? animaisNoLote.reduce((s, p) => s + (p.peso || 0), 0) / qtd : 0;
-                
-                return (
-                  <div key={lote.id} className="bg-white border-2 border-orange-200 rounded-lg p-3 text-center">
-                    <div className="text-sm font-bold text-orange-800">{lote.nome_lote}</div>
-                    <div className="text-[10px] text-slate-500">{lote.peso_minimo} - {lote.peso_maximo} kg</div>
-                    <div className="text-2xl font-bold text-orange-600 mt-1">{qtd}</div>
-                    <div className="text-[10px] text-slate-500">animais</div>
-                    {qtd > 0 && (
-                      <div className="text-xs text-emerald-600 font-medium mt-1">
-                        Média: {pesoMedioLote.toFixed(1)} kg
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* DIALOG APARTAÇÕES */}
       <GerenciarApartacoesDialog 
