@@ -12,8 +12,9 @@ export default function ComboboxComNovo({
   className = ""
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value || "");
+  const [inputValue, setInputValue] = useState("");
   const [filteredOptions, setFilteredOptions] = useState([]);
+  const [isFocused, setIsFocused] = useState(false);
   const wrapperRef = useRef(null);
 
   // Ordenar opções alfabeticamente e filtrar
@@ -22,7 +23,8 @@ export default function ComboboxComNovo({
       .filter(opt => opt && opt.trim())
       .sort((a, b) => a.localeCompare(b, 'pt-BR'));
     
-    if (inputValue) {
+    // Só filtra se tiver digitando algo
+    if (inputValue && isFocused) {
       const filtered = sorted.filter(opt => 
         opt.toLowerCase().includes(inputValue.toLowerCase())
       );
@@ -30,11 +32,7 @@ export default function ComboboxComNovo({
     } else {
       setFilteredOptions(sorted);
     }
-  }, [options, inputValue]);
-
-  useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
+  }, [options, inputValue, isFocused]);
 
   // Fechar ao clicar fora
   useEffect(() => {
@@ -66,14 +64,16 @@ export default function ComboboxComNovo({
 
   const handleFocus = () => {
     setIsOpen(true);
-    // Ao focar, limpa o filtro para mostrar todas as opções
+    setIsFocused(true);
+    // Ao focar, limpa o input para mostrar todas as opções
     setInputValue("");
   };
 
   const handleInputBlur = () => {
+    setIsFocused(false);
     // Pequeno delay para permitir clique nos itens
     setTimeout(() => {
-      if (inputValue !== value) {
+      if (inputValue && inputValue !== value) {
         onChange(inputValue);
       }
     }, 150);
@@ -94,11 +94,11 @@ export default function ComboboxComNovo({
     <div ref={wrapperRef} className={`relative ${className}`}>
       <div className="relative">
         <Input
-          value={inputValue}
+          value={isFocused ? inputValue : (value || "")}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onBlur={handleInputBlur}
-          placeholder={value || placeholder}
+          placeholder={placeholder}
           className="h-9 text-sm pr-8"
         />
         <Button
