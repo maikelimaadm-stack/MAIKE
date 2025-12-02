@@ -52,7 +52,7 @@ export default function FichaControleCombustivel() {
             <Fuel className="w-5 h-5" />
             Ficha de Controle de Combustível - Impressão
           </h1>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div>
               <Label className="text-xs">Mês</Label>
               <select
@@ -90,22 +90,140 @@ export default function FichaControleCombustivel() {
               </select>
             </div>
             <div>
+              <Label className="text-xs">Orientação</Label>
+              <select
+                value={config.orientacao}
+                onChange={(e) => setConfig({ ...config, orientacao: e.target.value })}
+                className="w-full h-9 border rounded px-2 text-sm"
+              >
+                <option value="retrato">Retrato (A4)</option>
+                <option value="paisagem">Paisagem (A4)</option>
+              </select>
+            </div>
+            <div>
               <Label className="text-xs">Qtd de Linhas</Label>
               <Input
                 type="number"
                 min="10"
-                max="40"
+                max="50"
                 value={config.linhas}
                 onChange={(e) => setConfig({ ...config, linhas: parseInt(e.target.value) || 25 })}
                 className="h-9"
               />
             </div>
-            <div className="flex items-end">
-              <Button onClick={handlePrint} className="w-full h-9 gap-2">
-                <Printer className="w-4 h-4" />
-                Imprimir Ficha
-              </Button>
+            <div>
+              <Label className="text-xs">Altura Linha (px)</Label>
+              <Input
+                type="number"
+                min="18"
+                max="40"
+                value={config.alturaLinha}
+                onChange={(e) => setConfig({ ...config, alturaLinha: parseInt(e.target.value) || 22 })}
+                className="h-9"
+              />
             </div>
+          </div>
+
+          {/* Configuração de largura das colunas */}
+          <div className="mt-3 pt-3 border-t">
+            <Label className="text-xs font-semibold text-slate-700 mb-2 block">Largura das Colunas (px)</Label>
+            <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+              <div>
+                <Label className="text-[10px] text-slate-500">Data</Label>
+                <Input
+                  type="number"
+                  min="50"
+                  max="150"
+                  value={config.larguraData}
+                  onChange={(e) => setConfig({ ...config, larguraData: parseInt(e.target.value) || 70 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Máquina</Label>
+                <Input
+                  type="number"
+                  min="100"
+                  max="300"
+                  value={config.larguraMaquina}
+                  onChange={(e) => setConfig({ ...config, larguraMaquina: parseInt(e.target.value) || 180 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Horímetro</Label>
+                <Input
+                  type="number"
+                  min="50"
+                  max="120"
+                  value={config.larguraHorimetro}
+                  onChange={(e) => setConfig({ ...config, larguraHorimetro: parseInt(e.target.value) || 70 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Entrada</Label>
+                <Input
+                  type="number"
+                  min="40"
+                  max="100"
+                  value={config.larguraEntrada}
+                  onChange={(e) => setConfig({ ...config, larguraEntrada: parseInt(e.target.value) || 60 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Saída</Label>
+                <Input
+                  type="number"
+                  min="40"
+                  max="100"
+                  value={config.larguraSaida}
+                  onChange={(e) => setConfig({ ...config, larguraSaida: parseInt(e.target.value) || 60 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Saldo</Label>
+                <Input
+                  type="number"
+                  min="40"
+                  max="100"
+                  value={config.larguraSaldo}
+                  onChange={(e) => setConfig({ ...config, larguraSaldo: parseInt(e.target.value) || 60 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Operador</Label>
+                <Input
+                  type="number"
+                  min="80"
+                  max="200"
+                  value={config.larguraOperador}
+                  onChange={(e) => setConfig({ ...config, larguraOperador: parseInt(e.target.value) || 120 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-slate-500">Visto</Label>
+                <Input
+                  type="number"
+                  min="30"
+                  max="80"
+                  value={config.larguraVisto}
+                  onChange={(e) => setConfig({ ...config, larguraVisto: parseInt(e.target.value) || 50 })}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <Button onClick={handlePrint} className="h-9 gap-2 px-6">
+              <Printer className="w-4 h-4" />
+              Imprimir Ficha
+            </Button>
           </div>
         </div>
       </div>
