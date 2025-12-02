@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, RefreshCw, CheckCircle, AlertCircle, Database } from "lucide-react";
 import { toast } from "sonner";
 import { getPendingCounts, initDB } from "./IndexedDBManager";
-import { syncAll, addSyncListener } from "./SyncManager";
+import { syncAll, addSyncListener, isSyncing } from "./SyncManager";
 
 export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -87,14 +87,12 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
       return;
     }
 
-    if (syncing) {
+    if (isSyncing()) {
       toast.warning("Sincronização já em andamento");
       return;
     }
 
-    setSyncing(true);
     const result = await syncAll(empresaId);
-    setSyncing(false);
     
     if (!result.success && result.message) {
       toast.error(result.message);

@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Scale, Save, Trash2, Edit2, RefreshCw, WifiOff, Wifi, Plus, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { GripVertical } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // IndexedDB imports
 import {
@@ -28,25 +31,134 @@ import {
   deletePendingPesagem,
   cachePesagens,
   getCachedPesagens,
-  saveApartacaoOffline,
   cacheApartacoes,
   getCachedApartacoes,
-  saveLoteOffline,
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
-  clearAllCache,
+  clearAllPending,
+  putItem,
   deleteItem,
+  clearStore,
+  getAllItems,
   STORES_NAMES,
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
+import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
+
+// ========== COMPONENTE RESUMO DE LOTES ==========
+function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
+  const [modoVisualizacao, setModoVisualizacao] = useState('dia'); // 'dia' ou 'total'
+
+  const resumoLotes = useMemo(() => {
+    if (!apartacaoSelecionada) return [];
+    
+    let todasPesagensApartacao;
+    if (modoVisualizacao === 'dia') {
+      // Apenas pesagens do dia
+      todasPesagensApartacao = [
+        ...pesagensDia.filter(p => p.apartacao_id === apartacaoSelecionada),
+      ];
+    } else {
+      // Todas as pesagens da apartação
+      todasPesagensApartacao = [
+        ...pesagens.filter(p => p.apartacao_id === apartacaoSelecionada),
+        ...pendingPesagensDB.filter(p => p.apartacao_id === apartacaoSelecionada)
+      ];
+    }
+
+    return lotesApartacaoAtual.map(lote => {
+      const animaisLote = todasPesagensApartacao.filter(p => p.lote_id === lote.id);
+      const qtd = animaisLote.length;
+      const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
+      const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
+      
+      return {
+        ...lote,
+        quantidade_atual: qtd,
+        peso_medio: pesoMedio,
+      };
+    }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
+  }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, modoVisualizacao]);
+
+  return (
+    <div className="lg:col-span-1">
+      <Card className="shadow-sm sticky top-2">
+        <CardHeader className="py-2 px-3 bg-slate-200 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-xs font-semibold">Distribuição de Lotes</CardTitle>
+          {apartacaoSelecionada && (
+            <div className="flex gap-1">
+              <Button 
+                variant={modoVisualizacao === 'dia' ? 'default' : 'outline'} 
+                size="sm" 
+                className="h-6 text-[10px] px-2"
+                onClick={() => setModoVisualizacao('dia')}
+              >
+                Dia
+              </Button>
+              <Button 
+                variant={modoVisualizacao === 'total' ? 'default' : 'outline'} 
+                size="sm" 
+                className="h-6 text-[10px] px-2"
+                onClick={() => setModoVisualizacao('total')}
+              >
+                Total
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="p-2">
+          {apartacaoSelecionada && resumoLotes.length > 0 ? (
+            <>
+              <div className="text-center mb-2 py-2 bg-emerald-50 rounded">
+                <span className="text-lg font-bold text-emerald-800">
+                  {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
+                </span>
+                <div className="text-[10px] text-emerald-600">
+                  {modoVisualizacao === 'dia' ? `Pesagens do dia (${formatarData(dataPesagem)})` : 'Todas as pesagens'}
+                </div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px]">Lote</TableHead>
+                    <TableHead className="text-[10px] text-right">Qtd.</TableHead>
+                    <TableHead className="text-[10px] text-right">Média</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {resumoLotes.map(lote => (
+                    <TableRow key={lote.id}>
+                      <TableCell className="text-xs font-medium">{lote.nome_lote}</TableCell>
+                      <TableCell className="text-xs text-right">{lote.quantidade_atual}/{lote.quantidade_maxima}</TableCell>
+                      <TableCell className="text-xs text-right font-mono">{lote.peso_medio.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="mt-2 pt-2 border-t text-xs text-center text-slate-500">
+                Qtd. Lançada: {resumoLotes.reduce((s, l) => s + l.quantidade_atual, 0)}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-6 text-slate-400 text-xs">
+              Selecione uma apartação para ver os lotes
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
+    // Evitar problema de fuso horário: usar apenas a parte da data
     const dataStr = dataString.split('T')[0];
     const [ano, mes, dia] = dataStr.split('-');
+    if (!ano || !mes || !dia) return '--/--/----';
     return `${dia}/${mes}/${ano}`;
   } catch { return '--/--/----'; }
 };
@@ -54,6 +166,10 @@ const formatarData = (dataString) => {
 export default function LancamentoPesagensIndividuais() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
+  
+  // Verificar se veio para editar
+  const urlParams = new URLSearchParams(window.location.search);
+  const editarId = urlParams.get('editar');
 
   // Estado de conexão
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -61,20 +177,19 @@ export default function LancamentoPesagensIndividuais() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dbReady, setDbReady] = useState(false);
 
-  // Refs
+  // Refs para navegação rápida
   const numeroInputRef = useRef(null);
   const pesoInputRef = useRef(null);
 
-  // Dados
+  // Dados em cache (offline-first)
   const [pesagens, setPesagens] = useState([]);
   const [apartacoes, setApartacoes] = useState([]);
   const [lotesApartacao, setLotesApartacao] = useState([]);
-  const [pendingPesagensDB, setPendingPesagensDB] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Formulário
+  // Estado do formulário
   const [editingId, setEditingId] = useState(null);
-  const [editingSyncId, setEditingSyncId] = useState(null);
+  const [editingOfflineId, setEditingOfflineId] = useState(null);
   const [dataPesagem, setDataPesagem] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [numeroAnimal, setNumeroAnimal] = useState("");
   const [peso, setPeso] = useState("");
@@ -87,21 +202,114 @@ export default function LancamentoPesagensIndividuais() {
   const [loteTransferencia, setLoteTransferencia] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   
-  // Fixar campos
+  // Checkboxes para fixar valores (quando marcado, campo fica desabilitado)
   const [fixarSexo, setFixarSexo] = useState(true);
   const [fixarRaca, setFixarRaca] = useState(true);
   const [fixarEra, setFixarEra] = useState(false);
   const [fixarMarca, setFixarMarca] = useState(false);
 
-  // Pesquisa e ordenação
+  // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Ordenação
   const [sortColumn, setSortColumn] = useState("created_date");
   const [sortDirection, setSortDirection] = useState("desc");
 
-  // Dialogs
+  // Dialog
   const [showApartacoesDialog, setShowApartacoesDialog] = useState(false);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
 
-  // ========== INICIALIZAÇÃO ==========
+  // Configuração de colunas
+  const COLUNAS_DISPONIVEIS = [
+    { id: 'acoes', label: 'Ações', default: true, fixo: true },
+    { id: 'numero_registro', label: 'Nº', default: true },
+    { id: 'numero_animal', label: 'Identificação', default: true },
+    { id: 'peso', label: 'Peso', default: true },
+    { id: 'data_pesagem', label: 'Data', default: true },
+    { id: 'sexo', label: 'Sexo', default: true },
+    { id: 'raca', label: 'Raça', default: true },
+    { id: 'era', label: 'Era', default: true },
+    { id: 'marca', label: 'Marca', default: true },
+    { id: 'nome_apartacao', label: 'Apartação', default: true },
+    { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'dias', label: 'Dias', default: false },
+    { id: 'ganho', label: 'Ganho', default: false },
+    { id: 'gmd', label: 'GMD', default: true },
+    { id: 'observacao', label: 'Observação', default: false },
+  ];
+
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_ordem_lancamento_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.map(c => c.id);
+  });
+
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_visiveis_lancamento_pesagens');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+  });
+
+  const toggleColuna = (colunaId) => {
+    const novasColunas = colunasVisiveis.includes(colunaId)
+      ? colunasVisiveis.filter(id => id !== colunaId)
+      : [...colunasVisiveis, colunaId];
+    setColunasVisiveis(novasColunas);
+    localStorage.setItem('colunas_visiveis_lancamento_pesagens', JSON.stringify(novasColunas));
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasOrdem(items);
+    localStorage.setItem('colunas_ordem_lancamento_pesagens', JSON.stringify(items));
+  };
+
+  const colunasOrdenadas = colunasOrdem
+    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
+    .filter(c => c && colunasVisiveis.includes(c.id));
+
+  // ========== CARREGAR REGISTRO PARA EDIÇÃO ==========
+  useEffect(() => {
+    const carregarParaEdicao = async () => {
+      if (editarId && pesagens.length > 0) {
+        const pesagem = pesagens.find(p => p.id === editarId);
+        if (pesagem) {
+          setEditingId(pesagem.id);
+          setDataPesagem(pesagem.data_pesagem || format(new Date(), 'yyyy-MM-dd'));
+          setNumeroAnimal(pesagem.numero_animal || "");
+          setPeso(String(pesagem.peso || ""));
+          setSexo(pesagem.sexo || "M");
+          setRaca(pesagem.raca || "Nelore");
+          setEra(pesagem.era || "");
+          setMarca(pesagem.marca || "");
+          setObservacao(pesagem.observacao || "");
+          if (pesagem.apartacao_id) setApartacaoSelecionada(pesagem.apartacao_id);
+          if (pesagem.lote_id) setLoteTransferencia(pesagem.lote_id);
+          
+          // Limpar o parâmetro da URL para evitar recarregar
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    };
+    carregarParaEdicao();
+  }, [editarId, pesagens]);
+
+  // ========== OFFLINE FIRST - INICIALIZAR IndexedDB E CARREGAR DADOS ==========
   useEffect(() => {
     const init = async () => {
       try {
@@ -109,7 +317,8 @@ export default function LancamentoPesagensIndividuais() {
         setDbReady(true);
         await loadAllData();
       } catch (error) {
-        console.error('Erro IndexedDB:', error);
+        console.error('Erro ao inicializar IndexedDB:', error);
+        // Fallback para localStorage se IndexedDB falhar
         setDbReady(false);
         await loadAllData();
       }
@@ -129,10 +338,10 @@ export default function LancamentoPesagensIndividuais() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Listener para sincronização automática
     const unsubscribe = addSyncListener((event) => {
       if (event.type === 'complete') {
         loadAllData();
-        toast.success(event.message);
       }
     });
 
@@ -147,58 +356,58 @@ export default function LancamentoPesagensIndividuais() {
     setIsLoading(true);
     
     try {
+      // Tentar carregar do IndexedDB primeiro
       if (dbReady) {
-        // Carregar do cache
-        const [cachedP, cachedA, cachedL] = await Promise.all([
+        const [cachedPesagensDB, cachedApartacoesDB, cachedLotesDB] = await Promise.all([
           getCachedPesagens(empresaSelecionadaId),
           getCachedApartacoes(empresaSelecionadaId),
           getCachedLotes(empresaSelecionadaId),
         ]);
         
-        setPesagens(cachedP);
-        setApartacoes(cachedA);
-        setLotesApartacao(cachedL);
+        setPesagens(cachedPesagensDB);
+        setApartacoes(cachedApartacoesDB);
+        setLotesApartacao(cachedLotesDB);
+      } else {
+        // Fallback para localStorage
+        const cachedPesagens = JSON.parse(localStorage.getItem('offline_pesagens_individuais') || '[]');
+        const cachedApartacoes = JSON.parse(localStorage.getItem('offline_apartacoes') || '[]');
+        const cachedLotes = JSON.parse(localStorage.getItem('offline_lotes_apartacao') || '[]');
         
-        // Carregar pendentes
-        const pending = await getPendingPesagens(empresaSelecionadaId);
-        setPendingPesagensDB(pending);
+        setPesagens(cachedPesagens.filter(p => p.empresa_id === empresaSelecionadaId));
+        setApartacoes(cachedApartacoes.filter(a => a.empresa_id === empresaSelecionadaId));
+        setLotesApartacao(cachedLotes.filter(l => l.empresa_id === empresaSelecionadaId));
       }
       
       await updatePendingCount();
       setIsLoading(false);
 
-      // Se online, atualizar do servidor
+      // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allP, allA, allL] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
         ]);
 
-        const pesagensE = allP.filter(p => p.empresa_id === empresaSelecionadaId);
-        const apartacoesE = allA.filter(a => a.empresa_id === empresaSelecionadaId);
-        const lotesE = allL.filter(l => l.empresa_id === empresaSelecionadaId);
+        const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
+        const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
+        const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
 
+        // Salvar no IndexedDB (persistente)
         if (dbReady) {
           await Promise.all([
-            cachePesagens(pesagensE),
-            cacheApartacoes(apartacoesE),
-            cacheLotes(lotesE),
+            cachePesagens(pesagensEmpresa),
+            cacheApartacoes(apartacoesEmpresa),
+            cacheLotes(lotesEmpresa),
           ]);
         }
 
-        setPesagens(pesagensE);
-        setApartacoes(apartacoesE);
-        setLotesApartacao(lotesE);
-        
-        // Recarregar pendentes após cache
-        if (dbReady) {
-          const pending = await getPendingPesagens(empresaSelecionadaId);
-          setPendingPesagensDB(pending);
-        }
+        setPesagens(pesagensEmpresa);
+        setApartacoes(apartacoesEmpresa);
+        setLotesApartacao(lotesEmpresa);
       }
     } catch (error) {
-      console.error('Erro carregar:', error);
+      console.error('Erro ao carregar dados:', error);
       setIsLoading(false);
     }
   };
@@ -208,9 +417,12 @@ export default function LancamentoPesagensIndividuais() {
       if (dbReady) {
         const counts = await getPendingCounts();
         setPendingCount(counts.total);
+      } else {
+        const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+        setPendingCount(pending.length);
       }
     } catch (error) {
-      console.error('Erro contagem:', error);
+      console.error('Erro ao atualizar contagem de pendentes:', error);
     }
   };
 
@@ -225,22 +437,45 @@ export default function LancamentoPesagensIndividuais() {
     
     try {
       const result = await syncAll(empresaSelecionadaId);
+      
       if (result.success) {
         await loadAllData();
+      } else if (result.message) {
+        toast.error(result.message);
       }
     } catch (error) {
-      toast.error('Erro sync');
+      console.error('Erro na sincronização:', error);
+      toast.error('Erro na sincronização');
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // ========== PESAGENS DO DIA ==========
+  // Estado para pesagens pendentes do IndexedDB
+  const [pendingPesagensDB, setPendingPesagensDB] = useState([]);
+  
+  // Carregar pesagens pendentes do IndexedDB
+  useEffect(() => {
+    const loadPending = async () => {
+      if (dbReady) {
+        try {
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
+        } catch (error) {
+          console.error('Erro ao carregar pendentes:', error);
+        }
+      }
+    };
+    loadPending();
+  }, [dbReady, empresaSelecionadaId, pendingCount]);
+
+  // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
   const pesagensDia = useMemo(() => {
     const pendentes = pendingPesagensDB
       .filter(p => p.data_pesagem === dataPesagem)
-      .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}`, _isPending: true }));
+      .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
     
+    // Ordenar por created_date para atribuir número sequencial fixo
     const sincronizadas = pesagens
       .filter(p => p.data_pesagem === dataPesagem)
       .sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0))
@@ -248,35 +483,136 @@ export default function LancamentoPesagensIndividuais() {
     
     let resultado = [...pendentes, ...sincronizadas];
     
-    // Filtrar
+    // Aplicar filtro de pesquisa
     if (searchTerm.trim()) {
-      const termo = searchTerm.toLowerCase();
+      const termo = searchTerm.toLowerCase().trim();
       resultado = resultado.filter(p => 
         p.numero_animal?.toLowerCase().includes(termo) ||
-        p.nome_lote?.toLowerCase().includes(termo)
+        p.nome_lote?.toLowerCase().includes(termo) ||
+        p.nome_apartacao?.toLowerCase().includes(termo) ||
+        p.raca?.toLowerCase().includes(termo) ||
+        p.marca?.toLowerCase().includes(termo)
       );
     }
 
-    // Ordenar
+    // Aplicar ordenação
     resultado.sort((a, b) => {
-      if (sortColumn === 'created_date') {
-        return sortDirection === 'desc' 
-          ? new Date(b.createdAt || b.created_date || 0) - new Date(a.createdAt || a.created_date || 0)
-          : new Date(a.createdAt || a.created_date || 0) - new Date(b.createdAt || b.created_date || 0);
+      let valA, valB;
+      switch (sortColumn) {
+        case 'numero_animal':
+          valA = a.numero_animal || '';
+          valB = b.numero_animal || '';
+          break;
+        case 'peso':
+          valA = a.peso || 0;
+          valB = b.peso || 0;
+          break;
+        case 'sexo':
+          valA = a.sexo || '';
+          valB = b.sexo || '';
+          break;
+        case 'raca':
+          valA = a.raca || '';
+          valB = b.raca || '';
+          break;
+        case 'marca':
+          valA = a.marca || '';
+          valB = b.marca || '';
+          break;
+        case 'nome_apartacao':
+          valA = a.nome_apartacao || '';
+          valB = b.nome_apartacao || '';
+          break;
+        case 'nome_lote':
+          valA = a.nome_lote || '';
+          valB = b.nome_lote || '';
+          break;
+        case 'numero_registro':
+          // Pendentes (P1, P2) ficam no topo, depois por número
+          const numA = typeof a._numero_registro === 'string' ? -1000 + parseInt(a._numero_registro.replace('P', '')) : a._numero_registro;
+          const numB = typeof b._numero_registro === 'string' ? -1000 + parseInt(b._numero_registro.replace('P', '')) : b._numero_registro;
+          valA = numA;
+          valB = numB;
+          break;
+        case 'created_date':
+        default:
+          valA = new Date(a.created_date || 0);
+          valB = new Date(b.created_date || 0);
+          break;
       }
-      return 0;
+      
+      if (typeof valA === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
     });
     
     return resultado;
-  }, [pesagens, dataPesagem, pendingPesagensDB, searchTerm, sortColumn, sortDirection]);
+  }, [pesagens, dataPesagem, pendingPesagensDB, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
 
-  // ========== LOTES DA APARTAÇÃO ==========
+  // Função para alternar ordenação
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Renderizar ícone de ordenação
+  const SortIcon = ({ column }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+  };
+
+  // ========== VALORES ÚNICOS PARA AUTOCOMPLETE ==========
+  const marcasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort(),
+    [pesagens]
+  );
+  const racasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort(),
+    [pesagens]
+  );
+  const erasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort(),
+    [pesagens]
+  );
+
+  // ========== LOTES DA APARTAÇÃO SELECIONADA (inclui lotes offline) ==========
   const lotesApartacaoAtual = useMemo(() => {
     if (!apartacaoSelecionada) return [];
+    // Combina lotes sincronizados + lotes criados offline (do cache)
     return lotesApartacao.filter(l => l.apartacao_id === apartacaoSelecionada);
   }, [apartacaoSelecionada, lotesApartacao]);
 
-  // ========== ESTATÍSTICAS ==========
+  // ========== RESUMO DE LOTES COM CONTAGEM ==========
+  const resumoLotes = useMemo(() => {
+    if (!apartacaoSelecionada) return [];
+    
+    const todasPesagensApartacao = [
+      ...pesagens.filter(p => p.apartacao_id === apartacaoSelecionada),
+      ...pendingPesagensDB.filter(p => p.apartacao_id === apartacaoSelecionada)
+    ];
+
+    return lotesApartacaoAtual.map(lote => {
+      const animaisLote = todasPesagensApartacao.filter(p => p.lote_id === lote.id);
+      const qtd = animaisLote.length;
+      const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
+      const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
+      
+      return {
+        ...lote,
+        quantidade_atual: qtd,
+        peso_medio: pesoMedio,
+      };
+    }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
+  }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pendingPesagensDB]);
+
+  // ========== ESTATÍSTICAS DO DIA ==========
   const estatisticas = useMemo(() => {
     const total = pesagensDia.length;
     const machos = pesagensDia.filter(p => p.sexo === 'M').length;
@@ -285,27 +621,44 @@ export default function LancamentoPesagensIndividuais() {
     return { total, machos, femeas, pesoMedio };
   }, [pesagensDia]);
 
-  // ========== LOTE AUTOMÁTICO ==========
+  // ========== DETERMINAR LOTE AUTOMATICAMENTE ==========
   const getLoteAutomatico = (pesoNum) => {
     if (!apartacaoSelecionada || !pesoNum) return null;
-    return lotesApartacaoAtual.find(l => 
+    const lote = lotesApartacaoAtual.find(l => 
       pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado
     );
+    return lote;
   };
 
   // ========== SALVAR PESAGEM ==========
   const handleSalvar = async () => {
+    // Evitar cliques duplos
     if (isSaving) return;
     
-    if (!dataPesagem) { toast.error("Data obrigatória"); return; }
-    if (!numeroAnimal?.trim()) { toast.error("Nº Identificação obrigatório"); return; }
-    if (!peso || parseFloat(peso) <= 0) { toast.error("Peso obrigatório"); return; }
+    // Validações com avisos
+    if (!dataPesagem) { 
+      toast.error("⚠️ Campo obrigatório: Data da Pesagem"); 
+      return; 
+    }
+    if (!numeroAnimal?.trim()) { 
+      toast.error("⚠️ Campo obrigatório: Nº Identificação"); 
+      numeroInputRef.current?.focus();
+      return; 
+    }
+    if (!peso || isNaN(parseFloat(peso)) || parseFloat(peso) <= 0) { 
+      toast.error("⚠️ Campo obrigatório: Peso (deve ser maior que zero)"); 
+      pesoInputRef.current?.focus();
+      return; 
+    }
 
-    // Verificar duplicado
-    if (!editingId && !editingSyncId) {
-      const duplicado = pesagensDia.find(p => p.numero_animal === numeroAnimal.trim());
+    // Verificar duplicado (inclui pesagens pendentes offline)
+    if (!editingId) {
+      const duplicado = pesagensDia.find(p => 
+        p.numero_animal === numeroAnimal.trim() && 
+        p.id !== editingId
+      );
       if (duplicado) { 
-        toast.error("Animal já pesado hoje!"); 
+        toast.error("⚠️ Animal já pesado hoje! Nº: " + numeroAnimal); 
         return; 
       }
     }
@@ -314,7 +667,7 @@ export default function LancamentoPesagensIndividuais() {
 
     const pesoNum = parseFloat(peso);
     
-    // Buscar histórico
+    // Buscar histórico para cálculo de ganho
     const historicoAnimal = pesagens
       .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
       .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
@@ -370,35 +723,65 @@ export default function LancamentoPesagensIndividuais() {
     };
 
     try {
-      if (navigator.onLine && !editingSyncId) {
-        // ONLINE: Salvar direto no servidor
-        if (editingId) {
-          await base44.entities.PesagemIndividual.update(editingId, data);
-          toast.success('Atualizado!');
-        } else {
-          await base44.entities.PesagemIndividual.create(data);
-          toast.success('Salvo!');
-        }
+      if (navigator.onLine && !editingId && !editingOfflineId) {
+        await base44.entities.PesagemIndividual.create(data);
+        toast.success('✓ Salvo!');
         await loadAllData();
-      } else {
-        // OFFLINE: Salvar no IndexedDB
-        if (editingSyncId) {
-          await deletePendingPesagem(editingSyncId);
+      } else if (editingOfflineId) {
+        // Edição de pesagem pendente offline - atualizar no IndexedDB
+        if (dbReady) {
+          await deletePendingPesagem(editingOfflineId);
+          await savePesagemOffline(data);
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
         }
-        await savePesagemOffline(data);
-        const pending = await getPendingPesagens(empresaSelecionadaId);
-        setPendingPesagensDB(pending);
+        toast.success('💾 Atualizado offline');
+        setEditingOfflineId(null);
+      } else if (editingId) {
+        // Edição de pesagem sincronizada - funciona online e offline
+        if (navigator.onLine) {
+          await base44.entities.PesagemIndividual.update(editingId, data);
+          toast.success('✓ Atualizado!');
+          await loadAllData();
+        } else {
+          // Salvar edição offline
+          if (dbReady) {
+            await savePesagemOffline({ ...data, _editId: editingId, _action: 'update' });
+            // Atualizar cache local
+            const pesagemAtualizada = { ...data, id: editingId };
+            await putItem(STORES_NAMES.PESAGENS, pesagemAtualizada);
+          }
+          await updatePendingCount();
+          toast.success('💾 Atualizado offline');
+          await loadAllData();
+        }
+      } else if (!navigator.onLine) {
+        // Salvar no IndexedDB (persistente mesmo fechando o navegador)
+        if (dbReady) {
+          await savePesagemOffline(data);
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
+        } else {
+          // Fallback para localStorage
+          const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+          pending.push({
+            ...data,
+            _offlineId: Date.now(),
+            _offlineTimestamp: new Date().toISOString()
+          });
+          localStorage.setItem('pending_pesagens_individuais', JSON.stringify(pending));
+        }
         await updatePendingCount();
-        toast.success('💾 Salvo offline');
+        toast.success('💾 Salvo offline (persistente)');
       }
 
-      // Limpar formulário
+      // Limpar formulário (mantém campos fixados)
       setEditingId(null);
-      setEditingSyncId(null);
+      setEditingOfflineId(null);
       setNumeroAnimal("");
       setPeso("");
-      if (!fixarSexo) setSexo("M");
-      if (!fixarRaca) setRaca("Nelore");
+      if (!fixarSexo) setSexo("");
+      if (!fixarRaca) setRaca("");
       if (!fixarEra) setEra("");
       if (!fixarMarca) setMarca("");
       setObservacao("");
@@ -411,12 +794,19 @@ export default function LancamentoPesagensIndividuais() {
     }
   };
 
-  // ========== EXCLUIR ==========
+  // ========== EXCLUIR PESAGEM ==========
   const handleExcluir = async (pesagem) => {
-    if (pesagem._syncId) {
-      await deletePendingPesagem(pesagem._syncId);
-      const pending = await getPendingPesagens(empresaSelecionadaId);
-      setPendingPesagensDB(pending);
+    if (pesagem._offlineId) {
+      // Excluir do IndexedDB
+      if (dbReady) {
+        await deletePendingPesagem(pesagem._offlineId);
+        const pending = await getPendingPesagens(empresaSelecionadaId);
+        setPendingPesagensDB(pending);
+      } else {
+        const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+        const updated = pending.filter(p => p._offlineId !== pesagem._offlineId);
+        localStorage.setItem('pending_pesagens_individuais', JSON.stringify(updated));
+      }
       await updatePendingCount();
       toast.success('Removido');
     } else if (navigator.onLine) {
@@ -424,14 +814,15 @@ export default function LancamentoPesagensIndividuais() {
       toast.success('Excluído');
       await loadAllData();
     } else {
-      toast.error('Exclusão requer conexão');
+      toast.error('Exclusão não disponível offline');
     }
   };
 
-  // ========== EDITAR ==========
+  // ========== EDITAR PESAGEM ==========
   const handleEditar = (p) => {
-    setEditingId(p.id || null);
-    setEditingSyncId(p._syncId || null);
+    // Permitir edição tanto de sincronizadas quanto de pendentes offline
+    setEditingId(p.id || p._offlineId);
+    setEditingOfflineId(p._offlineId || null);
     setNumeroAnimal(p.numero_animal);
     setPeso(String(p.peso));
     setSexo(p.sexo || "M");
@@ -444,23 +835,55 @@ export default function LancamentoPesagensIndividuais() {
     numeroInputRef.current?.focus();
   };
 
-  // ========== AUTOCOMPLETE ==========
-  const marcasExistentes = useMemo(() => [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort(), [pesagens]);
-  const racasExistentes = useMemo(() => [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort(), [pesagens]);
-  const erasExistentes = useMemo(() => [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort(), [pesagens]);
+  // ========== NAVEGAÇÃO POR TECLAS ==========
+  const handleKeyDown = (e, nextAction) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextAction === 'salvar') {
+        handleSalvar();
+      } else {
+        nextAction?.current?.focus();
+      }
+    }
+  };
+
+  // ========== EXPORTAR EXCEL ==========
+  const exportarExcel = () => {
+    const headers = ['Identificação', 'Peso', 'Data', 'Sexo', 'Raça', 'Marca', 'Apartação', 'Lote'];
+    const rows = pesagensDia.map(p => [
+      p.numero_animal,
+      p.peso,
+      formatarData(p.data_pesagem),
+      p.sexo || '',
+      p.raca || '',
+      p.marca || '',
+      p.nome_apartacao || '',
+      p.nome_lote || ''
+    ]);
+    
+    const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pesagens_${dataPesagem}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exportado!');
+  };
 
   return (
     <div className="p-3 space-y-2 bg-slate-100 min-h-screen">
       {/* HEADER */}
-      <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm">
+      <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold text-slate-900">Lançamento de Pesagens</h1>
           {isOnline ? (
-            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700">
+            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
               <Wifi className="w-3 h-3 mr-1" />Online
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700">
+            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
               <WifiOff className="w-3 h-3 mr-1" />Offline
             </Badge>
           )}
@@ -470,11 +893,19 @@ export default function LancamentoPesagensIndividuais() {
         </div>
         <div className="flex gap-2">
           {pendingCount > 0 && isOnline && (
-            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700">
+            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar
             </Button>
           )}
+          {dbReady && (
+            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+              <Database className="w-3 h-3 mr-1" />Persistente
+            </Badge>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
+            Colunas
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
             Apartações
           </Button>
@@ -483,18 +914,26 @@ export default function LancamentoPesagensIndividuais() {
             size="sm" 
             onClick={async () => {
               if (!navigator.onLine) {
-                toast.error("Precisa estar online");
+                toast.error("Precisa estar online para limpar cache");
                 return;
               }
-              if (confirm("Limpar tudo e recarregar?")) {
-                await clearAllCache();
-                setPendingPesagensDB([]);
-                setPendingCount(0);
-                toast.success("Limpo!");
-                await loadAllData();
+              if (confirm("Limpar cache local, filas pendentes e recarregar dados do servidor?")) {
+                try {
+                  // Limpar tudo: cache e filas pendentes
+                  await clearStore(STORES_NAMES.PESAGENS);
+                  await clearStore(STORES_NAMES.APARTACOES);
+                  await clearStore(STORES_NAMES.LOTES);
+                  await clearAllPending();
+                  setPendingPesagensDB([]);
+                  setPendingCount(0);
+                  toast.success("Cache e filas limpos!");
+                  await loadAllData();
+                } catch (e) {
+                  toast.error("Erro ao limpar cache");
+                }
               }
             }} 
-            className="h-8 text-xs text-orange-600 border-orange-300"
+            className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
           >
             Limpar Cache
           </Button>
@@ -504,101 +943,207 @@ export default function LancamentoPesagensIndividuais() {
         </div>
       </div>
 
-      {/* FORMULÁRIO */}
+      {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-4">
+            {/* Data Pesagem */}
             <div className="space-y-1">
-              <Label className="text-xs">Data <span className="text-red-500">*</span></Label>
-              <Input type="date" value={dataPesagem} onChange={(e) => setDataPesagem(e.target.value)} className="h-9 text-sm w-40" />
+              <Label className="text-xs font-medium">Data Pesagem <span className="text-red-500">*</span></Label>
+              <Input 
+                type="date" 
+                value={dataPesagem} 
+                onChange={(e) => setDataPesagem(e.target.value)} 
+                className="h-9 text-sm w-40"
+              />
             </div>
             
+            {/* Sexo com Checkbox para fixar */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs">Sexo</Label>
-                <Checkbox checked={fixarSexo} onCheckedChange={setFixarSexo} className="h-3 w-3" />
+                <Label className="text-xs font-medium">Sexo</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarSexo" 
+                    checked={fixarSexo} 
+                    onCheckedChange={setFixarSexo}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
               <Select value={sexo} onValueChange={setSexo}>
-                <SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger>
+                <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-slate-100' : ''}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="M">M</SelectItem>
-                  <SelectItem value="F">F</SelectItem>
+                  <SelectItem value="M" className="text-slate-700">M</SelectItem>
+                  <SelectItem value="F" className="text-slate-700">F</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
+            {/* Raça com Checkbox para fixar */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs">Raça</Label>
-                <Checkbox checked={fixarRaca} onCheckedChange={setFixarRaca} className="h-3 w-3" />
+                <Label className="text-xs font-medium">Raça</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarRaca" 
+                    checked={fixarRaca} 
+                    onCheckedChange={setFixarRaca}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
-              <ComboboxComNovo value={raca} onChange={setRaca} options={racasExistentes} placeholder="Nelore" className="w-28" />
+              <div className="w-28">
+                <ComboboxComNovo
+                  value={raca}
+                  onChange={setRaca}
+                  options={racasExistentes}
+                  placeholder="Nelore"
+                  className={fixarSexo ? 'bg-slate-100' : ''}
+                />
+              </div>
             </div>
 
+            {/* Era com Checkbox para fixar */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs">Era</Label>
-                <Checkbox checked={fixarEra} onCheckedChange={setFixarEra} className="h-3 w-3" />
+                <Label className="text-xs font-medium">Era</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarEra" 
+                    checked={fixarEra} 
+                    onCheckedChange={setFixarEra}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
-              <ComboboxComNovo value={era} onChange={setEra} options={erasExistentes} placeholder="Ex: 2A" className="w-24" />
+              <div className="w-24">
+                <ComboboxComNovo
+                  value={era}
+                  onChange={setEra}
+                  options={erasExistentes}
+                  placeholder="Ex: 2A"
+                />
+              </div>
             </div>
 
+            {/* Marca com Checkbox para fixar */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs">Marca</Label>
-                <Checkbox checked={fixarMarca} onCheckedChange={setFixarMarca} className="h-3 w-3" />
+                <Label className="text-xs font-medium">Marca</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarMarca" 
+                    checked={fixarMarca} 
+                    onCheckedChange={setFixarMarca}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
               </div>
-              <ComboboxComNovo value={marca} onChange={setMarca} options={marcasExistentes} placeholder="Ex: ABC" className="w-24" />
+              <div className="w-24">
+                <ComboboxComNovo
+                  value={marca}
+                  onChange={setMarca}
+                  options={marcasExistentes}
+                  placeholder="Ex: ABC"
+                />
+              </div>
             </div>
             
+            {/* Nº Identificação */}
             <div className="space-y-1">
-              <Label className="text-xs">Nº Ident. <span className="text-red-500">*</span></Label>
+              <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
               <Input 
                 ref={numeroInputRef}
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
-                className="h-10 w-36 font-bold text-amber-500 text-lg"
+                onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
+                className="h-10 w-36 font-bold text-amber-500"
+                style={{ fontSize: '18px' }}
                 autoFocus
+                placeholder="Ex: 1234"
               />
             </div>
 
+            {/* Peso */}
             <div className="space-y-1">
-              <Label className="text-xs">Peso (kg) <span className="text-red-500">*</span></Label>
+              <Label className="text-xs font-medium">Peso (kg) <span className="text-red-500">*</span></Label>
               <Input 
                 ref={pesoInputRef}
                 type="number"
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleSalvar()}
-                className="h-10 w-28 font-bold text-amber-500 text-lg"
+                onKeyDown={(e) => handleKeyDown(e, 'salvar')}
+                className="h-10 w-28 font-bold text-amber-500"
+                style={{ fontSize: '18px' }}
+                placeholder="Ex: 320"
+              />
+              {/* Exibir ganho abaixo do peso */}
+              {(() => {
+                if (!numeroAnimal?.trim() || !peso) return null;
+                const historicoAnimal = pesagens
+                  .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+                const ultimo = historicoAnimal[0];
+                const pesoNum = parseFloat(peso);
+                const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+                const ganho = pesoNum - ultimo.peso;
+                const gmd = dias > 0 ? (ganho / dias) : 0;
+                return (
+                  <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                    {dias}d | {ganho.toFixed(1)}kg | GMD: {gmd.toFixed(3)}
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* Observação */}
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Observação</Label>
+              <Input 
+                value={observacao} 
+                onChange={(e) => setObservacao(e.target.value)} 
+                className="h-9 text-sm w-44"
+                placeholder="Obs..."
               />
             </div>
             
-            <div className="space-y-1">
-              <Label className="text-xs">Obs</Label>
-              <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} className="h-9 text-sm w-44" />
-            </div>
-            
-            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700">
-              {isSaving ? 'Salvando...' : (editingId || editingSyncId ? 'Atualizar' : 'Salvar')}
+            {/* Botões Salvar e Cancelar */}
+            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700 hover:bg-slate-800">
+              {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
             </Button>
-            {(editingId || editingSyncId) && (
-              <Button variant="outline" onClick={() => {
-                setEditingId(null);
-                setEditingSyncId(null);
-                setNumeroAnimal("");
-                setPeso("");
-                setObservacao("");
-              }} className="h-9">
+            {editingId && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setEditingId(null);
+                  setEditingOfflineId(null);
+                  setNumeroAnimal("");
+                  setPeso("");
+                  setObservacao("");
+                  setLoteTransferencia("");
+                  if (!fixarSexo) setSexo("M");
+                  if (!fixarRaca) setRaca("Nelore");
+                  if (!fixarEra) setEra("");
+                  if (!fixarMarca) setMarca("");
+                  setTimeout(() => numeroInputRef.current?.focus(), 50);
+                }} 
+                className="h-9 px-4"
+              >
                 Cancelar
               </Button>
             )}
           </div>
           
-          {/* Apartação e Lote */}
+          {/* Linha 2: Apartação e Transferência de Lote */}
           <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
             <div className="space-y-1">
-              <Label className="text-xs">Apartação</Label>
+              <Label className="text-xs font-medium">Apartação</Label>
               <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteTransferencia(""); }}>
                 <SelectTrigger className="h-9 text-sm w-44"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
@@ -608,9 +1153,9 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Transferência de Lote:</Label>
-              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
-                <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
+                              <Label className="text-xs font-medium">Transferência de Lote:</Label>
+                              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
+                                <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
                   {lotesApartacaoAtual.map(l => (
@@ -629,92 +1174,200 @@ export default function LancamentoPesagensIndividuais() {
         </CardContent>
       </Card>
 
-      {/* TABELA */}
-      <Card className="shadow-sm">
-        <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
-            <Input 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Pesquisar..."
-              className="h-7 text-xs pl-7 w-48"
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-auto max-h-[400px]">
-            <Table>
-              <TableHeader className="sticky top-0 bg-slate-100">
-                <TableRow>
-                  <TableHead className="text-xs w-10">Ações</TableHead>
-                  <TableHead className="text-xs">Nº</TableHead>
-                  <TableHead className="text-xs">Identificação</TableHead>
-                  <TableHead className="text-xs text-right">Peso</TableHead>
-                  <TableHead className="text-xs">Sexo</TableHead>
-                  <TableHead className="text-xs">Raça</TableHead>
-                  <TableHead className="text-xs">Lote</TableHead>
-                  <TableHead className="text-xs text-right">GMD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
-                ) : pesagensDia.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
-                ) : (
-                  pesagensDia.map((p) => (
-                    <TableRow key={p.id || p._syncId} className={p._isPending ? 'bg-amber-50' : 'hover:bg-slate-50'}>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => handleEditar(p)}>
-                              <Edit2 className="w-3 h-3 mr-2" />Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
-                              <Trash2 className="w-3 h-3 mr-2" />Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono">{p._numero_registro}</TableCell>
-                      <TableCell className="text-xs font-bold">
-                        {p.numero_animal}
-                        {p._isPending && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100">P</Badge>}
-                      </TableCell>
-                      <TableCell className="text-xs text-right font-mono">{p.peso}</TableCell>
-                      <TableCell className="text-xs">{p.sexo || '-'}</TableCell>
-                      <TableCell className="text-xs">{p.raca || '-'}</TableCell>
-                      <TableCell className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>
-                      <TableCell className={`text-xs text-right font-mono ${p.gmd > 0 ? 'text-emerald-600' : p.gmd < 0 ? 'text-red-600' : ''}`}>
-                        {p.gmd ? p.gmd.toFixed(3) : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))
+      {/* ÁREA PRINCIPAL: TABELA + RESUMO DE LOTES */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+        {/* TABELA DE PESAGENS */}
+        <div className="lg:col-span-3">
+          <Card className="shadow-sm">
+            <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
+              {/* Campo de Pesquisa */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
+                  <Input 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Pesquisar animal, lote..."
+                    className="h-7 text-xs pl-7 w-48"
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    >
+                      <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
+                    </button>
+                  )}
+                </div>
+                {searchTerm && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setSearchTerm("")}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    Limpar Filtro
+                  </Button>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-auto max-h-[400px]">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-slate-100">
+                    <TableRow>
+                      {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === 'acoes') {
+                          return <TableHead key="acoes" className="text-xs w-10">Ações</TableHead>;
+                        }
+                        const isSortable = ['numero_registro', 'numero_animal', 'peso', 'sexo', 'raca', 'marca', 'nome_apartacao', 'nome_lote'].includes(coluna.id);
+                        return (
+                          <TableHead 
+                            key={coluna.id}
+                            className={`text-xs ${coluna.id === 'peso' ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-slate-200 select-none' : ''}`}
+                            onClick={() => isSortable && handleSort(coluna.id)}
+                          >
+                            <div className={`flex items-center ${coluna.id === 'peso' ? 'justify-end' : ''}`}>
+                              {coluna.label} {isSortable && <SortIcon column={coluna.id} />}
+                            </div>
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
+                    ) : pesagensDia.length === 0 ? (
+                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
+                    ) : (
+                      pesagensDia.map((p, idx) => (
+                        <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
+                          {colunasOrdenadas.map((coluna) => {
+                            if (coluna.id === 'acoes') {
+                              return (
+                                <TableCell key="acoes" className="text-xs">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                      <DropdownMenuItem onClick={() => handleEditar(p)}>
+                                        <Edit2 className="w-3 h-3 mr-2" />Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
+                                        <Trash2 className="w-3 h-3 mr-2" />Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              );
+                            }
+                            if (coluna.id === 'numero_registro') {
+                              return <TableCell key={coluna.id} className="text-xs font-mono font-bold text-slate-700">{p._numero_registro}</TableCell>;
+                            }
+                            if (coluna.id === 'numero_animal') {
+                              return (
+                                <TableCell key={coluna.id} className="text-xs font-bold">
+                                  {p.numero_animal}
+                                  {p._offlineId && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100 text-amber-700">P</Badge>}
+                                </TableCell>
+                              );
+                            }
+                            if (coluna.id === 'peso') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
+                            }
+                            if (coluna.id === 'data_pesagem') {
+                              return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
+                            }
+                            if (coluna.id === 'sexo') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.sexo || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'raca') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'era') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.era || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'marca') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'nome_apartacao') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.nome_apartacao || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'nome_lote') {
+                              return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'dias') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'ganho') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'gmd') {
+                              return (
+                                <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
+                                  {p.gmd ? p.gmd.toFixed(3) : '-'}
+                                </TableCell>
+                              );
+                            }
+                            if (coluna.id === 'observacao') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
+                            }
+                            return <TableCell key={coluna.id} className="text-xs">-</TableCell>;
+                          })}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* RODAPÉ COM ESTATÍSTICAS */}
+          <div className="flex items-center justify-between mt-2 bg-white rounded px-3 py-2 shadow-sm">
+            <div className="flex items-center gap-6 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">Total Animais</span>
+                <span className="font-bold text-lg">{estatisticas.total}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">Total Machos</span>
+                <span className="font-bold text-lg">{estatisticas.machos}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">Total Fêmeas</span>
+                <span className="font-bold text-lg">{estatisticas.femeas}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500">Peso Médio</span>
+                <span className="font-bold text-lg">{estatisticas.pesoMedio.toFixed(2)}</span>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs">
+              Exportar
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* RODAPÉ */}
-      <div className="flex items-center justify-between bg-white rounded px-3 py-2 shadow-sm">
-        <div className="flex items-center gap-6 text-xs">
-          <div><span className="text-slate-500">Total:</span> <span className="font-bold text-lg">{estatisticas.total}</span></div>
-          <div><span className="text-slate-500">Machos:</span> <span className="font-bold">{estatisticas.machos}</span></div>
-          <div><span className="text-slate-500">Fêmeas:</span> <span className="font-bold">{estatisticas.femeas}</span></div>
-          <div><span className="text-slate-500">Peso Médio:</span> <span className="font-bold">{estatisticas.pesoMedio.toFixed(2)}</span></div>
         </div>
-      </div>
 
-      {/* DIALOG APARTAÇÕES */}
+        {/* RESUMO DE LOTES */}
+        <ResumoLotes 
+          apartacaoSelecionada={apartacaoSelecionada}
+          apartacoes={apartacoes}
+          lotesApartacaoAtual={lotesApartacaoAtual}
+          pesagens={pesagens}
+          pesagensDia={pesagensDia}
+          pendingPesagensDB={pendingPesagensDB}
+          dataPesagem={dataPesagem}
+        />
+        </div>
+
+      {/* DIALOG APARTAÇÕES/LOTES */}
       <GerenciarApartacoesDialog 
         open={showApartacoesDialog} 
         onOpenChange={setShowApartacoesDialog}
@@ -725,19 +1378,96 @@ export default function LancamentoPesagensIndividuais() {
         onRefresh={loadAllData}
         dbReady={dbReady}
       />
+
+      {/* DIALOG DE CONFIGURAÇÃO DE COLUNAS */}
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColuna(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="colunas">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
+                        if (!coluna || coluna.fixo) return null;
+                        
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
+                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasVisiveis.includes(colunaId) && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunas(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* INDICADOR DE SINCRONIZAÇÃO OFFLINE */}
+      <OfflineSyncIndicator 
+        empresaId={empresaSelecionadaId}
+        onSyncComplete={loadAllData}
+      />
     </div>
   );
 }
 
-// ========== DIALOG APARTAÇÕES ==========
+// ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
   const [tab, setTab] = useState('apartacoes');
   const [isSaving, setIsSaving] = useState(false);
-  const [apartacaoExpandida, setApartacaoExpandida] = useState(null);
   
+  // Formulário apartação
   const [nomeApartacao, setNomeApartacao] = useState("");
   const [editingApartacaoId, setEditingApartacaoId] = useState(null);
   
+  // Formulário lote
   const [apartacaoIdLote, setApartacaoIdLote] = useState("");
   const [nomeLote, setNomeLote] = useState("");
   const [qtdMaxima, setQtdMaxima] = useState("500");
@@ -745,43 +1475,80 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   const [pesoMaximo, setPesoMaximo] = useState("");
   const [editingLoteId, setEditingLoteId] = useState(null);
 
+  // Lotes filtrados pela apartação selecionada
   const lotesFiltrados = useMemo(() => {
     if (!apartacaoIdLote) return lotes;
     return lotes.filter(l => l.apartacao_id === apartacaoIdLote);
   }, [lotes, apartacaoIdLote]);
 
   const salvarApartacao = async () => {
+    // Evitar cliques duplos
     if (isSaving) return;
-    if (!nomeApartacao.trim()) { toast.error("Nome obrigatório"); return; }
+    
+    if (!nomeApartacao.trim()) { 
+      toast.error("Nome obrigatório"); 
+      return; 
+    }
 
     // Verificar duplicado
+    const nomeNormalizado = nomeApartacao.trim().toUpperCase();
     const duplicado = apartacoes.find(a => 
-      a.nome_apartacao.toUpperCase() === nomeApartacao.trim().toUpperCase() && 
+      a.nome_apartacao.toUpperCase() === nomeNormalizado && 
       a.id !== editingApartacaoId
     );
-    if (duplicado) { toast.error("Já existe!"); return; }
+    if (duplicado) {
+      toast.error("Já existe uma apartação com esse nome!");
+      return;
+    }
 
     setIsSaving(true);
+
     const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
 
     try {
       if (navigator.onLine) {
+        // ONLINE: Salvar no servidor
         if (editingApartacaoId) {
           await base44.entities.Apartacao.update(editingApartacaoId, data);
-          toast.success("Atualizado!");
+
+          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+          for (const l of lotesVinculados) {
+            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+
+          toast.success("Apartação atualizada!");
         } else {
           await base44.entities.Apartacao.create(data);
-          toast.success("Criado!");
+          toast.success("Apartação criada!");
         }
       } else {
+        // OFFLINE: Salvar no cache local (IndexedDB)
         if (editingApartacaoId) {
-          toast.error("Edição requer conexão");
+          toast.error("Edição de apartação requer conexão");
           setIsSaving(false);
           return;
         }
-        await saveApartacaoOffline(data);
-        toast.success("💾 Salvo offline!");
+        
+        const offlineId = `offline_apt_${Date.now()}`;
+        const apartacaoOffline = { 
+          ...data, 
+          id: offlineId,
+          _isOffline: true,
+          _offlineTimestamp: new Date().toISOString()
+        };
+        
+        if (dbReady) {
+          await putItem(STORES_NAMES.APARTACOES, apartacaoOffline);
+        }
+        
+        toast.success("💾 Apartação salva offline!");
       }
+      
       setNomeApartacao(""); 
       setEditingApartacaoId(null);
       onRefresh();
@@ -793,18 +1560,37 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const salvarLote = async () => {
+    // Evitar cliques duplos
     if (isSaving) return;
-    if (!apartacaoIdLote) { toast.error("Selecione apartação"); return; }
-    if (!nomeLote.trim()) { toast.error("Nome obrigatório"); return; }
-    if (!pesoMinimo || !pesoMaximo) { toast.error("Pesos obrigatórios"); return; }
+    
+    if (!apartacaoIdLote) { 
+      toast.error("Selecione uma apartação"); 
+      return; 
+    }
+    if (!nomeLote.trim()) { 
+      toast.error("Nome do lote obrigatório"); 
+      return; 
+    }
+    if (!pesoMinimo || !pesoMaximo) { 
+      toast.error("Peso mínimo e máximo obrigatórios"); 
+      return; 
+    }
+    if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
+      toast.error("Peso mínimo não pode ser maior que o máximo");
+      return;
+    }
 
-    // Verificar duplicado
+    // Verificar duplicado na mesma apartação
+    const nomeNormalizado = nomeLote.trim().toUpperCase();
     const duplicado = lotes.find(l => 
       l.apartacao_id === apartacaoIdLote &&
-      l.nome_lote.toUpperCase() === nomeLote.trim().toUpperCase() && 
+      l.nome_lote.toUpperCase() === nomeNormalizado && 
       l.id !== editingLoteId
     );
-    if (duplicado) { toast.error("Já existe!"); return; }
+    if (duplicado) {
+      toast.error("Já existe um lote com esse nome nesta apartação!");
+      return;
+    }
 
     setIsSaving(true);
     const apt = apartacoes.find(a => a.id === apartacaoIdLote);
@@ -821,23 +1607,48 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
     try {
       if (navigator.onLine) {
+        // ONLINE: Salvar no servidor
         if (editingLoteId) {
           await base44.entities.LoteApartacao.update(editingLoteId, data);
-          toast.success("Atualizado!");
+
+          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+          }
+
+          toast.success("Lote atualizado!");
         } else {
           await base44.entities.LoteApartacao.create(data);
-          toast.success("Criado!");
+          toast.success("Lote criado!");
         }
       } else {
+        // OFFLINE: Salvar no cache local (IndexedDB)
         if (editingLoteId) {
-          toast.error("Edição requer conexão");
+          toast.error("Edição de lote requer conexão");
           setIsSaving(false);
           return;
         }
-        await saveLoteOffline(data);
-        toast.success("💾 Salvo offline!");
+        
+        const offlineId = `offline_lote_${Date.now()}`;
+        const loteOffline = { 
+          ...data, 
+          id: offlineId,
+          _isOffline: true,
+          _offlineTimestamp: new Date().toISOString()
+        };
+        
+        if (dbReady) {
+          await putItem(STORES_NAMES.LOTES, loteOffline);
+        }
+        
+        toast.success("💾 Lote salvo offline!");
       }
-      setNomeLote(""); setQtdMaxima("500"); setPesoMinimo(""); setPesoMaximo(""); setEditingLoteId(null);
+      
+      setNomeLote(""); 
+      setQtdMaxima("500"); 
+      setPesoMinimo(""); 
+      setPesoMaximo(""); 
+      setEditingLoteId(null);
       onRefresh();
     } catch (error) {
       toast.error('Erro: ' + error.message);
@@ -847,77 +1658,83 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirApartacao = async (id) => {
-    const vinculadas = pesagens.filter(p => p.apartacao_id === id);
-    if (vinculadas.length > 0) { toast.error(`${vinculadas.length} pesagens vinculadas!`); return; }
-    if (!confirm("Excluir?")) return;
+    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      return;
+    }
 
-    if (id.startsWith('apt_') || id.startsWith('offline_')) {
-      await deleteItem(STORES_NAMES.APARTACOES_CACHE, id);
-      await deleteItem(STORES_NAMES.PENDING_SYNC, id);
-      toast.success("Removido!");
+    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+
+    // Se é item offline, remover do cache
+    if (id.startsWith('offline_')) {
+      if (dbReady) {
+        await deleteItem(STORES_NAMES.APARTACOES, id);
+        const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+        for (const l of lotesVinculados) {
+          await deleteItem(STORES_NAMES.LOTES, l.id);
+        }
+      }
+      toast.success("Apartação removida!");
       onRefresh();
-    } else if (navigator.onLine) {
-      const lotesV = lotes.filter(l => l.apartacao_id === id);
-      for (const l of lotesV) {
-        await base44.entities.LoteApartacao.delete(l.id);
+      return;
+    }
+
+    // Se online, excluir do servidor
+    if (navigator.onLine) {
+      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+      for (const l of lotesVinculados) {
+        if (!l.id.startsWith('offline_')) {
+          await base44.entities.LoteApartacao.delete(l.id);
+        }
       }
       await base44.entities.Apartacao.delete(id);
-      toast.success("Excluído!");
+      toast.success("Apartação excluída!");
       onRefresh();
     } else {
-      toast.error("Exclusão requer conexão");
+      toast.error("Exclusão de apartações do servidor requer conexão");
     }
   };
 
   const excluirLote = async (id) => {
-    const vinculadas = pesagens.filter(p => p.lote_id === id);
-    if (vinculadas.length > 0) { toast.error(`${vinculadas.length} pesagens vinculadas!`); return; }
-    if (!confirm("Excluir?")) return;
+    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+    if (pesagensVinculadas.length > 0) {
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      return;
+    }
 
-    if (id.startsWith('lote_') || id.startsWith('offline_')) {
-      await deleteItem(STORES_NAMES.LOTES_CACHE, id);
-      await deleteItem(STORES_NAMES.PENDING_SYNC, id);
-      toast.success("Removido!");
+    if (!confirm("Excluir lote?")) return;
+
+    // Se é item offline, remover do cache
+    if (id.startsWith('offline_')) {
+      if (dbReady) {
+        await deleteItem(STORES_NAMES.LOTES, id);
+      }
+      toast.success("Lote removido!");
       onRefresh();
-    } else if (navigator.onLine) {
+      return;
+    }
+
+    // Se online, excluir do servidor
+    if (navigator.onLine) {
       await base44.entities.LoteApartacao.delete(id);
-      toast.success("Excluído!");
+      toast.success("Lote excluído!");
       onRefresh();
     } else {
-      toast.error("Exclusão requer conexão");
+      toast.error("Exclusão de lotes do servidor requer conexão");
     }
-  };
-
-  // Contar pesagens por lote
-  const contarPesagensPorLote = (loteId) => {
-    return pesagens.filter(p => p.lote_id === loteId).length;
-  };
-
-  // Contar pesagens por apartação
-  const contarPesagensPorApartacao = (apartacaoId) => {
-    return pesagens.filter(p => p.apartacao_id === apartacaoId).length;
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Scale className="w-5 h-5" />
-            Gerenciar Apartações e Lotes
-          </DialogTitle>
+          <DialogTitle>Gerenciar Apartações e Lotes</DialogTitle>
         </DialogHeader>
         
         <div className="flex gap-2 border-b pb-2">
-          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>
-            Apartações ({apartacoes.length})
-          </Button>
-          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>
-            Lotes ({lotes.length})
-          </Button>
-          <Button variant={tab === 'visao_geral' ? 'default' : 'outline'} size="sm" onClick={() => setTab('visao_geral')}>
-            Visão Geral
-          </Button>
+          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>Apartações</Button>
+          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>Lotes</Button>
         </div>
 
         <div className="flex-1 overflow-auto">
@@ -926,67 +1743,80 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
               <div className="flex gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Nome da Apartação</Label>
-                  <Input value={nomeApartacao} onChange={(e) => setNomeApartacao(e.target.value)} className="h-9 text-sm" placeholder="Ex: ROTINA, VENDA, DESMAMA..." />
+                  <Input 
+                    value={nomeApartacao} 
+                    onChange={(e) => setNomeApartacao(e.target.value)} 
+                    className="h-9 text-sm" 
+                    placeholder="Ex: ROTINA" 
+                  />
                 </div>
-                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600">
-                  {isSaving ? '...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
+                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                  {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
                 </Button>
                 {editingApartacaoId && (
                   <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
-                    <X className="w-3 h-3" />
+                    Cancelar
                   </Button>
                 )}
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Nome da Apartação</TableHead>
+                    <TableHead className="text-xs">Nome</TableHead>
                     <TableHead className="text-xs text-center">Lotes</TableHead>
                     <TableHead className="text-xs text-center">Pesagens</TableHead>
                     <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apartacoes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-8">
-                        Nenhuma apartação cadastrada
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    apartacoes.map(a => (
-                      <TableRow key={a.id} className={a._isOffline ? 'bg-amber-50' : ''}>
-                        <TableCell className="text-sm font-medium">
-                          {a.nome_apartacao}
-                          {a._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
-                        </TableCell>
+                  {apartacoes.map(a => {
+                    const qtdLotes = lotes.filter(l => l.apartacao_id === a.id).length;
+                    const qtdPesagens = pesagens.filter(p => p.apartacao_id === a.id).length;
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell className="text-xs font-medium">{a.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs text-center">{qtdLotes}</TableCell>
                         <TableCell className="text-xs text-center">
-                          <Badge variant="outline">{lotes.filter(l => l.apartacao_id === a.id).length}</Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-center">
-                          <Badge variant="secondary">{contarPesagensPorApartacao(a.id)}</Badge>
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNomeApartacao(a.nome_apartacao); setEditingApartacaoId(a.id); }}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setNomeApartacao(a.nome_apartacao); 
+                              setEditingApartacaoId(a.id);
+                            }}>
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirApartacao(a.id)}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirApartacao(a.id)}
+                            >
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    );
+                  })}
+                  {apartacoes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-6">
+                        Nenhuma apartação cadastrada
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
-          ) : tab === 'lotes' ? (
+          ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-6 gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="space-y-1">
-                  <Label className="text-xs">Apartação *</Label>
+                  <Label className="text-xs">Apartação</Label>
                   <Select value={apartacaoIdLote} onValueChange={setApartacaoIdLote}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
@@ -995,199 +1825,99 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Nome Lote *</Label>
-                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" placeholder="Ex: LEVE, MEDIO, PESADO" />
+                  <Label className="text-xs">Nome Lote</Label>
+                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" placeholder="Ex: BOIADA" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Qtd Máx</Label>
                   <Input type="number" value={qtdMaxima} onChange={(e) => setQtdMaxima(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Peso Mín *</Label>
-                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" placeholder="kg" />
+                  <Label className="text-xs">Peso Mín</Label>
+                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Peso Máx *</Label>
-                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" placeholder="kg" />
+                  <Label className="text-xs">Peso Máx</Label>
+                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="flex gap-1">
-                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600">
-                    {isSaving ? '...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
+                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                    {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
                   </Button>
                   {editingLoteId && (
-                    <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingLoteId(null); setNomeLote(""); setQtdMaxima("500"); setPesoMinimo(""); setPesoMaximo(""); }}>
+                    <Button variant="outline" size="sm" className="h-9" onClick={() => { 
+                      setEditingLoteId(null); 
+                      setNomeLote(""); 
+                      setQtdMaxima("500"); 
+                      setPesoMinimo(""); 
+                      setPesoMaximo(""); 
+                    }}>
                       <X className="w-3 h-3" />
                     </Button>
                   )}
                 </div>
               </div>
-              
-              {/* Filtro por apartação */}
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500">Filtrar por apartação:</Label>
-                <Select value={apartacaoIdLote || "all"} onValueChange={(v) => setApartacaoIdLote(v === "all" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs w-48"><SelectValue placeholder="Todas" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Apartações</SelectItem>
-                    {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Apartação</TableHead>
                     <TableHead className="text-xs">Lote</TableHead>
+                    <TableHead className="text-xs text-center">Qtd Máx</TableHead>
                     <TableHead className="text-xs text-center">Peso Mín</TableHead>
                     <TableHead className="text-xs text-center">Peso Máx</TableHead>
-                    <TableHead className="text-xs text-center">Qtd Máx</TableHead>
                     <TableHead className="text-xs text-center">Pesagens</TableHead>
                     <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lotesFiltrados.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-8">
-                        Nenhum lote cadastrado
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    lotesFiltrados.map(l => (
-                      <TableRow key={l.id} className={l._isOffline ? 'bg-amber-50' : ''}>
+                  {lotesFiltrados.map(l => {
+                    const qtdPesagens = pesagens.filter(p => p.lote_id === l.id).length;
+                    return (
+                      <TableRow key={l.id}>
                         <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
-                        <TableCell className="text-sm font-medium">
-                          {l.nome_lote}
-                          {l._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
-                        </TableCell>
-                        <TableCell className="text-xs text-center font-mono">{l.peso_minimo} kg</TableCell>
-                        <TableCell className="text-xs text-center font-mono">{l.peso_maximo} kg</TableCell>
+                        <TableCell className="text-xs font-medium">{l.nome_lote}</TableCell>
                         <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
+                        <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
                         <TableCell className="text-xs text-center">
-                          <Badge variant="secondary">{contarPesagensPorLote(l.id)}</Badge>
+                          {qtdPesagens > 0 ? (
+                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                              setApartacaoIdLote(l.apartacao_id); setNomeLote(l.nome_lote);
-                              setQtdMaxima(String(l.quantidade_maxima)); setPesoMinimo(String(l.peso_minimo));
-                              setPesoMaximo(String(l.peso_maximo)); setEditingLoteId(l.id);
+                              setApartacaoIdLote(l.apartacao_id); 
+                              setNomeLote(l.nome_lote);
+                              setQtdMaxima(String(l.quantidade_maxima)); 
+                              setPesoMinimo(String(l.peso_minimo));
+                              setPesoMaximo(String(l.peso_maximo)); 
+                              setEditingLoteId(l.id);
                             }}>
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirLote(l.id)}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-red-500" 
+                              onClick={() => excluirLote(l.id)}
+                            >
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    );
+                  })}
+                  {lotesFiltrados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-6">
+                        {apartacaoIdLote ? 'Nenhum lote nesta apartação' : 'Selecione uma apartação ou cadastre lotes'}
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
-            </div>
-          ) : (
-            /* VISÃO GERAL - Apartações com seus lotes */
-            <div className="space-y-3">
-              {apartacoes.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <Scale className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhuma apartação cadastrada</p>
-                  <p className="text-xs mt-1">Crie apartações na aba "Apartações"</p>
-                </div>
-              ) : (
-                apartacoes.map(apt => {
-                  const lotesApt = lotes.filter(l => l.apartacao_id === apt.id);
-                  const totalPesagens = contarPesagensPorApartacao(apt.id);
-                  const isExpanded = apartacaoExpandida === apt.id;
-                  
-                  return (
-                    <Card key={apt.id} className={`${apt._isOffline ? 'border-amber-300 bg-amber-50' : ''}`}>
-                      <CardHeader 
-                        className="py-3 px-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                        onClick={() => setApartacaoExpandida(isExpanded ? null : apt.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            <CardTitle className="text-base font-bold">
-                              {apt.nome_apartacao}
-                              {apt._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
-                            </CardTitle>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-xs text-slate-500">
-                              <span className="font-semibold text-slate-700">{lotesApt.length}</span> lotes
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              <span className="font-semibold text-slate-700">{totalPesagens}</span> pesagens
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      
-                      {isExpanded && (
-                        <CardContent className="pt-0 pb-3 px-4">
-                          {lotesApt.length === 0 ? (
-                            <div className="text-center py-4 text-slate-400 text-xs bg-slate-50 rounded">
-                              Nenhum lote cadastrado nesta apartação
-                            </div>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="text-xs">Lote</TableHead>
-                                  <TableHead className="text-xs text-center">Faixa de Peso</TableHead>
-                                  <TableHead className="text-xs text-center">Qtd Máx</TableHead>
-                                  <TableHead className="text-xs text-center">Pesagens</TableHead>
-                                  <TableHead className="text-xs text-center">Ocupação</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {lotesApt.map(lote => {
-                                  const qtdPesagens = contarPesagensPorLote(lote.id);
-                                  const ocupacao = lote.quantidade_maxima > 0 
-                                    ? Math.round((qtdPesagens / lote.quantidade_maxima) * 100) 
-                                    : 0;
-                                  
-                                  return (
-                                    <TableRow key={lote.id} className={lote._isOffline ? 'bg-amber-50' : ''}>
-                                      <TableCell className="text-sm font-medium">
-                                        {lote.nome_lote}
-                                        {lote._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Off</Badge>}
-                                      </TableCell>
-                                      <TableCell className="text-xs text-center font-mono">
-                                        {lote.peso_minimo} - {lote.peso_maximo} kg
-                                      </TableCell>
-                                      <TableCell className="text-xs text-center">{lote.quantidade_maxima}</TableCell>
-                                      <TableCell className="text-xs text-center font-bold">{qtdPesagens}</TableCell>
-                                      <TableCell className="text-xs text-center">
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                            <div 
-                                              className={`h-full rounded-full ${
-                                                ocupacao >= 90 ? 'bg-red-500' : 
-                                                ocupacao >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
-                                              }`}
-                                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                                            />
-                                          </div>
-                                          <span className="text-[10px] w-10">{ocupacao}%</span>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
-                        </CardContent>
-                      )}
-                    </Card>
-                  );
-                })
-              )}
             </div>
           )}
         </div>
