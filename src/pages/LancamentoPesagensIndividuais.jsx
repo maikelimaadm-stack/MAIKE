@@ -867,24 +867,6 @@ export default function LancamentoPesagensIndividuais() {
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
-              {/* Exibir ganho se houver histórico */}
-              {(() => {
-                if (!numeroAnimal?.trim() || !peso) return null;
-                const historicoAnimal = pesagens
-                  .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-                if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
-                const ultimo = historicoAnimal[0];
-                const pesoNum = parseFloat(peso);
-                const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
-                const ganho = pesoNum - ultimo.peso;
-                const gmd = dias > 0 ? (ganho / dias) : 0;
-                return (
-                  <div className="text-xs text-amber-600 font-semibold mt-1">
-                    Dias: {dias} | Ganho: {ganho.toFixed(2)} kg | GMD: {gmd.toFixed(3)}
-                  </div>
-                );
-              })()}
             </div>
             
             {/* Observação */}
