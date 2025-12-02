@@ -44,6 +44,7 @@ import {
   getPendingCounts,
   putItem,
   deleteItem,
+  clearStore,
   STORES_NAMES,
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
@@ -911,6 +912,30 @@ export default function LancamentoPesagensIndividuais() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
             Apartações
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={async () => {
+              if (!navigator.onLine) {
+                toast.error("Precisa estar online para limpar cache");
+                return;
+              }
+              if (confirm("Limpar cache local e recarregar dados do servidor?")) {
+                try {
+                  await clearStore(STORES_NAMES.PESAGENS);
+                  await clearStore(STORES_NAMES.APARTACOES);
+                  await clearStore(STORES_NAMES.LOTES);
+                  toast.success("Cache limpo!");
+                  await loadAllData();
+                } catch (e) {
+                  toast.error("Erro ao limpar cache");
+                }
+              }
+            }} 
+            className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+          >
+            Limpar Cache
           </Button>
           <Button variant="outline" size="sm" onClick={() => loadAllData()} className="h-8 text-xs">
             Atualizar
