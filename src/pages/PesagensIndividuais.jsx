@@ -80,7 +80,7 @@ export default function PesagensIndividuais() {
 
   // Estado para edição em lote
   const [showEditarLote, setShowEditarLote] = useState(false);
-  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "" });
+  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "", marca: "" });
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
@@ -390,6 +390,7 @@ export default function PesagensIndividuais() {
     if (edicaoLote.sexo) dadosParaAtualizar.sexo = edicaoLote.sexo;
     if (edicaoLote.raca) dadosParaAtualizar.raca = edicaoLote.raca;
     if (edicaoLote.era) dadosParaAtualizar.era = edicaoLote.era;
+    if (edicaoLote.marca) dadosParaAtualizar.marca = edicaoLote.marca;
 
     if (Object.keys(dadosParaAtualizar).length === 0) {
       toast.error('Preencha ao menos um campo!');
@@ -402,7 +403,7 @@ export default function PesagensIndividuais() {
       }
       toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
       setShowEditarLote(false);
-      setEdicaoLote({ sexo: "", raca: "", era: "" });
+      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "" });
       setSelectedItems([]);
     }
   };
@@ -585,7 +586,7 @@ export default function PesagensIndividuais() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleEditarLote} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-2" />
-                        Editar Sexo/Raça/Era
+                        Editar Sexo/Raça/Era/Marca
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleDeleteSelected} className="text-xs text-red-600">
@@ -823,6 +824,16 @@ export default function PesagensIndividuais() {
                 <Input 
                   value={edicaoLote.era} 
                   onChange={(e) => setEdicaoLote({ ...edicaoLote, era: e.target.value })} 
+                  placeholder="Não alterar" 
+                  className="h-8 text-xs" 
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Marca</Label>
+                <Input 
+                  value={edicaoLote.marca} 
+                  onChange={(e) => setEdicaoLote({ ...edicaoLote, marca: e.target.value })} 
                   placeholder="Não alterar" 
                   className="h-8 text-xs" 
                 />

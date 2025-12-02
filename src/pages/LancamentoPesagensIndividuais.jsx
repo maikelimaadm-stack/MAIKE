@@ -809,10 +809,10 @@ export default function LancamentoPesagensIndividuais() {
               </div>
               <Input 
                 value={era} 
-                onChange={(e) => setEra(e.target.value)} 
-                className={`h-9 text-sm w-24 ${fixarEra ? 'bg-slate-100' : ''}`}
+                onChange={(e) => !fixarEra && setEra(e.target.value)} 
+                className={`h-9 text-sm w-24 ${fixarEra ? 'bg-slate-100 cursor-not-allowed' : ''}`}
                 placeholder="Ex: 2A"
-                disabled={fixarEra && era}
+                readOnly={fixarEra}
               />
             </div>
 
@@ -847,7 +847,7 @@ export default function LancamentoPesagensIndividuais() {
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
-                className="h-10 w-36 font-bold border-2 border-orange-400 focus:border-orange-500 text-orange-600"
+                className="h-10 w-36 font-bold text-amber-500"
                 style={{ fontSize: '18px' }}
                 autoFocus
                 placeholder="Ex: 1234"
@@ -863,7 +863,7 @@ export default function LancamentoPesagensIndividuais() {
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, 'salvar')}
-                className="h-10 w-28 font-bold border-2 border-orange-400 focus:border-orange-500 text-orange-600"
+                className="h-10 w-28 font-bold text-amber-500"
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
@@ -880,6 +880,27 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
+            {/* Exibir ganho se houver histórico */}
+            {(() => {
+              if (!numeroAnimal?.trim() || !peso) return null;
+              const historicoAnimal = pesagens
+                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+              if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+              const ultimo = historicoAnimal[0];
+              const pesoNum = parseFloat(peso);
+              const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+              const ganho = pesoNum - ultimo.peso;
+              const gmd = dias > 0 ? (ganho / dias) : 0;
+              return (
+                <div className="bg-emerald-50 border border-emerald-300 rounded px-3 py-1.5">
+                  <div className="text-xs text-emerald-800 font-semibold">
+                    Dias: <span className="font-bold">{dias}</span> | Ganho: <span className="font-bold">{ganho.toFixed(2)} kg</span> | GMD: <span className={`font-bold ${gmd > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{gmd.toFixed(3)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700 hover:bg-slate-800">
               {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
