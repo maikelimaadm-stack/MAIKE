@@ -1501,37 +1501,37 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       return;
     }
 
+    if (!navigator.onLine) {
+      toast.error("Criação de apartações requer conexão com internet");
+      return;
+    }
+
     setIsSaving(true);
 
     const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
 
     try {
-      if (navigator.onLine) {
-        if (editingApartacaoId) {
-          await base44.entities.Apartacao.update(editingApartacaoId, data);
+      if (editingApartacaoId) {
+        await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
-          for (const p of pesagensVinculadas) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
-          }
-
-          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
-          for (const l of lotesVinculados) {
-            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-          }
-
-          toast.success("Apartação atualizada!");
-        } else {
-          await base44.entities.Apartacao.create(data);
-          toast.success("Apartação criada!");
+        const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+        for (const p of pesagensVinculadas) {
+          await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
         }
-        onRefresh();
+
+        const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+        for (const l of lotesVinculados) {
+          await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+        }
+
+        toast.success("Apartação atualizada!");
       } else {
-        toast.error("Criação de apartações requer conexão com internet");
-        return;
+        await base44.entities.Apartacao.create(data);
+        toast.success("Apartação criada!");
       }
       setNomeApartacao(""); 
       setEditingApartacaoId(null);
+      onRefresh();
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {
@@ -1572,6 +1572,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       return;
     }
 
+    if (!navigator.onLine) {
+      toast.error("Criação de lotes requer conexão com internet");
+      return;
+    }
+
     setIsSaving(true);
     const apt = apartacoes.find(a => a.id === apartacaoIdLote);
     const data = {
@@ -1586,30 +1591,25 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     };
 
     try {
-      if (navigator.onLine) {
-        if (editingLoteId) {
-          await base44.entities.LoteApartacao.update(editingLoteId, data);
+      if (editingLoteId) {
+        await base44.entities.LoteApartacao.update(editingLoteId, data);
 
-          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
-          for (const p of pesagensVinculadas) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
-          }
-
-          toast.success("Lote atualizado!");
-        } else {
-          await base44.entities.LoteApartacao.create(data);
-          toast.success("Lote criado!");
+        const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
+        for (const p of pesagensVinculadas) {
+          await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
         }
-        onRefresh();
+
+        toast.success("Lote atualizado!");
       } else {
-        toast.error("Criação de lotes requer conexão com internet");
-        return;
+        await base44.entities.LoteApartacao.create(data);
+        toast.success("Lote criado!");
       }
       setNomeLote(""); 
       setQtdMaxima("500"); 
       setPesoMinimo(""); 
       setPesoMaximo(""); 
       setEditingLoteId(null);
+      onRefresh();
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {

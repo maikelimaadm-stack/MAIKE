@@ -37,32 +37,29 @@ export const syncPesagens = async (empresaId) => {
   const pending = await getPendingPesagens(empresaId);
   let successCount = 0;
   const errors = [];
-  const processedKeys = new Set(); // Evitar duplicação por numero_animal+data
+  const processedOfflineIds = new Set(); // Evitar processar mesmo _offlineId duas vezes
 
   for (const pesagem of pending) {
     try {
+      // Evitar processar o mesmo registro duas vezes
+      if (processedOfflineIds.has(pesagem._offlineId)) {
+        continue;
+      }
+      processedOfflineIds.add(pesagem._offlineId);
+
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
-      
-      // Criar chave única para evitar duplicação
-      const uniqueKey = `${data.numero_animal}_${data.data_pesagem}`;
       
       // Verificar se é uma edição ou criação
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
-        await deletePendingPesagem(_offlineId);
         successCount++;
       } else {
-        // Evitar criar duplicado
-        if (processedKeys.has(uniqueKey)) {
-          await deletePendingPesagem(_offlineId);
-          continue;
-        }
-        processedKeys.add(uniqueKey);
-        
         await base44.entities.PesagemIndividual.create(data);
-        await deletePendingPesagem(_offlineId);
         successCount++;
       }
+      
+      // Sempre remover após processar
+      await deletePendingPesagem(_offlineId);
     } catch (error) {
       console.error('Erro ao sincronizar pesagem:', error);
       errors.push({ pesagem, error: error.message });
