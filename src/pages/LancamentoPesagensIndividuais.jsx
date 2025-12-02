@@ -1575,8 +1575,14 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           // Atualizar TODAS as pesagens vinculadas (de todas as datas)
           const todasPesagens = await base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId });
           toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
+          let count = 0;
           for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+            count++;
+            // Delay a cada 5 registros para evitar rate limit
+            if (count % 5 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
           }
 
           // Atualizar todos os lotes vinculados
@@ -1678,8 +1684,14 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           // Atualizar TODAS as pesagens vinculadas ao lote (de todas as datas)
           const todasPesagens = await base44.entities.PesagemIndividual.filter({ lote_id: editingLoteId });
           toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
+          let countLote = 0;
           for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+            countLote++;
+            // Delay a cada 5 registros para evitar rate limit
+            if (countLote % 5 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
           }
 
           toast.success(`Lote atualizado! ${todasPesagens.length} pesagens atualizadas.`);
