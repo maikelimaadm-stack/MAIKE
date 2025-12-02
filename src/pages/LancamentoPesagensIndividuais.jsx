@@ -82,6 +82,7 @@ export default function LancamentoPesagensIndividuais() {
   const [peso, setPeso] = useState("");
   const [sexo, setSexo] = useState("M");
   const [raca, setRaca] = useState("Nelore");
+  const [era, setEra] = useState("");
   const [marca, setMarca] = useState("");
   const [observacao, setObservacao] = useState("");
   const [apartacaoSelecionada, setApartacaoSelecionada] = useState("");
@@ -91,6 +92,7 @@ export default function LancamentoPesagensIndividuais() {
   // Checkboxes para fixar valores (quando marcado, campo fica desabilitado)
   const [fixarSexo, setFixarSexo] = useState(true);
   const [fixarRaca, setFixarRaca] = useState(true);
+  const [fixarEra, setFixarEra] = useState(false);
   const [fixarMarca, setFixarMarca] = useState(false);
 
   // Campo de pesquisa
@@ -113,9 +115,13 @@ export default function LancamentoPesagensIndividuais() {
     { id: 'data_pesagem', label: 'Data', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
     { id: 'raca', label: 'Raça', default: true },
+    { id: 'era', label: 'Era', default: true },
     { id: 'marca', label: 'Marca', default: true },
     { id: 'nome_apartacao', label: 'Apartação', default: true },
     { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'dias', label: 'Dias', default: false },
+    { id: 'ganho', label: 'Ganho', default: false },
+    { id: 'gmd', label: 'GMD', default: true },
     { id: 'observacao', label: 'Observação', default: false },
   ];
 
@@ -543,6 +549,7 @@ export default function LancamentoPesagensIndividuais() {
       numero_animal: numeroAnimal.trim(),
       sexo: sexo || null,
       raca: raca || null,
+      era: era || null,
       marca: marca || null,
       peso: pesoNum,
       observacao: observacao || null,
@@ -590,6 +597,7 @@ export default function LancamentoPesagensIndividuais() {
       setPeso("");
       if (!fixarSexo) setSexo("");
       if (!fixarRaca) setRaca("");
+      if (!fixarEra) setEra("");
       if (!fixarMarca) setMarca("");
       setObservacao("");
       setLoteTransferencia("");
@@ -636,6 +644,7 @@ export default function LancamentoPesagensIndividuais() {
     setPeso(String(p.peso));
     setSexo(p.sexo || "M");
     setRaca(p.raca || "Nelore");
+    setEra(p.era || "");
     setMarca(p.marca || "");
     setObservacao(p.observacao || "");
     if (p.apartacao_id) setApartacaoSelecionada(p.apartacao_id);
@@ -755,8 +764,8 @@ export default function LancamentoPesagensIndividuais() {
               <Select value={sexo} onValueChange={setSexo} disabled={fixarSexo && sexo}>
                 <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-slate-100' : ''}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="M">M</SelectItem>
-                  <SelectItem value="F">F</SelectItem>
+                  <SelectItem value="M" className="text-slate-700">M</SelectItem>
+                  <SelectItem value="F" className="text-slate-700">F</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -781,6 +790,29 @@ export default function LancamentoPesagensIndividuais() {
                 className={`h-9 text-sm w-28 ${fixarRaca ? 'bg-slate-100' : ''}`}
                 placeholder="Nelore"
                 disabled={fixarRaca && raca}
+              />
+            </div>
+
+            {/* Era com Checkbox para fixar */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium">Era</Label>
+                <div className="flex items-center gap-1">
+                  <Checkbox 
+                    id="fixarEra" 
+                    checked={fixarEra} 
+                    onCheckedChange={setFixarEra}
+                    className="h-3 w-3"
+                  />
+                  <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
+                </div>
+              </div>
+              <Input 
+                value={era} 
+                onChange={(e) => setEra(e.target.value)} 
+                className={`h-9 text-sm w-24 ${fixarEra ? 'bg-slate-100' : ''}`}
+                placeholder="Ex: 2A"
+                disabled={fixarEra && era}
               />
             </div>
 
@@ -815,12 +847,13 @@ export default function LancamentoPesagensIndividuais() {
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
-                className="h-9 text-sm w-32 font-bold border-2 border-slate-300 focus:border-emerald-500"
+                className="h-10 w-36 font-bold border-2 border-orange-400 focus:border-orange-500 text-orange-600"
+                style={{ fontSize: '18px' }}
                 autoFocus
                 placeholder="Ex: 1234"
               />
             </div>
-            
+
             {/* Peso */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Peso (kg) <span className="text-red-500">*</span></Label>
@@ -830,7 +863,8 @@ export default function LancamentoPesagensIndividuais() {
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, 'salvar')}
-                className="h-9 text-sm w-24 font-bold border-2 border-slate-300 focus:border-emerald-500"
+                className="h-10 w-28 font-bold border-2 border-orange-400 focus:border-orange-500 text-orange-600"
+                style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
             </div>
@@ -896,8 +930,8 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             {peso && apartacaoSelecionada && !loteTransferencia && (
-              <div className="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1.5 rounded border border-orange-200">
-                <ChevronRight className="w-4 h-4 inline" />
+              <div className="text-base font-bold text-orange-700 bg-orange-100 px-4 py-2 rounded border-2 border-orange-300">
+                <ChevronRight className="w-5 h-5 inline" />
                 Lote: {getLoteAutomatico(parseFloat(peso))?.nome_lote || 'Não encontrado'}
               </div>
             )}
@@ -999,7 +1033,7 @@ export default function LancamentoPesagensIndividuais() {
                               );
                             }
                             if (coluna.id === 'numero_registro') {
-                              return <TableCell key={coluna.id} className="text-xs font-mono text-slate-500">{p._numero_registro}</TableCell>;
+                              return <TableCell key={coluna.id} className="text-xs font-mono font-bold text-slate-700">{p._numero_registro}</TableCell>;
                             }
                             if (coluna.id === 'numero_animal') {
                               return (
@@ -1021,6 +1055,9 @@ export default function LancamentoPesagensIndividuais() {
                             if (coluna.id === 'raca') {
                               return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
                             }
+                            if (coluna.id === 'era') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.era || '-'}</TableCell>;
+                            }
                             if (coluna.id === 'marca') {
                               return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
                             }
@@ -1029,6 +1066,19 @@ export default function LancamentoPesagensIndividuais() {
                             }
                             if (coluna.id === 'nome_lote') {
                               return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'dias') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'ganho') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'gmd') {
+                              return (
+                                <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
+                                  {p.gmd ? p.gmd.toFixed(3) : '-'}
+                                </TableCell>
+                              );
                             }
                             if (coluna.id === 'observacao') {
                               return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
