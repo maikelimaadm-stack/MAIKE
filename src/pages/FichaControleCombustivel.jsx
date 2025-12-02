@@ -297,21 +297,7 @@ export default function FichaControleCombustivel() {
             </div>
           </div>
 
-          {/* Informações iniciais */}
-          <div className="grid grid-cols-3 gap-3 mb-3 text-[11px]">
-            <div className="border border-black p-1.5">
-              <span className="font-bold">SALDO ANTERIOR:</span>
-              <span className="ml-2 border-b border-black inline-block w-20"></span> L
-            </div>
-            <div className="border border-black p-1.5">
-              <span className="font-bold">TANQUE:</span>
-              <span className="ml-2 border-b border-black inline-block w-28"></span>
-            </div>
-            <div className="border border-black p-1.5">
-              <span className="font-bold">CAPACIDADE:</span>
-              <span className="ml-2 border-b border-black inline-block w-16"></span> L
-            </div>
-          </div>
+
 
           {/* Tabela de Controle */}
           <table className="w-full border-collapse text-[11px]">
@@ -339,41 +325,7 @@ export default function FichaControleCombustivel() {
             </tbody>
           </table>
 
-          {/* Resumo do mês */}
-          <div className="grid grid-cols-3 gap-3 mt-3 text-[11px]">
-            <div className="border border-black p-1.5 text-center bg-gray-100">
-              <span className="font-bold block">TOTAL ENTRADA</span>
-              <span className="border-b border-black inline-block w-20 mt-1"></span> L
-            </div>
-            <div className="border border-black p-1.5 text-center bg-gray-100">
-              <span className="font-bold block">TOTAL SAÍDA</span>
-              <span className="border-b border-black inline-block w-20 mt-1"></span> L
-            </div>
-            <div className="border border-black p-1.5 text-center bg-gray-100">
-              <span className="font-bold block">SALDO FINAL</span>
-              <span className="border-b border-black inline-block w-20 mt-1"></span> L
-            </div>
-          </div>
 
-          {/* Observações */}
-          <div className="mt-3 border border-black p-2 text-[11px]">
-            <span className="font-bold">OBSERVAÇÕES:</span>
-            <div className="border-b border-black mt-3" style={{ minHeight: '30px' }}></div>
-          </div>
-
-          {/* Assinaturas */}
-          <div className="flex justify-between mt-6 pt-4 text-[11px]">
-            <div className="text-center flex-1">
-              <div className="border-t border-black mx-6 pt-1">
-                <span className="font-bold">Responsável pelo Abastecimento</span>
-              </div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="border-t border-black mx-6 pt-1">
-                <span className="font-bold">Supervisor / Gerente</span>
-              </div>
-            </div>
-          </div>
 
           {/* Rodapé */}
           <div className="mt-4 pt-2 border-t border-gray-300 text-center text-[10px] text-gray-500">
