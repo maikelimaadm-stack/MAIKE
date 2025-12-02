@@ -13,6 +13,16 @@ export default function FichaControleCombustivel() {
     mes: "",
     ano: new Date().getFullYear(),
     tipoCombustivel: "DIESEL",
+    orientacao: "retrato",
+    larguraData: 70,
+    larguraMaquina: 180,
+    larguraHorimetro: 70,
+    larguraEntrada: 60,
+    larguraSaida: 60,
+    larguraSaldo: 60,
+    larguraOperador: 120,
+    larguraVisto: 50,
+    alturaLinha: 22,
   });
 
   const { data: empresa } = useQuery({
