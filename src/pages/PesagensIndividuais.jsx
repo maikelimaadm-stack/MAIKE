@@ -485,10 +485,10 @@ export default function PesagensIndividuais() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedItems.length === pesagensPaginadas.length) {
+    if (selectedItems.length === pesagensFiltradas.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(pesagensPaginadas.map(p => p.id));
+      setSelectedItems(pesagensFiltradas.map(p => p.id));
     }
   };
 
