@@ -1506,11 +1506,6 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       return;
     }
 
-    if (!navigator.onLine) {
-      toast.error("Criação de apartações requer conexão com internet");
-      return;
-    }
-
     setIsSaving(true);
 
     const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
@@ -1574,11 +1569,6 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     );
     if (duplicado) {
       toast.error("Já existe um lote com esse nome nesta apartação!");
-      return;
-    }
-
-    if (!navigator.onLine) {
-      toast.error("Criação de lotes requer conexão com internet");
       return;
     }
 
