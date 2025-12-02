@@ -1528,22 +1528,25 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_apt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const offlineId = `offline_apt_${Date.now()}`;
         const novaApartacao = { 
           ...data, 
           id: offlineId, 
           created_date: new Date().toISOString(),
-          _isOffline: true
+          _isOffline: true,
+          _pendingSync: true
         };
         
         if (dbReady) {
           if (editingApartacaoId) {
-            await saveApartacaoOffline('update', { id: editingApartacaoId, ...data });
+            // Marcar para update na sincronização
+            const aptExistente = apartacoes.find(a => a.id === editingApartacaoId);
+            if (aptExistente) {
+              await putItem(STORES_NAMES.APARTACOES, { ...aptExistente, ...data, _pendingSync: true, _action: 'update' });
+            }
           } else {
-            // Adicionar ao cache local para exibir imediatamente
+            // Apenas adicionar ao cache - será sincronizado depois
             await putItem(STORES_NAMES.APARTACOES, novaApartacao);
-            // Salvar na fila de pendentes para sincronizar
-            await saveApartacaoOffline('create', novaApartacao);
           }
         }
 
@@ -1623,22 +1626,25 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_lote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const offlineId = `offline_lote_${Date.now()}`;
         const novoLote = { 
           ...data, 
           id: offlineId, 
           created_date: new Date().toISOString(),
-          _isOffline: true
+          _isOffline: true,
+          _pendingSync: true
         };
         
         if (dbReady) {
           if (editingLoteId) {
-            await saveLoteOffline('update', { id: editingLoteId, ...data });
+            // Marcar para update na sincronização
+            const loteExistente = lotes.find(l => l.id === editingLoteId);
+            if (loteExistente) {
+              await putItem(STORES_NAMES.LOTES, { ...loteExistente, ...data, _pendingSync: true, _action: 'update' });
+            }
           } else {
-            // Adicionar ao cache local para exibir imediatamente
+            // Apenas adicionar ao cache - será sincronizado depois
             await putItem(STORES_NAMES.LOTES, novoLote);
-            // Salvar na fila de pendentes para sincronizar
-            await saveLoteOffline('create', novoLote);
           }
         }
 

@@ -74,113 +74,83 @@ export const syncPesagens = async (empresaId) => {
   return { successCount, errors, total: pending.length };
 };
 
-export const syncApartacoes = async () => {
-  const pending = await getPendingApartacoes();
+export const syncApartacoes = async (empresaId) => {
+  // Buscar apartações do cache que precisam ser sincronizadas
+  const cached = await getCachedApartacoes(empresaId);
+  const pendingItems = cached.filter(a => a._pendingSync || a._isOffline);
+  
   let successCount = 0;
   const errors = [];
   const idMap = {}; // Mapeia IDs offline para IDs reais
-  const processedOfflineIds = new Set(); // Evitar duplicação
 
-  // Ordenar: creates primeiro, updates depois, deletes por último
-  const sorted = [...pending].sort((a, b) => {
-    const order = { create: 0, update: 1, delete: 2 };
-    return (order[a.action] || 0) - (order[b.action] || 0);
-  });
-
-  for (const item of sorted) {
+  for (const item of pendingItems) {
     try {
-      if (item.action === 'create') {
-        const offlineId = item.data?.id;
-        
-        // Evitar processar o mesmo item offline duas vezes
-        if (offlineId && processedOfflineIds.has(offlineId)) {
-          await deletePendingApartacao(item._offlineId);
-          continue;
-        }
-        if (offlineId) processedOfflineIds.add(offlineId);
-        
-        const { _offlineId, id, created_date, _isOffline, ...data } = item.data;
+      const { id, created_date, _isOffline, _pendingSync, _action, ...data } = item;
+      
+      if (_action === 'update' && !id.startsWith('offline_')) {
+        // Update de item existente
+        await base44.entities.Apartacao.update(id, data);
+        successCount++;
+      } else if (id.startsWith('offline_')) {
+        // Criar novo
         const created = await base44.entities.Apartacao.create(data);
-        if (offlineId) idMap[offlineId] = created.id;
-        await deletePendingApartacao(item._offlineId);
-        successCount++;
-      } else if (item.action === 'update') {
-        const realId = idMap[item.id] || item.id;
-        await base44.entities.Apartacao.update(realId, item.data);
-        await deletePendingApartacao(item._offlineId);
-        successCount++;
-      } else if (item.action === 'delete') {
-        const realId = idMap[item.id] || item.id;
-        if (!realId.startsWith('offline_')) {
-          await base44.entities.Apartacao.delete(realId);
-        }
-        await deletePendingApartacao(item._offlineId);
+        idMap[id] = created.id;
         successCount++;
       }
     } catch (error) {
       console.error('Erro ao sincronizar apartação:', error);
       errors.push({ item, error: error.message });
-      // Remover da fila mesmo com erro para evitar loop infinito
-      await deletePendingApartacao(item._offlineId);
     }
   }
 
-  return { successCount, errors, total: pending.length, idMap };
+  // Limpar também a fila antiga de pendentes (caso exista)
+  const oldPending = await getPendingApartacoes();
+  for (const p of oldPending) {
+    await deletePendingApartacao(p._offlineId);
+  }
+
+  return { successCount, errors, total: pendingItems.length, idMap };
 };
 
-export const syncLotes = async (apartacaoIdMap = {}) => {
-  const pending = await getPendingLotes();
+export const syncLotes = async (empresaId, apartacaoIdMap = {}) => {
+  // Buscar lotes do cache que precisam ser sincronizados
+  const cached = await getCachedLotes(empresaId);
+  const pendingItems = cached.filter(l => l._pendingSync || l._isOffline);
+  
   let successCount = 0;
   const errors = [];
-  const processedOfflineIds = new Set(); // Evitar duplicação
 
-  const sorted = [...pending].sort((a, b) => {
-    const order = { create: 0, update: 1, delete: 2 };
-    return (order[a.action] || 0) - (order[b.action] || 0);
-  });
-
-  for (const item of sorted) {
+  for (const item of pendingItems) {
     try {
-      if (item.action === 'create') {
-        const offlineId = item.data?.id;
-        
-        // Evitar processar o mesmo item offline duas vezes
-        if (offlineId && processedOfflineIds.has(offlineId)) {
-          await deletePendingLote(item._offlineId);
-          continue;
-        }
-        if (offlineId) processedOfflineIds.add(offlineId);
-        
-        const { _offlineId, id, created_date, _isOffline, ...data } = item.data;
-        
-        // Se apartacao_id era offline, usar o ID real
-        if (data.apartacao_id?.startsWith('offline_') && apartacaoIdMap[data.apartacao_id]) {
-          data.apartacao_id = apartacaoIdMap[data.apartacao_id];
-        }
-        
+      const { id, created_date, _isOffline, _pendingSync, _action, ...data } = item;
+      
+      // Se apartacao_id era offline, usar o ID real
+      if (data.apartacao_id?.startsWith('offline_') && apartacaoIdMap[data.apartacao_id]) {
+        data.apartacao_id = apartacaoIdMap[data.apartacao_id];
+      }
+      
+      if (_action === 'update' && !id.startsWith('offline_')) {
+        // Update de item existente
+        await base44.entities.LoteApartacao.update(id, data);
+        successCount++;
+      } else if (id.startsWith('offline_')) {
+        // Criar novo
         await base44.entities.LoteApartacao.create(data);
-        await deletePendingLote(item._offlineId);
-        successCount++;
-      } else if (item.action === 'update') {
-        await base44.entities.LoteApartacao.update(item.id, item.data);
-        await deletePendingLote(item._offlineId);
-        successCount++;
-      } else if (item.action === 'delete') {
-        if (!item.id.startsWith('offline_')) {
-          await base44.entities.LoteApartacao.delete(item.id);
-        }
-        await deletePendingLote(item._offlineId);
         successCount++;
       }
     } catch (error) {
       console.error('Erro ao sincronizar lote:', error);
       errors.push({ item, error: error.message });
-      // Remover da fila mesmo com erro para evitar loop infinito
-      await deletePendingLote(item._offlineId);
     }
   }
 
-  return { successCount, errors, total: pending.length };
+  // Limpar também a fila antiga de pendentes (caso exista)
+  const oldPending = await getPendingLotes();
+  for (const p of oldPending) {
+    await deletePendingLote(p._offlineId);
+  }
+
+  return { successCount, errors, total: pendingItems.length };
 };
 
 export const syncAll = async (empresaId) => {
@@ -205,11 +175,11 @@ export const syncAll = async (empresaId) => {
   try {
     // Sincronizar apartações primeiro (para obter mapeamento de IDs)
     notifyListeners({ type: 'progress', entity: 'apartacoes' });
-    results.apartacoes = await syncApartacoes();
+    results.apartacoes = await syncApartacoes(empresaId);
 
     // Sincronizar lotes usando o mapeamento de IDs das apartações
     notifyListeners({ type: 'progress', entity: 'lotes' });
-    results.lotes = await syncLotes(results.apartacoes.idMap || {});
+    results.lotes = await syncLotes(empresaId, results.apartacoes.idMap || {});
 
     // Sincronizar pesagens
     notifyListeners({ type: 'progress', entity: 'pesagens' });
