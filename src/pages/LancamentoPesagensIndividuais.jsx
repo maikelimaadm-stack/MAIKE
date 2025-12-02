@@ -1175,9 +1175,9 @@ export default function LancamentoPesagensIndividuais() {
       </Card>
 
       {/* ÁREA PRINCIPAL: TABELA + RESUMO DE LOTES */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-3 gap-2">
         {/* TABELA DE PESAGENS */}
-        <div className="lg:col-span-3">
+        <div className="xl:col-span-3 lg:col-span-2">
           <Card className="shadow-sm">
             <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
