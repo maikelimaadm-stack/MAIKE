@@ -13,9 +13,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, Search, Trash2, FileSpreadsheet, Download, 
   ChevronUp, ChevronDown, RefreshCw, Filter, X, Scale,
-  AlertTriangle, CheckCircle2, Plus, Settings, GripVertical
+  AlertTriangle, CheckCircle2, Plus, Settings, GripVertical, Edit2, MoreVertical, Layers
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
@@ -70,8 +78,13 @@ export default function PesagensIndividuais() {
   const [importProgress, setImportProgress] = useState(0);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
 
+  // Estado para edição em lote
+  const [showEditarLote, setShowEditarLote] = useState(false);
+  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "" });
+
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
+    { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'selecao', label: 'Seleção', default: true, fixo: true },
     { id: 'data_pesagem', label: 'Data', default: true },
     { id: 'numero_animal', label: 'Animal', default: true },
@@ -355,6 +368,53 @@ export default function PesagensIndividuais() {
     onError: () => toast.error('Erro ao excluir'),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      await base44.entities.PesagemIndividual.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pesagens-individuais'] });
+    },
+  });
+
+  const handleEditarLote = () => {
+    if (selectedItems.length === 0) {
+      toast.error('Selecione ao menos um registro!');
+      return;
+    }
+    setShowEditarLote(true);
+  };
+
+  const confirmarEdicaoLote = async () => {
+    const dadosParaAtualizar = {};
+    if (edicaoLote.sexo) dadosParaAtualizar.sexo = edicaoLote.sexo;
+    if (edicaoLote.raca) dadosParaAtualizar.raca = edicaoLote.raca;
+    if (edicaoLote.era) dadosParaAtualizar.era = edicaoLote.era;
+
+    if (Object.keys(dadosParaAtualizar).length === 0) {
+      toast.error('Preencha ao menos um campo!');
+      return;
+    }
+
+    if (confirm(`Atualizar ${selectedItems.length} registro(s)?`)) {
+      for (const id of selectedItems) {
+        await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
+      }
+      toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
+      setShowEditarLote(false);
+      setEdicaoLote({ sexo: "", raca: "", era: "" });
+      setSelectedItems([]);
+    }
+  };
+
+  const handleExcluirPesagem = async (id) => {
+    if (confirm('Excluir este registro?')) {
+      await base44.entities.PesagemIndividual.delete(id);
+      toast.success('Excluído!');
+      queryClient.invalidateQueries({ queryKey: ['pesagens-individuais'] });
+    }
+  };
+
   const handleDeleteSelected = () => {
     if (selectedItems.length === 0) return;
     if (confirm(`Excluir ${selectedItems.length} registro(s)?`)) {
@@ -512,10 +572,29 @@ export default function PesagensIndividuais() {
             </div>
             <div className="flex gap-2">
               {selectedItems.length > 0 && (
-                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="h-7 text-xs gap-1">
-                  <Trash2 className="w-3 h-3" />
-                  Excluir ({selectedItems.length})
-                </Button>
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                        <Layers className="w-3 h-3" />
+                        Ações ({selectedItems.length})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleEditarLote} className="text-xs">
+                        <Edit2 className="w-3 h-3 mr-2" />
+                        Editar Sexo/Raça/Era
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDeleteSelected} className="text-xs text-red-600">
+                        <Trash2 className="w-3 h-3 mr-2" />
+                        Excluir Selecionados
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
               <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
                 Limpar Filtros
@@ -533,6 +612,9 @@ export default function PesagensIndividuais() {
               <TableHeader className="sticky top-0 bg-white z-10">
                 <TableRow>
                   {colunasOrdenadas.map((coluna) => {
+                    if (coluna.id === 'acoes') {
+                      return <TableHead key="acoes" className="w-10 text-xs">Ações</TableHead>;
+                    }
                     if (coluna.id === 'selecao') {
                       return (
                         <TableHead key="selecao" className="w-8">
@@ -575,6 +657,29 @@ export default function PesagensIndividuais() {
                   pesagensPaginadas.map((p) => (
                     <TableRow key={p.id} className="hover:bg-slate-50">
                       {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === 'acoes') {
+                          return (
+                            <TableCell key="acoes" className="w-10">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                  <DropdownMenuItem asChild className="text-xs">
+                                    <Link to={createPageUrl(`LancamentoPesagensIndividuais?editar=${p.id}`)}>
+                                      <Edit2 className="w-3 h-3 mr-2" />Editar
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleExcluirPesagem(p.id)} className="text-xs text-red-600">
+                                    <Trash2 className="w-3 h-3 mr-2" />Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          );
+                        }
                         if (coluna.id === 'selecao') {
                           return (
                             <TableCell key="selecao">
@@ -670,6 +775,71 @@ export default function PesagensIndividuais() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Edição em Lote */}
+      <Dialog open={showEditarLote} onOpenChange={setShowEditarLote}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-600" />
+              Editar {selectedItems.length} Registro(s) em Lote
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded p-2">
+              <p className="text-xs text-blue-800">
+                💡 Apenas campos preenchidos serão atualizados.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Sexo</Label>
+                <Select value={edicaoLote.sexo} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, sexo: v })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Não alterar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                    <SelectItem value="M" className="text-xs">M - Macho</SelectItem>
+                    <SelectItem value="F" className="text-xs">F - Fêmea</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Raça</Label>
+                <Input 
+                  value={edicaoLote.raca} 
+                  onChange={(e) => setEdicaoLote({ ...edicaoLote, raca: e.target.value })} 
+                  placeholder="Não alterar" 
+                  className="h-8 text-xs" 
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Era</Label>
+                <Input 
+                  value={edicaoLote.era} 
+                  onChange={(e) => setEdicaoLote({ ...edicaoLote, era: e.target.value })} 
+                  placeholder="Não alterar" 
+                  className="h-8 text-xs" 
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs">
+                Cancelar
+              </Button>
+              <Button onClick={confirmarEdicaoLote} size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700">
+                Atualizar {selectedItems.length}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de Configuração de Colunas */}
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
