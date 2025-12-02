@@ -1506,6 +1506,12 @@ export default function LancamentoPesagensIndividuais() {
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData}
       />
+
+      {/* DIALOG DE PROGRESSO DA SINCRONIZAÇÃO */}
+      <SyncProgressDialog 
+        open={syncDialogOpen}
+        syncState={syncState}
+      />
     </div>
   );
 }
