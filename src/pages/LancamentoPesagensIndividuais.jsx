@@ -450,17 +450,53 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     setIsSyncing(true);
+    setSyncDialogOpen(true);
+    setSyncState({
+      isRunning: true,
+      currentStep: 0,
+      totalSteps: 0,
+      currentItem: 'Preparando sincronização...',
+      items: [],
+      completed: false,
+      errors: 0
+    });
     
     try {
-      const result = await syncAll(empresaSelecionadaId);
+      const result = await syncAll(empresaSelecionadaId, (progress) => {
+        setSyncState(prev => ({
+          ...prev,
+          currentStep: progress.current || prev.currentStep,
+          totalSteps: progress.total || prev.totalSteps,
+          currentItem: progress.currentItem || prev.currentItem
+        }));
+      });
+      
+      setSyncState(prev => ({
+        ...prev,
+        isRunning: false,
+        completed: true,
+        items: result.items || [],
+        errors: result.totalErrors || 0
+      }));
       
       if (result.success) {
         await loadAllData();
+        // Fechar dialog após 2 segundos
+        setTimeout(() => {
+          setSyncDialogOpen(false);
+          toast.success(`${result.totalSuccess || 0} registro(s) sincronizado(s)`);
+        }, 2000);
       } else if (result.message) {
         toast.error(result.message);
       }
     } catch (error) {
       console.error('Erro na sincronização:', error);
+      setSyncState(prev => ({
+        ...prev,
+        isRunning: false,
+        completed: true,
+        errors: 1
+      }));
       toast.error('Erro na sincronização');
     } finally {
       setIsSyncing(false);
