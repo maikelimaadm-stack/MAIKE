@@ -1527,31 +1527,8 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         }
         onRefresh();
       } else {
-        // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_apt_${Date.now()}`;
-        const novaApartacao = { 
-          ...data, 
-          id: offlineId, 
-          created_date: new Date().toISOString(),
-          _isOffline: true,
-          _pendingSync: true
-        };
-        
-        if (dbReady) {
-          if (editingApartacaoId) {
-            // Marcar para update na sincronização
-            const aptExistente = apartacoes.find(a => a.id === editingApartacaoId);
-            if (aptExistente) {
-              await putItem(STORES_NAMES.APARTACOES, { ...aptExistente, ...data, _pendingSync: true, _action: 'update' });
-            }
-          } else {
-            // Apenas adicionar ao cache - será sincronizado depois
-            await putItem(STORES_NAMES.APARTACOES, novaApartacao);
-          }
-        }
-
-        toast.success(editingApartacaoId ? "Apartação atualizada offline!" : "Apartação criada offline!");
-        onRefresh();
+        toast.error("Criação de apartações requer conexão com internet");
+        return;
       }
       setNomeApartacao(""); 
       setEditingApartacaoId(null);
@@ -1625,31 +1602,8 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         }
         onRefresh();
       } else {
-        // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_lote_${Date.now()}`;
-        const novoLote = { 
-          ...data, 
-          id: offlineId, 
-          created_date: new Date().toISOString(),
-          _isOffline: true,
-          _pendingSync: true
-        };
-        
-        if (dbReady) {
-          if (editingLoteId) {
-            // Marcar para update na sincronização
-            const loteExistente = lotes.find(l => l.id === editingLoteId);
-            if (loteExistente) {
-              await putItem(STORES_NAMES.LOTES, { ...loteExistente, ...data, _pendingSync: true, _action: 'update' });
-            }
-          } else {
-            // Apenas adicionar ao cache - será sincronizado depois
-            await putItem(STORES_NAMES.LOTES, novoLote);
-          }
-        }
-
-        toast.success(editingLoteId ? "Lote atualizado offline!" : "Lote criado offline!");
-        onRefresh();
+        toast.error("Criação de lotes requer conexão com internet");
+        return;
       }
       setNomeLote(""); 
       setQtdMaxima("500"); 

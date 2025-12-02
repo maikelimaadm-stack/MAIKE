@@ -75,82 +75,21 @@ export const syncPesagens = async (empresaId) => {
 };
 
 export const syncApartacoes = async (empresaId) => {
-  // Buscar apartações do cache que precisam ser sincronizadas
-  const cached = await getCachedApartacoes(empresaId);
-  const pendingItems = cached.filter(a => a._pendingSync || a._isOffline);
-  
-  let successCount = 0;
-  const errors = [];
-  const idMap = {}; // Mapeia IDs offline para IDs reais
-
-  for (const item of pendingItems) {
-    try {
-      const { id, created_date, _isOffline, _pendingSync, _action, ...data } = item;
-      
-      if (_action === 'update' && !id.startsWith('offline_')) {
-        // Update de item existente
-        await base44.entities.Apartacao.update(id, data);
-        successCount++;
-      } else if (id.startsWith('offline_')) {
-        // Criar novo
-        const created = await base44.entities.Apartacao.create(data);
-        idMap[id] = created.id;
-        successCount++;
-      }
-    } catch (error) {
-      console.error('Erro ao sincronizar apartação:', error);
-      errors.push({ item, error: error.message });
-    }
-  }
-
-  // Limpar também a fila antiga de pendentes (caso exista)
+  // Limpar fila antiga de pendentes (não usamos mais)
   const oldPending = await getPendingApartacoes();
   for (const p of oldPending) {
     await deletePendingApartacao(p._offlineId);
   }
-
-  return { successCount, errors, total: pendingItems.length, idMap };
+  return { successCount: 0, errors: [], total: 0, idMap: {} };
 };
 
 export const syncLotes = async (empresaId, apartacaoIdMap = {}) => {
-  // Buscar lotes do cache que precisam ser sincronizados
-  const cached = await getCachedLotes(empresaId);
-  const pendingItems = cached.filter(l => l._pendingSync || l._isOffline);
-  
-  let successCount = 0;
-  const errors = [];
-
-  for (const item of pendingItems) {
-    try {
-      const { id, created_date, _isOffline, _pendingSync, _action, ...data } = item;
-      
-      // Se apartacao_id era offline, usar o ID real
-      if (data.apartacao_id?.startsWith('offline_') && apartacaoIdMap[data.apartacao_id]) {
-        data.apartacao_id = apartacaoIdMap[data.apartacao_id];
-      }
-      
-      if (_action === 'update' && !id.startsWith('offline_')) {
-        // Update de item existente
-        await base44.entities.LoteApartacao.update(id, data);
-        successCount++;
-      } else if (id.startsWith('offline_')) {
-        // Criar novo
-        await base44.entities.LoteApartacao.create(data);
-        successCount++;
-      }
-    } catch (error) {
-      console.error('Erro ao sincronizar lote:', error);
-      errors.push({ item, error: error.message });
-    }
-  }
-
-  // Limpar também a fila antiga de pendentes (caso exista)
+  // Limpar fila antiga de pendentes (não usamos mais)
   const oldPending = await getPendingLotes();
   for (const p of oldPending) {
     await deletePendingLote(p._offlineId);
   }
-
-  return { successCount, errors, total: pendingItems.length };
+  return { successCount: 0, errors: [], total: 0 };
 };
 
 export const syncAll = async (empresaId) => {
