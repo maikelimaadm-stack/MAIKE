@@ -1579,9 +1579,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
             count++;
-            // Delay a cada 5 registros para evitar rate limit
-            if (count % 5 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 300));
+            // Delay a cada 3 registros para evitar rate limit
+            if (count % 3 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
           }
 
@@ -1688,9 +1688,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
             countLote++;
-            // Delay a cada 5 registros para evitar rate limit
-            if (countLote % 5 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 300));
+            // Delay a cada 3 registros para evitar rate limit
+            if (countLote % 3 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
           }
 

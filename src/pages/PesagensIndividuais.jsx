@@ -517,9 +517,9 @@ export default function PesagensIndividuais() {
       for (const id of selectedItems) {
         await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
         count++;
-        // Delay a cada 5 registros para evitar rate limit
-        if (count % 5 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+        // Delay a cada 3 registros para evitar rate limit
+        if (count % 3 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
