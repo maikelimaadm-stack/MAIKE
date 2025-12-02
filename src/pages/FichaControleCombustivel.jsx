@@ -230,7 +230,13 @@ export default function FichaControleCombustivel() {
 
       {/* Ficha de Controle - Página Inteira */}
       <div className="p-4 print:p-0">
-        <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none" style={{ minHeight: '297mm' }}>
+        <div 
+          className="mx-auto bg-white shadow-lg print:shadow-none" 
+          style={{ 
+            width: config.orientacao === 'paisagem' ? '297mm' : '210mm',
+            minHeight: config.orientacao === 'paisagem' ? '210mm' : '297mm'
+          }}
+        >
           <div className="p-6 print:p-8">
             {/* Cabeçalho */}
             <div className="text-center border-2 border-black p-3 mb-4">
