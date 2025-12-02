@@ -285,17 +285,23 @@ export const getCachedLotes = async (empresaId) => {
 
 // Função para obter contagem de pendentes
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes] = await Promise.all([
+  const [pesagens, apartacoes, lotes, cachedApt, cachedLotes] = await Promise.all([
     getAllItems(STORES.PENDING_PESAGENS),
     getAllItems(STORES.PENDING_APARTACOES),
     getAllItems(STORES.PENDING_LOTES),
+    getAllItems(STORES.APARTACOES),
+    getAllItems(STORES.LOTES),
   ]);
+
+  // Contar também apartações e lotes offline no cache
+  const offlineApartacoes = cachedApt.filter(a => a._isOffline);
+  const offlineLotes = cachedLotes.filter(l => l._isOffline);
 
   return {
     pesagens: pesagens.length,
-    apartacoes: apartacoes.length,
-    lotes: lotes.length,
-    total: pesagens.length + apartacoes.length + lotes.length,
+    apartacoes: apartacoes.length + offlineApartacoes.length,
+    lotes: lotes.length + offlineLotes.length,
+    total: pesagens.length + apartacoes.length + lotes.length + offlineApartacoes.length + offlineLotes.length,
   };
 };
 
