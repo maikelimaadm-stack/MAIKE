@@ -267,20 +267,20 @@ export default function FichaControleCombustivel() {
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-black p-1 w-16">DATA</th>
-                  <th className="border border-black p-1">MÁQUINA / VEÍCULO</th>
-                  <th className="border border-black p-1 w-20">HORÍMETRO</th>
-                  <th className="border border-black p-1 w-16">ENTRADA (L)</th>
-                  <th className="border border-black p-1 w-16">SAÍDA (L)</th>
-                  <th className="border border-black p-1 w-16">SALDO (L)</th>
-                  <th className="border border-black p-1">OPERADOR</th>
-                  <th className="border border-black p-1 w-14">VISTO</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraData}px` }}>DATA</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraMaquina}px` }}>MÁQUINA / VEÍCULO</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraHorimetro}px` }}>HORÍMETRO</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraEntrada}px` }}>ENTRADA (L)</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraSaida}px` }}>SAÍDA (L)</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraSaldo}px` }}>SALDO (L)</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraOperador}px` }}>OPERADOR</th>
+                  <th className="border border-black p-1" style={{ width: `${config.larguraVisto}px` }}>VISTO</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: config.linhas }).map((_, idx) => (
                   <tr key={idx}>
-                    <td className="border border-black p-1" style={{ height: '22px' }}></td>
+                    <td className="border border-black p-1" style={{ height: `${config.alturaLinha}px` }}></td>
                     <td className="border border-black p-1"></td>
                     <td className="border border-black p-1"></td>
                     <td className="border border-black p-1"></td>
