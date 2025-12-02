@@ -552,25 +552,25 @@ export default function LancamentoPesagensIndividuais() {
             </div>
             
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Nº Identificação <span className="text-red-500">*</span></Label>
+              <Label className="text-xs">Nº Ident. <span className="text-red-500">*</span></Label>
               <Input 
                 ref={numeroInputRef}
                 value={numeroAnimal} 
                 onChange={(e) => setNumeroAnimal(e.target.value)} 
-                className="h-14 w-48 font-bold text-amber-600 text-2xl text-center border-2 border-amber-300 bg-amber-50"
+                className="h-10 w-36 font-bold text-amber-500 text-lg"
                 autoFocus
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Peso (kg) <span className="text-red-500">*</span></Label>
+              <Label className="text-xs">Peso (kg) <span className="text-red-500">*</span></Label>
               <Input 
                 ref={pesoInputRef}
                 type="number"
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSalvar()}
-                className="h-14 w-40 font-bold text-amber-600 text-2xl text-center border-2 border-amber-300 bg-amber-50"
+                className="h-10 w-28 font-bold text-amber-500 text-lg"
               />
             </div>
             
