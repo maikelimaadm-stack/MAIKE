@@ -733,6 +733,7 @@ export default function LancamentoPesagensIndividuais() {
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
   const [tab, setTab] = useState('apartacoes');
   const [isSaving, setIsSaving] = useState(false);
+  const [apartacaoExpandida, setApartacaoExpandida] = useState(null);
   
   const [nomeApartacao, setNomeApartacao] = useState("");
   const [editingApartacaoId, setEditingApartacaoId] = useState(null);
@@ -887,16 +888,36 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     }
   };
 
+  // Contar pesagens por lote
+  const contarPesagensPorLote = (loteId) => {
+    return pesagens.filter(p => p.lote_id === loteId).length;
+  };
+
+  // Contar pesagens por apartação
+  const contarPesagensPorApartacao = (apartacaoId) => {
+    return pesagens.filter(p => p.apartacao_id === apartacaoId).length;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Gerenciar Apartações e Lotes</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Scale className="w-5 h-5" />
+            Gerenciar Apartações e Lotes
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex gap-2 border-b pb-2">
-          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>Apartações</Button>
-          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>Lotes</Button>
+          <Button variant={tab === 'apartacoes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('apartacoes')}>
+            Apartações ({apartacoes.length})
+          </Button>
+          <Button variant={tab === 'lotes' ? 'default' : 'outline'} size="sm" onClick={() => setTab('lotes')}>
+            Lotes ({lotes.length})
+          </Button>
+          <Button variant={tab === 'visao_geral' ? 'default' : 'outline'} size="sm" onClick={() => setTab('visao_geral')}>
+            Visão Geral
+          </Button>
         </div>
 
         <div className="flex-1 overflow-auto">
@@ -905,7 +926,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
               <div className="flex gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Nome da Apartação</Label>
-                  <Input value={nomeApartacao} onChange={(e) => setNomeApartacao(e.target.value)} className="h-9 text-sm" />
+                  <Input value={nomeApartacao} onChange={(e) => setNomeApartacao(e.target.value)} className="h-9 text-sm" placeholder="Ex: ROTINA, VENDA, DESMAMA..." />
                 </div>
                 <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600">
                   {isSaving ? '...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
@@ -919,39 +940,53 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Nome</TableHead>
+                    <TableHead className="text-xs">Nome da Apartação</TableHead>
                     <TableHead className="text-xs text-center">Lotes</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
                     <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apartacoes.map(a => (
-                    <TableRow key={a.id} className={a._isOffline ? 'bg-amber-50' : ''}>
-                      <TableCell className="text-xs font-medium">
-                        {a.nome_apartacao}
-                        {a._isOffline && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100">Offline</Badge>}
-                      </TableCell>
-                      <TableCell className="text-xs text-center">{lotes.filter(l => l.apartacao_id === a.id).length}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNomeApartacao(a.nome_apartacao); setEditingApartacaoId(a.id); }}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirApartacao(a.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                  {apartacoes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-8">
+                        Nenhuma apartação cadastrada
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    apartacoes.map(a => (
+                      <TableRow key={a.id} className={a._isOffline ? 'bg-amber-50' : ''}>
+                        <TableCell className="text-sm font-medium">
+                          {a.nome_apartacao}
+                          {a._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
+                        </TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge variant="outline">{lotes.filter(l => l.apartacao_id === a.id).length}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge variant="secondary">{contarPesagensPorApartacao(a.id)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNomeApartacao(a.nome_apartacao); setEditingApartacaoId(a.id); }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirApartacao(a.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
-          ) : (
+          ) : tab === 'lotes' ? (
             <div className="space-y-3">
               <div className="grid grid-cols-6 gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="space-y-1">
-                  <Label className="text-xs">Apartação</Label>
+                  <Label className="text-xs">Apartação *</Label>
                   <Select value={apartacaoIdLote} onValueChange={setApartacaoIdLote}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
@@ -960,20 +995,20 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Nome Lote</Label>
-                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" />
+                  <Label className="text-xs">Nome Lote *</Label>
+                  <Input value={nomeLote} onChange={(e) => setNomeLote(e.target.value)} className="h-9 text-xs" placeholder="Ex: LEVE, MEDIO, PESADO" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Qtd Máx</Label>
                   <Input type="number" value={qtdMaxima} onChange={(e) => setQtdMaxima(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Peso Mín</Label>
-                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" />
+                  <Label className="text-xs">Peso Mín *</Label>
+                  <Input type="number" value={pesoMinimo} onChange={(e) => setPesoMinimo(e.target.value)} className="h-9 text-xs" placeholder="kg" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Peso Máx</Label>
-                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
+                  <Label className="text-xs">Peso Máx *</Label>
+                  <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" placeholder="kg" />
                 </div>
                 <div className="flex gap-1">
                   <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600">
@@ -986,6 +1021,19 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   )}
                 </div>
               </div>
+              
+              {/* Filtro por apartação */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500">Filtrar por apartação:</Label>
+                <Select value={apartacaoIdLote || "all"} onValueChange={(v) => setApartacaoIdLote(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs w-48"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Apartações</SelectItem>
+                    {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -993,37 +1041,153 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                     <TableHead className="text-xs">Lote</TableHead>
                     <TableHead className="text-xs text-center">Peso Mín</TableHead>
                     <TableHead className="text-xs text-center">Peso Máx</TableHead>
+                    <TableHead className="text-xs text-center">Qtd Máx</TableHead>
+                    <TableHead className="text-xs text-center">Pesagens</TableHead>
                     <TableHead className="text-xs w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lotesFiltrados.map(l => (
-                    <TableRow key={l.id} className={l._isOffline ? 'bg-amber-50' : ''}>
-                      <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
-                      <TableCell className="text-xs font-medium">
-                        {l.nome_lote}
-                        {l._isOffline && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100">Offline</Badge>}
-                      </TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
-                      <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                            setApartacaoIdLote(l.apartacao_id); setNomeLote(l.nome_lote);
-                            setQtdMaxima(String(l.quantidade_maxima)); setPesoMinimo(String(l.peso_minimo));
-                            setPesoMaximo(String(l.peso_maximo)); setEditingLoteId(l.id);
-                          }}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirLote(l.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                  {lotesFiltrados.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-8">
+                        Nenhum lote cadastrado
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    lotesFiltrados.map(l => (
+                      <TableRow key={l.id} className={l._isOffline ? 'bg-amber-50' : ''}>
+                        <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {l.nome_lote}
+                          {l._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono">{l.peso_minimo} kg</TableCell>
+                        <TableCell className="text-xs text-center font-mono">{l.peso_maximo} kg</TableCell>
+                        <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge variant="secondary">{contarPesagensPorLote(l.id)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                              setApartacaoIdLote(l.apartacao_id); setNomeLote(l.nome_lote);
+                              setQtdMaxima(String(l.quantidade_maxima)); setPesoMinimo(String(l.peso_minimo));
+                              setPesoMaximo(String(l.peso_maximo)); setEditingLoteId(l.id);
+                            }}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => excluirLote(l.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
+            </div>
+          ) : (
+            /* VISÃO GERAL - Apartações com seus lotes */
+            <div className="space-y-3">
+              {apartacoes.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <Scale className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma apartação cadastrada</p>
+                  <p className="text-xs mt-1">Crie apartações na aba "Apartações"</p>
+                </div>
+              ) : (
+                apartacoes.map(apt => {
+                  const lotesApt = lotes.filter(l => l.apartacao_id === apt.id);
+                  const totalPesagens = contarPesagensPorApartacao(apt.id);
+                  const isExpanded = apartacaoExpandida === apt.id;
+                  
+                  return (
+                    <Card key={apt.id} className={`${apt._isOffline ? 'border-amber-300 bg-amber-50' : ''}`}>
+                      <CardHeader 
+                        className="py-3 px-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => setApartacaoExpandida(isExpanded ? null : apt.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            <CardTitle className="text-base font-bold">
+                              {apt.nome_apartacao}
+                              {apt._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Offline</Badge>}
+                            </CardTitle>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-xs text-slate-500">
+                              <span className="font-semibold text-slate-700">{lotesApt.length}</span> lotes
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              <span className="font-semibold text-slate-700">{totalPesagens}</span> pesagens
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      {isExpanded && (
+                        <CardContent className="pt-0 pb-3 px-4">
+                          {lotesApt.length === 0 ? (
+                            <div className="text-center py-4 text-slate-400 text-xs bg-slate-50 rounded">
+                              Nenhum lote cadastrado nesta apartação
+                            </div>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">Lote</TableHead>
+                                  <TableHead className="text-xs text-center">Faixa de Peso</TableHead>
+                                  <TableHead className="text-xs text-center">Qtd Máx</TableHead>
+                                  <TableHead className="text-xs text-center">Pesagens</TableHead>
+                                  <TableHead className="text-xs text-center">Ocupação</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {lotesApt.map(lote => {
+                                  const qtdPesagens = contarPesagensPorLote(lote.id);
+                                  const ocupacao = lote.quantidade_maxima > 0 
+                                    ? Math.round((qtdPesagens / lote.quantidade_maxima) * 100) 
+                                    : 0;
+                                  
+                                  return (
+                                    <TableRow key={lote.id} className={lote._isOffline ? 'bg-amber-50' : ''}>
+                                      <TableCell className="text-sm font-medium">
+                                        {lote.nome_lote}
+                                        {lote._isOffline && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-100">Off</Badge>}
+                                      </TableCell>
+                                      <TableCell className="text-xs text-center font-mono">
+                                        {lote.peso_minimo} - {lote.peso_maximo} kg
+                                      </TableCell>
+                                      <TableCell className="text-xs text-center">{lote.quantidade_maxima}</TableCell>
+                                      <TableCell className="text-xs text-center font-bold">{qtdPesagens}</TableCell>
+                                      <TableCell className="text-xs text-center">
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                            <div 
+                                              className={`h-full rounded-full ${
+                                                ocupacao >= 90 ? 'bg-red-500' : 
+                                                ocupacao >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                                              }`}
+                                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                                            />
+                                          </div>
+                                          <span className="text-[10px] w-10">{ocupacao}%</span>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })
+              )}
             </div>
           )}
         </div>
