@@ -110,28 +110,28 @@ export default function FichaOperadorImpressao() {
 
                     {/* Todas as linhas com label inline */}
                     <div className="text-[10px] text-black space-y-0.5">
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-12 flex-shrink-0">DATA:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-20 flex-shrink-0 border-l border-black pl-1">OPERADOR:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-20 flex-shrink-0">OPERAÇÃO:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-12 flex-shrink-0 border-l border-black pl-1">ÁREA:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-20 flex-shrink-0">MÁQUINA:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-24 flex-shrink-0 border-l border-black pl-1">IMPLEMENTO:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-16 flex-shrink-0">H.INÍCIO:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-14 flex-shrink-0 border-l border-black pl-1">H.FINAL:</span>
@@ -140,19 +140,19 @@ export default function FichaOperadorImpressao() {
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-20 flex-shrink-0">HECTARES:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-20 flex-shrink-0 border-l border-black pl-1">COMB. (L):</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-24 flex-shrink-0">PRODUTO/QTD:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black">
+                      <div className="flex border-b border-black" style={{ minHeight: '40px' }}>
                         <span className="font-bold w-10 flex-shrink-0">OBS:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
