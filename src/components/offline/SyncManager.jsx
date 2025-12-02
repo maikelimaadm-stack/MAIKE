@@ -1,5 +1,5 @@
 // Sync Manager - Gerencia sincronização de dados offline
-// VERSÃO SIMPLIFICADA - Evita duplicações
+// VERSÃO COM VERIFICAÇÃO DE DUPLICADOS
 import { base44 } from '@/api/base44Client';
 import {
   getPendingPesagens,
@@ -9,13 +9,13 @@ import {
   cacheLotes,
   getPendingCounts,
   getAllItems,
+  deleteItem,
   clearStore,
   STORES_NAMES,
 } from './IndexedDBManager';
 
 let syncInProgress = false;
 let syncListeners = [];
-const processedIds = new Set(); // Evitar duplicação
 
 export const addSyncListener = (listener) => {
   syncListeners.push(listener);
@@ -41,6 +41,14 @@ export const syncPesagens = async (empresaId) => {
   if (pending.length === 0) {
     return { successCount: 0, errors: [], total: 0 };
   }
+
+  // Buscar pesagens existentes no servidor para verificar duplicados
+  let existingPesagens = [];
+  try {
+    existingPesagens = await base44.entities.PesagemIndividual.filter({ empresa_id: empresaId });
+  } catch (e) {
+    console.error('Erro ao buscar pesagens existentes:', e);
+  }
   
   let successCount = 0;
   const errors = [];
@@ -48,15 +56,21 @@ export const syncPesagens = async (empresaId) => {
   for (const pesagem of pending) {
     const offlineId = pesagem._offlineId;
     
-    // Evitar processar o mesmo ID duas vezes
-    if (processedIds.has(offlineId)) {
-      await deletePendingPesagem(offlineId);
-      continue;
-    }
-    processedIds.add(offlineId);
-    
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
+      
+      // Verificar se já existe no servidor (mesmo animal, mesma data, mesmo peso)
+      const duplicado = existingPesagens.find(e => 
+        e.numero_animal === data.numero_animal && 
+        e.data_pesagem === data.data_pesagem &&
+        e.peso === data.peso
+      );
+      
+      if (duplicado) {
+        console.log('Pesagem já existe no servidor, pulando:', data.numero_animal);
+        await deletePendingPesagem(offlineId);
+        continue;
+      }
       
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
@@ -65,13 +79,13 @@ export const syncPesagens = async (empresaId) => {
       }
       
       successCount++;
-      await deletePendingPesagem(offlineId);
     } catch (error) {
       console.error('Erro sync pesagem:', error);
       errors.push({ error: error.message });
-      // Remover mesmo com erro para não ficar tentando infinitamente
-      await deletePendingPesagem(offlineId);
     }
+    
+    // SEMPRE remover após processar
+    await deletePendingPesagem(offlineId);
   }
 
   return { successCount, errors, total: pending.length };
@@ -82,21 +96,48 @@ export const syncOfflineEntities = async (empresaId) => {
   let successCount = 0;
   const idMap = {};
 
+  // Buscar apartações existentes no servidor
+  let existingApartacoes = [];
+  let existingLotes = [];
+  try {
+    existingApartacoes = await base44.entities.Apartacao.filter({ empresa_id: empresaId });
+    existingLotes = await base44.entities.LoteApartacao.filter({ empresa_id: empresaId });
+  } catch (e) {
+    console.error('Erro ao buscar entidades existentes:', e);
+  }
+
   // Buscar apartações offline do cache
   const cachedApartacoes = await getAllItems(STORES_NAMES.APARTACOES);
   const offlineApartacoes = cachedApartacoes.filter(a => 
     a.empresa_id === empresaId && a._isOffline && a.id?.startsWith('offline_')
   );
 
-  // Criar apartações no servidor
+  // Criar apartações no servidor (verificando duplicados)
   for (const apt of offlineApartacoes) {
     try {
       const { id, _isOffline, _offlineTimestamp, ...data } = apt;
+      
+      // Verificar duplicado por nome
+      const duplicado = existingApartacoes.find(e => 
+        e.nome_apartacao?.toLowerCase() === data.nome_apartacao?.toLowerCase()
+      );
+      
+      if (duplicado) {
+        console.log('Apartação já existe no servidor:', data.nome_apartacao);
+        idMap[id] = duplicado.id; // Mapear para o ID existente
+        await deleteItem(STORES_NAMES.APARTACOES, id);
+        continue;
+      }
+      
       const created = await base44.entities.Apartacao.create(data);
-      idMap[id] = created.id; // Mapear ID offline -> ID real
+      idMap[id] = created.id;
       successCount++;
+      
+      // Remover do cache offline
+      await deleteItem(STORES_NAMES.APARTACOES, id);
     } catch (e) {
       console.error('Erro ao sincronizar apartação:', e);
+      await deleteItem(STORES_NAMES.APARTACOES, apt.id);
     }
   }
 
@@ -106,7 +147,7 @@ export const syncOfflineEntities = async (empresaId) => {
     l.empresa_id === empresaId && l._isOffline && l.id?.startsWith('offline_')
   );
 
-  // Criar lotes no servidor (atualizando apartacao_id se necessário)
+  // Criar lotes no servidor (verificando duplicados)
   for (const lote of offlineLotes) {
     try {
       const { id, _isOffline, _offlineTimestamp, ...data } = lote;
@@ -116,10 +157,26 @@ export const syncOfflineEntities = async (empresaId) => {
         data.apartacao_id = idMap[data.apartacao_id];
       }
       
+      // Verificar duplicado por nome na mesma apartação
+      const duplicado = existingLotes.find(e => 
+        e.apartacao_id === data.apartacao_id &&
+        e.nome_lote?.toLowerCase() === data.nome_lote?.toLowerCase()
+      );
+      
+      if (duplicado) {
+        console.log('Lote já existe no servidor:', data.nome_lote);
+        await deleteItem(STORES_NAMES.LOTES, id);
+        continue;
+      }
+      
       await base44.entities.LoteApartacao.create(data);
       successCount++;
+      
+      // Remover do cache offline
+      await deleteItem(STORES_NAMES.LOTES, id);
     } catch (e) {
       console.error('Erro ao sincronizar lote:', e);
+      await deleteItem(STORES_NAMES.LOTES, lote.id);
     }
   }
 
