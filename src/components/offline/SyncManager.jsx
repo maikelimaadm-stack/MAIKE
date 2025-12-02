@@ -241,7 +241,14 @@ export const refreshCache = async (empresaId) => {
     const apartacoesEmpresa = apartacoes.filter(a => a.empresa_id === empresaId);
     const lotesEmpresa = lotes.filter(l => l.empresa_id === empresaId);
 
-    // Limpar e recarregar cache (substitui dados offline por dados reais)
+    // LIMPAR completamente os caches antes de recarregar (evita dados offline residuais)
+    await Promise.all([
+      clearStore(STORES_NAMES.PESAGENS),
+      clearStore(STORES_NAMES.APARTACOES),
+      clearStore(STORES_NAMES.LOTES),
+    ]);
+
+    // Recarregar com dados do servidor
     await Promise.all([
       cachePesagens(pesagensEmpresa),
       cacheApartacoes(apartacoesEmpresa),
