@@ -52,19 +52,19 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
   const [modoVisualizacao, setModoVisualizacao] = useState('dia'); // 'dia' ou 'total'
 
   const resumoLotes = useMemo(() => {
-    if (!apartacaoSelecionada) return [];
+    if (!apartacaoSelecionada || !lotesApartacaoAtual || lotesApartacaoAtual.length === 0) return [];
     
     let todasPesagensApartacao;
     if (modoVisualizacao === 'dia') {
       // Apenas pesagens do dia
       todasPesagensApartacao = [
-        ...pesagensDia.filter(p => p.apartacao_id === apartacaoSelecionada),
+        ...(pesagensDia || []).filter(p => p.apartacao_id === apartacaoSelecionada),
       ];
     } else {
       // Todas as pesagens da apartação
       todasPesagensApartacao = [
-        ...pesagens.filter(p => p.apartacao_id === apartacaoSelecionada),
-        ...pendingPesagensDB.filter(p => p.apartacao_id === apartacaoSelecionada)
+        ...(pesagens || []).filter(p => p.apartacao_id === apartacaoSelecionada),
+        ...(pendingPesagensDB || []).filter(p => p.apartacao_id === apartacaoSelecionada)
       ];
     }
 
@@ -79,15 +79,16 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
         quantidade_atual: qtd,
         peso_medio: pesoMedio,
       };
-    }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
+    }).sort((a, b) => (a.nome_lote || '').localeCompare(b.nome_lote || ''));
   }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, modoVisualizacao]);
 
+  // Sempre renderizar o componente
   return (
-    <div className="lg:col-span-1">
+    <div className="xl:col-span-1 lg:col-span-1">
       <Card className="shadow-sm sticky top-2">
         <CardHeader className="py-2 px-3 bg-slate-200 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-xs font-semibold">Distribuição de Lotes</CardTitle>
-          {apartacaoSelecionada && (
+          {apartacaoSelecionada && resumoLotes.length > 0 && (
             <div className="flex gap-1">
               <Button 
                 variant={modoVisualizacao === 'dia' ? 'default' : 'outline'} 
@@ -113,7 +114,7 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
             <>
               <div className="text-center mb-2 py-2 bg-emerald-50 rounded">
                 <span className="text-lg font-bold text-emerald-800">
-                  {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
+                  {apartacoes?.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || 'Apartação'}
                 </span>
                 <div className="text-[10px] text-emerald-600">
                   {modoVisualizacao === 'dia' ? `Pesagens do dia (${formatarData(dataPesagem)})` : 'Todas as pesagens'}
@@ -131,19 +132,21 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                   {resumoLotes.map(lote => (
                     <TableRow key={lote.id}>
                       <TableCell className="text-xs font-medium">{lote.nome_lote}</TableCell>
-                      <TableCell className="text-xs text-right">{lote.quantidade_atual}/{lote.quantidade_maxima}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{lote.peso_medio.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs text-right">{lote.quantidade_atual}/{lote.quantidade_maxima || 0}</TableCell>
+                      <TableCell className="text-xs text-right font-mono">{lote.peso_medio?.toFixed(2) || '0.00'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
               <div className="mt-2 pt-2 border-t text-xs text-center text-slate-500">
-                Qtd. Lançada: {resumoLotes.reduce((s, l) => s + l.quantidade_atual, 0)}
+                Qtd. Lançada: {resumoLotes.reduce((s, l) => s + (l.quantidade_atual || 0), 0)}
               </div>
             </>
           ) : (
             <div className="text-center py-6 text-slate-400 text-xs">
-              Selecione uma apartação para ver os lotes
+              {apartacaoSelecionada 
+                ? 'Nenhum lote cadastrado nesta apartação' 
+                : 'Selecione uma apartação para ver os lotes'}
             </div>
           )}
         </CardContent>
