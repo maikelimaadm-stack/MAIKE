@@ -63,6 +63,10 @@ const formatarData = (dataString) => {
 export default function LancamentoPesagensIndividuais() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
+  
+  // Verificar se veio para editar
+  const urlParams = new URLSearchParams(window.location.search);
+  const editarId = urlParams.get('editar');
 
   // Estado de conexão
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -174,6 +178,32 @@ export default function LancamentoPesagensIndividuais() {
   const colunasOrdenadas = colunasOrdem
     .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
     .filter(c => c && colunasVisiveis.includes(c.id));
+
+  // ========== CARREGAR REGISTRO PARA EDIÇÃO ==========
+  useEffect(() => {
+    const carregarParaEdicao = async () => {
+      if (editarId && pesagens.length > 0) {
+        const pesagem = pesagens.find(p => p.id === editarId);
+        if (pesagem) {
+          setEditingId(pesagem.id);
+          setDataPesagem(pesagem.data_pesagem || format(new Date(), 'yyyy-MM-dd'));
+          setNumeroAnimal(pesagem.numero_animal || "");
+          setPeso(String(pesagem.peso || ""));
+          setSexo(pesagem.sexo || "M");
+          setRaca(pesagem.raca || "Nelore");
+          setEra(pesagem.era || "");
+          setMarca(pesagem.marca || "");
+          setObservacao(pesagem.observacao || "");
+          if (pesagem.apartacao_id) setApartacaoSelecionada(pesagem.apartacao_id);
+          if (pesagem.lote_id) setLoteTransferencia(pesagem.lote_id);
+          
+          // Limpar o parâmetro da URL para evitar recarregar
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    };
+    carregarParaEdicao();
+  }, [editarId, pesagens]);
 
   // ========== OFFLINE FIRST - INICIALIZAR IndexedDB E CARREGAR DADOS ==========
   useEffect(() => {
