@@ -867,6 +867,24 @@ export default function LancamentoPesagensIndividuais() {
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
+              {/* Exibir ganho abaixo do peso */}
+              {(() => {
+                if (!numeroAnimal?.trim() || !peso) return null;
+                const historicoAnimal = pesagens
+                  .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+                const ultimo = historicoAnimal[0];
+                const pesoNum = parseFloat(peso);
+                const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+                const ganho = pesoNum - ultimo.peso;
+                const gmd = dias > 0 ? (ganho / dias) : 0;
+                return (
+                  <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                    {dias}d | {ganho.toFixed(1)}kg | GMD: {gmd.toFixed(3)}
+                  </div>
+                );
+              })()}
             </div>
             
             {/* Observação */}
@@ -880,27 +898,6 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* Exibir ganho se houver histórico */}
-            {(() => {
-              if (!numeroAnimal?.trim() || !peso) return null;
-              const historicoAnimal = pesagens
-                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-              if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
-              const ultimo = historicoAnimal[0];
-              const pesoNum = parseFloat(peso);
-              const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
-              const ganho = pesoNum - ultimo.peso;
-              const gmd = dias > 0 ? (ganho / dias) : 0;
-              return (
-                <div className="bg-emerald-50 border border-emerald-300 rounded px-3 py-1.5">
-                  <div className="text-xs text-emerald-800 font-semibold">
-                    Dias: <span className="font-bold">{dias}</span> | Ganho: <span className="font-bold">{ganho.toFixed(2)} kg</span> | GMD: <span className={`font-bold ${gmd > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{gmd.toFixed(3)}</span>
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700 hover:bg-slate-800">
               {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
