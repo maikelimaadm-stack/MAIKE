@@ -1572,17 +1572,20 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         if (editingApartacaoId) {
           await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
-          for (const p of pesagensVinculadas) {
+          // Atualizar TODAS as pesagens vinculadas (de todas as datas)
+          const todasPesagens = await base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId });
+          toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
+          for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
           }
 
-          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
-          for (const l of lotesVinculados) {
+          // Atualizar todos os lotes vinculados
+          const todosLotes = await base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId });
+          for (const l of todosLotes) {
             await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
           }
 
-          toast.success("Apartação atualizada!");
+          toast.success(`Apartação atualizada! ${todasPesagens.length} pesagens atualizadas.`);
         } else {
           await base44.entities.Apartacao.create(data);
           toast.success("Apartação criada!");
@@ -1672,12 +1675,14 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         if (editingLoteId) {
           await base44.entities.LoteApartacao.update(editingLoteId, data);
 
-          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
-          for (const p of pesagensVinculadas) {
+          // Atualizar TODAS as pesagens vinculadas ao lote (de todas as datas)
+          const todasPesagens = await base44.entities.PesagemIndividual.filter({ lote_id: editingLoteId });
+          toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
+          for (const p of todasPesagens) {
             await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
           }
 
-          toast.success("Lote atualizado!");
+          toast.success(`Lote atualizado! ${todasPesagens.length} pesagens atualizadas.`);
         } else {
           await base44.entities.LoteApartacao.create(data);
           toast.success("Lote criado!");
