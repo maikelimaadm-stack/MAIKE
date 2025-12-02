@@ -53,6 +53,7 @@ import PesagensIndividuais from './pages/PesagensIndividuais';
 import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
 import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
 import FichaControleCombustivel from './pages/FichaControleCombustivel';
+import RemoverDuplicados from './pages/RemoverDuplicados';
 import __Layout from './Layout.jsx';
 
 
@@ -112,6 +113,7 @@ export const PAGES = {
     "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
     "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
     "FichaControleCombustivel": FichaControleCombustivel,
+    "RemoverDuplicados": RemoverDuplicados,
 }
 
 export const pagesConfig = {
