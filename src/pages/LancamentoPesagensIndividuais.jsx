@@ -43,6 +43,7 @@ import {
   getCachedLotes,
   getPendingCounts,
   putItem,
+  deleteItem,
   STORES_NAMES,
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
@@ -583,9 +584,10 @@ export default function LancamentoPesagensIndividuais() {
     [pesagens]
   );
 
-  // ========== LOTES DA APARTAÇÃO SELECIONADA ==========
+  // ========== LOTES DA APARTAÇÃO SELECIONADA (inclui lotes offline) ==========
   const lotesApartacaoAtual = useMemo(() => {
     if (!apartacaoSelecionada) return [];
+    // Combina lotes sincronizados + lotes criados offline (do cache)
     return lotesApartacao.filter(l => l.apartacao_id === apartacaoSelecionada);
   }, [apartacaoSelecionada, lotesApartacao]);
 
@@ -651,9 +653,12 @@ export default function LancamentoPesagensIndividuais() {
       return; 
     }
 
-    // Verificar duplicado
+    // Verificar duplicado (inclui pesagens pendentes offline)
     if (!editingId) {
-      const duplicado = pesagensDia.find(p => p.numero_animal === numeroAnimal.trim());
+      const duplicado = pesagensDia.find(p => 
+        p.numero_animal === numeroAnimal.trim() && 
+        p.id !== editingId
+      );
       if (duplicado) { 
         toast.error("⚠️ Animal já pesado hoje! Nº: " + numeroAnimal); 
         return; 
@@ -1654,9 +1659,19 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       onRefresh();
     } else {
       // OFFLINE: Registrar exclusão no IndexedDB
-      if (dbReady && !id.startsWith('offline_')) {
+      if (id.startsWith('offline_')) {
+        // Se é um item offline, apenas remover do cache local
+        if (dbReady) {
+          await deleteItem(STORES_NAMES.APARTACOES, id);
+          // Remover lotes vinculados do cache
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+          for (const l of lotesVinculados) {
+            await deleteItem(STORES_NAMES.LOTES, l.id);
+          }
+        }
+      } else if (dbReady) {
         await saveApartacaoOffline('delete', { id });
-      } else if (!dbReady && !id.startsWith('offline_')) {
+      } else {
         const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
         pending.push({ action: 'delete', id, timestamp: Date.now() });
         localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
@@ -1682,9 +1697,14 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       onRefresh();
     } else {
       // OFFLINE: Registrar exclusão no IndexedDB
-      if (dbReady && !id.startsWith('offline_')) {
+      if (id.startsWith('offline_')) {
+        // Se é um item offline, apenas remover do cache local
+        if (dbReady) {
+          await deleteItem(STORES_NAMES.LOTES, id);
+        }
+      } else if (dbReady) {
         await saveLoteOffline('delete', { id });
-      } else if (!dbReady && !id.startsWith('offline_')) {
+      } else {
         const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
         pending.push({ action: 'delete', id, timestamp: Date.now() });
         localStorage.setItem('pending_lotes', JSON.stringify(pending));

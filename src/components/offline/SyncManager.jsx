@@ -40,8 +40,15 @@ export const syncPesagens = async (empresaId) => {
 
   for (const pesagem of pending) {
     try {
-      const { _offlineId, _offlineTimestamp, _synced, ...data } = pesagem;
-      await base44.entities.PesagemIndividual.create(data);
+      const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
+      
+      // Verificar se é uma edição ou criação
+      if (_action === 'update' && _editId) {
+        await base44.entities.PesagemIndividual.update(_editId, data);
+      } else {
+        await base44.entities.PesagemIndividual.create(data);
+      }
+      
       await deletePendingPesagem(_offlineId);
       successCount++;
     } catch (error) {
