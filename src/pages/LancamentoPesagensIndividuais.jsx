@@ -31,14 +31,8 @@ import {
   deletePendingPesagem,
   cachePesagens,
   getCachedPesagens,
-  saveApartacaoOffline,
-  getPendingApartacoes,
-  deletePendingApartacao,
   cacheApartacoes,
   getCachedApartacoes,
-  saveLoteOffline,
-  getPendingLotes,
-  deletePendingLote,
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
@@ -46,6 +40,7 @@ import {
   putItem,
   deleteItem,
   clearStore,
+  getAllItems,
   STORES_NAMES,
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
