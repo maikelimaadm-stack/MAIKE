@@ -434,6 +434,20 @@ export default function LancamentoPesagensIndividuais() {
       : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
+  // ========== VALORES ÚNICOS PARA AUTOCOMPLETE ==========
+  const marcasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort(),
+    [pesagens]
+  );
+  const racasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort(),
+    [pesagens]
+  );
+  const erasExistentes = useMemo(() => 
+    [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort(),
+    [pesagens]
+  );
+
   // ========== LOTES DA APARTAÇÃO SELECIONADA ==========
   const lotesApartacaoAtual = useMemo(() => {
     if (!apartacaoSelecionada) return [];
