@@ -1305,6 +1305,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   }, [lotes, apartacaoIdLote]);
 
   const salvarApartacao = async () => {
+    // Evitar cliques duplos
+    if (isSaving) return;
+    
     if (!nomeApartacao.trim()) { 
       toast.error("Nome obrigatório"); 
       return; 
@@ -1385,6 +1388,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const salvarLote = async () => {
+    // Evitar cliques duplos
+    if (isSaving) return;
+    
     if (!apartacaoIdLote) { 
       toast.error("Selecione uma apartação"); 
       return; 
@@ -1571,7 +1577,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   />
                 </div>
                 <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}
+                  {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
                 </Button>
                 {editingApartacaoId && (
                   <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
@@ -1662,7 +1668,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                 </div>
                 <div className="flex gap-1">
                   <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
-                    <Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}
+                    {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
                   </Button>
                   {editingLoteId && (
                     <Button variant="outline" size="sm" className="h-9" onClick={() => { 
