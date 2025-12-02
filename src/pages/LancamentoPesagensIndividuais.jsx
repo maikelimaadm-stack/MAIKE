@@ -42,6 +42,7 @@ import {
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
+  clearAllPending,
   putItem,
   deleteItem,
   clearStore,
@@ -921,12 +922,16 @@ export default function LancamentoPesagensIndividuais() {
                 toast.error("Precisa estar online para limpar cache");
                 return;
               }
-              if (confirm("Limpar cache local e recarregar dados do servidor?")) {
+              if (confirm("Limpar cache local, filas pendentes e recarregar dados do servidor?")) {
                 try {
+                  // Limpar tudo: cache e filas pendentes
                   await clearStore(STORES_NAMES.PESAGENS);
                   await clearStore(STORES_NAMES.APARTACOES);
                   await clearStore(STORES_NAMES.LOTES);
-                  toast.success("Cache limpo!");
+                  await clearAllPending();
+                  setPendingPesagensDB([]);
+                  setPendingCount(0);
+                  toast.success("Cache e filas limpos!");
                   await loadAllData();
                 } catch (e) {
                   toast.error("Erro ao limpar cache");

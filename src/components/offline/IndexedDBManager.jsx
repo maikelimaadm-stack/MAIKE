@@ -299,6 +299,15 @@ export const getPendingCounts = async () => {
   };
 };
 
+// Limpar todas as filas pendentes
+export const clearAllPending = async () => {
+  await Promise.all([
+    clearStore(STORES.PENDING_PESAGENS),
+    clearStore(STORES.PENDING_APARTACOES),
+    clearStore(STORES.PENDING_LOTES),
+  ]);
+};
+
 export const STORES_NAMES = STORES;
 
 export default {
@@ -327,5 +336,6 @@ export default {
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
+  clearAllPending,
   STORES_NAMES,
 };
