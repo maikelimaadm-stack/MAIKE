@@ -42,6 +42,8 @@ import {
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
+  putItem,
+  STORES_NAMES,
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
@@ -572,11 +574,25 @@ export default function LancamentoPesagensIndividuais() {
         await base44.entities.PesagemIndividual.create(data);
         toast.success('✓ Salvo!');
         await loadAllData();
-      } else if (navigator.onLine && editingId) {
-        await base44.entities.PesagemIndividual.update(editingId, data);
-        toast.success('✓ Atualizado!');
-        await loadAllData();
-      } else {
+      } else if (editingId) {
+        // Edição - funciona online e offline
+        if (navigator.onLine) {
+          await base44.entities.PesagemIndividual.update(editingId, data);
+          toast.success('✓ Atualizado!');
+          await loadAllData();
+        } else {
+          // Salvar edição offline
+          if (dbReady) {
+            await savePesagemOffline({ ...data, _editId: editingId, _action: 'update' });
+            // Atualizar cache local
+            const pesagemAtualizada = { ...data, id: editingId };
+            await putItem(STORES_NAMES.PESAGENS, pesagemAtualizada);
+          }
+          await updatePendingCount();
+          toast.success('💾 Atualizado offline');
+          await loadAllData();
+        }
+      } else if (!navigator.onLine) {
         // Salvar no IndexedDB (persistente mesmo fechando o navegador)
         if (dbReady) {
           await savePesagemOffline(data);
@@ -1045,8 +1061,8 @@ export default function LancamentoPesagensIndividuais() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start">
-                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId || !navigator.onLine}>
-                                        <Edit2 className="w-3 h-3 mr-2" />Editar {!navigator.onLine && '(online)'}
+                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
+                                        <Edit2 className="w-3 h-3 mr-2" />Editar
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
                                         <Trash2 className="w-3 h-3 mr-2" />Excluir
@@ -1351,10 +1367,12 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
+        const offlineId = `offline_apt_${Date.now()}`;
         const novaApartacao = { 
           ...data, 
-          id: `offline_${Date.now()}`, 
-          created_date: new Date().toISOString() 
+          id: offlineId, 
+          created_date: new Date().toISOString(),
+          _isOffline: true
         };
         
         if (dbReady) {
@@ -1362,6 +1380,8 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
             await saveApartacaoOffline('update', { id: editingApartacaoId, ...data });
           } else {
             await saveApartacaoOffline('create', novaApartacao);
+            // Adicionar ao cache local para exibir imediatamente
+            await putItem(STORES_NAMES.APARTACOES, novaApartacao);
           }
         } else {
           // Fallback localStorage
@@ -1451,10 +1471,12 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
+        const offlineId = `offline_lote_${Date.now()}`;
         const novoLote = { 
           ...data, 
-          id: `offline_${Date.now()}`, 
-          created_date: new Date().toISOString() 
+          id: offlineId, 
+          created_date: new Date().toISOString(),
+          _isOffline: true
         };
         
         if (dbReady) {
@@ -1462,6 +1484,8 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
             await saveLoteOffline('update', { id: editingLoteId, ...data });
           } else {
             await saveLoteOffline('create', novoLote);
+            // Adicionar ao cache local para exibir imediatamente
+            await putItem(STORES_NAMES.LOTES, novoLote);
           }
         } else {
           // Fallback localStorage
@@ -1576,10 +1600,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                     placeholder="Ex: ROTINA" 
                   />
                 </div>
-                <Button onClick={salvarApartacao} disabled={isSaving || !navigator.onLine} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
                   {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
                 </Button>
-                {!navigator.onLine && <span className="text-[10px] text-amber-600 ml-2">⚠️ Apenas online</span>}
                 {editingApartacaoId && (
                   <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
                     Cancelar
@@ -1668,10 +1691,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="flex gap-1">
-                  <Button onClick={salvarLote} disabled={isSaving || !navigator.onLine} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
                     {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
                   </Button>
-                  {!navigator.onLine && <span className="text-[10px] text-amber-600 ml-1">⚠️ Online</span>}
                   {editingLoteId && (
                     <Button variant="outline" size="sm" className="h-9" onClick={() => { 
                       setEditingLoteId(null); 
