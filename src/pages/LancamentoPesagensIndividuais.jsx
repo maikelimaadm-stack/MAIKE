@@ -1511,24 +1511,49 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     const data = { empresa_id: empresaId, nome_apartacao: nomeApartacao.trim() };
 
     try {
-      if (editingApartacaoId) {
-        await base44.entities.Apartacao.update(editingApartacaoId, data);
+      if (navigator.onLine) {
+        // ONLINE: Salvar no servidor
+        if (editingApartacaoId) {
+          await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-        const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
-        for (const p of pesagensVinculadas) {
-          await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+          const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === editingApartacaoId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+
+          const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
+          for (const l of lotesVinculados) {
+            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+          }
+
+          toast.success("Apartação atualizada!");
+        } else {
+          await base44.entities.Apartacao.create(data);
+          toast.success("Apartação criada!");
         }
-
-        const lotesVinculados = lotes.filter(l => l.apartacao_id === editingApartacaoId);
-        for (const l of lotesVinculados) {
-          await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-        }
-
-        toast.success("Apartação atualizada!");
       } else {
-        await base44.entities.Apartacao.create(data);
-        toast.success("Apartação criada!");
+        // OFFLINE: Salvar no cache local (IndexedDB)
+        if (editingApartacaoId) {
+          toast.error("Edição de apartação requer conexão");
+          setIsSaving(false);
+          return;
+        }
+        
+        const offlineId = `offline_apt_${Date.now()}`;
+        const apartacaoOffline = { 
+          ...data, 
+          id: offlineId,
+          _isOffline: true,
+          _offlineTimestamp: new Date().toISOString()
+        };
+        
+        if (dbReady) {
+          await putItem(STORES_NAMES.APARTACOES, apartacaoOffline);
+        }
+        
+        toast.success("💾 Apartação salva offline!");
       }
+      
       setNomeApartacao(""); 
       setEditingApartacaoId(null);
       onRefresh();
@@ -1586,19 +1611,44 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     };
 
     try {
-      if (editingLoteId) {
-        await base44.entities.LoteApartacao.update(editingLoteId, data);
+      if (navigator.onLine) {
+        // ONLINE: Salvar no servidor
+        if (editingLoteId) {
+          await base44.entities.LoteApartacao.update(editingLoteId, data);
 
-        const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
-        for (const p of pesagensVinculadas) {
-          await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+          const pesagensVinculadas = pesagens.filter(p => p.lote_id === editingLoteId);
+          for (const p of pesagensVinculadas) {
+            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
+          }
+
+          toast.success("Lote atualizado!");
+        } else {
+          await base44.entities.LoteApartacao.create(data);
+          toast.success("Lote criado!");
         }
-
-        toast.success("Lote atualizado!");
       } else {
-        await base44.entities.LoteApartacao.create(data);
-        toast.success("Lote criado!");
+        // OFFLINE: Salvar no cache local (IndexedDB)
+        if (editingLoteId) {
+          toast.error("Edição de lote requer conexão");
+          setIsSaving(false);
+          return;
+        }
+        
+        const offlineId = `offline_lote_${Date.now()}`;
+        const loteOffline = { 
+          ...data, 
+          id: offlineId,
+          _isOffline: true,
+          _offlineTimestamp: new Date().toISOString()
+        };
+        
+        if (dbReady) {
+          await putItem(STORES_NAMES.LOTES, loteOffline);
+        }
+        
+        toast.success("💾 Lote salvo offline!");
       }
+      
       setNomeLote(""); 
       setQtdMaxima("500"); 
       setPesoMinimo(""); 
