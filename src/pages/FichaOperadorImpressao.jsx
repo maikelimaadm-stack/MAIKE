@@ -96,7 +96,7 @@ export default function FichaOperadorImpressao() {
                 return (
                   <div 
                     key={fichaIndex} 
-                    className="border border-dashed border-black p-2 relative"
+                    className="border border-dashed border-black p-2 flex flex-col"
                     style={{ height: alturaFicha }}
                   >
                     {/* Cabeçalho */}
@@ -109,25 +109,31 @@ export default function FichaOperadorImpressao() {
                     </div>
 
                     {/* Todas as linhas com label inline */}
-                    <div className="text-[10px] text-black space-y-0.5">
+                    <div className="text-[10px] text-black space-y-0.5 flex-1">
                       <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-12 flex-shrink-0">DATA:</span>
-                        <span className="flex-1 border-l border-black pl-1"></span>
-                        <span className="font-bold w-20 flex-shrink-0 border-l border-black pl-1">OPERADOR:</span>
-                        <span className="flex-1 border-l border-black pl-1"></span>
-                      </div>
-                      
-                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
-                        <span className="font-bold w-20 flex-shrink-0">OPERAÇÃO:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                         <span className="font-bold w-12 flex-shrink-0 border-l border-black pl-1">ÁREA:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
                       <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
+                        <span className="font-bold w-20 flex-shrink-0">OPERADOR:</span>
+                        <span className="flex-1 border-l border-black pl-1"></span>
+                      </div>
+                      
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
+                        <span className="font-bold w-20 flex-shrink-0">OPERAÇÃO:</span>
+                        <span className="flex-1 border-l border-black pl-1"></span>
+                      </div>
+                      
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
                         <span className="font-bold w-20 flex-shrink-0">MÁQUINA:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
-                        <span className="font-bold w-24 flex-shrink-0 border-l border-black pl-1">IMPLEMENTO:</span>
+                      </div>
+                      
+                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
+                        <span className="font-bold w-24 flex-shrink-0">IMPLEMENTO:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
@@ -147,7 +153,7 @@ export default function FichaOperadorImpressao() {
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
                       
-                      <div className="flex border-b border-black" style={{ minHeight: '25px' }}>
+                      <div className="flex border-b border-black" style={{ minHeight: '40px' }}>
                         <span className="font-bold w-24 flex-shrink-0">PRODUTO/QTD:</span>
                         <span className="flex-1 border-l border-black pl-1"></span>
                       </div>
@@ -158,8 +164,8 @@ export default function FichaOperadorImpressao() {
                       </div>
                     </div>
 
-                    {/* Assinaturas */}
-                    <div className="flex justify-between mt-2 pt-1">
+                    {/* Assinaturas - posicionadas mais abaixo */}
+                    <div className="flex justify-between pt-2 mt-auto">
                       <div className="text-center flex-1">
                         <div className="border-t border-black mx-2">
                           <span className="text-[9px] text-black font-bold">Operador</span>
