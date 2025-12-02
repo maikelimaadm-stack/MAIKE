@@ -49,9 +49,11 @@ import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
   try {
-    const date = new Date(dataString);
-    if (isNaN(date.getTime())) return '--/--/----';
-    return format(date, "dd/MM/yyyy", { locale: ptBR });
+    // Evitar problema de fuso horário: usar apenas a parte da data
+    const dataStr = dataString.split('T')[0];
+    const [ano, mes, dia] = dataStr.split('-');
+    if (!ano || !mes || !dia) return '--/--/----';
+    return `${dia}/${mes}/${ano}`;
   } catch { return '--/--/----'; }
 };
 
