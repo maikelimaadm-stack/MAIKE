@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -174,6 +174,9 @@ export default function Layout({ children, currentPageName }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
   const isChangingEmpresa = useRef(false);
+  const [menuOculto, setMenuOculto] = useState(() => {
+    return localStorage.getItem('menu_oculto') === 'true';
+  });
 
   // Prevenir tradução automática do navegador
   React.useEffect(() => {
@@ -419,6 +422,20 @@ export default function Layout({ children, currentPageName }) {
                 </Select>
               )}
 
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={() => {
+                  const novoEstado = !menuOculto;
+                  setMenuOculto(novoEstado);
+                  localStorage.setItem('menu_oculto', novoEstado.toString());
+                }}
+                title={menuOculto ? "Mostrar menu" : "Ocultar menu"}
+              >
+                {menuOculto ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
+              </Button>
+
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
                 <Search className="w-4 h-4 text-slate-600" />
               </Button>
@@ -555,7 +572,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </div>
 
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
