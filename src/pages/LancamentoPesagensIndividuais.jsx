@@ -180,6 +180,18 @@ export default function LancamentoPesagensIndividuais() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dbReady, setDbReady] = useState(false);
+  
+  // Estado do dialog de sincronização
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncState, setSyncState] = useState({
+    isRunning: false,
+    currentStep: 0,
+    totalSteps: 0,
+    currentItem: '',
+    items: [],
+    completed: false,
+    errors: 0
+  });
 
   // Refs para navegação rápida
   const numeroInputRef = useRef(null);
