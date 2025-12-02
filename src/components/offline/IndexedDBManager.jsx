@@ -1,15 +1,12 @@
-// IndexedDB Manager para persistência offline
-const DB_NAME = 'pesagens_offline_db';
+// IndexedDB Manager - VERSÃO SIMPLIFICADA
+const DB_NAME = 'pesagens_offline_v2';
 const DB_VERSION = 1;
 
 const STORES = {
-  PESAGENS: 'pesagens_individuais',
-  APARTACOES: 'apartacoes',
-  LOTES: 'lotes_apartacao',
-  PENDING_PESAGENS: 'pending_pesagens',
-  PENDING_APARTACOES: 'pending_apartacoes',
-  PENDING_LOTES: 'pending_lotes',
-  SYNC_QUEUE: 'sync_queue',
+  PESAGENS_CACHE: 'pesagens_cache',
+  APARTACOES_CACHE: 'apartacoes_cache',
+  LOTES_CACHE: 'lotes_cache',
+  PENDING_SYNC: 'pending_sync', // Fila única de sincronização
 };
 
 let db = null;
@@ -23,325 +20,308 @@ export const initDB = () => {
 
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => {
-      console.error('Erro ao abrir IndexedDB:', request.error);
-      reject(request.error);
-    };
+    request.onerror = () => reject(request.error);
 
     request.onsuccess = () => {
       db = request.result;
-      console.log('IndexedDB inicializado com sucesso');
+      console.log('IndexedDB OK');
       resolve(db);
     };
 
     request.onupgradeneeded = (event) => {
       const database = event.target.result;
 
-      // Store para pesagens sincronizadas
-      if (!database.objectStoreNames.contains(STORES.PESAGENS)) {
-        const pesagensStore = database.createObjectStore(STORES.PESAGENS, { keyPath: 'id' });
-        pesagensStore.createIndex('empresa_id', 'empresa_id', { unique: false });
-        pesagensStore.createIndex('data_pesagem', 'data_pesagem', { unique: false });
+      // Cache de pesagens (dados do servidor)
+      if (!database.objectStoreNames.contains(STORES.PESAGENS_CACHE)) {
+        database.createObjectStore(STORES.PESAGENS_CACHE, { keyPath: 'id' });
       }
 
-      // Store para apartações sincronizadas
-      if (!database.objectStoreNames.contains(STORES.APARTACOES)) {
-        const apartacoesStore = database.createObjectStore(STORES.APARTACOES, { keyPath: 'id' });
-        apartacoesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+      // Cache de apartações
+      if (!database.objectStoreNames.contains(STORES.APARTACOES_CACHE)) {
+        database.createObjectStore(STORES.APARTACOES_CACHE, { keyPath: 'id' });
       }
 
-      // Store para lotes sincronizados
-      if (!database.objectStoreNames.contains(STORES.LOTES)) {
-        const lotesStore = database.createObjectStore(STORES.LOTES, { keyPath: 'id' });
-        lotesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
-        lotesStore.createIndex('apartacao_id', 'apartacao_id', { unique: false });
+      // Cache de lotes
+      if (!database.objectStoreNames.contains(STORES.LOTES_CACHE)) {
+        database.createObjectStore(STORES.LOTES_CACHE, { keyPath: 'id' });
       }
 
-      // Store para pesagens pendentes (offline)
-      if (!database.objectStoreNames.contains(STORES.PENDING_PESAGENS)) {
-        const pendingPesagensStore = database.createObjectStore(STORES.PENDING_PESAGENS, { keyPath: '_offlineId', autoIncrement: true });
-        pendingPesagensStore.createIndex('empresa_id', 'empresa_id', { unique: false });
-        pendingPesagensStore.createIndex('data_pesagem', 'data_pesagem', { unique: false });
-      }
-
-      // Store para apartações pendentes (offline)
-      if (!database.objectStoreNames.contains(STORES.PENDING_APARTACOES)) {
-        const pendingApartacoesStore = database.createObjectStore(STORES.PENDING_APARTACOES, { keyPath: '_offlineId', autoIncrement: true });
-        pendingApartacoesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
-        pendingApartacoesStore.createIndex('action', 'action', { unique: false });
-      }
-
-      // Store para lotes pendentes (offline)
-      if (!database.objectStoreNames.contains(STORES.PENDING_LOTES)) {
-        const pendingLotesStore = database.createObjectStore(STORES.PENDING_LOTES, { keyPath: '_offlineId', autoIncrement: true });
-        pendingLotesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
-        pendingLotesStore.createIndex('action', 'action', { unique: false });
-      }
-
-      // Store para fila de sincronização geral
-      if (!database.objectStoreNames.contains(STORES.SYNC_QUEUE)) {
-        const syncStore = database.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
+      // Fila de sincronização única
+      if (!database.objectStoreNames.contains(STORES.PENDING_SYNC)) {
+        const syncStore = database.createObjectStore(STORES.PENDING_SYNC, { keyPath: 'syncId' });
         syncStore.createIndex('type', 'type', { unique: false });
-        syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+        syncStore.createIndex('synced', 'synced', { unique: false });
       }
     };
   });
 };
 
-// Funções genéricas CRUD
-export const addItem = async (storeName, item) => {
+// ========== FUNÇÕES GENÉRICAS ==========
+const getStore = async (storeName, mode = 'readonly') => {
   const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.add(item);
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  const transaction = database.transaction(storeName, mode);
+  return transaction.objectStore(storeName);
 };
 
 export const putItem = async (storeName, item) => {
-  const database = await initDB();
+  const store = await getStore(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
     const request = store.put(item);
-
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 };
 
 export const getItem = async (storeName, key) => {
-  const database = await initDB();
+  const store = await getStore(storeName, 'readonly');
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
     const request = store.get(key);
-
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 };
 
 export const getAllItems = async (storeName) => {
-  const database = await initDB();
+  const store = await getStore(storeName, 'readonly');
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
     const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = () => reject(request.error);
-  });
-};
-
-export const getItemsByIndex = async (storeName, indexName, value) => {
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
-    const index = store.index(indexName);
-    const request = index.getAll(value);
-
     request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 };
 
 export const deleteItem = async (storeName, key) => {
-  const database = await initDB();
+  const store = await getStore(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
     const request = store.delete(key);
-
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 };
 
 export const clearStore = async (storeName) => {
-  const database = await initDB();
+  const store = await getStore(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
     const request = store.clear();
-
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 };
 
-export const bulkPut = async (storeName, items) => {
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-
-    let completed = 0;
-    let errors = [];
-
-    items.forEach(item => {
-      const request = store.put(item);
-      request.onsuccess = () => {
-        completed++;
-        if (completed === items.length) {
-          resolve({ success: true, errors });
-        }
-      };
-      request.onerror = () => {
-        errors.push(request.error);
-        completed++;
-        if (completed === items.length) {
-          resolve({ success: errors.length === 0, errors });
-        }
-      };
-    });
-
-    if (items.length === 0) resolve({ success: true, errors: [] });
-  });
+// ========== GERAR ID ÚNICO ==========
+const generateUniqueId = (prefix) => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  return `${prefix}_${timestamp}_${random}`;
 };
 
-// Funções específicas para Pesagens
+// ========== PESAGENS ==========
 export const savePesagemOffline = async (pesagem) => {
+  const syncId = generateUniqueId('pesagem');
   const item = {
-    ...pesagem,
-    _offlineTimestamp: new Date().toISOString(),
-    _synced: false,
+    syncId,
+    type: 'pesagem',
+    action: pesagem._action || 'create',
+    editId: pesagem._editId || null,
+    data: pesagem,
+    synced: false,
+    createdAt: new Date().toISOString(),
   };
-  return addItem(STORES.PENDING_PESAGENS, item);
+  await putItem(STORES.PENDING_SYNC, item);
+  return syncId;
 };
 
 export const getPendingPesagens = async (empresaId) => {
-  const all = await getAllItems(STORES.PENDING_PESAGENS);
-  return all.filter(p => p.empresa_id === empresaId);
+  const all = await getAllItems(STORES.PENDING_SYNC);
+  return all
+    .filter(item => item.type === 'pesagem' && !item.synced && item.data.empresa_id === empresaId)
+    .map(item => ({ ...item.data, _syncId: item.syncId, _action: item.action, _editId: item.editId }));
 };
 
-export const deletePendingPesagem = async (offlineId) => {
-  return deleteItem(STORES.PENDING_PESAGENS, offlineId);
+export const deletePendingPesagem = async (syncId) => {
+  await deleteItem(STORES.PENDING_SYNC, syncId);
 };
 
+export const markPesagemSynced = async (syncId) => {
+  const item = await getItem(STORES.PENDING_SYNC, syncId);
+  if (item) {
+    item.synced = true;
+    await putItem(STORES.PENDING_SYNC, item);
+  }
+};
+
+// ========== CACHE DE PESAGENS ==========
 export const cachePesagens = async (pesagens) => {
-  return bulkPut(STORES.PESAGENS, pesagens);
+  await clearStore(STORES.PESAGENS_CACHE);
+  for (const p of pesagens) {
+    await putItem(STORES.PESAGENS_CACHE, p);
+  }
 };
 
 export const getCachedPesagens = async (empresaId) => {
-  return getItemsByIndex(STORES.PESAGENS, 'empresa_id', empresaId);
+  const all = await getAllItems(STORES.PESAGENS_CACHE);
+  return all.filter(p => p.empresa_id === empresaId);
 };
 
-// Funções específicas para Apartações
-export const saveApartacaoOffline = async (action, data) => {
+// ========== APARTAÇÕES ==========
+export const saveApartacaoOffline = async (apartacao) => {
+  const offlineId = generateUniqueId('apt');
   const item = {
-    action,
-    data,
-    _offlineTimestamp: new Date().toISOString(),
+    ...apartacao,
+    id: offlineId,
+    _isOffline: true,
   };
-  return addItem(STORES.PENDING_APARTACOES, item);
-};
-
-export const getPendingApartacoes = async () => {
-  return getAllItems(STORES.PENDING_APARTACOES);
-};
-
-export const deletePendingApartacao = async (offlineId) => {
-  return deleteItem(STORES.PENDING_APARTACOES, offlineId);
+  await putItem(STORES.APARTACOES_CACHE, item);
+  
+  // Também salvar na fila de sync
+  const syncItem = {
+    syncId: offlineId,
+    type: 'apartacao',
+    action: 'create',
+    data: apartacao,
+    synced: false,
+    createdAt: new Date().toISOString(),
+  };
+  await putItem(STORES.PENDING_SYNC, syncItem);
+  
+  return offlineId;
 };
 
 export const cacheApartacoes = async (apartacoes) => {
-  return bulkPut(STORES.APARTACOES, apartacoes);
+  // Manter apartações offline, substituir as do servidor
+  const current = await getAllItems(STORES.APARTACOES_CACHE);
+  const offlineOnes = current.filter(a => a._isOffline);
+  
+  await clearStore(STORES.APARTACOES_CACHE);
+  
+  for (const a of apartacoes) {
+    await putItem(STORES.APARTACOES_CACHE, a);
+  }
+  
+  // Re-adicionar offline que ainda não foram sincronizadas
+  for (const a of offlineOnes) {
+    const stillPending = await getItem(STORES.PENDING_SYNC, a.id);
+    if (stillPending && !stillPending.synced) {
+      await putItem(STORES.APARTACOES_CACHE, a);
+    }
+  }
 };
 
 export const getCachedApartacoes = async (empresaId) => {
-  return getItemsByIndex(STORES.APARTACOES, 'empresa_id', empresaId);
+  const all = await getAllItems(STORES.APARTACOES_CACHE);
+  return all.filter(a => a.empresa_id === empresaId);
 };
 
-// Funções específicas para Lotes
-export const saveLoteOffline = async (action, data) => {
+// ========== LOTES ==========
+export const saveLoteOffline = async (lote) => {
+  const offlineId = generateUniqueId('lote');
   const item = {
-    action,
-    data,
-    _offlineTimestamp: new Date().toISOString(),
+    ...lote,
+    id: offlineId,
+    _isOffline: true,
   };
-  return addItem(STORES.PENDING_LOTES, item);
-};
-
-export const getPendingLotes = async () => {
-  return getAllItems(STORES.PENDING_LOTES);
-};
-
-export const deletePendingLote = async (offlineId) => {
-  return deleteItem(STORES.PENDING_LOTES, offlineId);
+  await putItem(STORES.LOTES_CACHE, item);
+  
+  // Também salvar na fila de sync
+  const syncItem = {
+    syncId: offlineId,
+    type: 'lote',
+    action: 'create',
+    data: lote,
+    synced: false,
+    createdAt: new Date().toISOString(),
+  };
+  await putItem(STORES.PENDING_SYNC, syncItem);
+  
+  return offlineId;
 };
 
 export const cacheLotes = async (lotes) => {
-  return bulkPut(STORES.LOTES, lotes);
+  // Manter lotes offline, substituir os do servidor
+  const current = await getAllItems(STORES.LOTES_CACHE);
+  const offlineOnes = current.filter(l => l._isOffline);
+  
+  await clearStore(STORES.LOTES_CACHE);
+  
+  for (const l of lotes) {
+    await putItem(STORES.LOTES_CACHE, l);
+  }
+  
+  // Re-adicionar offline que ainda não foram sincronizadas
+  for (const l of offlineOnes) {
+    const stillPending = await getItem(STORES.PENDING_SYNC, l.id);
+    if (stillPending && !stillPending.synced) {
+      await putItem(STORES.LOTES_CACHE, l);
+    }
+  }
 };
 
 export const getCachedLotes = async (empresaId) => {
-  return getItemsByIndex(STORES.LOTES, 'empresa_id', empresaId);
+  const all = await getAllItems(STORES.LOTES_CACHE);
+  return all.filter(l => l.empresa_id === empresaId);
 };
 
-// Função para obter contagem de pendentes
+// ========== CONTAGEM DE PENDENTES ==========
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes, cachedApt, cachedLotes] = await Promise.all([
-    getAllItems(STORES.PENDING_PESAGENS),
-    getAllItems(STORES.PENDING_APARTACOES),
-    getAllItems(STORES.PENDING_LOTES),
-    getAllItems(STORES.APARTACOES),
-    getAllItems(STORES.LOTES),
-  ]);
-
-  // Contar também apartações e lotes offline no cache
-  const offlineApartacoes = cachedApt.filter(a => a._isOffline);
-  const offlineLotes = cachedLotes.filter(l => l._isOffline);
-
+  const all = await getAllItems(STORES.PENDING_SYNC);
+  const pending = all.filter(item => !item.synced);
+  
+  const pesagens = pending.filter(p => p.type === 'pesagem').length;
+  const apartacoes = pending.filter(p => p.type === 'apartacao').length;
+  const lotes = pending.filter(p => p.type === 'lote').length;
+  
   return {
-    pesagens: pesagens.length,
-    apartacoes: apartacoes.length + offlineApartacoes.length,
-    lotes: lotes.length + offlineLotes.length,
-    total: pesagens.length + apartacoes.length + lotes.length + offlineApartacoes.length + offlineLotes.length,
+    pesagens,
+    apartacoes,
+    lotes,
+    total: pesagens + apartacoes + lotes,
   };
 };
 
-// Limpar todas as filas pendentes
+// ========== LIMPAR TUDO ==========
 export const clearAllPending = async () => {
+  await clearStore(STORES.PENDING_SYNC);
+};
+
+export const clearAllCache = async () => {
   await Promise.all([
-    clearStore(STORES.PENDING_PESAGENS),
-    clearStore(STORES.PENDING_APARTACOES),
-    clearStore(STORES.PENDING_LOTES),
+    clearStore(STORES.PESAGENS_CACHE),
+    clearStore(STORES.APARTACOES_CACHE),
+    clearStore(STORES.LOTES_CACHE),
+    clearStore(STORES.PENDING_SYNC),
   ]);
+};
+
+// ========== OBTER TODOS PENDENTES ==========
+export const getAllPending = async () => {
+  const all = await getAllItems(STORES.PENDING_SYNC);
+  return all.filter(item => !item.synced);
 };
 
 export const STORES_NAMES = STORES;
 
 export default {
   initDB,
-  addItem,
   putItem,
   getItem,
   getAllItems,
-  getItemsByIndex,
   deleteItem,
   clearStore,
-  bulkPut,
   savePesagemOffline,
   getPendingPesagens,
   deletePendingPesagem,
+  markPesagemSynced,
   cachePesagens,
   getCachedPesagens,
   saveApartacaoOffline,
-  getPendingApartacoes,
-  deletePendingApartacao,
   cacheApartacoes,
   getCachedApartacoes,
   saveLoteOffline,
-  getPendingLotes,
-  deletePendingLote,
   cacheLotes,
   getCachedLotes,
   getPendingCounts,
   clearAllPending,
+  clearAllCache,
+  getAllPending,
   STORES_NAMES,
 };

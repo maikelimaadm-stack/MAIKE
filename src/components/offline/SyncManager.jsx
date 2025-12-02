@@ -1,21 +1,17 @@
-// Sync Manager - Gerencia sincronização de dados offline
-// VERSÃO SIMPLIFICADA - Evita duplicações
+// Sync Manager - VERSÃO SIMPLIFICADA SEM DUPLICAÇÃO
 import { base44 } from '@/api/base44Client';
 import {
-  getPendingPesagens,
-  deletePendingPesagem,
+  getAllPending,
+  deleteItem,
   cachePesagens,
   cacheApartacoes,
   cacheLotes,
-  getPendingCounts,
-  getAllItems,
-  clearStore,
+  clearAllCache,
   STORES_NAMES,
 } from './IndexedDBManager';
 
 let syncInProgress = false;
 let syncListeners = [];
-const processedIds = new Set(); // Evitar duplicação
 
 export const addSyncListener = (listener) => {
   syncListeners.push(listener);
@@ -26,104 +22,8 @@ export const addSyncListener = (listener) => {
 
 const notifyListeners = (event) => {
   syncListeners.forEach(listener => {
-    try {
-      listener(event);
-    } catch (e) {
-      console.error('Erro no listener:', e);
-    }
+    try { listener(event); } catch (e) { console.error(e); }
   });
-};
-
-export const syncPesagens = async (empresaId) => {
-  const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
-  const pending = allPending.filter(p => p.empresa_id === empresaId);
-  
-  if (pending.length === 0) {
-    return { successCount: 0, errors: [], total: 0 };
-  }
-  
-  let successCount = 0;
-  const errors = [];
-
-  for (const pesagem of pending) {
-    const offlineId = pesagem._offlineId;
-    
-    // Evitar processar o mesmo ID duas vezes
-    if (processedIds.has(offlineId)) {
-      await deletePendingPesagem(offlineId);
-      continue;
-    }
-    processedIds.add(offlineId);
-    
-    try {
-      const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
-      
-      if (_action === 'update' && _editId) {
-        await base44.entities.PesagemIndividual.update(_editId, data);
-      } else {
-        await base44.entities.PesagemIndividual.create(data);
-      }
-      
-      successCount++;
-      await deletePendingPesagem(offlineId);
-    } catch (error) {
-      console.error('Erro sync pesagem:', error);
-      errors.push({ error: error.message });
-      // Remover mesmo com erro para não ficar tentando infinitamente
-      await deletePendingPesagem(offlineId);
-    }
-  }
-
-  return { successCount, errors, total: pending.length };
-};
-
-// Sincronizar apartações e lotes offline para o servidor
-export const syncOfflineEntities = async (empresaId) => {
-  let successCount = 0;
-  const idMap = {};
-
-  // Buscar apartações offline do cache
-  const cachedApartacoes = await getAllItems(STORES_NAMES.APARTACOES);
-  const offlineApartacoes = cachedApartacoes.filter(a => 
-    a.empresa_id === empresaId && a._isOffline && a.id?.startsWith('offline_')
-  );
-
-  // Criar apartações no servidor
-  for (const apt of offlineApartacoes) {
-    try {
-      const { id, _isOffline, _offlineTimestamp, ...data } = apt;
-      const created = await base44.entities.Apartacao.create(data);
-      idMap[id] = created.id; // Mapear ID offline -> ID real
-      successCount++;
-    } catch (e) {
-      console.error('Erro ao sincronizar apartação:', e);
-    }
-  }
-
-  // Buscar lotes offline do cache
-  const cachedLotes = await getAllItems(STORES_NAMES.LOTES);
-  const offlineLotes = cachedLotes.filter(l => 
-    l.empresa_id === empresaId && l._isOffline && l.id?.startsWith('offline_')
-  );
-
-  // Criar lotes no servidor (atualizando apartacao_id se necessário)
-  for (const lote of offlineLotes) {
-    try {
-      const { id, _isOffline, _offlineTimestamp, ...data } = lote;
-      
-      // Atualizar apartacao_id se era offline
-      if (data.apartacao_id && idMap[data.apartacao_id]) {
-        data.apartacao_id = idMap[data.apartacao_id];
-      }
-      
-      await base44.entities.LoteApartacao.create(data);
-      successCount++;
-    } catch (e) {
-      console.error('Erro ao sincronizar lote:', e);
-    }
-  }
-
-  return { successCount, idMap };
 };
 
 export const syncAll = async (empresaId) => {
@@ -136,33 +36,99 @@ export const syncAll = async (empresaId) => {
   }
 
   syncInProgress = true;
-  processedIds.clear(); // Limpar IDs processados
   notifyListeners({ type: 'start' });
 
+  let successCount = 0;
+  const errors = [];
+  const apartacaoIdMap = {}; // Mapeia ID offline -> ID real
+
   try {
-    // 1. Sincronizar apartações e lotes offline
-    notifyListeners({ type: 'progress', entity: 'apartacoes_lotes' });
-    const entitiesResult = await syncOfflineEntities(empresaId);
+    const pending = await getAllPending();
+    
+    // Ordenar: apartações primeiro, depois lotes, depois pesagens
+    const sorted = pending.sort((a, b) => {
+      const order = { apartacao: 1, lote: 2, pesagem: 3 };
+      return (order[a.type] || 99) - (order[b.type] || 99);
+    });
 
-    // 2. Sincronizar pesagens pendentes
-    notifyListeners({ type: 'progress', entity: 'pesagens' });
-    const pesagensResult = await syncPesagens(empresaId);
+    for (const item of sorted) {
+      try {
+        if (item.type === 'apartacao') {
+          // Criar apartação no servidor
+          const { _isOffline, id, ...data } = item.data;
+          const created = await base44.entities.Apartacao.create({
+            ...data,
+            empresa_id: empresaId,
+          });
+          apartacaoIdMap[item.syncId] = created.id;
+          successCount++;
+        } 
+        else if (item.type === 'lote') {
+          // Criar lote no servidor (atualizar apartacao_id se necessário)
+          const { _isOffline, id, ...data } = item.data;
+          let apartacaoId = data.apartacao_id;
+          
+          // Se apartacao_id é um ID offline, usar o ID real
+          if (apartacaoId && apartacaoIdMap[apartacaoId]) {
+            apartacaoId = apartacaoIdMap[apartacaoId];
+          }
+          
+          await base44.entities.LoteApartacao.create({
+            ...data,
+            apartacao_id: apartacaoId,
+            empresa_id: empresaId,
+          });
+          successCount++;
+        } 
+        else if (item.type === 'pesagem') {
+          // Criar ou atualizar pesagem
+          const { _syncId, _action, _editId, _isOffline, _offlineTimestamp, ...data } = item.data;
+          
+          // Atualizar IDs offline para IDs reais
+          let apartacaoId = data.apartacao_id;
+          if (apartacaoId && apartacaoIdMap[apartacaoId]) {
+            apartacaoId = apartacaoIdMap[apartacaoId];
+          }
+          
+          const pesagemData = {
+            ...data,
+            apartacao_id: apartacaoId,
+          };
+          
+          if (item.action === 'update' && item.editId) {
+            await base44.entities.PesagemIndividual.update(item.editId, pesagemData);
+          } else {
+            await base44.entities.PesagemIndividual.create(pesagemData);
+          }
+          successCount++;
+        }
+        
+        // Remover da fila após sucesso
+        await deleteItem(STORES_NAMES.PENDING_SYNC, item.syncId);
+        
+      } catch (error) {
+        console.error(`Erro ao sincronizar ${item.type}:`, error);
+        errors.push({ type: item.type, error: error.message });
+        // Remover mesmo com erro para não ficar preso
+        await deleteItem(STORES_NAMES.PENDING_SYNC, item.syncId);
+      }
+    }
 
-    // 3. Atualizar cache com dados do servidor
-    notifyListeners({ type: 'progress', entity: 'cache' });
+    // Atualizar cache com dados do servidor
     await refreshCache(empresaId);
-
-    const totalSuccess = pesagensResult.successCount + entitiesResult.successCount;
 
     notifyListeners({ 
       type: 'complete', 
-      success: true,
-      message: totalSuccess > 0 ? `${totalSuccess} sincronizado(s)` : 'Tudo sincronizado'
+      success: errors.length === 0,
+      message: `${successCount} sincronizado(s)`,
+      successCount,
+      errors,
     });
 
-    return { success: true, totalSuccess };
+    return { success: true, successCount, errors };
+    
   } catch (error) {
-    console.error('Erro sync:', error);
+    console.error('Erro geral sync:', error);
     notifyListeners({ type: 'error', error: error.message });
     return { success: false, error: error.message };
   } finally {
@@ -184,7 +150,6 @@ export const refreshCache = async (empresaId) => {
     const apartacoesEmpresa = apartacoes.filter(a => a.empresa_id === empresaId);
     const lotesEmpresa = lotes.filter(l => l.empresa_id === empresaId);
 
-    // Limpar e recarregar cache (substitui dados offline por dados reais)
     await Promise.all([
       cachePesagens(pesagensEmpresa),
       cacheApartacoes(apartacoesEmpresa),
@@ -200,32 +165,20 @@ export const refreshCache = async (empresaId) => {
 
 export const isSyncing = () => syncInProgress;
 
-export const getStatus = async () => {
-  const counts = await getPendingCounts();
-  return {
-    isOnline: navigator.onLine,
-    isSyncing: syncInProgress,
-    pending: counts,
-  };
-};
-
 // Auto-sync quando conexão voltar
 if (typeof window !== 'undefined') {
   window.addEventListener('online', async () => {
-    console.log('Conexão restaurada');
+    console.log('Conexão restaurada - sincronizando...');
     const empresaId = localStorage.getItem('empresa_selecionada_id');
     if (empresaId) {
-      setTimeout(() => syncAll(empresaId), 1000);
+      setTimeout(() => syncAll(empresaId), 2000);
     }
   });
 }
 
 export default {
-  syncPesagens,
-  syncOfflineEntities,
   syncAll,
   refreshCache,
   isSyncing,
-  getStatus,
   addSyncListener,
 };
