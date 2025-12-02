@@ -85,7 +85,32 @@ export default function PesagensIndividuais() {
 
   // Estado para edição em lote
   const [showEditarLote, setShowEditarLote] = useState(false);
-  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "", marca: "" });
+  const [edicaoLote, setEdicaoLote] = useState({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
+  
+  // Fetch apartações e lotes
+  const { data: apartacoesData = [] } = useQuery({
+    queryKey: ['apartacoes', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.Apartacao.list();
+      return all.filter(a => a.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  const { data: lotesData = [] } = useQuery({
+    queryKey: ['lotes', empresaSelecionadaId],
+    queryFn: async () => {
+      const all = await base44.entities.LoteApartacao.list();
+      return all.filter(l => l.empresa_id === empresaSelecionadaId);
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Lotes filtrados pela apartação selecionada na edição
+  const lotesEdicaoFiltrados = useMemo(() => {
+    if (!edicaoLote.apartacao) return [];
+    return lotesData.filter(l => l.apartacao_id === edicaoLote.apartacao);
+  }, [lotesData, edicaoLote.apartacao]);
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
@@ -468,6 +493,18 @@ export default function PesagensIndividuais() {
     if (edicaoLote.raca) dadosParaAtualizar.raca = edicaoLote.raca;
     if (edicaoLote.era) dadosParaAtualizar.era = edicaoLote.era;
     if (edicaoLote.marca) dadosParaAtualizar.marca = edicaoLote.marca;
+    
+    // Apartação e Lote
+    if (edicaoLote.apartacao) {
+      const apt = apartacoesData.find(a => a.id === edicaoLote.apartacao);
+      dadosParaAtualizar.apartacao_id = edicaoLote.apartacao;
+      dadosParaAtualizar.nome_apartacao = apt?.nome_apartacao || "";
+    }
+    if (edicaoLote.lote) {
+      const lote = lotesData.find(l => l.id === edicaoLote.lote);
+      dadosParaAtualizar.lote_id = edicaoLote.lote;
+      dadosParaAtualizar.nome_lote = lote?.nome_lote || "";
+    }
 
     if (Object.keys(dadosParaAtualizar).length === 0) {
       toast.error('Preencha ao menos um campo!');
@@ -475,12 +512,13 @@ export default function PesagensIndividuais() {
     }
 
     if (confirm(`Atualizar ${selectedItems.length} registro(s)?`)) {
+      toast.info(`Atualizando ${selectedItems.length} registros...`);
       for (const id of selectedItems) {
         await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
       }
       toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
       setShowEditarLote(false);
-      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "" });
+      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
       setSelectedItems([]);
     }
   };
@@ -770,7 +808,7 @@ export default function PesagensIndividuais() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleEditarLote} className="text-xs">
                         <Edit2 className="w-3 h-3 mr-2" />
-                        Editar Sexo/Raça/Era/Marca
+                        Editar Campos em Lote
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleDeleteSelected} className="text-xs text-red-600">
@@ -1021,6 +1059,44 @@ export default function PesagensIndividuais() {
                   placeholder="Não alterar" 
                   className="h-8 text-xs" 
                 />
+              </div>
+
+              <div className="border-t pt-2 mt-2">
+                <p className="text-xs font-semibold text-slate-600 mb-2">Apartação e Lote</p>
+                
+                <div className="space-y-1">
+                  <Label className="text-xs">Apartação</Label>
+                  <Select value={edicaoLote.apartacao} onValueChange={(v) => setEdicaoLote({ ...edicaoLote, apartacao: v, lote: "" })}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Não alterar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                      {apartacoesData.map(a => (
+                        <SelectItem key={a.id} value={a.id} className="text-xs">{a.nome_apartacao}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 mt-2">
+                  <Label className="text-xs">Lote</Label>
+                  <Select 
+                    value={edicaoLote.lote} 
+                    onValueChange={(v) => setEdicaoLote({ ...edicaoLote, lote: v })}
+                    disabled={!edicaoLote.apartacao}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder={edicaoLote.apartacao ? "Selecione o lote" : "Selecione apartação primeiro"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null} className="text-xs">Não alterar</SelectItem>
+                      {lotesEdicaoFiltrados.map(l => (
+                        <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg)</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
