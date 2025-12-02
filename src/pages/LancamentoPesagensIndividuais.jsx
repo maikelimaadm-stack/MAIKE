@@ -192,6 +192,7 @@ export default function LancamentoPesagensIndividuais() {
 
   // Estado do formulário
   const [editingId, setEditingId] = useState(null);
+  const [editingOfflineId, setEditingOfflineId] = useState(null);
   const [dataPesagem, setDataPesagem] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [numeroAnimal, setNumeroAnimal] = useState("");
   const [peso, setPeso] = useState("");
@@ -725,12 +726,22 @@ export default function LancamentoPesagensIndividuais() {
     };
 
     try {
-      if (navigator.onLine && !editingId) {
+      if (navigator.onLine && !editingId && !editingOfflineId) {
         await base44.entities.PesagemIndividual.create(data);
         toast.success('✓ Salvo!');
         await loadAllData();
+      } else if (editingOfflineId) {
+        // Edição de pesagem pendente offline - atualizar no IndexedDB
+        if (dbReady) {
+          await deletePendingPesagem(editingOfflineId);
+          await savePesagemOffline(data);
+          const pending = await getPendingPesagens(empresaSelecionadaId);
+          setPendingPesagensDB(pending);
+        }
+        toast.success('💾 Atualizado offline');
+        setEditingOfflineId(null);
       } else if (editingId) {
-        // Edição - funciona online e offline
+        // Edição de pesagem sincronizada - funciona online e offline
         if (navigator.onLine) {
           await base44.entities.PesagemIndividual.update(editingId, data);
           toast.success('✓ Atualizado!');
@@ -769,6 +780,7 @@ export default function LancamentoPesagensIndividuais() {
 
       // Limpar formulário (mantém campos fixados)
       setEditingId(null);
+      setEditingOfflineId(null);
       setNumeroAnimal("");
       setPeso("");
       if (!fixarSexo) setSexo("");
@@ -811,11 +823,9 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== EDITAR PESAGEM ==========
   const handleEditar = (p) => {
-    if (p._offlineId) {
-      toast.error('Edição de pendentes não disponível');
-      return;
-    }
-    setEditingId(p.id);
+    // Permitir edição tanto de sincronizadas quanto de pendentes offline
+    setEditingId(p.id || p._offlineId);
+    setEditingOfflineId(p._offlineId || null);
     setNumeroAnimal(p.numero_animal);
     setPeso(String(p.peso));
     setSexo(p.sexo || "M");
@@ -1087,6 +1097,7 @@ export default function LancamentoPesagensIndividuais() {
                 variant="outline" 
                 onClick={() => {
                   setEditingId(null);
+                  setEditingOfflineId(null);
                   setNumeroAnimal("");
                   setPeso("");
                   setObservacao("");
@@ -1220,7 +1231,7 @@ export default function LancamentoPesagensIndividuais() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start">
-                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
+                                      <DropdownMenuItem onClick={() => handleEditar(p)}>
                                         <Edit2 className="w-3 h-3 mr-2" />Editar
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
