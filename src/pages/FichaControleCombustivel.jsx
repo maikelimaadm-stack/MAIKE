@@ -343,7 +343,10 @@ export default function FichaControleCombustivel() {
           .print\\:p-0 { padding: 0 !important; }
           .print\\:p-8 { padding: 2rem !important; }
           .print\\:shadow-none { box-shadow: none !important; }
-          @page { margin: 0; size: A4; }
+          @page { 
+            margin: 0; 
+            size: ${config.orientacao === 'paisagem' ? 'A4 landscape' : 'A4 portrait'}; 
+          }
         }
       `}</style>
     </div>
