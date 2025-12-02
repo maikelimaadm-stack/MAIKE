@@ -254,6 +254,49 @@ export default function PesagensIndividuais() {
     return { total, pesoMedio, gmdMedio };
   }, [pesagensFiltradas]);
 
+  // Resumo agrupado por Apartação + Data
+  const resumoApartacaoData = useMemo(() => {
+    const grupos = {};
+    
+    pesagens.forEach(p => {
+      if (!p.nome_apartacao || !p.data_pesagem) return;
+      
+      const chave = `${p.nome_apartacao}|||${p.data_pesagem}`;
+      if (!grupos[chave]) {
+        grupos[chave] = {
+          apartacao: p.nome_apartacao,
+          data: p.data_pesagem,
+          total: 0,
+          machos: 0,
+          femeas: 0,
+          pesoTotal: 0,
+          lotes: new Set(),
+        };
+      }
+      
+      grupos[chave].total++;
+      if (p.sexo === 'M') grupos[chave].machos++;
+      if (p.sexo === 'F') grupos[chave].femeas++;
+      grupos[chave].pesoTotal += p.peso || 0;
+      if (p.nome_lote) grupos[chave].lotes.add(p.nome_lote);
+    });
+
+    return Object.values(grupos)
+      .map(g => ({
+        ...g,
+        pesoMedio: g.total > 0 ? g.pesoTotal / g.total : 0,
+        lotes: Array.from(g.lotes).sort(),
+      }))
+      .sort((a, b) => {
+        // Ordenar por apartação, depois por data decrescente
+        if (a.apartacao !== b.apartacao) return a.apartacao.localeCompare(b.apartacao);
+        return b.data.localeCompare(a.data);
+      });
+  }, [pesagens]);
+
+  // Estado para mostrar/ocultar resumo
+  const [showResumoApartacao, setShowResumoApartacao] = useState(false);
+
   // Handlers
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -565,6 +608,87 @@ export default function PesagensIndividuais() {
       </div>
 
 
+
+      {/* Resumo por Apartação + Data */}
+      <Card>
+        <CardHeader className="py-2 px-3 bg-slate-50 border-b cursor-pointer" onClick={() => setShowResumoApartacao(!showResumoApartacao)}>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Layers className="w-4 h-4 text-emerald-600" />
+              Resumo por Apartação e Data
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">{resumoApartacaoData.length} grupos</Badge>
+              {showResumoApartacao ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </div>
+        </CardHeader>
+        {showResumoApartacao && (
+          <CardContent className="p-0">
+            <div className="overflow-auto max-h-[300px]">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white">
+                  <TableRow>
+                    <TableHead className="text-xs">Apartação</TableHead>
+                    <TableHead className="text-xs">Data</TableHead>
+                    <TableHead className="text-xs text-center">Total</TableHead>
+                    <TableHead className="text-xs text-center">Machos</TableHead>
+                    <TableHead className="text-xs text-center">Fêmeas</TableHead>
+                    <TableHead className="text-xs text-right">Peso Médio</TableHead>
+                    <TableHead className="text-xs">Lotes</TableHead>
+                    <TableHead className="text-xs w-20">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {resumoApartacaoData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4 text-xs text-slate-400">
+                        Nenhuma apartação encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    resumoApartacaoData.map((grupo, idx) => (
+                      <TableRow key={idx} className="hover:bg-slate-50">
+                        <TableCell className="text-xs font-semibold text-emerald-700">{grupo.apartacao}</TableCell>
+                        <TableCell className="text-xs">{formatarData(grupo.data)}</TableCell>
+                        <TableCell className="text-xs text-center font-bold">{grupo.total}</TableCell>
+                        <TableCell className="text-xs text-center">{grupo.machos}</TableCell>
+                        <TableCell className="text-xs text-center">{grupo.femeas}</TableCell>
+                        <TableCell className="text-xs text-right font-mono">{grupo.pesoMedio.toFixed(2)} kg</TableCell>
+                        <TableCell className="text-xs">
+                          <div className="flex flex-wrap gap-1">
+                            {grupo.lotes.slice(0, 3).map(l => (
+                              <Badge key={l} variant="outline" className="text-[10px]">{l}</Badge>
+                            ))}
+                            {grupo.lotes.length > 3 && (
+                              <Badge variant="outline" className="text-[10px]">+{grupo.lotes.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => {
+                              setFiltroApartacao(grupo.apartacao);
+                              setFiltroDataEspecifica(grupo.data);
+                              setShowResumoApartacao(false);
+                            }}
+                          >
+                            <Filter className="w-3 h-3 mr-1" />
+                            Filtrar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Filtros */}
       <Card>
