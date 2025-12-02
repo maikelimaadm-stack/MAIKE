@@ -1660,76 +1660,68 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   const excluirApartacao = async (id) => {
     const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
     if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a esta apartação.`);
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
       return;
     }
 
     if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
 
+    // Se é item offline, remover do cache
+    if (id.startsWith('offline_')) {
+      if (dbReady) {
+        await deleteItem(STORES_NAMES.APARTACOES, id);
+        const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+        for (const l of lotesVinculados) {
+          await deleteItem(STORES_NAMES.LOTES, l.id);
+        }
+      }
+      toast.success("Apartação removida!");
+      onRefresh();
+      return;
+    }
+
+    // Se online, excluir do servidor
     if (navigator.onLine) {
       const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
       for (const l of lotesVinculados) {
-        await base44.entities.LoteApartacao.delete(l.id);
+        if (!l.id.startsWith('offline_')) {
+          await base44.entities.LoteApartacao.delete(l.id);
+        }
       }
-
       await base44.entities.Apartacao.delete(id);
       toast.success("Apartação excluída!");
       onRefresh();
     } else {
-      // OFFLINE: Registrar exclusão no IndexedDB
-      if (id.startsWith('offline_')) {
-        // Se é um item offline, apenas remover do cache local
-        if (dbReady) {
-          await deleteItem(STORES_NAMES.APARTACOES, id);
-          // Remover lotes vinculados do cache
-          const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
-          for (const l of lotesVinculados) {
-            await deleteItem(STORES_NAMES.LOTES, l.id);
-          }
-        }
-      } else if (dbReady) {
-        await saveApartacaoOffline('delete', { id });
-      } else {
-        const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-        pending.push({ action: 'delete', id, timestamp: Date.now() });
-        localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
-      }
-
-      toast.success("Apartação excluída offline!");
-      onRefresh();
+      toast.error("Exclusão de apartações do servidor requer conexão");
     }
   };
 
   const excluirLote = async (id) => {
     const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
     if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas a este lote.`);
+      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
       return;
     }
 
     if (!confirm("Excluir lote?")) return;
 
+    // Se é item offline, remover do cache
+    if (id.startsWith('offline_')) {
+      if (dbReady) {
+        await deleteItem(STORES_NAMES.LOTES, id);
+      }
+      toast.success("Lote removido!");
+      onRefresh();
+      return;
+    }
+
+    // Se online, excluir do servidor
     if (navigator.onLine) {
       await base44.entities.LoteApartacao.delete(id);
       toast.success("Lote excluído!");
       onRefresh();
     } else {
-      // OFFLINE: Registrar exclusão no IndexedDB
-      if (id.startsWith('offline_')) {
-        // Se é um item offline, apenas remover do cache local
-        if (dbReady) {
-          await deleteItem(STORES_NAMES.LOTES, id);
-        }
-      } else if (dbReady) {
-        await saveLoteOffline('delete', { id });
-      } else {
-        const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
-        pending.push({ action: 'delete', id, timestamp: Date.now() });
-        localStorage.setItem('pending_lotes', JSON.stringify(pending));
-      }
-
-      toast.success("Lote excluído offline!");
-      onRefresh();
+      toast.error("Exclusão de lotes do servidor requer conexão");
     }
   };
 
