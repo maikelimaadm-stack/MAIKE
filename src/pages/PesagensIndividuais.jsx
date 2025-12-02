@@ -158,9 +158,12 @@ export default function PesagensIndividuais() {
     enabled: !!empresaSelecionadaId,
   });
 
-  // Valores únicos para filtros
+  // Valores únicos para filtros e autocomplete
   const lotesUnicos = [...new Set(pesagens.map(p => p.nome_lote).filter(Boolean))].sort();
   const apartacoesUnicas = [...new Set(pesagens.map(p => p.nome_apartacao).filter(Boolean))].sort();
+  const marcasExistentes = [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort();
+  const racasExistentes = [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort();
+  const erasExistentes = [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort();
 
   // Filtrar e ordenar
   const pesagensFiltradas = useMemo(() => {
