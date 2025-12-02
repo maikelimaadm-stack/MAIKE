@@ -492,11 +492,20 @@ export default function RelatorioPesagensIndividuais() {
               <p>Nenhuma pesagem encontrada com os filtros aplicados.</p>
             </div>
           ) : tipoRelatorio === 'apartacao_data' ? (
-            /* RELATÓRIO POR APARTAÇÃO COM RESUMO POR DATA */
+            /* RELATÓRIO POR APARTAÇÃO COM RESUMO POR DATA - IGUAL AO MODELO POR APARTAÇÃO/LOTE */
             (() => {
               // Formatação de números
               const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
               const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
+              // Função para buscar faixa de peso cadastrada do lote
+              const getFaixaPesoCadastrada = (nomeLote, nomeApartacao) => {
+                if (!lotesApartacaoCadastrados || lotesApartacaoCadastrados.length === 0) return null;
+                const lote = lotesApartacaoCadastrados.find(l => 
+                  l.nome_lote === nomeLote && l.nome_apartacao === nomeApartacao
+                );
+                return lote ? { min: lote.peso_minimo, max: lote.peso_maximo } : null;
+              };
 
               // Agrupar por apartação
               const porApartacao = {};
@@ -507,14 +516,16 @@ export default function RelatorioPesagensIndividuais() {
               });
 
               return (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, animaisApartacao]) => {
                     // Agrupar por data dentro da apartação
                     const porData = {};
                     animaisApartacao.forEach(p => {
                       const data = p.data_pesagem || 'Sem Data';
-                      if (!porData[data]) porData[data] = [];
-                      porData[data].push(p);
+                      if (!porData[data]) porData[data] = {};
+                      const lote = p.nome_lote || 'Sem Lote';
+                      if (!porData[data][lote]) porData[data][lote] = [];
+                      porData[data][lote].push(p);
                     });
 
                     // Calcular totais da apartação
@@ -524,118 +535,192 @@ export default function RelatorioPesagensIndividuais() {
                     const gmdMedioApt = animaisApartacao.filter(p => p.gmd).length > 0 
                       ? animaisApartacao.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / animaisApartacao.filter(p => p.gmd).length 
                       : 0;
-                    const machosApt = animaisApartacao.filter(p => p.sexo === 'M').length;
-                    const femeasApt = animaisApartacao.filter(p => p.sexo === 'F').length;
+
+                    // Agrupar por lote para totais
+                    const porLote = {};
+                    animaisApartacao.forEach(p => {
+                      const lote = p.nome_lote || 'Sem Lote';
+                      if (!porLote[lote]) porLote[lote] = [];
+                      porLote[lote].push(p);
+                    });
 
                     return (
-                      <div key={apartacao} className="border-2 border-slate-400 rounded-lg overflow-hidden">
+                      <div key={apartacao} className="border-2 border-slate-300 rounded-lg overflow-hidden">
                         {/* Cabeçalho da Apartação */}
-                        <div className="bg-slate-700 text-white px-4 py-2">
-                          <h3 className="font-bold text-base">APARTAÇÃO: {apartacao}</h3>
+                        <div className="bg-gray-200 px-3 py-2">
+                          <h3 className="font-bold text-sm">APARTAÇÃO: {apartacao}</h3>
                         </div>
 
-                        {/* Tabela de Resumo por Data */}
-                        <div className="p-2">
-                          <h4 className="font-semibold text-xs mb-2 text-slate-600">RESUMO POR DATA</h4>
+                        {/* Para cada data, mostrar lotes */}
+                        {Object.entries(porData)
+                          .sort((a, b) => b[0].localeCompare(a[0]))
+                          .map(([data, lotes]) => {
+                            const animaisData = Object.values(lotes).flat();
+                            const totalData = animaisData.length;
+                            const pesoMedioData = totalData > 0 ? animaisData.reduce((s, p) => s + (p.peso || 0), 0) / totalData : 0;
+                            const pesoTotalData = animaisData.reduce((s, p) => s + (p.peso || 0), 0);
+                            const gmdMedioData = animaisData.filter(p => p.gmd).length > 0 
+                              ? animaisData.filter(p => p.gmd).reduce((s, p) => s + p.gmd, 0) / animaisData.filter(p => p.gmd).length 
+                              : 0;
+
+                            return (
+                              <div key={data} className="border-t border-slate-200">
+                                {/* Subtítulo da Data */}
+                                <div className="bg-gray-100 px-3 py-1 border-b">
+                                  <span className="font-semibold text-xs">Data: {formatarData(data)}</span>
+                                </div>
+
+                                {/* Tabela de Lotes desta Data */}
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="bg-gray-50">
+                                      <TableHead className="text-xs font-bold py-2">Lote</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Faixa Exigida</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Menor</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Maior</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
+                                      <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {Object.entries(lotes).sort((a, b) => a[0].localeCompare(b[0])).map(([lote, animais]) => {
+                                      const qtd = animais.length;
+                                      const pesos = animais.map(a => a.peso || 0).filter(p => p > 0);
+                                      const menorPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
+                                      const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
+                                      const pesoMedioLote = qtd > 0 ? animais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
+                                      const pesoTotalLote = animais.reduce((s, a) => s + (a.peso || 0), 0);
+                                      const gmdMedioLote = animais.filter(a => a.gmd).length > 0 
+                                        ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
+                                        : 0;
+                                      const machos = animais.filter(a => a.sexo === 'M').length;
+                                      const femeas = animais.filter(a => a.sexo === 'F').length;
+                                      const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
+
+                                      return (
+                                        <TableRow key={lote} className="hover:bg-gray-50">
+                                          <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
+                                          <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono">
+                                            {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
+                                          <TableCell className="text-xs text-center py-2 font-mono font-semibold">
+                                            {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
+                                          <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+
+                                {/* Subtotal da Data */}
+                                <div className="bg-gray-100 px-3 py-2 border-t">
+                                  <div className="grid grid-cols-5 gap-4 text-xs">
+                                    <div><strong>Subtotal {formatarData(data)}:</strong> {fmtInteiro(totalData)} animais</div>
+                                    <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioData)} kg</div>
+                                    <div><strong>Peso Total:</strong> {fmtDecimal(pesoTotalData)} kg</div>
+                                    <div><strong>GMD Médio:</strong> {fmtDecimal(gmdMedioData, 3)} kg/dia</div>
+                                    <div><strong>Lotes:</strong> {fmtInteiro(Object.keys(lotes).length)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        {/* TOTAL DE LOTES DA APARTAÇÃO */}
+                        <div className="bg-gray-100 border-t-2 border-gray-300">
+                          <div className="px-3 py-2 bg-gray-200">
+                            <span className="font-bold text-xs">TOTAL POR LOTE - {apartacao}</span>
+                          </div>
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-gray-100">
-                                <TableHead className="text-xs font-bold py-2">Data</TableHead>
+                                <TableHead className="text-xs font-bold py-2">Lote</TableHead>
                                 <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
-                                <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
-                                <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
-                                <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
-                                <TableHead className="text-xs font-bold text-center py-2">Maior Peso</TableHead>
+                                <TableHead className="text-xs font-bold text-center py-2">Faixa Exigida</TableHead>
+                                <TableHead className="text-xs font-bold text-center py-2">Menor</TableHead>
+                                <TableHead className="text-xs font-bold text-center py-2">Maior</TableHead>
                                 <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
                                 <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
                                 <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
+                                <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
+                                <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {Object.entries(porData)
-                                .sort((a, b) => b[0].localeCompare(a[0])) // Ordenar por data decrescente
-                                .map(([data, animaisData]) => {
-                                  const qtd = animaisData.length;
-                                  const pesos = animaisData.map(a => a.peso || 0).filter(p => p > 0);
-                                  const menorPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
-                                  const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
-                                  const pesoMedioData = qtd > 0 ? animaisData.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
-                                  const pesoTotalData = animaisData.reduce((s, a) => s + (a.peso || 0), 0);
-                                  const gmdMedioData = animaisData.filter(a => a.gmd).length > 0 
-                                    ? animaisData.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animaisData.filter(a => a.gmd).length 
-                                    : 0;
-                                  const machos = animaisData.filter(a => a.sexo === 'M').length;
-                                  const femeas = animaisData.filter(a => a.sexo === 'F').length;
+                              {Object.entries(porLote).sort((a, b) => a[0].localeCompare(b[0])).map(([lote, animais]) => {
+                                const qtd = animais.length;
+                                const pesos = animais.map(a => a.peso || 0).filter(p => p > 0);
+                                const menorPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
+                                const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
+                                const pesoMedioLote = qtd > 0 ? animais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
+                                const pesoTotalLote = animais.reduce((s, a) => s + (a.peso || 0), 0);
+                                const gmdMedioLote = animais.filter(a => a.gmd).length > 0 
+                                  ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
+                                  : 0;
+                                const machos = animais.filter(a => a.sexo === 'M').length;
+                                const femeas = animais.filter(a => a.sexo === 'F').length;
+                                const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
 
-                                  return (
-                                    <TableRow key={data} className="hover:bg-gray-50">
-                                      <TableCell className="text-xs font-semibold py-2">{formatarData(data)}</TableCell>
-                                      <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                                      <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                      <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
-                                      <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
-                                      <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
-                                      <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioData)} kg</TableCell>
-                                      <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalData)} kg</TableCell>
-                                      <TableCell className="text-xs text-center py-2 font-mono font-semibold">
-                                        {gmdMedioData > 0 ? fmtDecimal(gmdMedioData, 3) : '-'}
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
+                                return (
+                                  <TableRow key={lote} className="hover:bg-gray-50">
+                                    <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
+                                    <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">
+                                      {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">
+                                      {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
+                                    <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </div>
 
-                        {/* Total da Apartação */}
-                        <div className="bg-emerald-100 px-4 py-3 border-t-2 border-emerald-300">
-                          <h4 className="font-bold text-xs mb-2 text-emerald-800">TOTAL DA APARTAÇÃO: {apartacao}</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Total Animais</div>
-                              <div className="font-bold text-lg text-emerald-700">{fmtInteiro(totalApt)}</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Machos</div>
-                              <div className="font-bold text-lg">{fmtInteiro(machosApt)}</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Fêmeas</div>
-                              <div className="font-bold text-lg">{fmtInteiro(femeasApt)}</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Peso Médio</div>
-                              <div className="font-bold text-lg font-mono">{fmtDecimal(pesoMedioApt)} kg</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Peso Total</div>
-                              <div className="font-bold text-lg font-mono">{fmtDecimal(pesoTotalApt)} kg</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">GMD Médio</div>
-                              <div className="font-bold text-lg font-mono text-emerald-600">{fmtDecimal(gmdMedioApt, 3)}</div>
-                            </div>
-                            <div className="bg-white rounded p-2 text-center shadow-sm">
-                              <div className="text-slate-500">Datas</div>
-                              <div className="font-bold text-lg">{fmtInteiro(Object.keys(porData).length)}</div>
-                            </div>
+                        {/* Subtotal da Apartação */}
+                        <div className="bg-gray-200 px-3 py-2 border-t">
+                          <div className="grid grid-cols-5 gap-4 text-xs">
+                            <div><strong>Total:</strong> {fmtInteiro(totalApt)} animais</div>
+                            <div><strong>Peso Médio:</strong> {fmtDecimal(pesoMedioApt)} kg</div>
+                            <div><strong>Peso Total:</strong> {fmtDecimal(pesoTotalApt)} kg</div>
+                            <div><strong>GMD Médio:</strong> {fmtDecimal(gmdMedioApt, 3)} kg/dia</div>
+                            <div><strong>Lotes:</strong> {fmtInteiro(Object.keys(porLote).length)}</div>
                           </div>
                         </div>
                       </div>
                     );
                   })}
 
-                  {/* Resumo Geral de Todas as Apartações */}
-                  <div className="mt-6 border-t-4 border-black pt-4">
-                    <h4 className="font-bold text-sm mb-3">RESUMO GERAL - TODAS AS APARTAÇÕES</h4>
+                  {/* Resumo Geral */}
+                  <div className="mt-4 border-t-2 border-black pt-3">
+                    <h4 className="font-bold text-sm mb-2">RESUMO GERAL</h4>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-slate-200">
+                        <TableRow className="bg-gray-200">
                           <TableHead className="text-xs font-bold py-2">Apartação</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Datas</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Lotes</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Animais</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
-                          <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Menor Peso</TableHead>
+                          <TableHead className="text-xs font-bold text-center py-2">Maior Peso</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
                           <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
@@ -645,36 +730,40 @@ export default function RelatorioPesagensIndividuais() {
                         {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, animais]) => {
                           const qtd = animais.length;
                           const datasUnicas = [...new Set(animais.map(a => a.data_pesagem))].length;
+                          const lotesUnicos = [...new Set(animais.map(a => a.nome_lote))].length;
+                          const pesos = animais.map(a => a.peso || 0).filter(p => p > 0);
+                          const menorPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
+                          const maiorPeso = pesos.length > 0 ? Math.max(...pesos) : 0;
                           const pesoMedioApt = qtd > 0 ? animais.reduce((s, a) => s + (a.peso || 0), 0) / qtd : 0;
                           const pesoTotalApt = animais.reduce((s, a) => s + (a.peso || 0), 0);
                           const gmdMedioApt = animais.filter(a => a.gmd).length > 0 
                             ? animais.filter(a => a.gmd).reduce((s, a) => s + a.gmd, 0) / animais.filter(a => a.gmd).length 
                             : 0;
-                          const machos = animais.filter(a => a.sexo === 'M').length;
-                          const femeas = animais.filter(a => a.sexo === 'F').length;
 
                           return (
                             <TableRow key={apartacao}>
                               <TableCell className="text-xs font-semibold py-2">{apartacao}</TableCell>
-                              <TableCell className="text-xs text-center py-2">{datasUnicas}</TableCell>
-                              <TableCell className="text-xs text-center font-bold py-2">{qtd.toLocaleString('pt-BR')}</TableCell>
-                              <TableCell className="text-xs text-center py-2">{machos.toLocaleString('pt-BR')}</TableCell>
-                              <TableCell className="text-xs text-center py-2">{femeas.toLocaleString('pt-BR')}</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{pesoMedioApt.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono">{pesoTotalApt.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
-                              <TableCell className="text-xs text-center py-2 font-mono font-semibold text-emerald-600">
-                                {gmdMedioApt > 0 ? gmdMedioApt.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
+                              <TableCell className="text-xs text-center py-2">{fmtInteiro(datasUnicas)}</TableCell>
+                              <TableCell className="text-xs text-center py-2">{fmtInteiro(lotesUnicos)}</TableCell>
+                              <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioApt)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalApt)} kg</TableCell>
+                              <TableCell className="text-xs text-center py-2 font-mono font-semibold">
+                                {gmdMedioApt > 0 ? fmtDecimal(gmdMedioApt, 3) : '-'}
                               </TableCell>
                             </TableRow>
                           );
                         })}
-                        {/* Linha Total Geral */}
-                        <TableRow className="bg-slate-700 text-white font-bold">
+                        {/* Linha Total */}
+                        <TableRow className="bg-gray-200 font-bold">
                           <TableCell className="text-xs font-bold py-2">TOTAL GERAL</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2">{[...new Set(pesagensFiltradas.map(p => p.data_pesagem))].length}</TableCell>
+                          <TableCell className="text-xs text-center font-bold py-2">{[...new Set(pesagensFiltradas.map(p => p.nome_lote))].length}</TableCell>
                           <TableCell className="text-xs text-center font-bold py-2">{totalAnimais.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2">{pesagensFiltradas.filter(p => p.sexo === 'M').length.toLocaleString('pt-BR')}</TableCell>
-                          <TableCell className="text-xs text-center py-2">{pesagensFiltradas.filter(p => p.sexo === 'F').length.toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.min(...pesagensFiltradas.map(p => p.peso || 999999).filter(p => p > 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
+                          <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.length > 0 ? Math.max(...pesagensFiltradas.map(p => p.peso || 0)).toLocaleString('pt-BR') : 0} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono font-bold">{pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono">{pesagensFiltradas.reduce((s, p) => s + (p.peso || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</TableCell>
                           <TableCell className="text-xs text-center py-2 font-mono font-bold">{gmdMedio.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
