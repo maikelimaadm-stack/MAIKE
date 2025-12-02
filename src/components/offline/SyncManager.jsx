@@ -218,7 +218,7 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
   return { successCount, idMap, items };
 };
 
-export const syncAll = async (empresaId) => {
+export const syncAll = async (empresaId, onProgress) => {
   if (syncInProgress) {
     return { success: false, message: 'Sincronização em andamento' };
   }
@@ -228,23 +228,38 @@ export const syncAll = async (empresaId) => {
   }
 
   syncInProgress = true;
-  processedIds.clear(); // Limpar IDs processados
   notifyListeners({ type: 'start' });
+
+  const allItems = [];
 
   try {
     // 1. Sincronizar apartações e lotes offline
     notifyListeners({ type: 'progress', entity: 'apartacoes_lotes' });
-    const entitiesResult = await syncOfflineEntities(empresaId);
+    const entitiesResult = await syncOfflineEntities(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'entities', ...progress });
+      }
+    });
+    allItems.push(...(entitiesResult.items || []));
 
     // 2. Sincronizar pesagens pendentes
     notifyListeners({ type: 'progress', entity: 'pesagens' });
-    const pesagensResult = await syncPesagens(empresaId);
+    const pesagensResult = await syncPesagens(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'pesagens', ...progress });
+      }
+    });
+    allItems.push(...(pesagensResult.items || []));
 
     // 3. Atualizar cache com dados do servidor
     notifyListeners({ type: 'progress', entity: 'cache' });
+    if (onProgress) {
+      onProgress({ phase: 'cache', currentItem: 'Atualizando cache local...' });
+    }
     await refreshCache(empresaId);
 
     const totalSuccess = pesagensResult.successCount + entitiesResult.successCount;
+    const totalErrors = pesagensResult.errors?.length || 0;
 
     notifyListeners({ 
       type: 'complete', 
@@ -252,11 +267,11 @@ export const syncAll = async (empresaId) => {
       message: totalSuccess > 0 ? `${totalSuccess} sincronizado(s)` : 'Tudo sincronizado'
     });
 
-    return { success: true, totalSuccess };
+    return { success: true, totalSuccess, totalErrors, items: allItems };
   } catch (error) {
     console.error('Erro sync:', error);
     notifyListeners({ type: 'error', error: error.message });
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, items: allItems };
   } finally {
     syncInProgress = false;
   }
