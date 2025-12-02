@@ -1045,8 +1045,8 @@ export default function LancamentoPesagensIndividuais() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start">
-                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId}>
-                                        <Edit2 className="w-3 h-3 mr-2" />Editar
+                                      <DropdownMenuItem onClick={() => handleEditar(p)} disabled={!!p._offlineId || !navigator.onLine}>
+                                        <Edit2 className="w-3 h-3 mr-2" />Editar {!navigator.onLine && '(online)'}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleExcluir(p)} className="text-red-600">
                                         <Trash2 className="w-3 h-3 mr-2" />Excluir
@@ -1576,9 +1576,10 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                     placeholder="Ex: ROTINA" 
                   />
                 </div>
-                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                <Button onClick={salvarApartacao} disabled={isSaving || !navigator.onLine} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
                   {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
                 </Button>
+                {!navigator.onLine && <span className="text-[10px] text-amber-600 ml-2">⚠️ Apenas online</span>}
                 {editingApartacaoId && (
                   <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
                     Cancelar
@@ -1667,9 +1668,10 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="flex gap-1">
-                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+                  <Button onClick={salvarLote} disabled={isSaving || !navigator.onLine} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
                     {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
                   </Button>
+                  {!navigator.onLine && <span className="text-[10px] text-amber-600 ml-1">⚠️ Online</span>}
                   {editingLoteId && (
                     <Button variant="outline" size="sm" className="h-9" onClick={() => { 
                       setEditingLoteId(null); 
