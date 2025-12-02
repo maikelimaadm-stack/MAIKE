@@ -34,12 +34,12 @@ const notifyListeners = (event) => {
   });
 };
 
-export const syncPesagens = async (empresaId) => {
+export const syncPesagens = async (empresaId, onProgress) => {
   const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
   const pending = allPending.filter(p => p.empresa_id === empresaId);
   
   if (pending.length === 0) {
-    return { successCount: 0, errors: [], total: 0 };
+    return { successCount: 0, errors: [], total: 0, items: [] };
   }
 
   // Buscar pesagens existentes no servidor para verificar duplicados
@@ -52,9 +52,21 @@ export const syncPesagens = async (empresaId) => {
   
   let successCount = 0;
   const errors = [];
+  const items = [];
 
-  for (const pesagem of pending) {
+  for (let i = 0; i < pending.length; i++) {
+    const pesagem = pending[i];
     const offlineId = pesagem._offlineId;
+    const itemName = `Animal: ${pesagem.numero_animal} - ${pesagem.peso}kg`;
+    
+    // Notificar progresso
+    if (onProgress) {
+      onProgress({
+        current: i + 1,
+        total: pending.length,
+        currentItem: itemName
+      });
+    }
     
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
@@ -67,34 +79,38 @@ export const syncPesagens = async (empresaId) => {
       );
       
       if (duplicado) {
-        console.log('Pesagem já existe no servidor, pulando:', data.numero_animal);
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
         await deletePendingPesagem(offlineId);
         continue;
       }
       
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
+        items.push({ name: itemName, status: 'success', message: 'Atualizado' });
       } else {
         await base44.entities.PesagemIndividual.create(data);
+        items.push({ name: itemName, status: 'success', message: 'Criado' });
       }
       
       successCount++;
     } catch (error) {
       console.error('Erro sync pesagem:', error);
       errors.push({ error: error.message });
+      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
     }
     
     // SEMPRE remover após processar
     await deletePendingPesagem(offlineId);
   }
 
-  return { successCount, errors, total: pending.length };
+  return { successCount, errors, total: pending.length, items };
 };
 
 // Sincronizar apartações e lotes offline para o servidor
-export const syncOfflineEntities = async (empresaId) => {
+export const syncOfflineEntities = async (empresaId, onProgress) => {
   let successCount = 0;
   const idMap = {};
+  const items = [];
 
   // Buscar apartações existentes no servidor
   let existingApartacoes = [];
@@ -112,8 +128,24 @@ export const syncOfflineEntities = async (empresaId) => {
     a.empresa_id === empresaId && a._isOffline && a.id?.startsWith('offline_')
   );
 
+  // Buscar lotes offline do cache
+  const cachedLotes = await getAllItems(STORES_NAMES.LOTES);
+  const offlineLotes = cachedLotes.filter(l => 
+    l.empresa_id === empresaId && l._isOffline && l.id?.startsWith('offline_')
+  );
+
+  const totalEntities = offlineApartacoes.length + offlineLotes.length;
+  let current = 0;
+
   // Criar apartações no servidor (verificando duplicados)
   for (const apt of offlineApartacoes) {
+    current++;
+    const itemName = `Apartação: ${apt.nome_apartacao}`;
+    
+    if (onProgress) {
+      onProgress({ current, total: totalEntities, currentItem: itemName });
+    }
+    
     try {
       const { id, _isOffline, _offlineTimestamp, ...data } = apt;
       
@@ -123,8 +155,8 @@ export const syncOfflineEntities = async (empresaId) => {
       );
       
       if (duplicado) {
-        console.log('Apartação já existe no servidor:', data.nome_apartacao);
-        idMap[id] = duplicado.id; // Mapear para o ID existente
+        idMap[id] = duplicado.id;
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
         await deleteItem(STORES_NAMES.APARTACOES, id);
         continue;
       }
@@ -132,23 +164,25 @@ export const syncOfflineEntities = async (empresaId) => {
       const created = await base44.entities.Apartacao.create(data);
       idMap[id] = created.id;
       successCount++;
+      items.push({ name: itemName, status: 'success', message: 'Criado' });
       
-      // Remover do cache offline
       await deleteItem(STORES_NAMES.APARTACOES, id);
     } catch (e) {
       console.error('Erro ao sincronizar apartação:', e);
+      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
       await deleteItem(STORES_NAMES.APARTACOES, apt.id);
     }
   }
 
-  // Buscar lotes offline do cache
-  const cachedLotes = await getAllItems(STORES_NAMES.LOTES);
-  const offlineLotes = cachedLotes.filter(l => 
-    l.empresa_id === empresaId && l._isOffline && l.id?.startsWith('offline_')
-  );
-
   // Criar lotes no servidor (verificando duplicados)
   for (const lote of offlineLotes) {
+    current++;
+    const itemName = `Lote: ${lote.nome_lote}`;
+    
+    if (onProgress) {
+      onProgress({ current, total: totalEntities, currentItem: itemName });
+    }
+    
     try {
       const { id, _isOffline, _offlineTimestamp, ...data } = lote;
       
@@ -164,23 +198,24 @@ export const syncOfflineEntities = async (empresaId) => {
       );
       
       if (duplicado) {
-        console.log('Lote já existe no servidor:', data.nome_lote);
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
         await deleteItem(STORES_NAMES.LOTES, id);
         continue;
       }
       
       await base44.entities.LoteApartacao.create(data);
       successCount++;
+      items.push({ name: itemName, status: 'success', message: 'Criado' });
       
-      // Remover do cache offline
       await deleteItem(STORES_NAMES.LOTES, id);
     } catch (e) {
       console.error('Erro ao sincronizar lote:', e);
+      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
       await deleteItem(STORES_NAMES.LOTES, lote.id);
     }
   }
 
-  return { successCount, idMap };
+  return { successCount, idMap, items };
 };
 
 export const syncAll = async (empresaId) => {
