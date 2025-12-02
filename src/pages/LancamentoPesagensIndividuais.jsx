@@ -118,7 +118,7 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                   {apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao}
                 </span>
                 <div className="text-[10px] text-emerald-600">
-                  {modoVisualizacao === 'dia' ? `Pesagens do dia (${dataPesagem})` : 'Todas as pesagens'}
+                  {modoVisualizacao === 'dia' ? `Pesagens do dia (${formatarData(dataPesagem)})` : 'Todas as pesagens'}
                 </div>
               </div>
               <Table>
