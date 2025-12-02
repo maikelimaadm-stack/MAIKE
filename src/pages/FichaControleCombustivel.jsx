@@ -304,7 +304,7 @@ export default function FichaControleCombustivel() {
             <thead>
               <tr className="bg-gray-200">
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraData}px` }}>DATA</th>
-                <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraMaquina}px` }}>MÁQUINA / VEÍCULO</th>
+                <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraMaquina}px` }}>MÁQUINA / VEÍCULO / HISTÓRICO</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraHorimetro}px` }}>HR/KM</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraEntrada}px` }}>ENTRADA (L)</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraSaida}px` }}>SAÍDA (L)</th>
