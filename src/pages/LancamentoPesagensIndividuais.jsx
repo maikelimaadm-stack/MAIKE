@@ -480,6 +480,9 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== SALVAR PESAGEM ==========
   const handleSalvar = async () => {
+    // Evitar cliques duplos
+    if (isSaving) return;
+    
     // Validações com avisos
     if (!dataPesagem) { 
       toast.error("⚠️ Campo obrigatório: Data da Pesagem"); 
