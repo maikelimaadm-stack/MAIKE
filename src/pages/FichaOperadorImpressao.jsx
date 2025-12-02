@@ -100,13 +100,16 @@ export default function FichaOperadorImpressao() {
                     style={{ height: alturaFicha }}
                   >
                     {/* Cabeçalho */}
-                    <div className="flex justify-between items-center border-b-2 border-black mb-0.5">
+                    <div className="flex justify-between items-center border-b-2 border-black">
                       <span className="text-[10px] font-bold text-black">{empresa?.apelido || empresa?.nome || 'FAZENDA'}</span>
                       <div className="flex items-center">
                         <span className="text-[9px] font-bold text-black mr-1">Nº</span>
                         <div className="w-6 border-b border-black"></div>
                       </div>
                     </div>
+                    
+                    {/* Espaço para recorte/grampo */}
+                    <div className="border-b border-dashed border-black" style={{ minHeight: '20px' }}></div>
 
                     {/* Todas as linhas com label inline */}
                     <div className="text-[10px] text-black space-y-0.5 flex-1">
