@@ -625,7 +625,7 @@ export default function PesagensIndividuais() {
                       return (
                         <TableHead key="selecao" className="w-8">
                           <Checkbox 
-                            checked={selectedItems.length === pesagensPaginadas.length && pesagensPaginadas.length > 0}
+                            checked={selectedItems.length === pesagensFiltradas.length && pesagensFiltradas.length > 0}
                             onCheckedChange={toggleSelectAll}
                           />
                         </TableHead>
