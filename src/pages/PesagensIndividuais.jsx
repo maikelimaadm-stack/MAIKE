@@ -375,11 +375,6 @@ export default function PesagensIndividuais() {
           <p className="text-xs text-slate-600">Importação e gestão de pesagens individuais</p>
         </div>
         <div className="flex gap-2">
-          <Link to={createPageUrl("LancamentoPesagensIndividuais")}>
-            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-              Lançar Pesagens
-            </Button>
-          </Link>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
             Atualizar
           </Button>
@@ -390,35 +385,20 @@ export default function PesagensIndividuais() {
             Modelo CSV
           </Button>
           <label>
-            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 cursor-pointer" asChild>
+            <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" asChild>
               <span>Importar CSV/TXT</span>
             </Button>
             <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
           </label>
+          <Link to={createPageUrl("LancamentoPesagensIndividuais")}>
+            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              Lançar Pesagens
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-slate-50">
-          <CardContent className="p-3">
-            <div className="text-xs text-slate-500">Total Registros</div>
-            <div className="text-xl font-bold text-slate-900">{stats.total.toLocaleString('pt-BR')}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-50">
-          <CardContent className="p-3">
-            <div className="text-xs text-blue-600">Peso Médio</div>
-            <div className="text-xl font-bold text-blue-900">{stats.pesoMedio.toFixed(1)} kg</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-emerald-50">
-          <CardContent className="p-3">
-            <div className="text-xs text-emerald-600">GMD Médio</div>
-            <div className="text-xl font-bold text-emerald-900">{stats.gmdMedio.toFixed(3)} kg/dia</div>
-          </CardContent>
-        </Card>
-      </div>
+
 
       {/* Filtros */}
       <Card>
