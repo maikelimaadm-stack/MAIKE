@@ -305,7 +305,7 @@ export default function FichaControleCombustivel() {
               <tr className="bg-gray-200">
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraData}px` }}>DATA</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraMaquina}px` }}>MÁQUINA / VEÍCULO</th>
-                <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraHorimetro}px` }}>HORÍMETRO</th>
+                <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraHorimetro}px` }}>HR/KM</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraEntrada}px` }}>ENTRADA (L)</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraSaida}px` }}>SAÍDA (L)</th>
                 <th className="border border-black p-1 font-bold" style={{ width: `${config.larguraVisto}px` }}>VISTO</th>
@@ -314,12 +314,12 @@ export default function FichaControleCombustivel() {
             <tbody>
               {Array.from({ length: config.linhas }).map((_, idx) => (
                 <tr key={idx}>
-                  <td className="border border-gray-400 p-1" style={{ height: `${config.alturaLinha}px` }}></td>
-                  <td className="border border-gray-400 p-1"></td>
-                  <td className="border border-gray-400 p-1"></td>
-                  <td className="border border-gray-400 p-1"></td>
-                  <td className="border border-gray-400 p-1"></td>
-                  <td className="border border-gray-400 p-1"></td>
+                  <td className="border border-black p-1" style={{ height: `${config.alturaLinha}px` }}></td>
+                  <td className="border border-black p-1"></td>
+                  <td className="border border-black p-1"></td>
+                  <td className="border border-black p-1"></td>
+                  <td className="border border-black p-1"></td>
+                  <td className="border border-black p-1"></td>
                 </tr>
               ))}
             </tbody>
