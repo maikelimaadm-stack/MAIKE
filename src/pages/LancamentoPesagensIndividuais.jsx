@@ -620,9 +620,9 @@ export default function LancamentoPesagensIndividuais() {
   return (
     <div className="p-3 space-y-2 bg-slate-100 min-h-screen">
       {/* HEADER */}
-      <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm">
+      <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-bold text-slate-800">Lançamento de Pesagens</h1>
+          <h1 className="text-lg font-bold text-slate-900">Lançamento de Pesagens</h1>
           {isOnline ? (
             <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
               <Wifi className="w-3 h-3 mr-1" />Online
@@ -638,8 +638,8 @@ export default function LancamentoPesagensIndividuais() {
         </div>
         <div className="flex gap-2">
           {pendingCount > 0 && isOnline && (
-            <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-7 text-xs gap-1">
-              <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar
             </Button>
           )}
@@ -648,11 +648,11 @@ export default function LancamentoPesagensIndividuais() {
               <Database className="w-3 h-3 mr-1" />Persistente
             </Badge>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-7 text-xs gap-1">
-            <Settings className="w-3 h-3" />Apartações
+          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
+            Apartações
           </Button>
-          <Button variant="outline" size="sm" onClick={() => loadAllData()} className="h-7 text-xs gap-1">
-            <RefreshCw className="w-3 h-3" />
+          <Button variant="outline" size="sm" onClick={() => loadAllData()} className="h-8 text-xs">
+            Atualizar
           </Button>
         </div>
       </div>
@@ -781,9 +781,8 @@ export default function LancamentoPesagensIndividuais() {
             </div>
             
             {/* Botões Salvar e Cancelar */}
-            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 gap-2 bg-emerald-600 hover:bg-emerald-700 px-4">
-              <Save className="w-4 h-4" />
-              {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar Registro')}
+            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700 hover:bg-slate-800">
+              {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
             </Button>
             {editingId && (
               <Button 
@@ -799,10 +798,9 @@ export default function LancamentoPesagensIndividuais() {
                   if (!fixarMarca) setMarca("");
                   setTimeout(() => numeroInputRef.current?.focus(), 50);
                 }} 
-                className="h-9 gap-2 px-4"
+                className="h-9 px-4"
               >
-                <X className="w-4 h-4" />
-                Cancelar Edição
+                Cancelar
               </Button>
             )}
           </div>
@@ -1005,8 +1003,8 @@ export default function LancamentoPesagensIndividuais() {
                 <span className="font-bold text-lg">{estatisticas.pesoMedio.toFixed(2)}</span>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs gap-1">
-              <Download className="w-3 h-3" />Exportar
+            <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs">
+              Exportar
             </Button>
           </div>
         </div>

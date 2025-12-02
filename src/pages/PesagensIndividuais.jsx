@@ -369,39 +369,29 @@ export default function PesagensIndividuais() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Scale className="w-5 h-5" />
-            Pesagens Individuais
-          </h1>
+          <h1 className="text-lg font-bold text-slate-900">Pesagens Individuais</h1>
           <p className="text-xs text-slate-600">Importação e gestão de pesagens individuais</p>
         </div>
         <div className="flex gap-2">
           <Link to={createPageUrl("LancamentoPesagensIndividuais")}>
-                            <Button size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700">
-                              <Plus className="w-3.5 h-3.5" />
-                              Lançar Pesagens
-                            </Button>
-                          </Link>
-                          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs gap-1">
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            Atualizar
-                          </Button>
-          <Button variant="outline" size="sm" onClick={exportarCSV} className="h-8 text-xs gap-1">
-            <Download className="w-3.5 h-3.5" />
+            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              Lançar Pesagens
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+            Atualizar
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportarCSV} className="h-8 text-xs">
             Exportar
           </Button>
-          <Button variant="outline" size="sm" onClick={baixarModelo} className="h-8 text-xs gap-1">
-            <FileSpreadsheet className="w-3.5 h-3.5" />
+          <Button variant="outline" size="sm" onClick={baixarModelo} className="h-8 text-xs">
             Modelo CSV
           </Button>
           <label>
-            <Button size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 cursor-pointer" asChild>
-              <span>
-                <Upload className="w-3.5 h-3.5" />
-                Importar CSV/TXT
-              </span>
+            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800 cursor-pointer" asChild>
+              <span>Importar CSV/TXT</span>
             </Button>
             <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
           </label>
