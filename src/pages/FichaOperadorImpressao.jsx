@@ -99,15 +99,6 @@ export default function FichaOperadorImpressao() {
                     className="border border-dashed border-black p-2 flex flex-col"
                     style={{ height: alturaFicha }}
                   >
-                    {/* Cabeçalho */}
-                    <div className="flex justify-between items-center border-b-2 border-black">
-                      <span className="text-[10px] font-bold text-black">{empresa?.apelido || empresa?.nome || 'FAZENDA'}</span>
-                      <div className="flex items-center">
-                        <span className="text-[9px] font-bold text-black mr-1">Nº</span>
-                        <div className="w-6 border-b border-black"></div>
-                      </div>
-                    </div>
-                    
                     {/* Espaço para recorte/grampo */}
                     <div className="border-b border-dashed border-black" style={{ minHeight: '20px' }}></div>
 
