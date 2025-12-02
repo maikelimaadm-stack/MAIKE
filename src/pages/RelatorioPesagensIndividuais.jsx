@@ -555,7 +555,7 @@ export default function RelatorioPesagensIndividuais() {
 
                         {/* Para cada data, mostrar lotes */}
                         {Object.entries(porData)
-                          .sort((a, b) => b[0].localeCompare(a[0]))
+                          .sort((a, b) => a[0].localeCompare(b[0]))
                           .map(([data, lotes]) => {
                             const animaisData = Object.values(lotes).flat();
                             const totalData = animaisData.length;
