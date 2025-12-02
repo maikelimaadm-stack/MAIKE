@@ -79,6 +79,7 @@ const DEFAULT_MENU = [
       { id: "maq-controle-areas", title: "Controle de Areas", url: "ControleAreas" },
       { id: "maq-ficha", title: "Ficha do Operador", url: "FichaOperador" },
       { id: "maq-ficha-impressao", title: "Imprimir Fichas", url: "FichaOperadorImpressao" },
+            { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" },
     ],
   },
   {
