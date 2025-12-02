@@ -45,6 +45,7 @@ import {
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
+import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
