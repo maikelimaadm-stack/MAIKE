@@ -944,12 +944,14 @@ export default function LancamentoPesagensIndividuais() {
           )}
         </div>
         <div className="flex gap-2">
-          {pendingCount > 0 && isOnline && (
-            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              Sincronizar
-            </Button>
-          )}
+          {/* Botão de sincronização oculto
+                      {pendingCount > 0 && isOnline && (
+                        <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                          Sincronizar
+                        </Button>
+                      )}
+          */}
           {dbReady && (
             <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
               <Database className="w-3 h-3 mr-1" />Persistente
@@ -1507,11 +1509,12 @@ export default function LancamentoPesagensIndividuais() {
         onSyncComplete={loadAllData}
       />
 
-      {/* DIALOG DE PROGRESSO DA SINCRONIZAÇÃO */}
+{/* Dialog de progresso oculto
       <SyncProgressDialog 
         open={syncDialogOpen}
         syncState={syncState}
       />
+*/}
     </div>
   );
 }
