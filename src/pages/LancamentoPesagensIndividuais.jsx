@@ -47,6 +47,7 @@ import {
 } from "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
+import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 
 const formatarData = (dataString) => {
   if (!dataString) return '--/--/----';
@@ -805,13 +806,22 @@ export default function LancamentoPesagensIndividuais() {
                   <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
                 </div>
               </div>
-              <Input 
-                value={raca} 
-                onChange={(e) => setRaca(e.target.value)} 
-                className={`h-9 text-sm w-28 ${fixarRaca ? 'bg-slate-100' : ''}`}
-                placeholder="Nelore"
-                disabled={fixarRaca && raca}
-              />
+              {fixarRaca && raca ? (
+                <Input 
+                  value={raca} 
+                  className="h-9 text-sm w-28 bg-slate-100"
+                  disabled
+                />
+              ) : (
+                <div className="w-28">
+                  <ComboboxComNovo
+                    value={raca}
+                    onChange={setRaca}
+                    options={racasExistentes}
+                    placeholder="Nelore"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Era com Checkbox para fixar */}
@@ -828,13 +838,22 @@ export default function LancamentoPesagensIndividuais() {
                   <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
                 </div>
               </div>
-              <Input 
-                value={era} 
-                onChange={(e) => !fixarEra && setEra(e.target.value)} 
-                className={`h-9 text-sm w-24 ${fixarEra ? 'bg-slate-100 cursor-not-allowed' : ''}`}
-                placeholder="Ex: 2A"
-                readOnly={fixarEra}
-              />
+              {fixarEra && era ? (
+                <Input 
+                  value={era} 
+                  className="h-9 text-sm w-24 bg-slate-100"
+                  disabled
+                />
+              ) : (
+                <div className="w-24">
+                  <ComboboxComNovo
+                    value={era}
+                    onChange={setEra}
+                    options={erasExistentes}
+                    placeholder="Ex: 2A"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Marca com Checkbox para fixar */}
@@ -851,13 +870,22 @@ export default function LancamentoPesagensIndividuais() {
                   <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
                 </div>
               </div>
-              <Input 
-                value={marca} 
-                onChange={(e) => setMarca(e.target.value)} 
-                className={`h-9 text-sm w-24 ${fixarMarca ? 'bg-slate-100' : ''}`}
-                placeholder="Ex: ABC"
-                disabled={fixarMarca && marca}
-              />
+              {fixarMarca && marca ? (
+                <Input 
+                  value={marca} 
+                  className="h-9 text-sm w-24 bg-slate-100"
+                  disabled
+                />
+              ) : (
+                <div className="w-24">
+                  <ComboboxComNovo
+                    value={marca}
+                    onChange={setMarca}
+                    options={marcasExistentes}
+                    placeholder="Ex: ABC"
+                  />
+                </div>
+              )}
             </div>
             
             {/* Nº Identificação */}
