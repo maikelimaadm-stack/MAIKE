@@ -37,23 +37,37 @@ export const syncPesagens = async (empresaId) => {
   const pending = await getPendingPesagens(empresaId);
   let successCount = 0;
   const errors = [];
+  const processedKeys = new Set(); // Evitar duplicação por numero_animal+data
 
   for (const pesagem of pending) {
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
       
+      // Criar chave única para evitar duplicação
+      const uniqueKey = `${data.numero_animal}_${data.data_pesagem}`;
+      
       // Verificar se é uma edição ou criação
       if (_action === 'update' && _editId) {
         await base44.entities.PesagemIndividual.update(_editId, data);
+        await deletePendingPesagem(_offlineId);
+        successCount++;
       } else {
+        // Evitar criar duplicado
+        if (processedKeys.has(uniqueKey)) {
+          await deletePendingPesagem(_offlineId);
+          continue;
+        }
+        processedKeys.add(uniqueKey);
+        
         await base44.entities.PesagemIndividual.create(data);
+        await deletePendingPesagem(_offlineId);
+        successCount++;
       }
-      
-      await deletePendingPesagem(_offlineId);
-      successCount++;
     } catch (error) {
       console.error('Erro ao sincronizar pesagem:', error);
       errors.push({ pesagem, error: error.message });
+      // Remover da fila mesmo com erro para evitar loop infinito
+      await deletePendingPesagem(pesagem._offlineId);
     }
   }
 
@@ -65,6 +79,7 @@ export const syncApartacoes = async () => {
   let successCount = 0;
   const errors = [];
   const idMap = {}; // Mapeia IDs offline para IDs reais
+  const processedOfflineIds = new Set(); // Evitar duplicação
 
   // Ordenar: creates primeiro, updates depois, deletes por último
   const sorted = [...pending].sort((a, b) => {
@@ -75,9 +90,18 @@ export const syncApartacoes = async () => {
   for (const item of sorted) {
     try {
       if (item.action === 'create') {
-        const { _offlineId, id, created_date, ...data } = item.data;
+        const offlineId = item.data?.id;
+        
+        // Evitar processar o mesmo item offline duas vezes
+        if (offlineId && processedOfflineIds.has(offlineId)) {
+          await deletePendingApartacao(item._offlineId);
+          continue;
+        }
+        if (offlineId) processedOfflineIds.add(offlineId);
+        
+        const { _offlineId, id, created_date, _isOffline, ...data } = item.data;
         const created = await base44.entities.Apartacao.create(data);
-        idMap[id] = created.id; // Mapear ID offline para ID real
+        if (offlineId) idMap[offlineId] = created.id;
         await deletePendingApartacao(item._offlineId);
         successCount++;
       } else if (item.action === 'update') {
@@ -96,6 +120,8 @@ export const syncApartacoes = async () => {
     } catch (error) {
       console.error('Erro ao sincronizar apartação:', error);
       errors.push({ item, error: error.message });
+      // Remover da fila mesmo com erro para evitar loop infinito
+      await deletePendingApartacao(item._offlineId);
     }
   }
 
@@ -106,6 +132,7 @@ export const syncLotes = async (apartacaoIdMap = {}) => {
   const pending = await getPendingLotes();
   let successCount = 0;
   const errors = [];
+  const processedOfflineIds = new Set(); // Evitar duplicação
 
   const sorted = [...pending].sort((a, b) => {
     const order = { create: 0, update: 1, delete: 2 };
@@ -115,7 +142,16 @@ export const syncLotes = async (apartacaoIdMap = {}) => {
   for (const item of sorted) {
     try {
       if (item.action === 'create') {
-        const { _offlineId, id, created_date, ...data } = item.data;
+        const offlineId = item.data?.id;
+        
+        // Evitar processar o mesmo item offline duas vezes
+        if (offlineId && processedOfflineIds.has(offlineId)) {
+          await deletePendingLote(item._offlineId);
+          continue;
+        }
+        if (offlineId) processedOfflineIds.add(offlineId);
+        
+        const { _offlineId, id, created_date, _isOffline, ...data } = item.data;
         
         // Se apartacao_id era offline, usar o ID real
         if (data.apartacao_id?.startsWith('offline_') && apartacaoIdMap[data.apartacao_id]) {
@@ -139,6 +175,8 @@ export const syncLotes = async (apartacaoIdMap = {}) => {
     } catch (error) {
       console.error('Erro ao sincronizar lote:', error);
       errors.push({ item, error: error.message });
+      // Remover da fila mesmo com erro para evitar loop infinito
+      await deletePendingLote(item._offlineId);
     }
   }
 

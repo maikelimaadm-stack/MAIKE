@@ -1528,7 +1528,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_apt_${Date.now()}`;
+        const offlineId = `offline_apt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const novaApartacao = { 
           ...data, 
           id: offlineId, 
@@ -1540,20 +1540,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           if (editingApartacaoId) {
             await saveApartacaoOffline('update', { id: editingApartacaoId, ...data });
           } else {
-            await saveApartacaoOffline('create', novaApartacao);
             // Adicionar ao cache local para exibir imediatamente
             await putItem(STORES_NAMES.APARTACOES, novaApartacao);
+            // Salvar na fila de pendentes para sincronizar
+            await saveApartacaoOffline('create', novaApartacao);
           }
-        } else {
-          // Fallback localStorage
-          const pending = JSON.parse(localStorage.getItem('pending_apartacoes') || '[]');
-          pending.push({ 
-            action: editingApartacaoId ? 'update' : 'create', 
-            id: editingApartacaoId,
-            data: editingApartacaoId ? data : novaApartacao, 
-            timestamp: Date.now() 
-          });
-          localStorage.setItem('pending_apartacoes', JSON.stringify(pending));
         }
 
         toast.success(editingApartacaoId ? "Apartação atualizada offline!" : "Apartação criada offline!");
@@ -1632,7 +1623,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         onRefresh();
       } else {
         // OFFLINE: Salvar no IndexedDB (persistente)
-        const offlineId = `offline_lote_${Date.now()}`;
+        const offlineId = `offline_lote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const novoLote = { 
           ...data, 
           id: offlineId, 
@@ -1644,20 +1635,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           if (editingLoteId) {
             await saveLoteOffline('update', { id: editingLoteId, ...data });
           } else {
-            await saveLoteOffline('create', novoLote);
             // Adicionar ao cache local para exibir imediatamente
             await putItem(STORES_NAMES.LOTES, novoLote);
+            // Salvar na fila de pendentes para sincronizar
+            await saveLoteOffline('create', novoLote);
           }
-        } else {
-          // Fallback localStorage
-          const pending = JSON.parse(localStorage.getItem('pending_lotes') || '[]');
-          pending.push({ 
-            action: editingLoteId ? 'update' : 'create', 
-            id: editingLoteId,
-            data: editingLoteId ? data : novoLote, 
-            timestamp: Date.now() 
-          });
-          localStorage.setItem('pending_lotes', JSON.stringify(pending));
         }
 
         toast.success(editingLoteId ? "Lote atualizado offline!" : "Lote criado offline!");
