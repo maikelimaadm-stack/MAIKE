@@ -16,8 +16,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -532,7 +530,6 @@ export default function LancamentoPesagensIndividuais() {
             Apartações
           </Button>
           <Button onClick={handleNovoLancamento} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-            <Plus className="w-4 h-4 mr-1" />
             Novo Lançamento
           </Button>
         </div>
@@ -592,7 +589,7 @@ export default function LancamentoPesagensIndividuais() {
       <Card className="shadow-sm">
         <CardHeader className="py-2 px-3 bg-slate-50 border-b">
           <CardTitle className="text-xs font-semibold">
-            Pesagens do Dia ({estatisticas.total})
+            Pesagens ({estatisticas.total})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -871,7 +868,6 @@ function FormularioPesagem({
 
       await onSave();
 
-      // Limpar formulário para novo lançamento
       if (!editingPesagem) {
         setNumeroAnimal("");
         setPeso("");
