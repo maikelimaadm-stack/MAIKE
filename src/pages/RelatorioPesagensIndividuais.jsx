@@ -112,6 +112,27 @@ export default function RelatorioPesagensIndividuais() {
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
 
+  // Estado para mostrar detalhes no relatório de apartação
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
+  const [showConfigColunasDetalhes, setShowConfigColunasDetalhes] = useState(false);
+  
+  // Colunas de detalhes visíveis e ordem
+  const [colunasDetalhesVisiveis, setColunasDetalhesVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_detalhes_apartacao');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { }
+    }
+    return COLUNAS_DETALHES_APARTACAO.filter(c => c.default).map(c => c.id);
+  });
+  
+  const [colunasDetalhesOrdem, setColunasDetalhesOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_detalhes_ordem_apartacao');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { }
+    }
+    return COLUNAS_DETALHES_APARTACAO.map(c => c.id);
+  });
+
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [apartacoesSelecionadas, setApartacoesSelecionadas] = useState([]);
   const [sexosSelecionados, setSexosSelecionados] = useState([]);
