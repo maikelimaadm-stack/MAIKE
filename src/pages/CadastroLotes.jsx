@@ -134,7 +134,6 @@ export default function CadastroLotes() {
         </div>
         <div className="flex gap-2">
           <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
-            <Download className="w-3 h-3 mr-1" />
             Exportar
           </Button>
           {!showForm && (

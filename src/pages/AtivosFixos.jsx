@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -160,8 +159,7 @@ export default function AtivosFixos() {
           <h1 className="text-2xl font-bold text-slate-800">Ativos Fixos</h1>
           <p className="text-sm text-slate-600">Gerencie veículos, máquinas e equipamentos</p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => setShowForm(!showForm)} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           Novo Ativo
         </Button>
       </div>
@@ -264,7 +262,7 @@ export default function AtivosFixos() {
 
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button type="button" variant="outline" onClick={resetForm} size="sm" className="h-8 text-xs">Cancelar</Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">Salvar</Button>
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Salvar</Button>
                   </div>
                 </form>
               </CardContent>

@@ -148,13 +148,13 @@ export default function ControlePecuaria() {
         </div>
         <div className="flex gap-2">
           <Link to={createPageUrl("MapaGeral")}>
-            <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-              <MapPin className="w-3 h-3" /> Ver no Mapa
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+              Ver no Mapa
             </Button>
           </Link>
           <Link to={createPageUrl("CadastroLotes")}>
-            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Users className="w-3 h-3" /> Gerenciar Lotes
+            <Button variant="outline" size="sm" className="h-8 text-xs">
+              Gerenciar Lotes
             </Button>
           </Link>
         </div>
@@ -387,8 +387,8 @@ export default function ControlePecuaria() {
               {operacoes.filter(o => o.status === 'Em Andamento').length} em andamento • {operacoes.filter(o => o.status === 'Planejada').length} planejada(s)
             </div>
             <Link to={createPageUrl("OperacoesAgricolas")}>
-              <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-                <Tractor className="w-3 h-3" /> Ver Todas
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                Ver Todas
               </Button>
             </Link>
           </div>
@@ -454,7 +454,7 @@ export default function ControlePecuaria() {
               {stats.tarefasPendentes} pendente(s) • {stats.tarefasUrgentes} urgente(s)
             </div>
             <Link to={createPageUrl("MapaGeral")}>
-              <Button size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Gerenciar no Mapa
               </Button>
             </Link>
