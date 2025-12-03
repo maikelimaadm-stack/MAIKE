@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -467,7 +466,7 @@ export default function Produtos() {
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 Modelo
               </Button>
-              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-3.5 h-3.5" />
                 Novo Produto
               </Button>
