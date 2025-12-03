@@ -257,6 +257,30 @@ export default function RelatorioPesagensIndividuais() {
     });
   };
 
+  // Toggle para colunas de detalhes da apartação
+  const toggleColunaDetalhe = (colunaId) => {
+    const novas = colunasDetalhesVisiveis.includes(colunaId) 
+      ? colunasDetalhesVisiveis.filter(id => id !== colunaId) 
+      : [...colunasDetalhesVisiveis, colunaId];
+    setColunasDetalhesVisiveis(novas);
+    localStorage.setItem('colunas_detalhes_apartacao', JSON.stringify(novas));
+  };
+
+  // Drag and drop para reordenar colunas de detalhes
+  const handleDragEndDetalhes = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasDetalhesOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasDetalhesOrdem(items);
+    localStorage.setItem('colunas_detalhes_ordem_apartacao', JSON.stringify(items));
+  };
+
+  // Colunas de detalhes ordenadas
+  const colunasDetalhesOrdenadas = colunasDetalhesOrdem
+    .map(id => COLUNAS_DETALHES_APARTACAO.find(c => c.id === id))
+    .filter(c => c && colunasDetalhesVisiveis.includes(c.id));
+
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
   };
