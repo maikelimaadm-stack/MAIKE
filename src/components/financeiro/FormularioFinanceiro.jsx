@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -257,224 +256,218 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-xl border-slate-200 bg-white">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-            <CardTitle className="flex items-center gap-3 text-slate-900">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
-              </div>
+        <Card className="shadow-sm border-slate-300 bg-white">
+          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData?.id ? 'Editar Lançamento' : 'Novo Lançamento Financeiro'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Tipo *</Label>
+          <CardContent className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo *</Label>
                   <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pagar">Conta a Pagar</SelectItem>
-                      <SelectItem value="Receber">Conta a Receber</SelectItem>
+                      <SelectItem value="Pagar" className="text-xs">Conta a Pagar</SelectItem>
+                      <SelectItem value="Receber" className="text-xs">Conta a Receber</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Tipo Documento *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo Documento *</Label>
                   <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NF-e">NF-e</SelectItem>
-                      <SelectItem value="NFC-e">NFC-e</SelectItem>
-                      <SelectItem value="Recibo">Recibo</SelectItem>
-                      <SelectItem value="Boleto">Boleto</SelectItem>
-                      <SelectItem value="Nota Manual">Nota Manual</SelectItem>
-                      <SelectItem value="Outros">Outros</SelectItem>
+                      <SelectItem value="NF-e" className="text-xs">NF-e</SelectItem>
+                      <SelectItem value="NFC-e" className="text-xs">NFC-e</SelectItem>
+                      <SelectItem value="Recibo" className="text-xs">Recibo</SelectItem>
+                      <SelectItem value="Boleto" className="text-xs">Boleto</SelectItem>
+                      <SelectItem value="Nota Manual" className="text-xs">Nota Manual</SelectItem>
+                      <SelectItem value="Outros" className="text-xs">Outros</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Data Emissão *</Label>
-                  <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required />
+                <div className="space-y-1">
+                  <Label className="text-xs">Data Emissão *</Label>
+                  <Input type="date" value={formData.data_emissao} onChange={(e) => handleChange('data_emissao', e.target.value)} required className="h-8 text-xs" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Nº Documento</Label>
-                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nº Documento</Label>
+                  <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Safra</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Safra</Label>
                   <Select value={formData.safra_id} onValueChange={(v) => handleChange('safra_id', v)}>
-                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                     <SelectContent>
-                      {safras.map(s => <SelectItem key={s.id} value={s.id}>{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
+                      {safras.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.ano_inicio}/{s.ano_fim} - {s.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               {formData.tipo === 'Pagar' && (
-                <div className="space-y-2">
-                  <Label>Fornecedor *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fornecedor *</Label>
                   <Select value={formData.fornecedor_id} onValueChange={(v) => handleChange('fornecedor_id', v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o fornecedor" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {fornecedores.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                      {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               )}
 
               {formData.tipo === 'Receber' && (
-                <div className="space-y-2">
-                  <Label>Cliente *</Label>
-                  <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="uppercase" style={{ textTransform: 'uppercase' }} required />
+                <div className="space-y-1">
+                  <Label className="text-xs">Cliente *</Label>
+                  <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="NOME DO CLIENTE" className="h-8 text-xs uppercase" style={{ textTransform: 'uppercase' }} required />
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Centro de Custo</Label>
                   <div className="flex gap-2">
                     <Select value={formData.centro_custo_id} onValueChange={(v) => handleChange('centro_custo_id', v)} className="flex-1">
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
-                        {centros.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                        {centros.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Plano de Contas</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Plano de Contas</Label>
                   <div className="flex gap-2">
                     <Select value={formData.plano_contas_id} onValueChange={(v) => handleChange('plano_contas_id', v)} className="flex-1">
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
-                        {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
+                        {planos.filter(p => p.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(p => <SelectItem key={p.id} value={p.id} className="text-xs">{p.codigo} - {p.descricao}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogPlano(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Grupo</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Grupo</Label>
                   <div className="flex gap-2">
                     <Select value={formData.grupo_id} onValueChange={(v) => handleChange('grupo_id', v)} className="flex-1">
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
-                        {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => <SelectItem key={g.id} value={g.id}>{g.descricao}</SelectItem>)}
+                        {grupos.filter(g => g.tipo === (formData.tipo === 'Pagar' ? 'Despesa' : 'Receita')).map(g => <SelectItem key={g.id} value={g.id} className="text-xs">{g.descricao}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)}>
-                      <Plus className="w-4 h-4" />
+                    <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogGrupo(true)} className="h-8 w-8">
+                      <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Forma de Pagamento</Label>
                 <div className="flex gap-2">
                   <Select value={formData.forma_pagamento_id} onValueChange={(v) => handleChange('forma_pagamento_id', v)} className="flex-1">
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {formasPagamento.map(f => <SelectItem key={f.id} value={f.id}>{f.descricao}</SelectItem>)}
+                      {formasPagamento.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)}>
-                    <Plus className="w-4 h-4" />
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogForma(true)} className="h-8 w-8">
+                    <Plus className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <Label>Valor Original *</Label>
-                  <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required />
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor Original *</Label>
+                  <Input value={formData.valor_original} onChange={(e) => handleChange('valor_original', e.target.value)} placeholder="0,00" required className="h-8 text-xs" />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Juros</Label>
-                  <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Juros</Label>
+                  <Input value={formData.valor_juros} onChange={(e) => handleChange('valor_juros', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Multa</Label>
-                  <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Multa</Label>
+                  <Input value={formData.valor_multa} onChange={(e) => handleChange('valor_multa', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Desconto</Label>
-                  <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Desconto</Label>
+                  <Input value={formData.valor_desconto} onChange={(e) => handleChange('valor_desconto', e.target.value)} placeholder="0,00" className="h-8 text-xs" />
                 </div>
               </div>
 
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4 flex justify-between items-center">
-                  <span className="font-semibold text-slate-700">Vlr. Total:</span>
-                  <span className="text-2xl font-bold text-blue-700">{formatarMoeda(valorTotal)}</span>
-                </CardContent>
-              </Card>
+              <div className="space-y-1">
+                <Label className="text-xs">Valor Total</Label>
+                <Input value={formatarMoeda(valorTotal)} readOnly className="h-8 text-xs font-semibold bg-slate-50" />
+              </div>
 
-              <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
                 {!initialData?.id && (
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={formData.parcelar} onCheckedChange={(v) => handleChange('parcelar', v)} id="parcelar" />
-                    <label htmlFor="parcelar" className="font-semibold cursor-pointer">Parcelar lançamento (cria lançamentos separados)</label>
+                    <label htmlFor="parcelar" className="text-xs font-semibold cursor-pointer">Parcelar lançamento</label>
                   </div>
                 )}
 
                 {!formData.parcelar && (
-                  <div className="space-y-2">
-                    <Label>Data de Vencimento *</Label>
-                    <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Data de Vencimento *</Label>
+                    <Input type="date" value={formData.data_vencimento} onChange={(e) => handleChange('data_vencimento', e.target.value)} required className="h-8 text-xs" />
                   </div>
                 )}
 
                 {formData.parcelar && (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <Label>Parcelas ({formData.parcelas.length})</Label>
-                      <Button type="button" size="sm" onClick={adicionarParcela} className="gap-2">
-                        <Plus className="w-4 h-4" />
+                      <Label className="text-xs">Parcelas ({formData.parcelas.length})</Label>
+                      <Button type="button" size="sm" onClick={adicionarParcela} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
                         Adicionar
                       </Button>
                     </div>
                     
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-16">Nº</TableHead>
-                          <TableHead>Vencimento *</TableHead>
-                          <TableHead className="text-right">Valor *</TableHead>
-                          <TableHead className="w-12"></TableHead>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-12 text-xs">Nº</TableHead>
+                          <TableHead className="text-xs">Vencimento *</TableHead>
+                          <TableHead className="text-right text-xs">Valor *</TableHead>
+                          <TableHead className="w-8 text-xs"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {formData.parcelas.map((parcela, index) => (
                           <TableRow key={index}>
-                            <TableCell className="font-bold">{index + 1}</TableCell>
+                            <TableCell className="font-bold text-xs">{index + 1}</TableCell>
                             <TableCell>
-                              <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} required />
+                              <Input type="date" value={parcela.data} onChange={(e) => atualizarParcela(index, 'data', e.target.value)} required className="h-7 text-xs" />
                             </TableCell>
                             <TableCell>
-                              <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right" required />
+                              <Input value={parcela.valor} onChange={(e) => atualizarParcela(index, 'valor', e.target.value)} placeholder="0,00" className="text-right h-7 text-xs" required />
                             </TableCell>
                             <TableCell>
-                              <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2}>
-                                <Trash2 className="w-4 h-4" />
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removerParcela(index)} disabled={formData.parcelas.length <= 2} className="h-6 w-6">
+                                <Trash2 className="w-3 h-3" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -482,43 +475,40 @@ export default function FormularioFinanceiro({ onSubmit, onCancel, initialData, 
                       </TableBody>
                     </Table>
 
-                    <Card className={`${Math.abs(totalParcelas - valorTotal) > 0.01 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
-                      <CardContent className="p-3">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Total Parcelas:</span>
-                            <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Valor:</span>
-                            <span className="font-bold">{formatarMoeda(valorTotal)}</span>
-                          </div>
+                    <div className="bg-slate-50 border border-slate-300 rounded p-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex justify-between">
+                          <span>Total Parcelas:</span>
+                          <span className="font-bold">{formatarMoeda(totalParcelas)}</span>
                         </div>
-                        {Math.abs(totalParcelas - valorTotal) > 0.01 && (
-                          <p className="text-xs text-red-600 mt-2 text-center">⚠️ Valores diferentes!</p>
-                        )}
-                      </CardContent>
-                    </Card>
+                        <div className="flex justify-between">
+                          <span>Valor:</span>
+                          <span className="font-bold">{formatarMoeda(valorTotal)}</span>
+                        </div>
+                      </div>
+                      {Math.abs(totalParcelas - valorTotal) > 0.01 && (
+                        <p className="text-[10px] text-red-600 mt-1 text-center">⚠️ Valores diferentes!</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="uppercase" style={{ textTransform: 'uppercase' }} />
+              <div className="space-y-1">
+                <Label className="text-xs">Observações</Label>
+                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="OBSERVAÇÕES..." className="text-xs uppercase" style={{ textTransform: 'uppercase' }} rows={2} />
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 border-t">
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg"
+                  size="sm"
+                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
                   disabled={!initialData?.id && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}
                 >
-                  <Save className="w-4 h-4" />
                   {initialData?.id ? 'Atualizar' : 'Salvar'}
                 </Button>
               </div>

@@ -805,8 +805,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </p>
                     )}
                   </div>
-                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={formData.tipo_movimentacao === 'Saída' && !formData.local_estoque}>
-                    <Plus className="w-3.5 h-3.5" />
+                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs" disabled={formData.tipo_movimentacao === 'Saída' && !formData.local_estoque}>
                     Adicionar
                   </Button>
                 </div>

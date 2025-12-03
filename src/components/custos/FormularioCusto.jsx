@@ -43,65 +43,53 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-xl border-slate-200 bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
-          <CardTitle className="flex items-center gap-3 text-slate-900">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-white" />
-            </div>
+      <Card className="shadow-sm border-slate-300 bg-white">
+        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+          <CardTitle className="text-sm font-semibold text-slate-900">
             {isEditing ? 'Editar Lançamento' : 'Novo Lançamento'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  Fornecedor *
-                </Label>
+        <CardContent className="p-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Fornecedor *</Label>
                 <Select
                   value={formData.fornecedor_id}
                   onValueChange={(value) => handleChange('fornecedor_id', value)}
                 >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione o fornecedor" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {fornecedores.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                      <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Package className="w-4 h-4 text-purple-600" />
-                  Produto *
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Produto *</Label>
                 <Select
                   value={formData.produto_id}
                   onValueChange={(value) => handleChange('produto_id', value)}
                 >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
-                    <SelectValue placeholder="Selecione o produto" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {produtos.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome_produto}</SelectItem>
+                      <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Package className="w-4 h-4 text-green-600" />
-                  Quantidade *
-                </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Quantidade *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -109,15 +97,12 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
                   onChange={(e) => handleChange('quantidade', e.target.value)}
                   placeholder="0.00"
                   required
-                  className="border-slate-300 focus:border-green-500 text-lg font-semibold"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-green-600" />
-                  Valor Unitário (R$) *
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Valor Unitário (R$) *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -125,96 +110,80 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
                   onChange={(e) => handleChange('valor_unitario', e.target.value)}
                   placeholder="0.00"
                   required
-                  className="border-slate-300 focus:border-green-500 text-lg font-semibold"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Valor Total (R$)</Label>
-                <div className="h-10 px-3 rounded-lg border-2 border-green-500 bg-green-50 flex items-center">
-                  <span className="text-2xl font-bold text-green-700">
-                    {valorTotal.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  </span>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Valor Total (R$)</Label>
+                <Input
+                  value={valorTotal.toFixed(2)}
+                  readOnly
+                  className="h-8 text-xs font-semibold bg-slate-50"
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-orange-600" />
-                  Prazo de Entrega
-                </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Prazo de Entrega</Label>
                 <Input
                   type="date"
                   value={formData.prazo_entrega}
                   onChange={(e) => handleChange('prazo_entrega', e.target.value)}
-                  className="border-slate-300 focus:border-green-500"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-orange-600" />
-                  Data da Entrega
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Data da Entrega</Label>
                 <Input
                   type="date"
                   value={formData.data_entrega}
                   onChange={(e) => handleChange('data_entrega', e.target.value)}
-                  className="border-slate-300 focus:border-green-500"
+                  className="h-8 text-xs"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-indigo-600" />
-                  Status da Entrega
-                </Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Status da Entrega</Label>
                 <Select
                   value={formData.status_entrega}
                   onValueChange={(value) => handleChange('status_entrega', value)}
                 >
-                  <SelectTrigger className="border-slate-300 focus:border-green-500">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Em Trânsito">Em Trânsito</SelectItem>
-                    <SelectItem value="Entregue">Entregue</SelectItem>
-                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    <SelectItem value="Pendente" className="text-xs">Pendente</SelectItem>
+                    <SelectItem value="Em Trânsito" className="text-xs">Em Trânsito</SelectItem>
+                    <SelectItem value="Entregue" className="text-xs">Entregue</SelectItem>
+                    <SelectItem value="Cancelado" className="text-xs">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-700 font-medium flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-cyan-600" />
-                  Forma de Pagamento
-                </Label>
-                <Input
-                  value={formData.forma_pagamento}
-                  onChange={(e) => handleChange('forma_pagamento', e.target.value)}
-                  placeholder="À VISTA, PRAZO, ETC"
-                  className="border-slate-300 focus:border-green-500 uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-medium flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-600" />
-                Observações
-              </Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de Pagamento</Label>
+              <Input
+                value={formData.forma_pagamento}
+                onChange={(e) => handleChange('forma_pagamento', e.target.value)}
+                placeholder="À VISTA, PRAZO, ETC"
+                className="h-8 text-xs uppercase"
+                style={{ textTransform: 'uppercase' }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
               <Textarea
                 value={formData.observacoes}
                 onChange={(e) => handleChange('observacoes', e.target.value)}
                 placeholder="INFORMAÇÕES ADICIONAIS..."
-                className="border-slate-300 focus:border-green-500 min-h-20 uppercase"
+                className="text-xs uppercase"
                 style={{ textTransform: 'uppercase' }}
+                rows={2}
               />
             </div>
 

@@ -126,8 +126,7 @@ export default function Usuarios() {
               <p className="text-xs text-slate-600">Gerenciar acessos ao sistema</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-                <Plus className="w-3.5 h-3.5" />
+              <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Configurar Permissões
               </Button>
             </div>

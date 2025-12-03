@@ -151,8 +151,7 @@ export default function Home() {
           <p className="text-xs text-slate-600">Visão geral do sistema</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowConfigGraficos(true)} className="h-8 gap-1 text-xs">
-            <BarChart3 className="w-3.5 h-3.5" />
+          <Button variant="outline" size="sm" onClick={() => setShowConfigGraficos(true)} className="h-8 text-xs">
             Configurar Gráficos
           </Button>
         </div>
