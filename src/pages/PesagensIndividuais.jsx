@@ -375,6 +375,16 @@ export default function PesagensIndividuais() {
             continue;
           }
 
+          // Se for SN, limpar campos de ganho/GMD
+          const isSN = registro.numero_animal?.toUpperCase() === 'SN';
+          if (isSN) {
+            registro.data_anterior = null;
+            registro.peso_anterior = null;
+            registro.dias = null;
+            registro.ganho = null;
+            registro.gmd = null;
+          }
+
           dados.push(registro);
         }
 

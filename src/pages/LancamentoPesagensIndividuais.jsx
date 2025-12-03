@@ -703,8 +703,9 @@ export default function LancamentoPesagensIndividuais() {
       return; 
     }
 
-    // Verificar duplicado (inclui pesagens pendentes offline)
-    if (!editingId) {
+    // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN
+    const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
+    if (!editingId && !isSN) {
       const duplicado = pesagensDia.find(p => 
         p.numero_animal === numeroAnimal.trim() && 
         p.id !== editingId
@@ -719,19 +720,22 @@ export default function LancamentoPesagensIndividuais() {
 
     const pesoNum = parseFloat(peso);
     
-    // Buscar histórico para cálculo de ganho
-    const historicoAnimal = pesagens
-      .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-      .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-
+    // Buscar histórico para cálculo de ganho - exceto SN
     let dataAnterior = null, pesoAnterior = null, dias = null, ganho = null, gmd = null;
-    if (historicoAnimal.length > 0 && historicoAnimal[0].peso) {
-      const ultimo = historicoAnimal[0];
-      dataAnterior = ultimo.data_pesagem;
-      pesoAnterior = ultimo.peso;
-      dias = Math.floor((new Date(dataPesagem) - new Date(dataAnterior)) / (1000 * 60 * 60 * 24));
-      ganho = pesoNum - pesoAnterior;
-      gmd = dias > 0 ? parseFloat((ganho / dias).toFixed(3)) : 0;
+
+    if (!isSN) {
+      const historicoAnimal = pesagens
+        .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+        .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+
+      if (historicoAnimal.length > 0 && historicoAnimal[0].peso) {
+        const ultimo = historicoAnimal[0];
+        dataAnterior = ultimo.data_pesagem;
+        pesoAnterior = ultimo.peso;
+        dias = Math.floor((new Date(dataPesagem) - new Date(dataAnterior)) / (1000 * 60 * 60 * 24));
+        ganho = pesoNum - pesoAnterior;
+        gmd = dias > 0 ? parseFloat((ganho / dias).toFixed(3)) : 0;
+      }
     }
 
     // Determinar lote
@@ -1136,24 +1140,25 @@ export default function LancamentoPesagensIndividuais() {
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
-              {/* Exibir ganho abaixo do peso */}
-              {(() => {
-                if (!numeroAnimal?.trim() || !peso) return null;
-                const historicoAnimal = pesagens
-                  .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-                if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
-                const ultimo = historicoAnimal[0];
-                const pesoNum = parseFloat(peso);
-                const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
-                const ganho = pesoNum - ultimo.peso;
-                const gmd = dias > 0 ? (ganho / dias) : 0;
-                return (
-                  <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                    {dias}d | {ganho.toFixed(1)}kg | GMD: {gmd.toFixed(3)}
-                  </div>
-                );
-              })()}
+              {/* Exibir ganho abaixo do peso - exceto SN */}
+                {(() => {
+                  if (!numeroAnimal?.trim() || !peso) return null;
+                  if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
+                  const historicoAnimal = pesagens
+                    .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                    .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                  if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+                  const ultimo = historicoAnimal[0];
+                  const pesoNum = parseFloat(peso);
+                  const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+                  const ganho = pesoNum - ultimo.peso;
+                  const gmd = dias > 0 ? (ganho / dias) : 0;
+                  return (
+                    <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                      {dias}d | {ganho.toFixed(1)}kg | GMD: {gmd.toFixed(3)}
+                    </div>
+                  );
+                })()}
             </div>
             
             {/* Observação */}
