@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -534,8 +533,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                <Settings className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                 Colunas
               </Button>
             </div>
@@ -759,7 +757,7 @@ export default function TabelaFinanceiro({ lancamentos, tipo, onEdit, onDelete, 
               <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={handleConfirmarEdicaoLote} size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleConfirmarEdicaoLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Atualizar {selecionados.length}
               </Button>
             </div>

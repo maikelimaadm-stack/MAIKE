@@ -426,8 +426,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                <Settings className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                 Colunas
               </Button>
             </div>
@@ -532,7 +531,6 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                   disabled={currentPage === 1}
                   className="h-7 text-xs"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
                   Anterior
                 </Button>
                 <span className="text-xs text-slate-600">
@@ -546,7 +544,6 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
                   className="h-7 text-xs"
                 >
                   Próxima
-                  <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
