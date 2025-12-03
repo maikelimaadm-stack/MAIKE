@@ -432,7 +432,7 @@ export default function MovimentacoesEstoque() {
                 <Download className="w-3.5 h-3.5" />
                 Exportar
               </Button>
-              <Button onClick={() => { setEditingMovimentacao(null); setDadosImportadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => { setEditingMovimentacao(null); setDadosImportadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-3.5 h-3.5" />
                 Nova Movimentação
               </Button>

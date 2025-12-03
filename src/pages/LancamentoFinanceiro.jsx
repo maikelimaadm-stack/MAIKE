@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -555,8 +554,8 @@ export default function LancamentoFinanceiro() {
                 <Download className="w-4 h-4" />
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
-                <Plus className="w-4 h-4" />
+              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-3.5 h-3.5" />
                 Novo Lançamento
               </Button>
             </div>
