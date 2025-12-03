@@ -53,6 +53,20 @@ const COLUNAS_DISPONIVEIS = [
   { id: 'observacao', label: 'Observação', default: false },
 ];
 
+// Colunas de detalhes para o relatório de apartação com detalhes
+const COLUNAS_DETALHES_APARTACAO = [
+  { id: 'numero_animal', label: 'Animal', default: true },
+  { id: 'data_pesagem', label: 'Data', default: true },
+  { id: 'sexo', label: 'Sexo', default: true },
+  { id: 'raca', label: 'Raça', default: false },
+  { id: 'peso', label: 'Peso (kg)', default: true },
+  { id: 'peso_anterior', label: 'Peso Ant.', default: false },
+  { id: 'dias', label: 'Dias', default: true },
+  { id: 'ganho', label: 'Ganho', default: true },
+  { id: 'gmd', label: 'GMD', default: true },
+  { id: 'observacao', label: 'Obs', default: false },
+];
+
 const EIXO_X_OPCOES = [
   { value: 'nome_lote', label: 'Lote' },
   { value: 'nome_apartacao', label: 'Apartação' },
