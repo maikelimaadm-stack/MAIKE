@@ -511,22 +511,20 @@ export default function PesagensIndividuais() {
       return;
     }
 
-    if (confirm(`Atualizar ${selectedItems.length} registro(s)?`)) {
-      toast.info(`Atualizando ${selectedItems.length} registros...`);
-      let count = 0;
-      for (const id of selectedItems) {
-        await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
-        count++;
-        // Delay a cada 3 registros para evitar rate limit
-        if (count % 3 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+    toast.info(`Atualizando ${selectedItems.length} registros...`);
+    let count = 0;
+    for (const id of selectedItems) {
+      await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
+      count++;
+      // Delay a cada 3 registros para evitar rate limit
+      if (count % 3 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
-      toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
-      setShowEditarLote(false);
-      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
-      setSelectedItems([]);
     }
+    toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
+    setShowEditarLote(false);
+    setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
+    setSelectedItems([]);
   };
 
   const handleExcluirPesagem = async (id) => {
