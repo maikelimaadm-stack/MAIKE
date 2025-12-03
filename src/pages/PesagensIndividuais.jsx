@@ -279,48 +279,7 @@ export default function PesagensIndividuais() {
     return { total, pesoMedio, gmdMedio };
   }, [pesagensFiltradas]);
 
-  // Resumo agrupado por Apartação + Data
-  const resumoApartacaoData = useMemo(() => {
-    const grupos = {};
-    
-    pesagens.forEach(p => {
-      if (!p.nome_apartacao || !p.data_pesagem) return;
-      
-      const chave = `${p.nome_apartacao}|||${p.data_pesagem}`;
-      if (!grupos[chave]) {
-        grupos[chave] = {
-          apartacao: p.nome_apartacao,
-          data: p.data_pesagem,
-          total: 0,
-          machos: 0,
-          femeas: 0,
-          pesoTotal: 0,
-          lotes: new Set(),
-        };
-      }
-      
-      grupos[chave].total++;
-      if (p.sexo === 'M') grupos[chave].machos++;
-      if (p.sexo === 'F') grupos[chave].femeas++;
-      grupos[chave].pesoTotal += p.peso || 0;
-      if (p.nome_lote) grupos[chave].lotes.add(p.nome_lote);
-    });
 
-    return Object.values(grupos)
-      .map(g => ({
-        ...g,
-        pesoMedio: g.total > 0 ? g.pesoTotal / g.total : 0,
-        lotes: Array.from(g.lotes).sort(),
-      }))
-      .sort((a, b) => {
-        // Ordenar por apartação, depois por data decrescente
-        if (a.apartacao !== b.apartacao) return a.apartacao.localeCompare(b.apartacao);
-        return b.data.localeCompare(a.data);
-      });
-  }, [pesagens]);
-
-  // Estado para mostrar/ocultar resumo
-  const [showResumoApartacao, setShowResumoApartacao] = useState(false);
 
   // Handlers
   const handleSort = (key) => {
