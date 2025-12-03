@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -300,7 +299,7 @@ export default function GruposFinanceiros() {
               Inserir Padrão
             </Button>
           )}
-          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", grupo_pai_id: "" }); }} size="sm" className="gap-1 text-xs h-8 bg-slate-700 hover:bg-slate-800">
+          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", grupo_pai_id: "" }); }} size="sm" className="gap-1 text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
             <Plus className="w-3.5 h-3.5" />
             Novo
           </Button>
@@ -356,7 +355,7 @@ export default function GruposFinanceiros() {
                   <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); }} size="sm" className="h-8 text-xs">
                     Cancelar
                   </Button>
-                  <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                  <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                     Salvar
                   </Button>
                 </div>
