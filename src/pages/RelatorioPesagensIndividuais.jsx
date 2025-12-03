@@ -999,7 +999,7 @@ export default function RelatorioPesagensIndividuais() {
                                             </TableHeader>
                                             <TableBody>
                                               {animais.sort((a, b) => (a.numero_animal || '').localeCompare(b.numero_animal || '')).map((animal, idx) => (
-                                                <TableRow key={animal.id || idx} className="hover:bg-emerald-50/50">
+                                                <TableRow key={animal.id || idx} className="hover:bg-gray-50">
                                                   {colunasDetalhesOrdenadas.map(col => renderCelulaDetalhe(animal, col.id))}
                                                 </TableRow>
                                               ))}
