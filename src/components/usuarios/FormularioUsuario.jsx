@@ -157,7 +157,7 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
               <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Salvar Permissões
               </Button>
             </div>

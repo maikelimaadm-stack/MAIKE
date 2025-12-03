@@ -219,9 +219,8 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
               type="button"
               onClick={adicionarCategoria}
               variant="outline"
-              className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+              className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
             >
-              <Plus className="w-4 h-4 mr-2" />
               Adicionar Categoria
             </Button>
           </div>
@@ -240,7 +239,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Registrar Abates
             </Button>
           </div>

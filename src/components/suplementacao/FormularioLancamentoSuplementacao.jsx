@@ -400,7 +400,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               type="button"
               onClick={handleSalvar}
               size="sm" 
-              className="h-8 text-xs bg-slate-700 hover:bg-slate-800"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
               disabled={!botaoHabilitado || progresso.show}
             >
               {progresso.show ? 'Registrando...' : 'Salvar'}

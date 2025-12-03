@@ -653,7 +653,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800" disabled={loading}>
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
               {loading ? 'Movimentando...' : 'Confirmar Movimentação'}
             </Button>
           </div>
