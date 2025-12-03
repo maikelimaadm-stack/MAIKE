@@ -812,12 +812,10 @@ export default function PesagensIndividuais() {
                       <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleEditarLote} className="text-xs">
-                        <Edit2 className="w-3 h-3 mr-2" />
                         Editar Campos em Lote
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleDeleteSelected} className="text-xs text-red-600">
-                        <Trash2 className="w-3 h-3 mr-2" />
                         Excluir Selecionados
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -895,14 +893,20 @@ export default function PesagensIndividuais() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
-                                  <DropdownMenuItem asChild className="text-xs">
-                                    <Link to={createPageUrl(`LancamentoPesagensIndividuais?editar=${p.id}`)}>
-                                      <Edit2 className="w-3 h-3 mr-2" />Editar
-                                    </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleExcluirPesagem(p.id)} className="text-xs text-red-600">
-                                    <Trash2 className="w-3 h-3 mr-2" />Excluir
-                                  </DropdownMenuItem>
+                                 <DropdownMenuItem asChild className="text-xs">
+                                   <Link to={createPageUrl(`LancamentoPesagensIndividuais?editar=${p.id}`)}>
+                                     Editar
+                                   </Link>
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => {
+                                   setSelectedItems([p.id]);
+                                   setShowEditarLote(true);
+                                 }} className="text-xs">
+                                   Alterar Lote
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => handleExcluirPesagem(p.id)} className="text-xs text-red-600">
+                                   Excluir
+                                 </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
