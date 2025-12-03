@@ -223,11 +223,12 @@ export default function Fornecedores() {
     setShowForm(true);
   };
 
-  const handleDelete = (id, skipConfirm = false) => {
-    if (skipConfirm || window.confirm('⚠️ ATENÇÃO: Deseja realmente excluir este fornecedor/cliente? Esta ação não pode ser desfeita.')) {
+  const handleDelete = async (id, skipConfirm = false) => {
+    if (skipConfirm) {
       return deleteMutation.mutateAsync(id);
     }
-    return Promise.reject('Cancelado');
+    // Confirmação via dialog agora é feita no TabelaFornecedores
+    return deleteMutation.mutateAsync(id);
   };
 
   const handlePrint = (fornecedor) => {

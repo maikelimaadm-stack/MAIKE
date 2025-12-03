@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -108,6 +107,12 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Validar nome obrigatório
+    if (!formData.nome || formData.nome.trim() === '') {
+      toast.error('❌ O campo Nome é obrigatório!');
+      return;
+    }
+    
     // Validar CPF para pessoa física
     if (tipoPessoa === "Física" && formData.cpf) {
       const cpfLimpo = formData.cpf.replace(/\D/g, '');
@@ -135,6 +140,15 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
           toast.error('❌ CNPJ inválido!');
           return;
         }
+      }
+    }
+    
+    // Validar email se preenchido
+    if (formData.email && formData.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error('❌ E-mail inválido!');
+        return;
       }
     }
     
@@ -374,13 +388,13 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-                  <X className="w-3 h-3 mr-1" />
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 gap-1 text-xs">
+                  <X className="w-3.5 h-3.5" />
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-                <Save className="w-3 h-3 mr-1" />
+              <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Save className="w-3.5 h-3.5" />
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
