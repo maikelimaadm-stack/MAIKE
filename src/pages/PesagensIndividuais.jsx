@@ -644,7 +644,7 @@ export default function PesagensIndividuais() {
             <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
           </label>
           <Link to={createPageUrl("LancamentoPesagensIndividuais")}>
-            <Button size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Lançar Pesagens
             </Button>
           </Link>
@@ -1110,7 +1110,7 @@ export default function PesagensIndividuais() {
               <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={confirmarEdicaoLote} size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700">
+              <Button onClick={confirmarEdicaoLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Atualizar {selectedItems.length}
               </Button>
             </div>

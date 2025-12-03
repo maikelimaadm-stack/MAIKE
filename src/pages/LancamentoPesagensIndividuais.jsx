@@ -1168,7 +1168,7 @@ export default function LancamentoPesagensIndividuais() {
             </div>
             
             {/* Botões Salvar e Cancelar */}
-            <Button onClick={handleSalvar} disabled={isSaving} className="h-9 px-4 bg-slate-700 hover:bg-slate-800">
+            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
             </Button>
             {editingId && (
@@ -1187,7 +1187,8 @@ export default function LancamentoPesagensIndividuais() {
                   if (!fixarMarca) setMarca("");
                   setTimeout(() => numeroInputRef.current?.focus(), 50);
                 }} 
-                className="h-9 px-4"
+                size="sm"
+                className="h-8 text-xs"
               >
                 Cancelar
               </Button>
@@ -1828,11 +1829,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                     placeholder="Ex: ROTINA" 
                   />
                 </div>
-                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
-                  {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingApartacaoId ? 'Atualizar' : 'Adicionar'}</>}
+                <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  {isSaving ? 'Salvando...' : (editingApartacaoId ? 'Atualizar' : 'Adicionar')}
                 </Button>
                 {editingApartacaoId && (
-                  <Button variant="outline" size="sm" className="h-9" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
                     Cancelar
                   </Button>
                 )}
@@ -1919,18 +1920,18 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   <Input type="number" value={pesoMaximo} onChange={(e) => setPesoMaximo(e.target.value)} className="h-9 text-xs" />
                 </div>
                 <div className="flex gap-1">
-                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
-                    {isSaving ? 'Salvando...' : <><Plus className="w-3 h-3 mr-1" />{editingLoteId ? 'Atualizar' : 'Adicionar'}</>}
+                  <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                    {isSaving ? 'Salvando...' : (editingLoteId ? 'Atualizar' : 'Adicionar')}
                   </Button>
                   {editingLoteId && (
-                    <Button variant="outline" size="sm" className="h-9" onClick={() => { 
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { 
                       setEditingLoteId(null); 
                       setNomeLote(""); 
                       setQtdMaxima("500"); 
                       setPesoMinimo(""); 
                       setPesoMaximo(""); 
                     }}>
-                      <X className="w-3 h-3" />
+                      Cancelar
                     </Button>
                   )}
                 </div>
