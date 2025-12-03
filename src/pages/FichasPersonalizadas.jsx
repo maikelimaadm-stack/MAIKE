@@ -137,8 +137,7 @@ export default function FichasPersonalizadas() {
             <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
             <h3 className="font-semibold text-slate-700 mb-1">Nenhuma ficha criada</h3>
             <p className="text-sm text-slate-500 mb-4">Crie sua primeira ficha personalizada para impressão</p>
-            <Button onClick={novaFicha} size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-4 h-4" />
+            <Button onClick={novaFicha} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Criar Ficha
             </Button>
           </CardContent>
@@ -198,14 +197,13 @@ export default function FichasPersonalizadas() {
                 </div>
                 <div className="flex gap-2">
                   <Link to={createPageUrl(`VisualizarFicha?id=${ficha.id}`)} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1">
-                      <Eye className="w-3 h-3" />
+                    <Button variant="outline" size="sm" className="w-full h-7 text-xs">
                       Visualizar
                     </Button>
                   </Link>
                   <Link to={createPageUrl(`VisualizarFicha?id=${ficha.id}&print=1`)}>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                      <Printer className="w-3 h-3" />
+                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                      Imprimir
                     </Button>
                   </Link>
                 </div>
@@ -420,9 +418,8 @@ function EditorFicha({ ficha, onClose, onSave }) {
                 <Button 
                   size="sm" 
                   onClick={() => setShowAddCampo(true)}
-                  className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                  className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
                 >
-                  <Plus className="w-3 h-3" />
                   Adicionar Campo
                 </Button>
               </div>
