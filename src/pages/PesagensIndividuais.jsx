@@ -317,6 +317,8 @@ export default function PesagensIndividuais() {
           numero_animal: headers.findIndex(h => normalizar(h) === 'numeroanimal' || normalizar(h) === 'animal'),
           sexo: headers.findIndex(h => normalizar(h) === 'sexo'),
           raca: headers.findIndex(h => normalizar(h) === 'raca' || normalizar(h) === 'raça'),
+          era: headers.findIndex(h => normalizar(h) === 'era'),
+          marca: headers.findIndex(h => normalizar(h) === 'marca'),
           peso: headers.findIndex(h => normalizar(h) === 'peso'),
           nome_lote: headers.findIndex(h => normalizar(h) === 'lote' || normalizar(h) === 'nomelote'),
           nome_apartacao: headers.findIndex(h => normalizar(h) === 'apartacao' || normalizar(h) === 'nomeapartacao'),
@@ -340,6 +342,8 @@ export default function PesagensIndividuais() {
             numero_animal: colMap.numero_animal >= 0 ? valores[colMap.numero_animal] : null,
             sexo: colMap.sexo >= 0 ? valores[colMap.sexo]?.toUpperCase() : null,
             raca: colMap.raca >= 0 ? valores[colMap.raca] : null,
+            era: colMap.era >= 0 ? valores[colMap.era] : null,
+            marca: colMap.marca >= 0 ? valores[colMap.marca] : null,
             peso: colMap.peso >= 0 ? parseFloat(valores[colMap.peso]?.replace(',', '.')) || null : null,
             nome_lote: colMap.nome_lote >= 0 ? valores[colMap.nome_lote] : null,
             nome_apartacao: colMap.nome_apartacao >= 0 ? valores[colMap.nome_apartacao] : null,
@@ -515,10 +519,10 @@ export default function PesagensIndividuais() {
   };
 
   const baixarModelo = () => {
-    const headers = ['ID_Externo', 'Data', 'Numero Animal', 'Sexo', 'Raça', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
-    const exemplo1 = ['22207', '01/12/2025', '4368', 'M', 'Nelore', '206', 'MEIO', 'ROTINA', '', '15/11/2025', '180', '16', '26', '1.625'];
-    const exemplo2 = ['22206', '01/12/2025', '4369', 'M', 'Nelore', '287', 'BOIADA', 'ROTINA', '', '15/11/2025', '260', '16', '27', '1.687'];
-    const exemplo3 = ['22205', '01/12/2025', '4370', 'F', 'Nelore', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
+    const headers = ['ID_Externo', 'Data', 'Numero Animal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const exemplo1 = ['22207', '01/12/2025', '4368', 'M', 'Nelore', '2A', 'ABC', '206', 'MEIO', 'ROTINA', '', '15/11/2025', '180', '16', '26', '1.625'];
+    const exemplo2 = ['22206', '01/12/2025', '4369', 'M', 'Nelore', '3A', 'XYZ', '287', 'BOIADA', 'ROTINA', '', '15/11/2025', '260', '16', '27', '1.687'];
+    const exemplo3 = ['22205', '01/12/2025', '4370', 'F', 'Nelore', '1A', '', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
     
     const csv = [headers.join(';'), exemplo1.join(';'), exemplo2.join(';'), exemplo3.join(';')].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -532,13 +536,15 @@ export default function PesagensIndividuais() {
   };
 
   const exportarCSV = () => {
-    const headers = ['ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const headers = ['ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
     const rows = pesagensFiltradas.map(p => [
       p.id_externo || '',
       formatarData(p.data_pesagem),
       p.numero_animal || '',
       p.sexo || '',
       p.raca || '',
+      p.era || '',
+      p.marca || '',
       p.peso || '',
       p.nome_lote || '',
       p.nome_apartacao || '',
