@@ -31,6 +31,7 @@ import {
   Plus, FileText, Edit, Trash2, Copy, Eye, MoreVertical, 
   GripVertical, X, Printer, Settings 
 } from "lucide-react";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -229,25 +230,16 @@ export default function FichasPersonalizadas() {
       )}
 
       {/* Confirmação de Exclusão */}
-      <Dialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Excluir Ficha</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-slate-600">Tem certeza que deseja excluir esta ficha? Esta ação não pode ser desfeita.</p>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)} size="sm">Cancelar</Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => deleteMutation.mutate(showDeleteConfirm)}
-              disabled={deleteMutation.isPending}
-              size="sm"
-            >
-              Excluir
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!showDeleteConfirm}
+        onOpenChange={() => setShowDeleteConfirm(null)}
+        title="Excluir Ficha"
+        description="Tem certeza que deseja excluir esta ficha? Esta ação não pode ser desfeita."
+        onConfirm={() => deleteMutation.mutate(showDeleteConfirm)}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }
