@@ -125,12 +125,17 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
     e.preventDefault();
 
     if (!formData.nome_produto?.trim()) {
-      toast.error('Nome do produto é obrigatório!');
+      toast.error('❌ O campo Nome do Produto é obrigatório!');
       return;
     }
 
     if (!formData.codigo_interno?.trim()) {
-      toast.error('Código interno é obrigatório!');
+      toast.error('❌ O campo Código Interno é obrigatório!');
+      return;
+    }
+
+    if (!formData.unidade_medida?.trim()) {
+      toast.error('❌ O campo Unidade de Medida é obrigatório!');
       return;
     }
 
@@ -339,10 +344,10 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 gap-1 text-xs">
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                   {isEditing ? 'Atualizar' : 'Salvar'}
                 </Button>
               </div>
@@ -383,7 +388,17 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <Button variant="outline" onClick={() => { setShowNovaUnidade(false); setNovaUnidade({ sigla: "", descricao: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={() => createUnidadeMutation.mutate({ sigla: novaUnidade.sigla.toUpperCase(), descricao: novaUnidade.descricao.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => {
+                if (!novaUnidade.sigla?.trim()) {
+                  toast.error('❌ Sigla é obrigatória!');
+                  return;
+                }
+                if (!novaUnidade.descricao?.trim()) {
+                  toast.error('❌ Descrição é obrigatória!');
+                  return;
+                }
+                createUnidadeMutation.mutate({ sigla: novaUnidade.sigla.toUpperCase(), descricao: novaUnidade.descricao.toUpperCase() });
+              }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Salvar
               </Button>
             </div>
@@ -433,7 +448,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <Button variant="outline" onClick={() => { setShowNovaCategoria(false); setNovaCategoria({ nome: "", subcategoria: "", descricao: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={() => createCategoriaMutation.mutate({ nome: novaCategoria.nome.toUpperCase(), subcategoria: novaCategoria.subcategoria?.toUpperCase(), descricao: novaCategoria.descricao?.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => {
+                if (!novaCategoria.nome?.trim()) {
+                  toast.error('❌ Nome da categoria é obrigatório!');
+                  return;
+                }
+                createCategoriaMutation.mutate({ nome: novaCategoria.nome.toUpperCase(), subcategoria: novaCategoria.subcategoria?.toUpperCase(), descricao: novaCategoria.descricao?.toUpperCase() });
+              }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Salvar
               </Button>
             </div>
@@ -483,7 +504,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               <Button variant="outline" onClick={() => { setShowNovoLocal(false); setNovoLocal({ nome: "", descricao: "", capacidade: "" }); }} size="sm" className="h-8 text-xs">
                 Cancelar
               </Button>
-              <Button onClick={() => createLocalMutation.mutate({ nome: novoLocal.nome.toUpperCase(), descricao: novoLocal.descricao?.toUpperCase(), capacidade: novoLocal.capacidade?.toUpperCase() })} size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button onClick={() => {
+                if (!novoLocal.nome?.trim()) {
+                  toast.error('❌ Nome do local é obrigatório!');
+                  return;
+                }
+                createLocalMutation.mutate({ nome: novoLocal.nome.toUpperCase(), descricao: novoLocal.descricao?.toUpperCase(), capacidade: novoLocal.capacidade?.toUpperCase() });
+              }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Salvar
               </Button>
             </div>
