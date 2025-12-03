@@ -413,44 +413,44 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
   const handleProximaEtapa = () => {
     if (!formData.fornecedor_id) {
-      toast.error('Selecione o fornecedor!');
+      toast.error('❌ O campo Fornecedor é obrigatório!');
       return;
     }
     if (!formData.data_emissao) {
-      toast.error('Preencha a data de emissão!');
+      toast.error('❌ O campo Data de Emissão é obrigatório!');
       return;
     }
     if (formData.tipo_documento === 'Boleto') {
       if (!formData.numero_boleto) {
-        toast.error('Preencha o número do boleto!');
+        toast.error('❌ O campo Número do Boleto é obrigatório!');
         return;
       }
     } else {
       if (!formData.numero_documento) {
-        toast.error('Preencha o número do documento!');
+        toast.error('❌ O campo Número do Documento é obrigatório!');
         return;
       }
     }
 
     if (formData.lancar_produtos) {
       if (formData.produtos_selecionados.length === 0) {
-        toast.error('Adicione pelo menos 1 produto!');
+        toast.error('❌ Adicione pelo menos 1 produto!');
         return;
       }
       const produtosIncompletos = formData.produtos_selecionados.filter(p =>
         !p.produto_id || parseNumero(p.quantidade) <= 0 || parseNumero(p.valor_total) <= 0
       );
       if (produtosIncompletos.length > 0) {
-        toast.error('Preencha todos os campos dos produtos!');
+        toast.error('❌ Preencha todos os campos dos produtos (produto, quantidade e valor)!');
         return;
       }
       if (formData.dar_entrada_estoque && !formData.local_estoque) {
-        toast.error('Selecione o local de estoque!');
+        toast.error('❌ O campo Local de Estoque é obrigatório!');
         return;
       }
     } else {
       if (parseNumero(formData.valor_original) <= 0) {
-        toast.error('Preencha o valor original!');
+        toast.error('❌ O campo Valor Original é obrigatório!');
         return;
       }
     }
@@ -462,49 +462,49 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
     e.preventDefault();
 
     if (!formData.plano_contas_id) {
-      toast.error('Selecione o plano de contas!');
+      toast.error('❌ O campo Plano de Contas é obrigatório!');
       return;
     }
     if (!formData.grupo_id) {
-      toast.error('Selecione o grupo financeiro!');
+      toast.error('❌ O campo Grupo Financeiro é obrigatório!');
       return;
     }
     
     if (formData.parcelar) {
       if (!formData.forma_pagamento_id) {
-        toast.error('Selecione a forma de pagamento!');
+        toast.error('❌ O campo Forma de Pagamento é obrigatório!');
         return;
       }
       if (formData.parcelas.length < 1) {
-        toast.error('Adicione pelo menos 1 parcela!');
+        toast.error('❌ Adicione pelo menos 1 parcela!');
         return;
       }
       const valorTotal = calcularValorTotal();
       const totalParcelas = formData.parcelas.reduce((sum, p) => sum + parseNumero(p.valor), 0);
       if (Math.abs(totalParcelas - valorTotal) > 0.01) {
-        toast.error('Total das parcelas diferente do valor total!');
+        toast.error('❌ O total das parcelas está diferente do valor total!');
         return;
       }
       if (formData.parcelas.some(p => parseNumero(p.valor) <= 0)) {
-        toast.error('Todas as parcelas devem ter valor > 0!');
+        toast.error('❌ Todas as parcelas devem ter valor maior que zero!');
         return;
       }
     } else if (formData.conta_paga) {
       if (!formData.forma_pagamento_paga_id) {
-        toast.error('Selecione a forma de pagamento!');
+        toast.error('❌ O campo Forma de Pagamento é obrigatório!');
         return;
       }
       if (!formData.data_pagamento) {
-        toast.error('Preencha a data de pagamento!');
+        toast.error('❌ O campo Data de Pagamento é obrigatório!');
         return;
       }
       if (parseNumero(formData.valor_pago_total) <= 0) {
-        toast.error('Preencha o valor pago!');
+        toast.error('❌ O campo Valor Pago é obrigatório!');
         return;
       }
     } else {
       if (!formData.data_vencimento) {
-        toast.error('Preencha a data de vencimento!');
+        toast.error('❌ O campo Data de Vencimento é obrigatório!');
         return;
       }
     }
@@ -1004,7 +1004,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                   <div className="flex justify-end gap-2 pt-1.5 border-t border-slate-200">
                     <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="bg-slate-700 hover:bg-slate-800 h-7 text-xs">Próximo</Button>
+                    <Button type="button" onClick={handleProximaEtapa} className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">Próximo</Button>
                   </div>
                 </>
               )}
@@ -1217,8 +1217,8 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-7 text-xs">Voltar</Button>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
-                      <Button type="submit" className="bg-slate-700 hover:bg-slate-800 h-7 text-xs" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
-                        <Save className="w-3 h-3 mr-1" />
+                      <Button type="submit" className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
+                        <Save className="w-3.5 h-3.5" />
                         Salvar
                       </Button>
                     </div>

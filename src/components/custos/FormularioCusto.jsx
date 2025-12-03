@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -221,14 +220,14 @@ export default function FormularioCusto({ onSubmit, onCancel, initialData = null
 
             <div className="flex justify-end gap-3 pt-4">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} className="gap-2">
-                  <X className="w-4 h-4" />
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 gap-1 text-xs">
+                  <X className="w-3.5 h-3.5" />
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" className="bg-slate-700 hover:bg-slate-800 gap-2 shadow-lg">
-                <Save className="w-4 h-4" />
-                {isEditing ? 'Atualizar' : 'Salvar'} Lançamento
+              <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Save className="w-3.5 h-3.5" />
+                {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>
           </form>

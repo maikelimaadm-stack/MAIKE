@@ -287,13 +287,23 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.tipo_movimentacao || formData.produtos_selecionados.length === 0 || !formData.tipo_detalhado) {
-      toast.error('Preencha todos os campos obrigatórios e adicione pelo menos um produto!');
+    if (!formData.tipo_movimentacao) {
+      toast.error('❌ O campo Tipo de Movimentação é obrigatório!');
+      return;
+    }
+
+    if (!formData.tipo_detalhado) {
+      toast.error('❌ O campo Tipo Detalhado é obrigatório!');
+      return;
+    }
+
+    if (formData.produtos_selecionados.length === 0) {
+      toast.error('❌ Adicione pelo menos um produto!');
       return;
     }
 
     if (formData.tipo_movimentacao === 'Ajuste' && !formData.motivo_movimentacao) {
-      toast.error('Informe o motivo do ajuste!');
+      toast.error('❌ Informe o motivo do ajuste!');
       return;
     }
 
@@ -301,7 +311,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       !p.produto_id || parseNumero(p.quantidade) <= 0
     );
     if (produtosIncompletos.length > 0) {
-      toast.error('Preencha todos os campos dos produtos!');
+      toast.error('❌ Preencha todos os campos dos produtos (produto e quantidade)!');
       return;
     }
 
@@ -311,49 +321,49 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         const estoqueDisponivel = estoquePorLocal[prod.produto_id]?.[formData.local_estoque] || 0;
         const qtdSaida = parseNumero(prod.quantidade);
         if (qtdSaida > estoqueDisponivel) {
-          toast.error(`Estoque insuficiente de ${prod.produto_nome}. Disponível: ${estoqueDisponivel.toFixed(2)}`);
+          toast.error(`❌ Estoque insuficiente de ${prod.produto_nome}. Disponível: ${estoqueDisponivel.toFixed(2)}`);
           return;
         }
       }
     }
 
     if ((formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Saída') && !formData.local_estoque) {
-      toast.error('Defina o local de estoque!');
+      toast.error('❌ O campo Local de Estoque é obrigatório!');
       return;
     }
 
     if (formData.tipo_movimentacao === 'Transferência' && (!formData.local_estoque || !formData.local_destino)) {
-      toast.error('Defina local de origem e destino!');
+      toast.error('❌ Defina local de origem e destino para transferência!');
       return;
     }
 
     if (formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas' && !formData.empresa_destino_id) {
-      toast.error('Selecione a empresa de destino!');
+      toast.error('❌ Selecione a empresa de destino!');
       return;
     }
 
     if (formData.tipo_movimentacao === 'Entrada' && !formData.fornecedor_id) {
-      toast.error('Selecione o fornecedor!');
+      toast.error('❌ O campo Fornecedor é obrigatório!');
       return;
     }
 
     // Validar vínculo
     if (formData.vinculado && !formData.tipo_vinculo) {
-      toast.error('Selecione o tipo de vínculo!');
+      toast.error('❌ Selecione o tipo de vínculo!');
       return;
     }
 
     if (formData.vinculado) {
       if (formData.tipo_vinculo === 'lote' && !formData.lote_vinculado_id) {
-        toast.error('Selecione o lote vinculado!');
+        toast.error('❌ Selecione o lote vinculado!');
         return;
       }
       if (formData.tipo_vinculo === 'area' && !formData.area_vinculada_id) {
-        toast.error('Selecione a área vinculada!');
+        toast.error('❌ Selecione a área vinculada!');
         return;
       }
       if (formData.tipo_vinculo === 'maquina' && !formData.maquina_vinculada_id) {
-        toast.error('Selecione a máquina vinculada!');
+        toast.error('❌ Selecione a máquina vinculada!');
         return;
       }
     }
@@ -948,11 +958,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 gap-1 text-xs">
                   Cancelar
                 </Button>
-                <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
-                  {initialData?.id ? 'Atualizar' : 'Salvar Movimentação'}
+                <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  {initialData?.id ? 'Atualizar' : 'Salvar'}
                 </Button>
               </div>
             </form>
