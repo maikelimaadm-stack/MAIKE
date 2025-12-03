@@ -137,6 +137,7 @@ const DEFAULT_MENU = [
       { id: "rel-suplementacao", title: "Relatorio de Suplementacao", url: "RelatorioSuplementacao" },
       { id: "rel-movimentacoes-pecuaria", title: "Relatorio Mov. Pecuaria", url: "RelatorioMovimentacoesPecuaria" },
           { id: "rel-pesagens-ind", title: "Relatorio Pesagens Individuais", url: "RelatorioPesagensIndividuais" },
+          { id: "rel-fichas", title: "Fichas Personalizadas", url: "FichasPersonalizadas" },
         ],
       },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
