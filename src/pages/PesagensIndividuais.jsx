@@ -114,8 +114,8 @@ export default function PesagensIndividuais() {
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
-    { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'selecao', label: 'Seleção', default: true, fixo: true },
+    { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'data_pesagem', label: 'Data', default: true },
     { id: 'numero_animal', label: 'Animal', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
@@ -715,14 +715,11 @@ export default function PesagensIndividuais() {
           <div className="overflow-auto max-h-[500px]">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-slate-50 border-b">
                   {colunasOrdenadas.map((coluna) => {
-                    if (coluna.id === 'acoes') {
-                      return <TableHead key="acoes" className="text-xs font-bold py-1 border border-black">Ações</TableHead>;
-                    }
                     if (coluna.id === 'selecao') {
                       return (
-                        <TableHead key="selecao" className="text-xs font-bold py-1 border border-black">
+                        <TableHead key="selecao" className="w-8 text-xs border-r border-slate-200">
                           <Checkbox 
                             checked={selectedItems.length === pesagensFiltradas.length && pesagensFiltradas.length > 0}
                             onCheckedChange={toggleSelectAll}
@@ -730,12 +727,15 @@ export default function PesagensIndividuais() {
                         </TableHead>
                       );
                     }
+                    if (coluna.id === 'acoes') {
+                      return <TableHead key="acoes" className="text-xs text-center w-8 border-r border-slate-200"></TableHead>;
+                    }
                     const isSortable = ['data_pesagem', 'numero_animal', 'peso', 'nome_lote', 'ganho', 'gmd'].includes(coluna.id);
                     const isRight = ['peso', 'dias', 'ganho', 'gmd'].includes(coluna.id);
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs font-bold py-1 border border-black ${isRight ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                        className={`text-xs border-r border-slate-200 ${isRight ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
                         onClick={() => isSortable && handleSort(coluna.id)}
                       >
                         <div className={`flex items-center gap-1 ${isRight ? 'justify-end' : ''}`}>
@@ -749,26 +749,38 @@ export default function PesagensIndividuais() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-8 text-xs border border-gray-300">Carregando...</TableCell>
+                    <TableCell colSpan={20} className="text-center py-12 text-slate-400 text-xs">Carregando...</TableCell>
                   </TableRow>
                 ) : pesagensPaginadas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={20} className="text-center py-8 text-xs border border-gray-300">
+                    <TableCell colSpan={20} className="text-center py-12 text-slate-400 text-xs">
                       <FileSpreadsheet className="w-12 h-12 mx-auto mb-2 opacity-30" />
                       Nenhuma pesagem encontrada
                     </TableCell>
                   </TableRow>
                 ) : (
                   pesagensPaginadas.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-gray-50">
+                    <TableRow key={p.id} className="hover:bg-slate-50 transition-colors border-b">
                       {colunasOrdenadas.map((coluna) => {
+                        if (coluna.id === 'selecao') {
+                          return (
+                            <TableCell key="selecao" className="border-r border-slate-200">
+                              <Checkbox 
+                                checked={selectedItems.includes(p.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedItems(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id));
+                                }}
+                              />
+                            </TableCell>
+                          );
+                        }
                         if (coluna.id === 'acoes') {
                           return (
-                            <TableCell key="acoes" className="text-xs py-1 border border-gray-300">
+                            <TableCell key="acoes" className="text-center border-r border-slate-200">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    <MoreVertical className="w-4 h-4" />
+                                    <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
@@ -791,9 +803,10 @@ export default function PesagensIndividuais() {
                             </TableCell>
                           );
                         }
-                        if (coluna.id === 'selecao') {
+                        // Removido o bloco duplicado de selecao aqui
+                        if (coluna.id === 'dummy_selecao_removed') {
                           return (
-                            <TableCell key="selecao" className="text-xs py-1 border border-gray-300">
+                            <TableCell key="selecao_dummy" className="border-r border-slate-200">
                               <Checkbox 
                                 checked={selectedItems.includes(p.id)}
                                 onCheckedChange={(checked) => {
@@ -804,53 +817,53 @@ export default function PesagensIndividuais() {
                           );
                         }
                         if (coluna.id === 'data_pesagem') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{formatarData(p.data_pesagem)}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{formatarData(p.data_pesagem)}</TableCell>;
                         }
                         if (coluna.id === 'numero_animal') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300 font-semibold">{p.numero_animal}</TableCell>;
+                          return <TableCell key={coluna.id} className="font-semibold text-xs border-r border-slate-200">{p.numero_animal}</TableCell>;
                         }
                         if (coluna.id === 'sexo') {
                           return (
-                            <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">
+                            <TableCell key={coluna.id} className="text-xs border-r border-slate-200">
                               {p.sexo === 'M' ? 'Macho' : p.sexo === 'F' ? 'Fêmea' : '-'}
                             </TableCell>
                           );
                         }
                         if (coluna.id === 'raca') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.raca || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.raca || '-'}</TableCell>;
                         }
                         if (coluna.id === 'era') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.era || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.era || '-'}</TableCell>;
                         }
                         if (coluna.id === 'peso') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300 text-right font-mono">{p.peso?.toLocaleString('pt-BR')} kg</TableCell>;
+                          return <TableCell key={coluna.id} className="text-right font-mono text-xs font-semibold border-r border-slate-200">{p.peso?.toLocaleString('pt-BR')} kg</TableCell>;
                         }
                         if (coluna.id === 'nome_lote') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.nome_lote || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.nome_lote || '-'}</TableCell>;
                         }
                         if (coluna.id === 'nome_apartacao') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.nome_apartacao || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.nome_apartacao || '-'}</TableCell>;
                         }
                         if (coluna.id === 'dias') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300 text-right font-mono">{p.dias || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono border-r border-slate-200">{p.dias || '-'}</TableCell>;
                         }
                         if (coluna.id === 'ganho') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300 text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-right font-mono text-xs text-slate-600 border-r border-slate-200">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
                         }
                         if (coluna.id === 'gmd') {
                           return (
-                            <TableCell key={coluna.id} className={`text-xs py-1 border border-gray-300 text-right font-mono ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
+                            <TableCell key={coluna.id} className={`text-xs text-right font-mono border-r border-slate-200 ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : 'text-slate-600'}`}>
                               {p.gmd ? p.gmd.toFixed(3) : '-'}
                             </TableCell>
                           );
                         }
                         if (coluna.id === 'marca') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.marca || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.marca || '-'}</TableCell>;
                         }
                         if (coluna.id === 'observacao') {
-                          return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">{p.observacao || '-'}</TableCell>;
+                          return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{p.observacao || '-'}</TableCell>;
                         }
-                        return <TableCell key={coluna.id} className="text-xs py-1 border border-gray-300">-</TableCell>;
+                        return <TableCell key={coluna.id} className="text-xs border-r border-slate-200">-</TableCell>;
                       })}
                     </TableRow>
                   ))
