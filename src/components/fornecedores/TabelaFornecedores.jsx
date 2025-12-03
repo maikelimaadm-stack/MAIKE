@@ -42,6 +42,8 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_fornecedores');
@@ -188,27 +190,26 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
     );
   };
 
-  const handleBulkDelete = async () => {
-    if (window.confirm(`⚠️ ATENÇÃO: Você está prestes a excluir ${selectedItems.length} fornecedor(es) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`)) {
-      setIsDeletingBulk(true);
-      setDeleteProgress({ current: 0, total: selectedItems.length });
-      
-      let deleted = 0;
-      for (const id of selectedItems) {
-        try {
-          await onDelete(id, true);
-          deleted++;
-          setDeleteProgress({ current: deleted, total: selectedItems.length });
-        } catch (error) {
-          console.error('Erro ao excluir:', error);
-        }
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirm(false);
+    setIsDeletingBulk(true);
+    setDeleteProgress({ current: 0, total: selectedItems.length });
+    
+    let deleted = 0;
+    for (const id of selectedItems) {
+      try {
+        await onDelete(id, true);
+        deleted++;
+        setDeleteProgress({ current: deleted, total: selectedItems.length });
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
       }
-      
-      setTimeout(() => {
-        setIsDeletingBulk(false);
-        setSelectedItems([]);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      setIsDeletingBulk(false);
+      setSelectedItems([]);
+    }, 500);
   };
 
   const handleBulkPrint = () => {
@@ -278,7 +279,7 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
                         Imprimir Todos
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleBulkDelete} className="text-xs text-red-600">
+                      <DropdownMenuItem onClick={() => setBulkDeleteConfirm(true)} className="text-xs text-red-600">
                         Excluir Todos
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -370,7 +371,7 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
                                 Imprimir Ficha
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => onDelete(fornecedor.id)} className="text-xs text-red-600">
+                              <DropdownMenuItem onClick={() => setDeleteConfirm(fornecedor)} className="text-xs text-red-600">
                                 Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -492,6 +493,31 @@ export default function TabelaFornecedores({ fornecedores = [], onEdit, onDelete
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+        title="Excluir Fornecedor/Cliente"
+        description={`Tem certeza que deseja excluir "${deleteConfirm?.nome}"? Esta ação não pode ser desfeita.`}
+        onConfirm={() => {
+          onDelete(deleteConfirm.id);
+          setDeleteConfirm(null);
+        }}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={() => setBulkDeleteConfirm(false)}
+        title="Excluir Múltiplos Fornecedores"
+        description={`Você está prestes a excluir ${selectedItems.length} fornecedor(es) selecionado(s). Esta ação não pode ser desfeita. Deseja continuar?`}
+        onConfirm={executeBulkDelete}
+        confirmText="Excluir Todos"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
 
       <Dialog open={isDeletingBulk} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
