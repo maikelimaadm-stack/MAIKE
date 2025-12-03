@@ -985,11 +985,11 @@ export default function RelatorioPesagensIndividuais() {
                                   {/* Detalhes dos animais do lote */}
                                   {mostrarDetalhes && (
                                     <TableRow>
-                                      <TableCell colSpan={10} className="p-0 bg-gray-50">
-                                        <div className="p-2 ml-4 border-l-4 border-emerald-400">
+                                      <TableCell colSpan={10} className="p-0 bg-white">
+                                        <div className="p-2 ml-4">
                                           <Table>
                                             <TableHeader>
-                                              <TableRow className="bg-emerald-50">
+                                              <TableRow className="bg-gray-100">
                                                 {colunasDetalhesOrdenadas.map(col => (
                                                   <TableHead key={col.id} className={`text-[10px] font-bold py-1 border border-gray-200 ${['peso', 'peso_anterior', 'dias', 'ganho', 'gmd'].includes(col.id) ? 'text-right' : ''}`}>
                                                     {col.label}
