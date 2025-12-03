@@ -82,6 +82,11 @@ export default function PesagensIndividuais() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  
+  // Estado para vinculação de lotes
+  const [showVincularLotes, setShowVincularLotes] = useState(false);
+  const [lotesParaVincular, setLotesParaVincular] = useState([]);
+  const [vincularLotesSelecionados, setVincularLotesSelecionados] = useState({});
 
   // Estado para edição em lote
   const [showEditarLote, setShowEditarLote] = useState(false);
@@ -312,7 +317,8 @@ export default function PesagensIndividuais() {
         const normalizar = (str) => str.toLowerCase().replace(/[_\s]/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         
         const colMap = {
-          id: headers.findIndex(h => normalizar(h) === 'id' || normalizar(h) === 'idexterno' || normalizar(h) === 'id_externo'),
+          id_sistema: headers.findIndex(h => normalizar(h) === 'id'),
+          id_externo: headers.findIndex(h => normalizar(h) === 'idexterno'),
           data: headers.findIndex(h => normalizar(h) === 'data'),
           numero_animal: headers.findIndex(h => normalizar(h) === 'numeroanimal' || normalizar(h) === 'animal'),
           sexo: headers.findIndex(h => normalizar(h) === 'sexo'),
@@ -337,7 +343,7 @@ export default function PesagensIndividuais() {
           const valores = lines[i].split(delimitador).map(v => v.trim());
           
           const registro = {
-            id_externo: colMap.id >= 0 ? valores[colMap.id] : null,
+            id_externo: colMap.id_externo >= 0 ? valores[colMap.id_externo] : null,
             data_pesagem: colMap.data >= 0 ? parseDataBR(valores[colMap.data]) : null,
             numero_animal: colMap.numero_animal >= 0 ? valores[colMap.numero_animal] : null,
             sexo: colMap.sexo >= 0 ? valores[colMap.sexo]?.toUpperCase() : null,
@@ -372,15 +378,93 @@ export default function PesagensIndividuais() {
           dados.push(registro);
         }
 
+        // Verificar se há lotes/apartações no arquivo que existem no sistema
+        const lotesNoArquivo = [...new Set(dados.filter(d => d.nome_lote && d.nome_apartacao).map(d => `${d.nome_lote}|${d.nome_apartacao}`))];
+        const lotesEncontrados = [];
+        
+        for (const loteKey of lotesNoArquivo) {
+          const [nomeLote, nomeApartacao] = loteKey.split('|');
+          
+          // Buscar apartação pelo nome
+          const apartacao = apartacoesData.find(a => a.nome_apartacao?.toUpperCase() === nomeApartacao?.toUpperCase());
+          if (apartacao) {
+            // Buscar lote pelo nome dentro da apartação
+            const lote = lotesData.find(l => 
+              l.apartacao_id === apartacao.id && 
+              l.nome_lote?.toUpperCase() === nomeLote?.toUpperCase()
+            );
+            if (lote) {
+              lotesEncontrados.push({
+                nome_lote: nomeLote,
+                nome_apartacao: nomeApartacao,
+                lote_id: lote.id,
+                apartacao_id: apartacao.id,
+                quantidade: dados.filter(d => d.nome_lote === nomeLote && d.nome_apartacao === nomeApartacao).length
+              });
+            }
+          }
+        }
+
         setImportData(dados);
         setImportErrors(erros);
-        setShowImportDialog(true);
+        
+        if (lotesEncontrados.length > 0) {
+          setLotesParaVincular(lotesEncontrados);
+          // Inicializar todos como selecionados para vincular
+          const selecionados = {};
+          lotesEncontrados.forEach(l => {
+            selecionados[`${l.nome_lote}|${l.nome_apartacao}`] = true;
+          });
+          setVincularLotesSelecionados(selecionados);
+          setShowVincularLotes(true);
+        } else {
+          setShowImportDialog(true);
+        }
       } catch (error) {
         toast.error('Erro ao processar arquivo: ' + error.message);
       }
     };
     reader.readAsText(file, 'UTF-8');
     event.target.value = '';
+  };
+
+  const confirmarVinculacaoLotes = () => {
+    // Verificar se algum lote foi recusado
+    const lotesRecusados = lotesParaVincular.filter(l => !vincularLotesSelecionados[`${l.nome_lote}|${l.nome_apartacao}`]);
+    
+    if (lotesRecusados.length > 0) {
+      // Remover registros dos lotes recusados do importData
+      const lotesRecusadosKeys = lotesRecusados.map(l => `${l.nome_lote}|${l.nome_apartacao}`);
+      const dadosFiltrados = importData.filter(d => {
+        const key = `${d.nome_lote}|${d.nome_apartacao}`;
+        return !lotesRecusadosKeys.includes(key);
+      });
+      
+      const removidos = importData.length - dadosFiltrados.length;
+      toast.info(`${removidos} registros removidos por não vincular aos lotes existentes`);
+      setImportData(dadosFiltrados);
+    }
+    
+    // Vincular lote_id e apartacao_id aos registros aceitos
+    const lotesAceitos = lotesParaVincular.filter(l => vincularLotesSelecionados[`${l.nome_lote}|${l.nome_apartacao}`]);
+    const dadosAtualizados = importData.map(item => {
+      const loteEncontrado = lotesAceitos.find(l => 
+        l.nome_lote?.toUpperCase() === item.nome_lote?.toUpperCase() && 
+        l.nome_apartacao?.toUpperCase() === item.nome_apartacao?.toUpperCase()
+      );
+      if (loteEncontrado) {
+        return {
+          ...item,
+          lote_id: loteEncontrado.lote_id,
+          apartacao_id: loteEncontrado.apartacao_id
+        };
+      }
+      return item;
+    });
+    
+    setImportData(dadosAtualizados);
+    setShowVincularLotes(false);
+    setShowImportDialog(true);
   };
 
   const confirmarImportacao = async () => {
@@ -411,6 +495,8 @@ export default function PesagensIndividuais() {
       setShowImportDialog(false);
       setImportData([]);
       setImportErrors([]);
+      setLotesParaVincular([]);
+      setVincularLotesSelecionados({});
       queryClient.invalidateQueries({ queryKey: ['pesagens-individuais'] });
     } catch (error) {
       toast.error('Erro ao importar: ' + error.message);
@@ -519,10 +605,10 @@ export default function PesagensIndividuais() {
   };
 
   const baixarModelo = () => {
-    const headers = ['ID_Externo', 'Data', 'Numero Animal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
-    const exemplo1 = ['22207', '01/12/2025', '4368', 'M', 'Nelore', '2A', 'ABC', '206', 'MEIO', 'ROTINA', '', '15/11/2025', '180', '16', '26', '1.625'];
-    const exemplo2 = ['22206', '01/12/2025', '4369', 'M', 'Nelore', '3A', 'XYZ', '287', 'BOIADA', 'ROTINA', '', '15/11/2025', '260', '16', '27', '1.687'];
-    const exemplo3 = ['22205', '01/12/2025', '4370', 'F', 'Nelore', '1A', '', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
+    const headers = ['ID', 'ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const exemplo1 = ['', '22207', '01/12/2025', '4368', 'M', 'Nelore', '2A', 'ABC', '206', 'MEIO', 'ROTINA', '', '15/11/2025', '180', '16', '26', '1.625'];
+    const exemplo2 = ['', '22206', '01/12/2025', '4369', 'M', 'Nelore', '3A', 'XYZ', '287', 'BOIADA', 'ROTINA', '', '15/11/2025', '260', '16', '27', '1.687'];
+    const exemplo3 = ['', '22205', '01/12/2025', '4370', 'F', 'Nelore', '1A', '', '212', 'MEIO', 'ROTINA', '', '', '', '', '', ''];
     
     const csv = [headers.join(';'), exemplo1.join(';'), exemplo2.join(';'), exemplo3.join(';')].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -536,8 +622,9 @@ export default function PesagensIndividuais() {
   };
 
   const exportarCSV = () => {
-    const headers = ['ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
+    const headers = ['ID', 'ID_Externo', 'Data', 'NumeroAnimal', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'Apartação', 'Observação', 'DataAnterior', 'PesoAnterior', 'Dias', 'Ganho', 'GMD'];
     const rows = pesagensFiltradas.map(p => [
+      p.id || '',
       p.id_externo || '',
       formatarData(p.data_pesagem),
       p.numero_animal || '',
