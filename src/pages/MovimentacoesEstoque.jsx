@@ -424,16 +424,13 @@ export default function MovimentacoesEstoque() {
               <p className="text-xs text-slate-600">Entradas, saídas e ajustes</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <FileText className="w-3.5 h-3.5" />
-                Importação NF-e (xml)
+              <Button onClick={() => setShowImportXML(true)} variant="outline" size="sm" className="h-8 text-xs">
+                Importação NF-e
               </Button>
-              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <Download className="w-3.5 h-3.5" />
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
                 Exportar
               </Button>
-              <Button onClick={() => { setEditingMovimentacao(null); setDadosImportadosXML(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-3.5 h-3.5" />
+              <Button onClick={() => { setEditingMovimentacao(null); setDadosImportadosXML(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Nova Movimentação
               </Button>
             </div>

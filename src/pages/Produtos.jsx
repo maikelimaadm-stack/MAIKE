@@ -451,23 +451,19 @@ export default function Produtos() {
               <p className="text-xs text-slate-600">Gerenciar produtos e estoque</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <Download className="w-3.5 h-3.5" />
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
                 Exportar
               </Button>
               <div>
                 <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-produtos" />
-                <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
-                  <Upload className="w-3.5 h-3.5" />
+                <Button onClick={() => document.getElementById('import-produtos').click()} variant="outline" size="sm" className="h-8 text-xs" disabled={showImportProgress}>
                   Importar
                 </Button>
               </div>
-              <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <FileSpreadsheet className="w-3.5 h-3.5" />
+              <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
                 Modelo
               </Button>
-              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-3.5 h-3.5" />
+              <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Novo Produto
               </Button>
             </div>

@@ -309,8 +309,7 @@ export default function PlanoContas() {
               Inserir Padrão
             </Button>
           )}
-          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: true }); }} size="sm" className="gap-1 text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="w-3.5 h-3.5" />
+          <Button onClick={() => { setShowForm(!showForm); setEditingItem(null); setFormData({ codigo: "", descricao: "", tipo: "Despesa", plano_pai_id: "", aceita_lancamento: true }); }} size="sm" className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
             Novo
           </Button>
         </div>

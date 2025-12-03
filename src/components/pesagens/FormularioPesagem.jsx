@@ -227,7 +227,7 @@ export default function FormularioPesagem({ onSubmit, onCancel, initialData = nu
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>

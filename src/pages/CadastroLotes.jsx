@@ -141,9 +141,8 @@ export default function CadastroLotes() {
             <Button 
               onClick={() => { setShowForm(true); setEditingLote(null); }} 
               size="sm" 
-              className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
             >
-              <Plus className="w-3.5 h-3.5" />
               Novo Lote
             </Button>
           )}

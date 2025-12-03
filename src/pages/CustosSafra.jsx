@@ -447,8 +447,7 @@ export default function CustosSafra() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" onClick={() => setShowSafraDialog(true)} className="h-8 gap-1 text-xs">
-                <Plus className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" onClick={() => setShowSafraDialog(true)} className="h-8 text-xs">
                 Safra
               </Button>
             </div>
@@ -502,23 +501,19 @@ export default function CustosSafra() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Download className="w-3.5 h-3.5" />
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
               Exportar
             </Button>
             <div>
               <input type="file" accept=".csv" onChange={handleImport} className="hidden" id="import-custos" />
-              <Button onClick={() => document.getElementById('import-custos').click()} variant="outline" size="sm" className="h-8 gap-1 text-xs" disabled={showImportProgress}>
-                <Upload className="w-3.5 h-3.5" />
+              <Button onClick={() => document.getElementById('import-custos').click()} variant="outline" size="sm" className="h-8 text-xs" disabled={showImportProgress}>
                 Importar
               </Button>
             </div>
-            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
               Modelo
             </Button>
-            <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
-              <Plus className="w-3.5 h-3.5" />
+            <Button onClick={() => { setEditingCusto(null); setShowCustoForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 ml-auto">
               Novo Lançamento
             </Button>
           </div>

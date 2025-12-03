@@ -1004,7 +1004,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
 
                   <div className="flex justify-end gap-2 pt-1.5 border-t border-slate-200">
                     <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
-                    <Button type="button" onClick={handleProximaEtapa} className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">Próximo</Button>
+                    <Button type="button" onClick={handleProximaEtapa} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">Próximo</Button>
                   </div>
                 </>
               )}
@@ -1217,8 +1217,7 @@ export default function FormularioCompraFinanceiro({ onSubmit, onCancel, initial
                     <Button type="button" variant="outline" onClick={() => setEtapa(1)} className="h-7 text-xs">Voltar</Button>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" onClick={onCancel} className="h-7 text-xs">Cancelar</Button>
-                      <Button type="submit" className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
-                        <Save className="w-3.5 h-3.5" />
+                      <Button type="submit" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={!formData.conta_paga && formData.parcelar && Math.abs(totalParcelas - valorTotal) > 0.01}>
                         Salvar
                       </Button>
                     </div>

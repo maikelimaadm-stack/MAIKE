@@ -133,8 +133,7 @@ export default function CadastroMaquinas() {
               <h1 className="text-xl font-bold text-slate-900">Máquinas e Veículos</h1>
               <p className="text-xs text-slate-600">{maquinas.length} máquinas cadastradas</p>
             </div>
-            <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-3.5 h-3.5" />
+            <Button onClick={() => { setEditingMaquina(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Nova Máquina
             </Button>
           </div>

@@ -316,8 +316,7 @@ export default function RelatorioPesagensIndividuais() {
           <h1 className="text-xl font-bold text-slate-900">Relatório de Pesagens Individuais</h1>
           <p className="text-xs text-slate-600">Análise e impressão</p>
         </div>
-        <Button onClick={() => window.print()} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-          <Printer className="w-3.5 h-3.5" />
+        <Button onClick={() => window.print()} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           Imprimir
         </Button>
       </div>

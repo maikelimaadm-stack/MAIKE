@@ -388,13 +388,11 @@ export default function FormularioFornecedor({ onSubmit, onCancel, initialData =
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 gap-1 text-xs">
-                  <X className="w-3.5 h-3.5" />
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Save className="w-3.5 h-3.5" />
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>

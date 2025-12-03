@@ -550,12 +550,10 @@ export default function LancamentoFinanceiro() {
               <p className="text-xs text-slate-600">Contas a pagar e receber</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                <Download className="w-4 h-4" />
+              <Button onClick={() => setShowXmlImport(true)} variant="outline" size="sm" className="h-8 text-xs">
                 Importar XML
               </Button>
-              <Button onClick={handleNewLancamento} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="w-3.5 h-3.5" />
+              <Button onClick={handleNewLancamento} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Novo Lançamento
               </Button>
             </div>
