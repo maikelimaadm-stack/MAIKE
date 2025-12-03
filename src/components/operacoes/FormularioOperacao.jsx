@@ -520,11 +520,11 @@ export default function FormularioOperacao({ operacao, onSave, onCancel }) {
         />
       </div>
 
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex justify-end gap-2 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending}>
+        <Button type="submit" disabled={mutation.isPending} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           {mutation.isPending ? 'Salvando...' : 'Salvar'}
         </Button>
       </div>

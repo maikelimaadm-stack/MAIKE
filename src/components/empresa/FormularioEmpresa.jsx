@@ -132,7 +132,6 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
                     disabled={uploadingLogo}
                     className="h-8 text-xs"
                   >
-                    <Upload className="w-3.5 h-3.5 mr-2" />
                     {uploadingLogo ? 'Enviando...' : 'Enviar'}
                   </Button>
                 </div>
@@ -312,7 +311,7 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 {isEditing ? 'Atualizar' : 'Salvar'}
               </Button>
             </div>

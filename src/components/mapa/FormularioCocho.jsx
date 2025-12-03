@@ -250,11 +250,11 @@ export default function FormularioCocho({ coordenadas, item, onSave, onCancel })
         />
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1 h-9 text-xs">
+      <div className="flex gap-2 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
           Cancelar
         </Button>
-        <Button type="submit" className="flex-1 h-9 text-xs bg-purple-600 hover:bg-purple-700">
+        <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           {item ? 'Atualizar' : 'Cadastrar'}
         </Button>
       </div>

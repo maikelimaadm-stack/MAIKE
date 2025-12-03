@@ -254,9 +254,9 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           <Label className="text-sm text-slate-700">Tipo de cultura *</Label>
           <Button 
             type="button" 
-            variant="default" 
+            variant="outline"
             size="sm" 
-            className="h-8 text-xs bg-[#61aad9] hover:bg-[#0d67ad]"
+            className="h-8 text-xs"
             onClick={() => setShowAddCultura(true)}
           >
             Adicionar tipo de cultura
@@ -341,11 +341,11 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 bg-slate-100 -mx-6 px-6 py-3 -mb-6 mt-6">
-        <Button type="button" variant="outline" onClick={onCancel} className="h-9 px-4 text-sm text-[#61aad9] border-[#61aad9] hover:bg-[#61aad9]/10">
+      <div className="flex justify-end gap-2 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
           Cancelar
         </Button>
-        <Button type="submit" className="h-9 px-6 text-sm bg-[#92ca25] hover:bg-[#7ab31f] text-white">
+        <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
           Salvar
         </Button>
       </div>

@@ -1082,11 +1082,9 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           {/* Botões */}
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-              <X className="w-3.5 h-3.5 mr-1" />
               Cancelar
             </Button>
             <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={createMutation.isPending}>
-              <Save className="w-3.5 h-3.5 mr-1" />
               {createMutation.isPending ? 'Salvando...' : (item ? 'Atualizar' : 'Salvar')}
             </Button>
           </div>

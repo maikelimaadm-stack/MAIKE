@@ -132,14 +132,16 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
               <Button
                 type="button"
                 onClick={() => setModoPesagem("categorias")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "categorias" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                variant={modoPesagem === "categorias" ? "default" : "outline"}
+                className={`flex-1 h-8 text-xs ${modoPesagem === "categorias" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
               >
                 Por Categoria
               </Button>
               <Button
                 type="button"
                 onClick={() => setModoPesagem("todos")}
-                className={`flex-1 h-9 text-xs ${modoPesagem === "todos" ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                variant={modoPesagem === "todos" ? "default" : "outline"}
+                className={`flex-1 h-8 text-xs ${modoPesagem === "todos" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
               >
                 Todos (Mesmo Peso)
               </Button>
@@ -227,9 +229,8 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 type="button"
                 onClick={adicionarCategoria}
                 variant="outline"
-                className="w-full h-10 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
+                className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
               >
-                <Plus className="w-4 h-4 mr-2" />
                 Adicionar Categoria
               </Button>
             </div>
@@ -249,7 +250,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+            <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               Registrar Pesagens
             </Button>
           </div>
