@@ -353,7 +353,7 @@ export default function LocaisEstoque() {
               <h1 className="text-xl font-bold text-slate-900">Locais de Estoque</h1>
               <p className="text-xs text-slate-600">Gerenciar locais</p>
             </div>
-            <Button onClick={() => { setEditingItem(null); setFormData({ nome: "", descricao: "", capacidade: "" }); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-slate-700 hover:bg-slate-800">
+            <Button onClick={() => { setEditingItem(null); setFormData({ nome: "", descricao: "", capacidade: "" }); setShowForm(true); }} size="sm" className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5" />
               Novo Local
             </Button>
@@ -390,7 +390,7 @@ export default function LocaisEstoque() {
                     <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingItem(null); }} size="sm" className="h-8 text-xs">
                       Cancelar
                     </Button>
-                    <Button type="submit" size="sm" className="h-8 text-xs bg-slate-700 hover:bg-slate-800">
+                    <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                       {editingItem ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </div>
