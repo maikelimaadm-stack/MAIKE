@@ -872,8 +872,49 @@ export default function RelatorioPesagensIndividuais() {
               const fmtInteiro = (n) => Math.round(n).toLocaleString('pt-BR');
               const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
+              // Renderizar célula de detalhe
+              const renderCelulaDetalhe = (animal, colunaId) => {
+                switch (colunaId) {
+                  case 'numero_animal': return <TableCell className="text-xs font-medium py-1 border border-gray-200">{animal.numero_animal}</TableCell>;
+                  case 'data_pesagem': return <TableCell className="text-xs py-1 border border-gray-200">{formatarData(animal.data_pesagem)}</TableCell>;
+                  case 'sexo': return <TableCell className="text-xs py-1 border border-gray-200">{animal.sexo || '-'}</TableCell>;
+                  case 'raca': return <TableCell className="text-xs py-1 border border-gray-200">{animal.raca || '-'}</TableCell>;
+                  case 'peso': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.peso?.toLocaleString('pt-BR')} kg</TableCell>;
+                  case 'peso_anterior': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.peso_anterior?.toLocaleString('pt-BR') || '-'}</TableCell>;
+                  case 'dias': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.dias || '-'}</TableCell>;
+                  case 'ganho': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.ganho?.toLocaleString('pt-BR') || '-'}</TableCell>;
+                  case 'gmd': return <TableCell className={`text-xs text-right font-mono py-1 border border-gray-200 ${animal.gmd && animal.gmd > 0 ? 'text-emerald-600' : animal.gmd && animal.gmd < 0 ? 'text-red-600' : ''}`}>{animal.gmd?.toFixed(3) || '-'}</TableCell>;
+                  case 'observacao': return <TableCell className="text-xs py-1 border border-gray-200 max-w-[80px] truncate">{animal.observacao || '-'}</TableCell>;
+                  default: return <TableCell className="text-xs py-1 border border-gray-200">-</TableCell>;
+                }
+              };
+
               return (
                 <div className="space-y-4">
+                  {/* Botões de controle - apenas na tela, não imprime */}
+                  <div className="flex gap-2 print:hidden">
+                    <Button 
+                      variant={mostrarDetalhes ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setMostrarDetalhes(!mostrarDetalhes)}
+                      className="h-8 text-xs gap-1"
+                    >
+                      {mostrarDetalhes ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {mostrarDetalhes ? 'Ocultar Detalhes' : 'Mostrar Detalhes'}
+                    </Button>
+                    {mostrarDetalhes && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowConfigColunasDetalhes(true)}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        Configurar Colunas
+                      </Button>
+                    )}
+                  </div>
+
                   {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, lotes]) => {
                     // Calcular totais da apartação
                     const todosAnimaisApt = Object.values(lotes).flat();
@@ -923,22 +964,52 @@ export default function RelatorioPesagensIndividuais() {
                               const faixaCadastrada = getFaixaPesoCadastrada(lote, apartacao);
 
                               return (
-                                <TableRow key={lote} className="hover:bg-gray-50">
-                                  <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
-                                  <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono">
-                                    {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
-                                  <TableCell className="text-xs text-center py-2 font-mono font-semibold">
-                                    {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                  <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
-                                </TableRow>
+                                <React.Fragment key={lote}>
+                                  <TableRow className="hover:bg-gray-50">
+                                    <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
+                                    <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">
+                                      {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
+                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">
+                                      {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
+                                    <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                  </TableRow>
+                                  
+                                  {/* Detalhes dos animais do lote */}
+                                  {mostrarDetalhes && (
+                                    <TableRow>
+                                      <TableCell colSpan={10} className="p-0 bg-gray-50">
+                                        <div className="p-2 ml-4 border-l-4 border-emerald-400">
+                                          <Table>
+                                            <TableHeader>
+                                              <TableRow className="bg-emerald-50">
+                                                {colunasDetalhesOrdenadas.map(col => (
+                                                  <TableHead key={col.id} className={`text-[10px] font-bold py-1 border border-gray-200 ${['peso', 'peso_anterior', 'dias', 'ganho', 'gmd'].includes(col.id) ? 'text-right' : ''}`}>
+                                                    {col.label}
+                                                  </TableHead>
+                                                ))}
+                                              </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                              {animais.sort((a, b) => (a.numero_animal || '').localeCompare(b.numero_animal || '')).map((animal, idx) => (
+                                                <TableRow key={animal.id || idx} className="hover:bg-emerald-50/50">
+                                                  {colunasDetalhesOrdenadas.map(col => renderCelulaDetalhe(animal, col.id))}
+                                                </TableRow>
+                                              ))}
+                                            </TableBody>
+                                          </Table>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </React.Fragment>
                               );
                             })}
                           </TableBody>
