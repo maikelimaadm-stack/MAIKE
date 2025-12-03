@@ -635,11 +635,11 @@ export default function PesagensIndividuais() {
             Exportar
           </Button>
           <Button variant="outline" size="sm" onClick={baixarModelo} className="h-8 text-xs">
-            Modelo CSV
+            Modelo
           </Button>
           <label>
             <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" asChild>
-              <span>Importar CSV/TXT</span>
+              <span>Importar</span>
             </Button>
             <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
           </label>
