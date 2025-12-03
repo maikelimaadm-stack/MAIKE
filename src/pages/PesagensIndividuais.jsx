@@ -1162,6 +1162,84 @@ export default function PesagensIndividuais() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog de Vinculação de Lotes */}
+      <Dialog open={showVincularLotes} onOpenChange={setShowVincularLotes}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="w-5 h-5" />
+              Lotes Encontrados no Sistema
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded p-3">
+              <p className="text-xs text-amber-800">
+                ⚠️ Foram encontrados lotes no arquivo que já existem no sistema. 
+                Selecione quais deseja vincular. <strong>Registros de lotes não selecionados serão removidos da importação.</strong>
+              </p>
+            </div>
+            
+            <div className="max-h-64 overflow-auto border rounded">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs font-bold py-1 border border-black w-10">Vincular</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">Lote</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">Apartação</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd. Registros</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lotesParaVincular.map((lote) => {
+                    const key = `${lote.nome_lote}|${lote.nome_apartacao}`;
+                    return (
+                      <TableRow key={key} className="hover:bg-gray-50">
+                        <TableCell className="text-xs py-1 border border-gray-300">
+                          <Checkbox 
+                            checked={vincularLotesSelecionados[key] || false}
+                            onCheckedChange={(checked) => {
+                              setVincularLotesSelecionados(prev => ({
+                                ...prev,
+                                [key]: checked
+                              }));
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 font-semibold">{lote.nome_lote}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{lote.nome_apartacao}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300 text-right">{lote.quantidade}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            
+            <div className="text-xs text-slate-600">
+              {Object.values(vincularLotesSelecionados).filter(v => v).length} de {lotesParaVincular.length} lotes selecionados para vincular
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowVincularLotes(false);
+                setImportData([]);
+                setLotesParaVincular([]);
+                toast.info('Importação cancelada');
+              }}
+            >
+              Cancelar Importação
+            </Button>
+            <Button onClick={confirmarVinculacaoLotes} className="bg-emerald-600 hover:bg-emerald-700">
+              Continuar com Importação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de Importação */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
