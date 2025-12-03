@@ -957,8 +957,8 @@ export default function LancamentoPesagensIndividuais() {
               <Database className="w-3 h-3 mr-1" />Persistente
             </Badge>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
-            Colunas
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+            <Settings className="w-4 h-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
             Apartações

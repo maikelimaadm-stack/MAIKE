@@ -625,8 +625,8 @@ export default function PesagensIndividuais() {
           <p className="text-xs text-slate-600">Importação e gestão de pesagens individuais</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowConfigColunas(true)} className="h-8 text-xs">
-            Colunas
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+            <Settings className="w-4 h-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
             Atualizar
@@ -655,10 +655,9 @@ export default function PesagensIndividuais() {
 
       {/* Resumo por Apartação + Data */}
       <Card>
-        <CardHeader className="py-2 px-3 bg-slate-50 border-b cursor-pointer" onClick={() => setShowResumoApartacao(!showResumoApartacao)}>
+        <CardHeader className="py-2 px-3 bg-slate-100 border-b cursor-pointer" onClick={() => setShowResumoApartacao(!showResumoApartacao)}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Layers className="w-4 h-4 text-emerald-600" />
+            <CardTitle className="text-xs font-semibold flex items-center gap-2">
               Resumo por Apartação e Data
             </CardTitle>
             <div className="flex items-center gap-2">
