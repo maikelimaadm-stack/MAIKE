@@ -803,19 +803,6 @@ export default function PesagensIndividuais() {
                             </TableCell>
                           );
                         }
-                        // Removido o bloco duplicado de selecao aqui
-                        if (coluna.id === 'dummy_selecao_removed') {
-                          return (
-                            <TableCell key="selecao_dummy" className="border-r border-slate-200">
-                              <Checkbox 
-                                checked={selectedItems.includes(p.id)}
-                                onCheckedChange={(checked) => {
-                                  setSelectedItems(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id));
-                                }}
-                              />
-                            </TableCell>
-                          );
-                        }
                         if (coluna.id === 'data_pesagem') {
                           return <TableCell key={coluna.id} className="text-xs text-slate-600 border-r border-slate-200">{formatarData(p.data_pesagem)}</TableCell>;
                         }
