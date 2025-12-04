@@ -1034,6 +1034,9 @@ export default function HistoricoMovimentacoesPecuaria() {
           {totalPages > 1 && (
             <div className="flex items-center justify-end px-4 py-3 border-t border-slate-200">
               <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-600 mr-2">
+                  Página {currentPage} de {totalPages}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
