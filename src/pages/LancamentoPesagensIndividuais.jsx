@@ -1058,27 +1058,23 @@ export default function LancamentoPesagensIndividuais() {
           {/* SELEÇÃO DO TIPO DE MANEJO */}
           <div className="flex items-center gap-4 mb-4 pb-3 border-b">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Manejo:</Label>
-            <div className="flex gap-2">
-              <Button 
-                variant={tipoManejo === 'cadastro' ? 'default' : 'outline'} 
-                size="sm" 
-                onClick={() => setTipoManejo('cadastro')}
-                className={`h-8 text-xs ${tipoManejo === 'cadastro' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              >
-                Manejo Cadastro
-              </Button>
-              <Button 
-                variant={tipoManejo === 'pesagens' ? 'default' : 'outline'} 
-                size="sm" 
-                onClick={() => setTipoManejo('pesagens')}
-                className={`h-8 text-xs ${tipoManejo === 'pesagens' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-              >
-                Manejo de Pesagens
-              </Button>
-            </div>
+            <Select value={tipoManejo} onValueChange={setTipoManejo}>
+              <SelectTrigger className="h-8 text-xs w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cadastro">Manejo Cadastro</SelectItem>
+                <SelectItem value="pesagens">Manejo de Pesagens</SelectItem>
+              </SelectContent>
+            </Select>
             {tipoManejo === 'pesagens' && (
               <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Apenas animais já cadastrados
+              </span>
+            )}
+            {tipoManejo === 'cadastro' && (
+              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                Cadastro de novos animais
               </span>
             )}
           </div>
@@ -1260,25 +1256,6 @@ export default function LancamentoPesagensIndividuais() {
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320"
               />
-              {/* Exibir ganho abaixo do peso - exceto SN */}
-                {(() => {
-                  if (!numeroAnimal?.trim() || !peso) return null;
-                  if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
-                  const historicoAnimal = pesagens
-                    .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                    .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-                  if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
-                  const ultimo = historicoAnimal[0];
-                  const pesoNum = parseFloat(peso);
-                  const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
-                  const ganho = pesoNum - ultimo.peso;
-                  const gmd = dias > 0 ? (ganho / dias) : 0;
-                  return (
-                    <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                      {dias}d | {ganho.toFixed(1)}kg | GMD: {gmd.toFixed(3)}
-                    </div>
-                  );
-                })()}
             </div>
             
             {/* Observação */}
@@ -1291,6 +1268,30 @@ export default function LancamentoPesagensIndividuais() {
                 placeholder="Obs..."
               />
             </div>
+
+            {/* Exibir cálculo de ganho ANTES do botão Salvar */}
+            {(() => {
+              if (!numeroAnimal?.trim() || !peso) return null;
+              if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
+              const historicoAnimal = pesagens
+                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+              if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+              const ultimo = historicoAnimal[0];
+              const pesoNum = parseFloat(peso);
+              const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+              const ganho = pesoNum - ultimo.peso;
+              const gmd = dias > 0 ? (ganho / dias) : 0;
+              return (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold">
+                  <span>{dias}d</span>
+                  <span>|</span>
+                  <span>{ganho.toFixed(1)}kg</span>
+                  <span>|</span>
+                  <span>GMD: {gmd.toFixed(3)}</span>
+                </div>
+              );
+            })()}
             
             {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
