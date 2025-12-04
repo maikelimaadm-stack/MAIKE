@@ -230,6 +230,9 @@ export default function LancamentoPesagensIndividuais() {
   const [fixarRaca, setFixarRaca] = useState(true);
   const [fixarEra, setFixarEra] = useState(false);
   const [fixarMarca, setFixarMarca] = useState(false);
+  
+  // Tipo de Manejo: 'cadastro' ou 'pesagens'
+  const [tipoManejo, setTipoManejo] = useState('cadastro');
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
