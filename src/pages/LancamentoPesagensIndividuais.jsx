@@ -873,7 +873,21 @@ export default function LancamentoPesagensIndividuais() {
       } else if (editingId) {
         // Edição de pesagem sincronizada - funciona online e offline
         if (navigator.onLine) {
+          // Buscar o registro original para saber o tipo_manejo
+          const registroOriginal = pesagens.find(p => p.id === editingId);
+          
           await base44.entities.PesagemIndividual.update(editingId, data);
+          
+          // Se estamos editando um registro de CADASTRO, propagar dados para todos os registros do animal
+          if (registroOriginal?.tipo_manejo === 'Cadastro') {
+            await atualizarDadosCadastroEmTodos(numeroAnimal.trim(), {
+              sexo: sexo || null,
+              raca: raca || null,
+              era: era || null,
+              marca: marca || null,
+            });
+          }
+          
           toast.success('✓ Atualizado!');
           await loadAllData();
         } else {
