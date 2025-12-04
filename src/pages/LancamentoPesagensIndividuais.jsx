@@ -1094,8 +1094,8 @@ export default function LancamentoPesagensIndividuais() {
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
-          {/* SELEÇÃO DO TIPO DE MANEJO */}
-          <div className="flex items-center gap-4 mb-4 pb-3 border-b">
+          {/* SELEÇÃO DO TIPO DE MANEJO + AVISO */}
+          <div className="flex items-center gap-4 mb-4 pb-3 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Manejo:</Label>
             <Select value={tipoManejo} onValueChange={setTipoManejo}>
               <SelectTrigger className="h-8 text-xs w-48">
@@ -1106,15 +1106,28 @@ export default function LancamentoPesagensIndividuais() {
                 <SelectItem value="pesagens">Manejo de Pesagens</SelectItem>
               </SelectContent>
             </Select>
-            {tipoManejo === 'pesagens' && (
+            {tipoManejo === 'pesagens' && !avisoTela && (
               <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Apenas animais já cadastrados
               </span>
             )}
-            {tipoManejo === 'cadastro' && (
+            {tipoManejo === 'cadastro' && !avisoTela && (
               <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                 Cadastro de novos animais
               </span>
+            )}
+            {/* AVISO INLINE */}
+            {avisoTela && (
+              <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
+                avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-700' :
+                avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+                <span>{avisoTela.mensagem}</span>
+                <button onClick={() => setAvisoTela(null)} className="hover:opacity-70">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             )}
           </div>
 
