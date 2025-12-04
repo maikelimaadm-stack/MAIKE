@@ -910,6 +910,7 @@ export default function LancamentoPesagensIndividuais() {
       if (!fixarMarca) setMarca("");
       setObservacao("");
       setLoteTransferencia("");
+      setAvisoTela(null);
       setTimeout(() => numeroInputRef.current?.focus(), 50);
     } catch (error) {
       toast.error('Erro: ' + error.message);
