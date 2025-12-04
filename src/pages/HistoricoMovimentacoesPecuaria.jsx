@@ -880,24 +880,20 @@ export default function HistoricoMovimentacoesPecuaria() {
             <p className="text-xs text-slate-600">Gerencie todo o histórico de movimentações pecuárias</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+            <Button onClick={handleDownloadTemplate} variant="outline" size="sm" className="h-8 text-xs">
               Modelo
             </Button>
-            <Button onClick={() => setShowImportDialog(true)} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Upload className="w-3.5 h-3.5" />
+            <Button onClick={() => setShowImportDialog(true)} variant="outline" size="sm" className="h-8 text-xs">
               Importar
             </Button>
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 gap-1 text-xs">
-              <Download className="w-3.5 h-3.5" />
+            <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
               Exportar
             </Button>
             <Button 
               onClick={() => { setItemEditandoManual(null); setShowNovoLancamento(true); }} 
               size="sm" 
-              className="h-8 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
             >
-              <Plus className="w-3.5 h-3.5" />
               Novo Lançamento
             </Button>
           </div>
