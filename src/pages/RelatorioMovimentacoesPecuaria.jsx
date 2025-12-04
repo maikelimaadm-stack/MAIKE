@@ -273,6 +273,9 @@ const EIXO_Y_OPCOES = [
     setAgrupamentosAtivos([]);
     setOrdenacao('data_desc');
     setTipoRelatorio('analitico');
+    setEixosXSintetico(['setor']);
+    setEixosYSintetico(['categoria']);
+    setMostrarDetalhes(false);
   };
 
   const totalEntradas = movimentacoesFiltradas.filter(m => m.tipo === 'Entrada').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
