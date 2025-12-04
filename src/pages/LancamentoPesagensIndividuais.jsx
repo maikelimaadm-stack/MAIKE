@@ -921,6 +921,10 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== EXCLUIR PESAGEM ==========
   const handleExcluir = async (pesagem) => {
+    // Confirmar exclusão com aviso na tela
+    const confirmacao = window.confirm(`Deseja realmente excluir a pesagem do animal ${pesagem.numero_animal}?\n\nPeso: ${pesagem.peso}kg\nData: ${formatarData(pesagem.data_pesagem)}`);
+    if (!confirmacao) return;
+
     if (pesagem._offlineId) {
       // Excluir do IndexedDB
       if (dbReady) {
@@ -933,13 +937,22 @@ export default function LancamentoPesagensIndividuais() {
         localStorage.setItem('pending_pesagens_individuais', JSON.stringify(updated));
       }
       await updatePendingCount();
-      toast.success('Removido');
+      setAvisoTela({
+        tipo: 'info',
+        mensagem: `✓ Pesagem do animal ${pesagem.numero_animal} foi removida com sucesso!`
+      });
     } else if (navigator.onLine) {
       await base44.entities.PesagemIndividual.delete(pesagem.id);
-      toast.success('Excluído');
+      setAvisoTela({
+        tipo: 'info',
+        mensagem: `✓ Pesagem do animal ${pesagem.numero_animal} foi excluída com sucesso!`
+      });
       await loadAllData();
     } else {
-      toast.error('Exclusão não disponível offline');
+      setAvisoTela({
+        tipo: 'erro',
+        mensagem: `❌ Exclusão não disponível offline. Conecte-se à internet para excluir.`
+      });
     }
   };
 
