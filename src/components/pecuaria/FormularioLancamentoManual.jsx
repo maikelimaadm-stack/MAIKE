@@ -873,6 +873,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
               </Select>
             </div>
           </div>
+          )}
 
           {/* Campos para Mudança de Categoria */}
           {formData.motivo === "Mudança de Categoria" && (
