@@ -743,6 +743,16 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
+    // No modo "Manejo de Pesagens", verificar se o brinco existe no cadastro
+    if (tipoManejo === 'pesagens' && !isSN && !editingId) {
+      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
+      if (!animalExiste) {
+        toast.error("⚠️ Brinco não cadastrado! Use o 'Manejo Cadastro' para cadastrar este animal primeiro.");
+        numeroInputRef.current?.focus();
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     const pesoNum = parseFloat(peso);
