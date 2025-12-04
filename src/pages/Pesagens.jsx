@@ -356,15 +356,20 @@ export default function Pesagens() {
     event.target.value = '';
   };
 
+  const [importProgressText, setImportProgressText] = useState("");
+
   const executarImportacao = async (validRecords) => {
     setShowImportProgress(true);
     setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
+    setImportProgressText("Iniciando importação...");
 
     let imported = 0;
     let actualErrors = 0;
 
-    for (const record of validRecords) {
+    for (let i = 0; i < validRecords.length; i++) {
+      const record = validRecords[i];
       try {
+        setImportProgressText(`Importando registro ${i + 1} de ${validRecords.length}...`);
         await base44.entities.Pesagem.create(record);
         imported++;
         setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
@@ -375,12 +380,14 @@ export default function Pesagens() {
       }
     }
     
+    setImportProgressText("Finalizando...");
     await queryClient.invalidateQueries({ queryKey: ['pesagens'] });
     
     setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
 
     setTimeout(() => {
       setShowImportProgress(false);
+      setImportProgressText("");
       if (actualErrors > 0) {
         toast.success(`${imported} registros importados! ${actualErrors} com erro.`);
       } else {
@@ -624,7 +631,7 @@ export default function Pesagens() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Progresso</span>
+                <span className="text-slate-600">{importProgressText || 'Importando...'}</span>
                 <span className="font-semibold text-slate-900">
                   {importProgress.current} de {importProgress.total}
                 </span>
@@ -632,6 +639,9 @@ export default function Pesagens() {
               <Progress value={progressPercentage} className="h-3" />
               <p className="text-center text-sm font-medium text-green-600">
                 {progressPercentage}%
+              </p>
+              <p className="text-center text-xs text-slate-500">
+                Aguarde, não feche esta janela...
               </p>
             </div>
             
