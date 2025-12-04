@@ -130,13 +130,20 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {resumoLotes.map(lote => (
-                    <TableRow key={lote.id}>
-                      <TableCell className="text-xs font-medium">{lote.nome_lote}</TableCell>
-                      <TableCell className="text-xs text-right">{lote.quantidade_atual}/{lote.quantidade_maxima || 0}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{lote.peso_medio?.toFixed(2) || '0.00'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {resumoLotes.map(lote => {
+                    const cheio = lote.fechado || (lote.quantidade_atual >= (lote.quantidade_maxima || 999999));
+                    return (
+                      <TableRow key={lote.id} className={cheio ? "bg-red-50" : ""}>
+                        <TableCell className={`text-xs font-medium ${cheio ? "text-red-700" : ""}`}>
+                          {lote.nome_lote} {cheio && "🔒"}
+                        </TableCell>
+                        <TableCell className={`text-xs text-right ${cheio ? "text-red-700 font-bold" : ""}`}>
+                          {lote.quantidade_atual}/{lote.quantidade_maxima || 0}
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono">{lote.peso_medio?.toFixed(2) || '0.00'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               <div className="mt-2 pt-2 border-t text-xs text-center text-slate-500">
@@ -673,11 +680,26 @@ export default function LancamentoPesagensIndividuais() {
     return { total, machos, femeas, pesoMedio };
   }, [pesagensDia]);
 
+  // ========== VERIFICAR SE LOTE ESTÁ CHEIO ==========
+  const isLoteCheio = (lote) => {
+    if (!lote) return false;
+    if (lote.fechado) return true;
+    
+    // Contar animais no lote (pesagens sincronizadas + pendentes)
+    const animaisNoLote = [
+      ...pesagens.filter(p => p.lote_id === lote.id),
+      ...pendingPesagensDB.filter(p => p.lote_id === lote.id)
+    ].length;
+    
+    return animaisNoLote >= (lote.quantidade_maxima || 999999);
+  };
+
   // ========== DETERMINAR LOTE AUTOMATICAMENTE ==========
   const getLoteAutomatico = (pesoNum) => {
     if (!apartacaoSelecionada || !pesoNum) return null;
+    // Não sugerir lotes fechados ou cheios
     const lote = lotesApartacaoAtual.find(l => 
-      pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado
+      pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado && !isLoteCheio(l)
     );
     return lote;
   };
@@ -1218,17 +1240,27 @@ export default function LancamentoPesagensIndividuais() {
                                 <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
-                  {lotesApartacaoAtual.map(l => (
-                    <SelectItem key={l.id} value={l.id}>{l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg)</SelectItem>
-                  ))}
+                  {lotesApartacaoAtual.map(l => {
+                    const cheio = isLoteCheio(l);
+                    return (
+                      <SelectItem key={l.id} value={l.id} className={cheio ? "text-red-600" : ""}>
+                        {l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg) {cheio ? "🔒 FECHADO" : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
             {peso && apartacaoSelecionada && !loteTransferencia && (
-              <div className="text-base font-bold text-orange-700 bg-orange-100 px-4 py-2 rounded border-2 border-orange-300">
-                <ChevronRight className="w-5 h-5 inline" />
-                Lote: {getLoteAutomatico(parseFloat(peso))?.nome_lote || 'Não encontrado'}
-              </div>
+              (() => {
+                const loteAuto = getLoteAutomatico(parseFloat(peso));
+                return (
+                  <div className={`text-base font-bold px-4 py-2 rounded border-2 ${loteAuto ? 'text-orange-700 bg-orange-100 border-orange-300' : 'text-red-700 bg-red-100 border-red-300'}`}>
+                    <ChevronRight className="w-5 h-5 inline" />
+                    Lote: {loteAuto?.nome_lote || 'Não encontrado (todos cheios ou fora da faixa)'}
+                  </div>
+                );
+              })()
             )}
           </div>
         </CardContent>
