@@ -90,8 +90,9 @@ export default function RelatorioMovimentacoesPecuaria() {
   const [orientacao, setOrientacao] = useState("paisagem");
   const [agrupamentosAtivos, setAgrupamentosAtivos] = useState([]);
   const [ordenacao, setOrdenacao] = useState('data_desc');
-  const [eixoXSintetico, setEixoXSintetico] = useState('setor'); // Coluna do eixo X na matriz sintética
-  const [eixoYSintetico, setEixoYSintetico] = useState('categoria'); // Linha do eixo Y na matriz sintética
+  const [eixosXSintetico, setEixosXSintetico] = useState(['setor']); // Múltiplas colunas do eixo X
+  const [eixosYSintetico, setEixosYSintetico] = useState(['categoria']); // Múltiplas linhas do eixo Y
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(false); // Mostrar Entradas/Saídas/Saldo nas células
 
 // Opções de linha para o eixo Y do relatório sintético (matriz)
 const EIXO_Y_OPCOES = [
@@ -111,6 +112,23 @@ const EIXO_Y_OPCOES = [
   { value: 'transferencia_origem', label: 'Transferência Origem' },
   { value: 'transferencia_destino', label: 'Transferência Destino' },
 ];
+
+  // Toggle eixos
+  const toggleEixoX = (valor) => {
+    setEixosXSintetico(prev => 
+      prev.includes(valor) 
+        ? prev.filter(v => v !== valor) 
+        : [...prev, valor]
+    );
+  };
+
+  const toggleEixoY = (valor) => {
+    setEixosYSintetico(prev => 
+      prev.includes(valor) 
+        ? prev.filter(v => v !== valor) 
+        : [...prev, valor]
+    );
+  };
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_relatorio_mov_pecuaria');
