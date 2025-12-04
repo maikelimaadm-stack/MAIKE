@@ -976,9 +976,44 @@ export default function LancamentoPesagensIndividuais() {
     setEra(p.era || "");
     setMarca(p.marca || "");
     setObservacao(p.observacao || "");
+    // Definir tipo de manejo baseado no registro
+    setTipoManejo(p.tipo_manejo === 'Cadastro' ? 'cadastro' : 'pesagens');
     if (p.apartacao_id) setApartacaoSelecionada(p.apartacao_id);
     if (p.lote_id) setLoteTransferencia(p.lote_id);
     numeroInputRef.current?.focus();
+  };
+
+  // ========== ATUALIZAR DADOS DE CADASTRO EM TODOS OS REGISTROS ==========
+  const atualizarDadosCadastroEmTodos = async (numeroAnimalAtual, novosDados) => {
+    if (!navigator.onLine) {
+      toast.error("Atualização em lote requer conexão");
+      return;
+    }
+
+    // Buscar TODOS os registros deste animal
+    const registrosAnimal = pesagens.filter(p => p.numero_animal === numeroAnimalAtual);
+    
+    if (registrosAnimal.length <= 1) return; // Só tem um registro, não precisa propagar
+
+    // Atualizar todos os registros com os novos dados de cadastro
+    let atualizados = 0;
+    for (const registro of registrosAnimal) {
+      try {
+        await base44.entities.PesagemIndividual.update(registro.id, {
+          sexo: novosDados.sexo,
+          raca: novosDados.raca,
+          era: novosDados.era,
+          marca: novosDados.marca,
+        });
+        atualizados++;
+      } catch (e) {
+        console.error('Erro ao atualizar registro:', e);
+      }
+    }
+
+    if (atualizados > 1) {
+      toast.success(`Dados atualizados em ${atualizados} registros do animal ${numeroAnimalAtual}`);
+    }
   };
 
   // ========== NAVEGAÇÃO POR TECLAS ==========
