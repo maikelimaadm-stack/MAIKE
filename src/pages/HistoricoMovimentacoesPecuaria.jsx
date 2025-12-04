@@ -1032,10 +1032,7 @@ export default function HistoricoMovimentacoesPecuaria() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-              <div className="text-xs text-slate-600">
-                Mostrando {startIndex + 1} a {Math.min(endIndex, sortedMovimentacoes.length)} de {sortedMovimentacoes.length} registros
-              </div>
+            <div className="flex items-center justify-end px-4 py-3 border-t border-slate-200">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
