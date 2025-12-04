@@ -1205,13 +1205,14 @@ export default function LancamentoPesagensIndividuais() {
                     if (historicoAnimal.length > 0) {
                       const ultimo = historicoAnimal[0];
                       
-                      // Preencher campos APENAS se NÃO estiverem fixados
-                      if (!fixarSexo) setSexo(ultimo.sexo || "M");
-                      if (!fixarRaca) setRaca(ultimo.raca || "Nelore");
-                      if (!fixarMarca) setMarca(ultimo.marca || "");
+                      // Preencher campos SEMPRE (no modo pesagens, são readonly)
+                      // No modo cadastro, preencher apenas se NÃO estiverem fixados
+                      if (tipoManejo === 'pesagens' || !fixarSexo) setSexo(ultimo.sexo || "M");
+                      if (tipoManejo === 'pesagens' || !fixarRaca) setRaca(ultimo.raca || "Nelore");
+                      if (tipoManejo === 'pesagens' || !fixarMarca) setMarca(ultimo.marca || "");
                       
                       // Calcular evolução da era em meses
-                      if (!fixarEra) {
+                      if (tipoManejo === 'pesagens' || !fixarEra) {
                         if (ultimo.era && ultimo.data_pesagem) {
                           const eraAnterior = parseInt(ultimo.era) || 0;
                           if (eraAnterior > 0) {
