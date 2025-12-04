@@ -877,44 +877,107 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
 
           {/* Campos para Mudança de Categoria */}
           {formData.motivo === "Mudança de Categoria" && (
-            <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg space-y-3">
+              {/* Linha 1: Categoria, Marca e Área */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Categoria Atual (De)</Label>
-                  <Select value={formData.categoria_animal} onValueChange={(v) => setFormData({ ...formData, categoria_animal: v })}>
+                  <Label className="text-sm font-medium">Categoria Atual (De) *</Label>
+                  <Select 
+                    value={formData.categoria_animal} 
+                    onValueChange={(v) => setFormData({ ...formData, categoria_animal: v, marca: "" })}
+                    disabled={!formData.setor_id}
+                  >
                     <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="De qual categoria?" />
+                      <SelectValue placeholder={formData.setor_id ? "De qual categoria?" : "Selecione setor primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriasLancadas.map(cat => {
-                        const saldo = saldoPorCategoria[cat] || 0;
-                        return (
-                          <SelectItem key={cat} value={cat} className="text-sm" disabled={saldo <= 0}>
+                      {categoriasNoSetor.length > 0 ? (
+                        categoriasNoSetor.map(item => (
+                          <SelectItem key={item.categoria} value={item.categoria} className="text-sm">
                             <div className="flex items-center justify-between w-full gap-2">
-                              <span>{cat}</span>
-                              <Badge variant={saldo > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                                {saldo} cab
+                              <span>{item.categoria}</span>
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                                {item.saldo} cab
                               </Badge>
                             </div>
                           </SelectItem>
-                        );
-                      })}
+                        ))
+                      ) : (
+                        <SelectItem value={null} disabled className="text-sm text-slate-500">
+                          {formData.setor_id ? "Nenhuma categoria com saldo neste setor" : "Selecione setor primeiro"}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
-                  {formData.categoria_animal && (
+                  {formData.categoria_animal && formData.setor_id && (
                     <div className="text-xs text-slate-500">
-                      Saldo: <span className="font-semibold">{saldoPorCategoria[formData.categoria_animal] || 0} cab</span>
+                      Saldo no setor: <span className="font-semibold">{categoriasNoSetor.find(c => c.categoria === formData.categoria_animal)?.saldo || 0} cab</span>
                     </div>
                   )}
                 </div>
+                
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Nova Categoria (Para)</Label>
+                  <Label className="text-sm font-medium">Marca *</Label>
+                  <Select 
+                    value={formData.marca} 
+                    onValueChange={(v) => setFormData({ ...formData, marca: v })}
+                    disabled={!formData.categoria_animal || !formData.setor_id}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder={formData.categoria_animal ? "Selecione" : "Selecione categoria primeiro"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {marcasNoSetorCategoria.length > 0 ? (
+                        marcasNoSetorCategoria.map(item => (
+                          <SelectItem key={item.marca} value={item.marca} className="text-sm">
+                            <div className="flex items-center justify-between w-full gap-2">
+                              <span>{item.marca}</span>
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                                {item.saldo} cab
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value={null} disabled className="text-sm text-slate-500">
+                          {formData.categoria_animal ? "Nenhuma marca com saldo" : "Selecione categoria primeiro"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Área</Label>
+                  <Select 
+                    value={formData.area_origem_id} 
+                    onValueChange={(v) => setFormData({ ...formData, area_origem_id: v })}
+                    disabled={!formData.setor_id}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map(area => (
+                        <SelectItem key={area.id} value={area.id} className="text-sm">
+                          {area.sigla ? `${area.sigla} - ` : ''}{area.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Linha 2: Nova Categoria */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Nova Categoria (Para) *</Label>
                   <Select value={formData.categoria_nova} onValueChange={(v) => setFormData({ ...formData, categoria_nova: v })}>
                     <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Para qual categoria?" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriasManejo.map(cat => (
+                      {categoriasManejo.filter(c => c.nome !== formData.categoria_animal).map(cat => (
                         <SelectItem key={cat.id} value={cat.nome} className="text-sm">
                           {cat.nome} {cat.sexo ? `(${cat.sexo})` : ''}
                         </SelectItem>
