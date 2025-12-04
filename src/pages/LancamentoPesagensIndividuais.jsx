@@ -237,6 +237,9 @@ export default function LancamentoPesagensIndividuais() {
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Avisos na tela
+  const [avisoTela, setAvisoTela] = useState(null); // {tipo: 'erro'|'alerta'|'info', mensagem: string}
+
   // Ordenação
   const [sortColumn, setSortColumn] = useState("created_date");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -1201,6 +1204,7 @@ export default function LancamentoPesagensIndividuais() {
                 onChange={(e) => {
                   const valor = e.target.value;
                   setNumeroAnimal(valor);
+                  setAvisoTela(null); // Limpar aviso anterior
                   
                   // Buscar dados anteriores do animal (exceto SN)
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
@@ -1208,8 +1212,35 @@ export default function LancamentoPesagensIndividuais() {
                       .filter(p => p.numero_animal === valor.trim())
                       .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
                     
+                    // Verificar se já foi pesado hoje
+                    const pesadoHoje = pesagensDia.find(p => p.numero_animal === valor.trim());
+                    if (pesadoHoje && !editingId) {
+                      setAvisoTela({
+                        tipo: 'erro',
+                        mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
+                      });
+                    }
+                    
                     if (historicoAnimal.length > 0) {
                       const ultimo = historicoAnimal[0];
+                      
+                      // No modo CADASTRO, avisar que animal já existe
+                      if (tipoManejo === 'cadastro' && !editingId) {
+                        setAvisoTela({
+                          tipo: 'alerta',
+                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo de Pesagens" para nova pesagem.`
+                        });
+                      }
+                      
+                      // No modo PESAGENS, mostrar info do animal
+                      if (tipoManejo === 'pesagens') {
+                        if (!pesadoHoje) {
+                          setAvisoTela({
+                            tipo: 'info',
+                            mensagem: `✓ Animal encontrado: ${ultimo.sexo || '-'} | ${ultimo.raca || '-'} | Era: ${ultimo.era || '-'} | Marca: ${ultimo.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                          });
+                        }
+                      }
                       
                       // Preencher campos SEMPRE (no modo pesagens, são readonly)
                       // No modo cadastro, preencher apenas se NÃO estiverem fixados
@@ -1231,6 +1262,14 @@ export default function LancamentoPesagensIndividuais() {
                         } else {
                           setEra(ultimo.era || "");
                         }
+                      }
+                    } else {
+                      // Animal não encontrado
+                      if (tipoManejo === 'pesagens') {
+                        setAvisoTela({
+                          tipo: 'erro',
+                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Manejo Cadastro" para cadastrar primeiro.`
+                        });
                       }
                     }
                   }
