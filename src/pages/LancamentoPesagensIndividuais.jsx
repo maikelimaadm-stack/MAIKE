@@ -1357,30 +1357,6 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
 
-            {/* Exibir cálculo de ganho ANTES do botão Salvar */}
-            {(() => {
-              if (!numeroAnimal?.trim() || !peso) return null;
-              if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
-              const historicoAnimal = pesagens
-                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-              if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
-              const ultimo = historicoAnimal[0];
-              const pesoNum = parseFloat(peso);
-              const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
-              const ganho = pesoNum - ultimo.peso;
-              const gmd = dias > 0 ? (ganho / dias) : 0;
-              return (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold">
-                  <span>{dias}d</span>
-                  <span>|</span>
-                  <span>{ganho.toFixed(1)}kg</span>
-                  <span>|</span>
-                  <span>GMD: {gmd.toFixed(3)}</span>
-                </div>
-              );
-            })()}
-            
             {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
