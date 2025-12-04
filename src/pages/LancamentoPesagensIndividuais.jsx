@@ -750,7 +750,26 @@ export default function LancamentoPesagensIndividuais() {
     if (tipoManejo === 'pesagens' && !isSN && !editingId) {
       const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
       if (!animalExiste) {
-        toast.error("⚠️ Brinco não cadastrado! Use o 'Manejo Cadastro' para cadastrar este animal primeiro.");
+        setAvisoTela({
+          tipo: 'erro',
+          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO! Use "Manejo Cadastro" para cadastrar primeiro.`
+        });
+        numeroInputRef.current?.focus();
+        return;
+      }
+    }
+
+    // No modo "Manejo Cadastro", verificar se o brinco JÁ existe (não permitir duplicado)
+    if (tipoManejo === 'cadastro' && !isSN && !editingId) {
+      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
+      if (animalExiste) {
+        const ultimo = pesagens
+          .filter(p => p.numero_animal === numeroAnimal.trim())
+          .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
+        setAvisoTela({
+          tipo: 'erro',
+          mensagem: `❌ Animal ${numeroAnimal.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo de Pesagens" para nova pesagem.`
+        });
         numeroInputRef.current?.focus();
         return;
       }
