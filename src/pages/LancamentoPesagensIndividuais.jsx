@@ -255,6 +255,8 @@ export default function LancamentoPesagensIndividuais() {
     { id: 'marca', label: 'Marca', default: true },
     { id: 'nome_apartacao', label: 'Apartação', default: true },
     { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'data_anterior', label: 'Data Anterior', default: false },
+    { id: 'peso_anterior', label: 'Peso Anterior', default: false },
     { id: 'dias', label: 'Dias', default: false },
     { id: 'ganho', label: 'Ganho', default: false },
     { id: 'gmd', label: 'GMD', default: true },
@@ -1400,6 +1402,12 @@ export default function LancamentoPesagensIndividuais() {
                             }
                             if (coluna.id === 'nome_lote') {
                               return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'data_anterior') {
+                              return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_anterior) || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'peso_anterior') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso_anterior || '-'}</TableCell>;
                             }
                             if (coluna.id === 'dias') {
                               return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
