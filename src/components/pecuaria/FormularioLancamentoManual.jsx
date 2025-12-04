@@ -702,6 +702,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           </div>
 
           {/* Linha 2: Categoria, Marca, Sexo, Área - DEPENDEM DO SETOR */}
+          {/* Ocultar este bloco quando for Mudança de Categoria (tem bloco próprio abaixo) */}
+          {formData.motivo !== "Mudança de Categoria" && (
           <div className={`grid grid-cols-2 ${formData.tipo === "Entrada" ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2`}>
             <div className="space-y-1">
               <Label className="text-sm font-medium">Categoria *</Label>
