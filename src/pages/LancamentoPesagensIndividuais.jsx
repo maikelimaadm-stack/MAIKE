@@ -252,6 +252,7 @@ export default function LancamentoPesagensIndividuais() {
   const COLUNAS_DISPONIVEIS = [
     { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'numero_registro', label: 'Nº', default: true },
+    { id: 'tipo_manejo', label: 'Tipo', default: true },
     { id: 'numero_animal', label: 'Identificação', default: true },
     { id: 'peso', label: 'Peso', default: true },
     { id: 'data_pesagem', label: 'Data', default: true },
