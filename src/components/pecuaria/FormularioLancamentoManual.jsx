@@ -404,6 +404,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           peso_total: parseFloat(data.peso_total) || null,
           valor_unitario: null,
           valor_total: null,
+          setor_id: data.setor_id || null,
+          setor_nome: setor?.nome || null,
           area_origem_id: data.area_origem_id || null,
           area_origem_nome: areaOrigem?.nome || null,
           area_destino_id: null,
@@ -420,7 +422,7 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           observacoes: data.observacoes || null,
         };
 
-        // 2. Entrada na nova categoria
+        // 2. Entrada na nova categoria (MESMO SETOR!)
         const catNova = categoriasManejo.find(c => c.nome === data.categoria_nova);
         const payloadEntrada = {
           empresa_id: empresaSelecionadaId,
@@ -436,6 +438,8 @@ export default function FormularioLancamentoManual({ item, onSave, onCancel }) {
           peso_total: parseFloat(data.peso_total) || null,
           valor_unitario: null,
           valor_total: null,
+          setor_id: data.setor_id || null,
+          setor_nome: setor?.nome || null,
           area_origem_id: null,
           area_origem_nome: null,
           area_destino_id: data.area_destino_id || data.area_origem_id || null,
