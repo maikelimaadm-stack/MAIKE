@@ -1156,7 +1156,40 @@ export default function LancamentoPesagensIndividuais() {
               <Input 
                 ref={numeroInputRef}
                 value={numeroAnimal} 
-                onChange={(e) => setNumeroAnimal(e.target.value)} 
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  setNumeroAnimal(valor);
+                  
+                  // Buscar dados anteriores do animal (exceto SN)
+                  if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
+                    const historicoAnimal = pesagens
+                      .filter(p => p.numero_animal === valor.trim())
+                      .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                    
+                    if (historicoAnimal.length > 0) {
+                      const ultimo = historicoAnimal[0];
+                      
+                      // Preencher campos se não estiverem fixados ou vazios
+                      if (!fixarSexo || !sexo) setSexo(ultimo.sexo || "M");
+                      if (!fixarRaca || !raca) setRaca(ultimo.raca || "Nelore");
+                      if (!fixarMarca || !marca) setMarca(ultimo.marca || "");
+                      
+                      // Calcular evolução da era em meses
+                      if (ultimo.era && ultimo.data_pesagem) {
+                        const eraAnterior = parseInt(ultimo.era) || 0;
+                        if (eraAnterior > 0) {
+                          const dataAnterior = new Date(ultimo.data_pesagem);
+                          const dataAtual = new Date(dataPesagem);
+                          const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
+                          const novaEra = eraAnterior + mesesDecorridos;
+                          if (!fixarEra) setEra(String(novaEra > 0 ? novaEra : eraAnterior));
+                        }
+                      } else if (!fixarEra || !era) {
+                        setEra(ultimo.era || "");
+                      }
+                    }
+                  }
+                }} 
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
                 className="h-10 w-36 font-bold text-amber-500"
                 style={{ fontSize: '18px' }}
