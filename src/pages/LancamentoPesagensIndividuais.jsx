@@ -935,16 +935,24 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== EXPORTAR EXCEL ==========
   const exportarExcel = () => {
-    const headers = ['Identificação', 'Peso', 'Data', 'Sexo', 'Raça', 'Marca', 'Apartação', 'Lote'];
+    const headers = ['Nº', 'Identificação', 'Data', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Apartação', 'Lote', 'Data Anterior', 'Peso Anterior', 'Dias', 'Ganho', 'GMD', 'Observação'];
     const rows = pesagensDia.map(p => [
-      p.numero_animal,
-      p.peso,
+      p._numero_registro || '',
+      p.numero_animal || '',
       formatarData(p.data_pesagem),
       p.sexo || '',
       p.raca || '',
+      p.era || '',
       p.marca || '',
+      p.peso ? String(p.peso).replace('.', ',') : '',
       p.nome_apartacao || '',
-      p.nome_lote || ''
+      p.nome_lote || '',
+      formatarData(p.data_anterior),
+      p.peso_anterior ? String(p.peso_anterior).replace('.', ',') : '',
+      p.dias || '',
+      p.ganho ? p.ganho.toFixed(2).replace('.', ',') : '',
+      p.gmd ? p.gmd.toFixed(3).replace('.', ',') : '',
+      p.observacao || ''
     ]);
     
     const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
@@ -1413,12 +1421,12 @@ export default function LancamentoPesagensIndividuais() {
                               return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
                             }
                             if (coluna.id === 'ganho') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? `${p.ganho.toLocaleString('pt-BR')} kg` : '-'}</TableCell>;
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? p.ganho.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>;
                             }
                             if (coluna.id === 'gmd') {
                               return (
                                 <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
-                                  {p.gmd ? p.gmd.toFixed(3) : '-'}
+                                  {p.gmd ? p.gmd.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
                                 </TableCell>
                               );
                             }
