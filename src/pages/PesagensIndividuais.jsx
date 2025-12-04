@@ -477,6 +477,9 @@ export default function PesagensIndividuais() {
     setShowImportDialog(true);
   };
 
+  // Estado para texto de progresso detalhado
+  const [importProgressText, setImportProgressText] = useState("");
+
   const confirmarImportacao = async () => {
     if (importData.length === 0) {
       toast.error('Nenhum dado válido para importar');
@@ -485,6 +488,7 @@ export default function PesagensIndividuais() {
 
     setIsImporting(true);
     setImportProgress(0);
+    setImportProgressText("Iniciando importação...");
 
     try {
       const batchSize = 50;
@@ -496,11 +500,13 @@ export default function PesagensIndividuais() {
           empresa_id: empresaSelecionadaId,
         }));
 
+        setImportProgressText(`Importando registros ${i + 1} a ${Math.min(i + batchSize, importData.length)} de ${importData.length}...`);
         await base44.entities.PesagemIndividual.bulkCreate(batch);
         importados += batch.length;
         setImportProgress(Math.round((importados / importData.length) * 100));
       }
 
+      setImportProgressText("Finalizando...");
       toast.success(`${importados} pesagens importadas com sucesso!`);
       setShowImportDialog(false);
       setImportData([]);
@@ -512,6 +518,7 @@ export default function PesagensIndividuais() {
       toast.error('Erro ao importar: ' + error.message);
     } finally {
       setIsImporting(false);
+      setImportProgressText("");
     }
   };
 
@@ -1343,13 +1350,16 @@ export default function PesagensIndividuais() {
 
             {/* Progress */}
             {isImporting && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-slate-600">
-                  <span>Importando...</span>
-                  <span>{importProgress}%</span>
+              <div className="space-y-2 bg-blue-50 border border-blue-200 rounded p-3">
+                <div className="flex justify-between text-xs text-slate-700">
+                  <span className="font-medium">{importProgressText || 'Importando...'}</span>
+                  <span className="font-bold text-blue-700">{importProgress}%</span>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div className="bg-emerald-600 h-2 rounded-full transition-all" style={{ width: `${importProgress}%` }} />
+                <div className="w-full bg-slate-200 rounded-full h-3">
+                  <div className="bg-emerald-600 h-3 rounded-full transition-all" style={{ width: `${importProgress}%` }} />
+                </div>
+                <div className="text-[10px] text-slate-500 text-center">
+                  Aguarde, não feche esta janela...
                 </div>
               </div>
             )}
