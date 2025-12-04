@@ -1068,8 +1068,8 @@ export default function LancamentoPesagensIndividuais() {
                   <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
                 </div>
               </div>
-              <Select value={sexo} onValueChange={setSexo}>
-                <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-slate-100' : ''}`}><SelectValue /></SelectTrigger>
+              <Select value={sexo} onValueChange={setSexo} disabled={false}>
+                <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-emerald-50 border-emerald-300' : ''}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="M" className="text-slate-700">M</SelectItem>
                   <SelectItem value="F" className="text-slate-700">F</SelectItem>
@@ -1097,7 +1097,7 @@ export default function LancamentoPesagensIndividuais() {
                   onChange={setRaca}
                   options={racasExistentes}
                   placeholder="Nelore"
-                  className={fixarSexo ? 'bg-slate-100' : ''}
+                  className={fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}
                 />
               </div>
             </div>
@@ -1169,23 +1169,25 @@ export default function LancamentoPesagensIndividuais() {
                     if (historicoAnimal.length > 0) {
                       const ultimo = historicoAnimal[0];
                       
-                      // Preencher campos se não estiverem fixados ou vazios
-                      if (!fixarSexo || !sexo) setSexo(ultimo.sexo || "M");
-                      if (!fixarRaca || !raca) setRaca(ultimo.raca || "Nelore");
-                      if (!fixarMarca || !marca) setMarca(ultimo.marca || "");
+                      // Preencher campos APENAS se NÃO estiverem fixados
+                      if (!fixarSexo) setSexo(ultimo.sexo || "M");
+                      if (!fixarRaca) setRaca(ultimo.raca || "Nelore");
+                      if (!fixarMarca) setMarca(ultimo.marca || "");
                       
                       // Calcular evolução da era em meses
-                      if (ultimo.era && ultimo.data_pesagem) {
-                        const eraAnterior = parseInt(ultimo.era) || 0;
-                        if (eraAnterior > 0) {
-                          const dataAnterior = new Date(ultimo.data_pesagem);
-                          const dataAtual = new Date(dataPesagem);
-                          const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
-                          const novaEra = eraAnterior + mesesDecorridos;
-                          if (!fixarEra) setEra(String(novaEra > 0 ? novaEra : eraAnterior));
+                      if (!fixarEra) {
+                        if (ultimo.era && ultimo.data_pesagem) {
+                          const eraAnterior = parseInt(ultimo.era) || 0;
+                          if (eraAnterior > 0) {
+                            const dataAnterior = new Date(ultimo.data_pesagem);
+                            const dataAtual = new Date(dataPesagem);
+                            const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
+                            const novaEra = eraAnterior + mesesDecorridos;
+                            setEra(String(novaEra > 0 ? novaEra : eraAnterior));
+                          }
+                        } else {
+                          setEra(ultimo.era || "");
                         }
-                      } else if (!fixarEra || !era) {
-                        setEra(ultimo.era || "");
                       }
                     }
                   }
