@@ -827,8 +827,13 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
+    // Determinar tipo_manejo baseado no modo selecionado
+    const tipoManejoRegistro = tipoManejo === 'cadastro' ? 'Cadastro' : 'Pesagens';
+
+    // Se for cadastro, NÃO calcula ganho de peso (é o registro inicial)
     const data = {
       empresa_id: empresaSelecionadaId,
+      tipo_manejo: tipoManejoRegistro,
       data_pesagem: dataPesagem,
       numero_animal: numeroAnimal.trim(),
       sexo: sexo || null,
@@ -841,9 +846,12 @@ export default function LancamentoPesagensIndividuais() {
       nome_apartacao: nomeApartacao,
       lote_id: loteId,
       nome_lote: nomeLote,
-      data_anterior: dataAnterior,
-      peso_anterior: pesoAnterior,
-      dias, ganho: ganho ? parseFloat(ganho.toFixed(2)) : null, gmd,
+      // Cadastro não tem ganho de peso (é o registro inicial)
+      data_anterior: tipoManejo === 'cadastro' ? null : dataAnterior,
+      peso_anterior: tipoManejo === 'cadastro' ? null : pesoAnterior,
+      dias: tipoManejo === 'cadastro' ? null : dias,
+      ganho: tipoManejo === 'cadastro' ? null : (ganho ? parseFloat(ganho.toFixed(2)) : null),
+      gmd: tipoManejo === 'cadastro' ? null : gmd,
     };
 
     try {
