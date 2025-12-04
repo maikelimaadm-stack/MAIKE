@@ -1085,101 +1085,106 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* Sexo com Checkbox para fixar */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-medium">Sexo</Label>
-                <div className="flex items-center gap-1">
-                  <Checkbox 
-                    id="fixarSexo" 
-                    checked={fixarSexo} 
-                    onCheckedChange={setFixarSexo}
-                    className="h-3 w-3"
-                  />
-                  <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
+            {/* CAMPOS DE CADASTRO - Mostrar apenas no Manejo Cadastro */}
+            {tipoManejo === 'cadastro' && (
+              <>
+                {/* Sexo com Checkbox para fixar */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-medium">Sexo</Label>
+                    <div className="flex items-center gap-1">
+                      <Checkbox 
+                        id="fixarSexo" 
+                        checked={fixarSexo} 
+                        onCheckedChange={setFixarSexo}
+                        className="h-3 w-3"
+                      />
+                      <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
+                    </div>
+                  </div>
+                  <Select value={sexo} onValueChange={setSexo}>
+                    <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-emerald-50 border-emerald-300' : ''}`}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M" className="text-slate-700">M</SelectItem>
+                      <SelectItem value="F" className="text-slate-700">F</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <Select value={sexo} onValueChange={setSexo} disabled={false}>
-                <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-emerald-50 border-emerald-300' : ''}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="M" className="text-slate-700">M</SelectItem>
-                  <SelectItem value="F" className="text-slate-700">F</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Raça com Checkbox para fixar */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-medium">Raça</Label>
-                <div className="flex items-center gap-1">
-                  <Checkbox 
-                    id="fixarRaca" 
-                    checked={fixarRaca} 
-                    onCheckedChange={setFixarRaca}
-                    className="h-3 w-3"
-                  />
-                  <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
+                
+                {/* Raça com Checkbox para fixar */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-medium">Raça</Label>
+                    <div className="flex items-center gap-1">
+                      <Checkbox 
+                        id="fixarRaca" 
+                        checked={fixarRaca} 
+                        onCheckedChange={setFixarRaca}
+                        className="h-3 w-3"
+                      />
+                      <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
+                    </div>
+                  </div>
+                  <div className="w-28">
+                    <ComboboxComNovo
+                      value={raca}
+                      onChange={setRaca}
+                      options={racasExistentes}
+                      placeholder="Nelore"
+                      className={fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="w-28">
-                <ComboboxComNovo
-                  value={raca}
-                  onChange={setRaca}
-                  options={racasExistentes}
-                  placeholder="Nelore"
-                  className={fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}
-                />
-              </div>
-            </div>
 
-            {/* Era com Checkbox para fixar */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-medium">Era</Label>
-                <div className="flex items-center gap-1">
-                  <Checkbox 
-                    id="fixarEra" 
-                    checked={fixarEra} 
-                    onCheckedChange={setFixarEra}
-                    className="h-3 w-3"
-                  />
-                  <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
+                {/* Era com Checkbox para fixar */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-medium">Era</Label>
+                    <div className="flex items-center gap-1">
+                      <Checkbox 
+                        id="fixarEra" 
+                        checked={fixarEra} 
+                        onCheckedChange={setFixarEra}
+                        className="h-3 w-3"
+                      />
+                      <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
+                    </div>
+                  </div>
+                  <div className="w-24">
+                    <ComboboxComNovo
+                      value={era}
+                      onChange={setEra}
+                      options={erasExistentes}
+                      placeholder="Ex: 14"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="w-24">
-                <ComboboxComNovo
-                  value={era}
-                  onChange={setEra}
-                  options={erasExistentes}
-                  placeholder="Ex: 2A"
-                />
-              </div>
-            </div>
 
-            {/* Marca com Checkbox para fixar */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-medium">Marca</Label>
-                <div className="flex items-center gap-1">
-                  <Checkbox 
-                    id="fixarMarca" 
-                    checked={fixarMarca} 
-                    onCheckedChange={setFixarMarca}
-                    className="h-3 w-3"
-                  />
-                  <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
+                {/* Marca com Checkbox para fixar */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-medium">Marca</Label>
+                    <div className="flex items-center gap-1">
+                      <Checkbox 
+                        id="fixarMarca" 
+                        checked={fixarMarca} 
+                        onCheckedChange={setFixarMarca}
+                        className="h-3 w-3"
+                      />
+                      <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
+                    </div>
+                  </div>
+                  <div className="w-24">
+                    <ComboboxComNovo
+                      value={marca}
+                      onChange={setMarca}
+                      options={marcasExistentes}
+                      placeholder="Ex: ABC"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="w-24">
-                <ComboboxComNovo
-                  value={marca}
-                  onChange={setMarca}
-                  options={marcasExistentes}
-                  placeholder="Ex: ABC"
-                />
-              </div>
-            </div>
+              </>
+            )}
             
             {/* Nº Identificação */}
             <div className="space-y-1">
