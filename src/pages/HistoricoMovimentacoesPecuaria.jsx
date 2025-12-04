@@ -919,22 +919,68 @@ export default function HistoricoMovimentacoesPecuaria() {
 
         {!showNovoLancamento && <SaldoCategorias movimentacoes={movimentacoes} categoriasManejo={[]} />}
 
-      {!showNovoLancamento && <Card className="shadow-sm border-slate-300">
-        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              Movimentações ({movimentacoes.length})
-            </CardTitle>
-            <div className="flex gap-2 items-center">
-              {selectedItems.length > 0 && (
-                <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded px-2 py-1">
-                  <span className="text-xs font-semibold text-slate-800">
-                    {selectedItems.length} selecionado(s)
-                  </span>
+      {/* Filtros */}
+      {!showNovoLancamento && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-2 md:grid-cols-9 gap-2">
+              <div className="md:col-span-2 relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-8 text-xs pl-8"
+                />
+              </div>
+              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todos Tipos</SelectItem>
+                  {tiposUnicos.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Motivo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todos Motivos</SelectItem>
+                  {motivosUnicos.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todas Categ.</SelectItem>
+                  {categoriasUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filtroMarca} onValueChange={setFiltroMarca}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Marca" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todas Marcas</SelectItem>
+                  {marcasUnicas.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todos Setores</SelectItem>
+                  {setoresUnicos.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
+              <Input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} className="h-8 text-xs" placeholder="Data fim" />
+            </div>
+            <div className="flex justify-between items-center mt-2">
+              <div className="text-xs text-slate-500">
+                {filteredMovimentacoes.length} de {movimentacoes.length} registros
+              </div>
+              <div className="flex gap-2">
+                {selectedItems.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-1.5">
-                        <MoreVertical className="w-4 h-4 text-slate-700" />
+                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                        Ações ({selectedItems.length})
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -945,19 +991,28 @@ export default function HistoricoMovimentacoesPecuaria() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">
-                        Limpar
+                        Limpar Seleção
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
-              )}
-              
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+                )}
+                <Button variant="outline" size="sm" onClick={limparFiltros} className="h-7 text-xs">
+                  Limpar Filtros
+                </Button>
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => setShowConfigColunas(true)}>
-                <Settings className="w-3.5 h-3.5" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!showNovoLancamento && <Card className="shadow-sm border-slate-300">
+        <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              Movimentações ({filteredMovimentacoes.length})
+            </CardTitle>
+            <div className="flex gap-2 items-center">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                 Colunas
               </Button>
             </div>
