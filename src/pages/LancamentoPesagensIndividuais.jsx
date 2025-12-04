@@ -741,7 +741,10 @@ export default function LancamentoPesagensIndividuais() {
         p.id !== editingId
       );
       if (duplicado) { 
-        toast.error("⚠️ Animal já pesado hoje! Nº: " + numeroAnimal); 
+        setAvisoTela({
+          tipo: 'erro',
+          mensagem: `⚠️ Animal ${numeroAnimal.trim()} já foi pesado hoje! Peso registrado: ${duplicado.peso}kg`
+        });
         return; 
       }
     }
