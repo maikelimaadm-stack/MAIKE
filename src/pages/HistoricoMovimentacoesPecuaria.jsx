@@ -117,6 +117,15 @@ export default function HistoricoMovimentacoesPecuaria() {
   const [showImportErrors, setShowImportErrors] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, isImporting: false });
 
+  // Filtros
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroMotivo, setFiltroMotivo] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroMarca, setFiltroMarca] = useState("");
+  const [filtroSetor, setFiltroSetor] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
+
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
     const saved = localStorage.getItem('colunas_movimentacoes_pecuaria');
     if (saved) {
