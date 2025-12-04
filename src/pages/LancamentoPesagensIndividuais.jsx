@@ -1395,26 +1395,31 @@ export default function LancamentoPesagensIndividuais() {
                 Cancelar
               </Button>
             )}
-          </div>
 
-          {/* ÁREA DE AVISOS NA TELA */}
-          {avisoTela && (
-            <div className={`mt-3 p-3 rounded-lg border-2 flex items-center justify-between ${
-              avisoTela.tipo === 'erro' ? 'bg-red-50 border-red-300 text-red-800' :
-              avisoTela.tipo === 'alerta' ? 'bg-amber-50 border-amber-300 text-amber-800' :
-              'bg-blue-50 border-blue-300 text-blue-800'
-            }`}>
-              <span className="text-sm font-medium">{avisoTela.mensagem}</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6" 
-                onClick={() => setAvisoTela(null)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
+            {/* Exibir cálculo de ganho APÓS o botão Salvar */}
+            {(() => {
+              if (!numeroAnimal?.trim() || !peso) return null;
+              if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
+              const historicoAnimal = pesagens
+                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
+                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+              if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
+              const ultimo = historicoAnimal[0];
+              const pesoNum = parseFloat(peso);
+              const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
+              const ganho = pesoNum - ultimo.peso;
+              const gmd = dias > 0 ? (ganho / dias) : 0;
+              return (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold">
+                  <span>{dias}d</span>
+                  <span>|</span>
+                  <span>{ganho.toFixed(1)}kg</span>
+                  <span>|</span>
+                  <span>GMD: {gmd.toFixed(3)}</span>
+                </div>
+              );
+            })()}
+          </div>
           
           {/* Linha 2: Apartação e Transferência de Lote */}
           <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
