@@ -1595,6 +1595,18 @@ export default function LancamentoPesagensIndividuais() {
                             if (coluna.id === 'numero_registro') {
                               return <TableCell key={coluna.id} className="text-xs font-mono font-bold text-slate-700">{p._numero_registro}</TableCell>;
                             }
+                            if (coluna.id === 'tipo_manejo') {
+                              return (
+                                <TableCell key={coluna.id} className="text-xs">
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-[10px] ${p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-blue-50 text-blue-700 border-blue-300'}`}
+                                  >
+                                    {p.tipo_manejo || 'Pesagens'}
+                                  </Badge>
+                                </TableCell>
+                              );
+                            }
                             if (coluna.id === 'numero_animal') {
                               return (
                                 <TableCell key={coluna.id} className="text-xs font-bold">
