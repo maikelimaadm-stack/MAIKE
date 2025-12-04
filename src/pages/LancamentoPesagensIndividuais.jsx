@@ -1548,6 +1548,8 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     return lotes.filter(l => l.apartacao_id === apartacaoIdLote);
   }, [lotes, apartacaoIdLote]);
 
+  const [progressoAtualizacao, setProgressoAtualizacao] = useState({ show: false, current: 0, total: 0, texto: "" });
+
   const salvarApartacao = async () => {
     // Evitar cliques duplos
     if (isSaving) return;
@@ -1578,23 +1580,38 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         if (editingApartacaoId) {
           await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-          // Atualizar TODAS as pesagens vinculadas (de todas as datas)
-          const todasPesagens = await base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId });
-          toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
-          let count = 0;
-          for (const p of todasPesagens) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() });
-            count++;
-            // Delay a cada 3 registros para evitar rate limit
-            if (count % 3 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-          }
+          // Buscar pesagens e lotes vinculados
+          const [todasPesagens, todosLotes] = await Promise.all([
+            base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId }),
+            base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId })
+          ]);
 
-          // Atualizar todos os lotes vinculados
-          const todosLotes = await base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId });
-          for (const l of todosLotes) {
-            await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+          const totalItens = todasPesagens.length + todosLotes.length;
+          
+          if (totalItens > 0) {
+            setProgressoAtualizacao({ show: true, current: 0, total: totalItens, texto: "Atualizando registros..." });
+
+            // Atualizar lotes primeiro (são poucos)
+            for (const l of todosLotes) {
+              await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
+              setProgressoAtualizacao(prev => ({ ...prev, current: prev.current + 1 }));
+            }
+
+            // Atualizar pesagens em lotes de 10 para maior velocidade
+            const batchSize = 10;
+            for (let i = 0; i < todasPesagens.length; i += batchSize) {
+              const batch = todasPesagens.slice(i, i + batchSize);
+              await Promise.all(batch.map(p => 
+                base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() })
+              ));
+              setProgressoAtualizacao(prev => ({ 
+                ...prev, 
+                current: todosLotes.length + Math.min(i + batchSize, todasPesagens.length),
+                texto: `Atualizando pesagens ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
+              }));
+            }
+
+            setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
           }
 
           toast.success(`Apartação atualizada! ${todasPesagens.length} pesagens atualizadas.`);
@@ -1632,6 +1649,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       toast.error('Erro: ' + error.message);
     } finally {
       setIsSaving(false);
+      setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
     }
   };
 
@@ -1687,17 +1705,27 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         if (editingLoteId) {
           await base44.entities.LoteApartacao.update(editingLoteId, data);
 
-          // Atualizar TODAS as pesagens vinculadas ao lote (de todas as datas)
+          // Buscar pesagens vinculadas
           const todasPesagens = await base44.entities.PesagemIndividual.filter({ lote_id: editingLoteId });
-          toast.info(`Atualizando ${todasPesagens.length} pesagens...`);
-          let countLote = 0;
-          for (const p of todasPesagens) {
-            await base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() });
-            countLote++;
-            // Delay a cada 3 registros para evitar rate limit
-            if (countLote % 3 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
+          
+          if (todasPesagens.length > 0) {
+            setProgressoAtualizacao({ show: true, current: 0, total: todasPesagens.length, texto: "Atualizando pesagens..." });
+
+            // Atualizar pesagens em lotes de 10 para maior velocidade
+            const batchSize = 10;
+            for (let i = 0; i < todasPesagens.length; i += batchSize) {
+              const batch = todasPesagens.slice(i, i + batchSize);
+              await Promise.all(batch.map(p => 
+                base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() })
+              ));
+              setProgressoAtualizacao(prev => ({ 
+                ...prev, 
+                current: Math.min(i + batchSize, todasPesagens.length),
+                texto: `Atualizando ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
+              }));
             }
+
+            setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
           }
 
           toast.success(`Lote atualizado! ${todasPesagens.length} pesagens atualizadas.`);
@@ -1738,23 +1766,26 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       toast.error('Erro: ' + error.message);
     } finally {
       setIsSaving(false);
+      setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
     }
   };
 
   const excluirApartacao = async (id) => {
     const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
+    const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
+    
     if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      alert(`⚠️ NÃO É POSSÍVEL EXCLUIR!\n\nEsta apartação possui:\n• ${pesagensVinculadas.length} pesagens vinculadas\n• ${lotesVinculados.length} lotes vinculados\n\nRemova primeiro as pesagens e lotes antes de excluir a apartação.`);
       return;
     }
 
-    if (!confirm("Excluir apartação e todos os lotes vinculados?")) return;
+    const confirmacao = confirm(`⚠️ ATENÇÃO!\n\nDeseja realmente excluir esta apartação?\n\nSerão excluídos também ${lotesVinculados.length} lote(s) vinculado(s).\n\nEsta ação NÃO pode ser desfeita!`);
+    if (!confirmacao) return;
 
     // Se é item offline, remover do cache
     if (id.startsWith('offline_')) {
       if (dbReady) {
         await deleteItem(STORES_NAMES.APARTACOES, id);
-        const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
         for (const l of lotesVinculados) {
           await deleteItem(STORES_NAMES.LOTES, l.id);
         }
@@ -1766,7 +1797,6 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
     // Se online, excluir do servidor
     if (navigator.onLine) {
-      const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
       for (const l of lotesVinculados) {
         if (!l.id.startsWith('offline_')) {
           await base44.entities.LoteApartacao.delete(l.id);
@@ -1782,12 +1812,15 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
   const excluirLote = async (id) => {
     const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
+    const loteInfo = lotes.find(l => l.id === id);
+    
     if (pesagensVinculadas.length > 0) {
-      toast.error(`Não é possível excluir! Existem ${pesagensVinculadas.length} pesagens vinculadas.`);
+      alert(`⚠️ NÃO É POSSÍVEL EXCLUIR!\n\nO lote "${loteInfo?.nome_lote || 'Selecionado'}" possui ${pesagensVinculadas.length} pesagens vinculadas.\n\nRemova primeiro as pesagens antes de excluir o lote.`);
       return;
     }
 
-    if (!confirm("Excluir lote?")) return;
+    const confirmacao = confirm(`⚠️ ATENÇÃO!\n\nDeseja realmente excluir o lote "${loteInfo?.nome_lote || 'Selecionado'}"?\n\nEsta ação NÃO pode ser desfeita!`);
+    if (!confirmacao) return;
 
     // Se é item offline, remover do cache
     if (id.startsWith('offline_')) {
@@ -1843,6 +1876,23 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   </Button>
                 )}
               </div>
+              {/* Barra de progresso de atualização */}
+              {progressoAtualizacao.show && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                  <div className="flex justify-between text-xs text-blue-800 mb-1">
+                    <span>{progressoAtualizacao.texto}</span>
+                    <span className="font-bold">{Math.round((progressoAtualizacao.current / progressoAtualizacao.total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all" 
+                      style={{ width: `${(progressoAtualizacao.current / progressoAtualizacao.total) * 100}%` }} 
+                    />
+                  </div>
+                  <p className="text-[10px] text-blue-600 mt-1">Aguarde, não feche esta janela...</p>
+                </div>
+              )}
+
               <Table>
                 <TableHeader>
                   <TableRow>
