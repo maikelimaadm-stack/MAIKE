@@ -292,16 +292,50 @@ export default function HistoricoMovimentacoesPecuaria() {
       : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
+  // Valores únicos para filtros
+  const tiposUnicos = [...new Set(movimentacoes.map(m => m.tipo).filter(Boolean))].sort();
+  const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo).filter(Boolean))].sort();
+  const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal).filter(Boolean))].sort();
+  const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca).filter(Boolean))].sort();
+  const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome).filter(Boolean))].sort();
+
   const filteredMovimentacoes = movimentacoes.filter(mov => {
     const searchLower = searchTerm.toLowerCase();
-    return (
+    
+    // Busca textual
+    if (searchTerm && !(
       mov.tipo?.toLowerCase().includes(searchLower) ||
-      mov.lote?.toLowerCase().includes(searchLower) ||
+      mov.categoria_animal?.toLowerCase().includes(searchLower) ||
+      mov.marca?.toLowerCase().includes(searchLower) ||
+      mov.setor_nome?.toLowerCase().includes(searchLower) ||
       mov.area_origem_nome?.toLowerCase().includes(searchLower) ||
       mov.area_destino_nome?.toLowerCase().includes(searchLower) ||
       mov.observacoes?.toLowerCase().includes(searchLower)
-    );
+    )) return false;
+    
+    // Filtros específicos
+    if (filtroTipo && mov.tipo !== filtroTipo) return false;
+    if (filtroMotivo && mov.motivo !== filtroMotivo) return false;
+    if (filtroCategoria && mov.categoria_animal !== filtroCategoria) return false;
+    if (filtroMarca && mov.marca !== filtroMarca) return false;
+    if (filtroSetor && mov.setor_nome !== filtroSetor) return false;
+    if (filtroDataInicio && mov.data_movimentacao?.split('T')[0] < filtroDataInicio) return false;
+    if (filtroDataFim && mov.data_movimentacao?.split('T')[0] > filtroDataFim) return false;
+    
+    return true;
   });
+
+  const limparFiltros = () => {
+    setSearchTerm("");
+    setFiltroTipo("");
+    setFiltroMotivo("");
+    setFiltroCategoria("");
+    setFiltroMarca("");
+    setFiltroSetor("");
+    setFiltroDataInicio("");
+    setFiltroDataFim("");
+    setCurrentPage(1);
+  };
 
   const sortedMovimentacoes = [...filteredMovimentacoes].sort((a, b) => {
     if (!sortField) return 0;
