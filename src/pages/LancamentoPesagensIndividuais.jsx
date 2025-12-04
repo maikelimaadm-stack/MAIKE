@@ -763,7 +763,13 @@ export default function LancamentoPesagensIndividuais() {
     // Determinar lote
     let loteId = null, nomeLote = null, apartacaoId = null, nomeApartacao = null;
     
-    if (loteTransferencia) {
+    if (loteTransferencia === "NENHUM") {
+      // Usuário optou por não vincular a nenhum lote
+      loteId = null;
+      nomeLote = null;
+      apartacaoId = apartacaoSelecionada || null;
+      nomeApartacao = apartacaoSelecionada ? apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || "" : null;
+    } else if (loteTransferencia) {
       const lote = lotesApartacaoAtual.find(l => l.id === loteTransferencia);
       if (lote) {
         loteId = lote.id;
