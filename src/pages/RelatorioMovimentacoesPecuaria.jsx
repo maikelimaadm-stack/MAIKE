@@ -590,7 +590,7 @@ const EIXO_Y_OPCOES = [
               <p>Nenhuma movimentação encontrada com os filtros aplicados.</p>
             </div>
           ) : tipoRelatorio === 'sintetico' ? (
-            /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA */
+            /* RELATÓRIO SINTÉTICO - MATRIZ DINÂMICA COM MÚLTIPLOS EIXOS */
             (() => {
               // Função para obter valor do eixo - retorna null se não aplicável
               const getValorEixo = (m, eixo) => {
@@ -601,22 +601,18 @@ const EIXO_Y_OPCOES = [
                   case 'motivo': return m.motivo || null;
                   case 'sexo': return m.sexo || null;
                   case 'tipo': return m.tipo || null;
-                  // Causa morte só se aplica a mortes
                   case 'causa_morte': 
                     if (m.motivo !== 'Morte') return null;
                     return m.causa_morte || 'Não Informada';
-                  // Fornecedor só se aplica a compras
                   case 'fornecedor': 
                     if (m.motivo !== 'Compra') return null;
                     return m.fornecedor_origem || 'Não Informado';
-                  // Comprador só se aplica a vendas/abates
                   case 'comprador': 
                     if (m.motivo !== 'Venda' && m.motivo !== 'Abate') return null;
                     return m.destino_venda || 'Não Informado';
                   case 'area': return (m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome) || null;
                   case 'nota_fiscal': return m.nota_fiscal || null;
                   case 'gta': return m.gta || null;
-                  // Categoria nova só se aplica a mudança de categoria
                   case 'categoria_nova': 
                     if (m.motivo !== 'Mudança de Categoria') return null;
                     return m.categoria_nova || 'Não Informada';
@@ -630,41 +626,25 @@ const EIXO_Y_OPCOES = [
                 }
               };
 
+              // Função para criar chave composta dos eixos selecionados
+              const getChaveComposta = (m, eixos) => {
+                const valores = eixos.map(eixo => getValorEixo(m, eixo)).filter(v => v !== null);
+                if (valores.length !== eixos.length) return null; // Se algum eixo não tem valor, excluir
+                return valores.join(' | ');
+              };
 
-
-              const linhasY = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
-              const colunasX = [...new Set(movimentacoesFiltradas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
-
-              // Matriz: { linha: { coluna: { entradas, saidas, saldo } } }
-              const matriz = {};
-              const totaisPorColuna = { entradas: {}, saidas: {}, saldo: {} };
-              const totaisPorLinha = {};
-
-              linhasY.forEach(linha => {
-                matriz[linha] = {};
-                totaisPorLinha[linha] = { entradas: 0, saidas: 0, saldo: 0 };
-                colunasX.forEach(col => {
-                  matriz[linha][col] = { entradas: 0, saidas: 0, saldo: 0 };
-                });
-              });
-              colunasX.forEach(col => {
-                totaisPorColuna.entradas[col] = 0;
-                totaisPorColuna.saidas[col] = 0;
-                totaisPorColuna.saldo[col] = 0;
-              });
-
-              // Primeiro, filtrar movimentações que se aplicam aos eixos selecionados
+              // Filtrar movimentações válidas
               const movimentacoesValidas = movimentacoesFiltradas.filter(m => {
-                const linha = getValorEixo(m, eixoYSintetico);
-                const col = getValorEixo(m, eixoXSintetico);
-                return linha !== null && col !== null;
+                const linhaKey = getChaveComposta(m, eixosYSintetico);
+                const colunaKey = getChaveComposta(m, eixosXSintetico);
+                return linhaKey !== null && colunaKey !== null;
               });
 
-              // Recalcular linhas e colunas baseado nas movimentações válidas
-              const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoYSintetico)))].filter(Boolean).sort();
-              const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getValorEixo(m, eixoXSintetico)))].filter(Boolean).sort();
+              // Obter linhas e colunas únicas
+              const linhasYValidas = [...new Set(movimentacoesValidas.map(m => getChaveComposta(m, eixosYSintetico)))].filter(Boolean).sort();
+              const colunasXValidas = [...new Set(movimentacoesValidas.map(m => getChaveComposta(m, eixosXSintetico)))].filter(Boolean).sort();
 
-              // Reinicializar matriz com valores válidos
+              // Inicializar matriz
               const matrizFinal = {};
               const totaisLinhaFinal = {};
               const totaisColunaFinal = { entradas: {}, saidas: {}, saldo: {} };
@@ -682,9 +662,10 @@ const EIXO_Y_OPCOES = [
                 totaisColunaFinal.saldo[col] = 0;
               });
 
+              // Preencher matriz
               movimentacoesValidas.forEach(m => {
-                const linha = getValorEixo(m, eixoYSintetico);
-                const col = getValorEixo(m, eixoXSintetico);
+                const linha = getChaveComposta(m, eixosYSintetico);
+                const col = getChaveComposta(m, eixosXSintetico);
                 const qtd = m.quantidade_animais || 0;
 
                 if (matrizFinal[linha] && matrizFinal[linha][col]) {
@@ -700,7 +681,7 @@ const EIXO_Y_OPCOES = [
                 }
               });
 
-              // Calcular saldos após processar todas as movimentações
+              // Calcular saldos
               linhasYValidas.forEach(linha => {
                 totaisLinhaFinal[linha].saldo = totaisLinhaFinal[linha].entradas - totaisLinhaFinal[linha].saidas;
                 colunasXValidas.forEach(col => {
@@ -717,8 +698,8 @@ const EIXO_Y_OPCOES = [
                 saldo: Object.values(totaisLinhaFinal).reduce((a, b) => a + b.saldo, 0),
               };
 
-              const eixoYLabel = EIXO_Y_OPCOES.find(o => o.value === eixoYSintetico)?.label || 'Linha';
-              const eixoXLabel = EIXO_X_OPCOES.find(o => o.value === eixoXSintetico)?.label || 'Coluna';
+              const eixoYLabels = eixosYSintetico.map(e => EIXO_Y_OPCOES.find(o => o.value === e)?.label || e).join(' + ');
+              const eixoXLabels = eixosXSintetico.map(e => EIXO_X_OPCOES.find(o => o.value === e)?.label || e).join(' + ');
 
               // Se não há dados válidos
               if (linhasYValidas.length === 0 || colunasXValidas.length === 0) {
@@ -733,27 +714,27 @@ const EIXO_Y_OPCOES = [
               return (
                 <div className="overflow-x-auto">
                   <div className="text-xs mb-1">
-                    <strong>Linhas:</strong> {eixoYLabel} | <strong>Colunas:</strong> {eixoXLabel}
+                    <strong>Linhas:</strong> {eixoYLabels} | <strong>Colunas:</strong> {eixoXLabels}
                   </div>
                   
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[140px]">
-                          {eixoYLabel}
+                        <TableHead className="border border-black text-xs font-bold py-1 min-w-[160px]">
+                          {eixoYLabels}
                         </TableHead>
                         {colunasXValidas.map(col => (
                           <TableHead key={col} className="border border-black text-xs font-bold text-center py-1 min-w-[80px] whitespace-nowrap">
                             {col}
                           </TableHead>
                         ))}
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-green-50">
                           Entradas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-red-50">
                           Saídas
                         </TableHead>
-                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px]">
+                        <TableHead className="border border-black text-xs font-bold text-center py-1 min-w-[70px] bg-blue-50">
                           Saldo
                         </TableHead>
                       </TableRow>
@@ -761,49 +742,69 @@ const EIXO_Y_OPCOES = [
                     <TableBody>
                       {linhasYValidas.map((linha) => (
                         <TableRow key={linha}>
-                          <TableCell className="border border-gray-300 text-xs py-1">
+                          <TableCell className="border border-gray-300 text-xs py-1 font-medium">
                             {linha}
                           </TableCell>
                           {colunasXValidas.map(col => {
                             const celula = matrizFinal[linha][col];
-                            const valor = celula.saldo;
+                            if (mostrarDetalhes) {
+                              return (
+                                <TableCell key={col} className="border border-gray-300 text-[10px] text-center py-0.5 px-1">
+                                  <div className="flex flex-col gap-0">
+                                    {celula.entradas > 0 && <span className="text-green-700">+{formatarNumero(celula.entradas)}</span>}
+                                    {celula.saidas > 0 && <span className="text-red-700">-{formatarNumero(celula.saidas)}</span>}
+                                    {celula.saldo !== 0 && <span className="font-bold border-t border-gray-300">{formatarNumero(celula.saldo)}</span>}
+                                  </div>
+                                </TableCell>
+                              );
+                            }
                             return (
-                              <TableCell 
-                                key={col} 
-                                className="border border-gray-300 text-xs text-center py-1"
-                              >
-                                {valor !== 0 ? formatarNumero(valor) : ''}
+                              <TableCell key={col} className="border border-gray-300 text-xs text-center py-1">
+                                {celula.saldo !== 0 ? formatarNumero(celula.saldo) : ''}
                               </TableCell>
                             );
                           })}
-                          <TableCell className="border border-gray-300 text-xs text-center py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-green-50">
                             {totaisLinhaFinal[linha].entradas > 0 ? formatarNumero(totaisLinhaFinal[linha].entradas) : ''}
                           </TableCell>
-                          <TableCell className="border border-gray-300 text-xs text-center py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 bg-red-50">
                             {totaisLinhaFinal[linha].saidas > 0 ? formatarNumero(totaisLinhaFinal[linha].saidas) : ''}
                           </TableCell>
-                          <TableCell className="border border-gray-300 text-xs text-center py-1">
+                          <TableCell className="border border-gray-300 text-xs text-center py-1 font-bold bg-blue-50">
                             {formatarNumero(totaisLinhaFinal[linha].saldo)}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Linha de Total */}
-                      <TableRow>
+                      <TableRow className="bg-gray-100">
                         <TableCell className="border border-gray-300 text-xs font-bold py-1">
                           TOTAL
                         </TableCell>
-                        {colunasXValidas.map(col => (
-                          <TableCell key={col} className="border border-gray-300 text-xs text-center font-bold py-1">
-                            {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
-                          </TableCell>
-                        ))}
-                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
+                        {colunasXValidas.map(col => {
+                          if (mostrarDetalhes) {
+                            return (
+                              <TableCell key={col} className="border border-gray-300 text-[10px] text-center font-bold py-0.5 px-1">
+                                <div className="flex flex-col gap-0">
+                                  {totaisColunaFinal.entradas[col] > 0 && <span className="text-green-700">+{formatarNumero(totaisColunaFinal.entradas[col])}</span>}
+                                  {totaisColunaFinal.saidas[col] > 0 && <span className="text-red-700">-{formatarNumero(totaisColunaFinal.saidas[col])}</span>}
+                                  {totaisColunaFinal.saldo[col] !== 0 && <span className="border-t border-gray-300">{formatarNumero(totaisColunaFinal.saldo[col])}</span>}
+                                </div>
+                              </TableCell>
+                            );
+                          }
+                          return (
+                            <TableCell key={col} className="border border-gray-300 text-xs text-center font-bold py-1">
+                              {totaisColunaFinal.saldo[col] !== 0 ? formatarNumero(totaisColunaFinal.saldo[col]) : ''}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-green-100">
                           {formatarNumero(totalGeral.entradas)}
                         </TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-red-100">
                           {formatarNumero(totalGeral.saidas)}
                         </TableCell>
-                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1">
+                        <TableCell className="border border-gray-300 text-xs text-center font-bold py-1 bg-blue-100">
                           {formatarNumero(totalGeral.saldo)}
                         </TableCell>
                       </TableRow>
