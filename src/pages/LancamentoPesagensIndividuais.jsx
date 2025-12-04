@@ -1045,6 +1045,34 @@ export default function LancamentoPesagensIndividuais() {
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
+          {/* SELEÇÃO DO TIPO DE MANEJO */}
+          <div className="flex items-center gap-4 mb-4 pb-3 border-b">
+            <Label className="text-xs font-semibold text-slate-700">Tipo de Manejo:</Label>
+            <div className="flex gap-2">
+              <Button 
+                variant={tipoManejo === 'cadastro' ? 'default' : 'outline'} 
+                size="sm" 
+                onClick={() => setTipoManejo('cadastro')}
+                className={`h-8 text-xs ${tipoManejo === 'cadastro' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+              >
+                Manejo Cadastro
+              </Button>
+              <Button 
+                variant={tipoManejo === 'pesagens' ? 'default' : 'outline'} 
+                size="sm" 
+                onClick={() => setTipoManejo('pesagens')}
+                className={`h-8 text-xs ${tipoManejo === 'pesagens' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+              >
+                Manejo de Pesagens
+              </Button>
+            </div>
+            {tipoManejo === 'pesagens' && (
+              <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Apenas animais já cadastrados
+              </span>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-end gap-4">
             {/* Data Pesagem */}
             <div className="space-y-1">
