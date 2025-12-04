@@ -135,7 +135,7 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                     return (
                       <TableRow key={lote.id} className={cheio ? "bg-red-50" : ""}>
                         <TableCell className={`text-xs font-medium ${cheio ? "text-red-700" : ""}`}>
-                          {lote.nome_lote} {cheio && "🔒"}
+                          {lote.nome_lote} {cheio && "[FECHADO]"}
                         </TableCell>
                         <TableCell className={`text-xs text-right ${cheio ? "text-red-700 font-bold" : ""}`}>
                           {lote.quantidade_atual}/{lote.quantidade_maxima || 0}
@@ -1240,11 +1240,12 @@ export default function LancamentoPesagensIndividuais() {
                                 <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
+                  <SelectItem value="NENHUM" className="text-slate-500 font-medium">-- Sem Lote --</SelectItem>
                   {lotesApartacaoAtual.map(l => {
                     const cheio = isLoteCheio(l);
                     return (
                       <SelectItem key={l.id} value={l.id} className={cheio ? "text-red-600" : ""}>
-                        {l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg) {cheio ? "🔒 FECHADO" : ""}
+                        {l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg) {cheio ? "[FECHADO]" : ""}
                       </SelectItem>
                     );
                   })}
