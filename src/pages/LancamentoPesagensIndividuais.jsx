@@ -1346,6 +1346,7 @@ export default function LancamentoPesagensIndividuais() {
                   setPeso("");
                   setObservacao("");
                   setLoteTransferencia("");
+                  setAvisoTela(null);
                   if (!fixarSexo) setSexo("M");
                   if (!fixarRaca) setRaca("Nelore");
                   if (!fixarEra) setEra("");
@@ -1359,6 +1360,25 @@ export default function LancamentoPesagensIndividuais() {
               </Button>
             )}
           </div>
+
+          {/* ÁREA DE AVISOS NA TELA */}
+          {avisoTela && (
+            <div className={`mt-3 p-3 rounded-lg border-2 flex items-center justify-between ${
+              avisoTela.tipo === 'erro' ? 'bg-red-50 border-red-300 text-red-800' :
+              avisoTela.tipo === 'alerta' ? 'bg-amber-50 border-amber-300 text-amber-800' :
+              'bg-blue-50 border-blue-300 text-blue-800'
+            }`}>
+              <span className="text-sm font-medium">{avisoTela.mensagem}</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6" 
+                onClick={() => setAvisoTela(null)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
           
           {/* Linha 2: Apartação e Transferência de Lote */}
           <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
