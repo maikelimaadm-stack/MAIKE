@@ -328,25 +328,65 @@ const EIXO_Y_OPCOES = [
               <>
                 <div className="space-y-1">
                   <Label className="text-xs">Linhas (Eixo Y)</Label>
-                  <Select value={eixoYSintetico} onValueChange={setEixoYSintetico}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {EIXO_Y_OPCOES.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
+                        {eixosYSintetico.length > 0 
+                          ? `${eixosYSintetico.length} selecionado(s)` 
+                          : 'Selecionar'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 max-h-80 overflow-auto">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm mb-2">Eixos Y (Linhas)</h4>
+                        {EIXO_Y_OPCOES.map(opt => (
+                          <div key={opt.value} className="flex items-center space-x-2">
+                            <Checkbox 
+                              checked={eixosYSintetico.includes(opt.value)} 
+                              onCheckedChange={() => toggleEixoY(opt.value)} 
+                            />
+                            <label className="text-sm cursor-pointer">{opt.label}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Colunas (Eixo X)</Label>
-                  <Select value={eixoXSintetico} onValueChange={setEixoXSintetico}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {EIXO_X_OPCOES.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
+                        {eixosXSintetico.length > 0 
+                          ? `${eixosXSintetico.length} selecionado(s)` 
+                          : 'Selecionar'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 max-h-80 overflow-auto">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm mb-2">Eixos X (Colunas)</h4>
+                        {EIXO_X_OPCOES.map(opt => (
+                          <div key={opt.value} className="flex items-center space-x-2">
+                            <Checkbox 
+                              checked={eixosXSintetico.includes(opt.value)} 
+                              onCheckedChange={() => toggleEixoX(opt.value)} 
+                            />
+                            <label className="text-sm cursor-pointer">{opt.label}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1 flex items-end">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="mostrarDetalhes"
+                      checked={mostrarDetalhes} 
+                      onCheckedChange={setMostrarDetalhes} 
+                    />
+                    <label htmlFor="mostrarDetalhes" className="text-xs cursor-pointer">Mostrar E/S/Saldo</label>
+                  </div>
                 </div>
               </>
             )}
