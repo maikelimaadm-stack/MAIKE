@@ -1047,9 +1047,6 @@ export default function HistoricoMovimentacoesPecuaria() {
                   <ChevronLeft className="w-3.5 h-3.5" />
                   Anterior
                 </Button>
-                <span className="text-xs text-slate-600">
-                  Página {currentPage} de {totalPages}
-                </span>
                 <Button
                   variant="outline"
                   size="sm"
