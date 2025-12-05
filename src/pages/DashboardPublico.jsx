@@ -53,6 +53,7 @@ export default function DashboardPublico() {
   const [dataFim, setDataFim] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState('pecuaria');
+  const [showFiltroPeriodo, setShowFiltroPeriodo] = useState(false);
 
   // Buscar empresas
   const { data: empresas = [] } = useQuery({
@@ -158,72 +159,99 @@ export default function DashboardPublico() {
   const isLoading = loadingMov || loadingPes || loadingFin;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-2 md:p-4">
+    <div className="min-h-screen bg-slate-50 p-2">
       {/* Header Compacto */}
-      <div className="bg-white rounded-lg p-3 shadow-sm border mb-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+      <Card className="mb-2">
+        <CardContent className="p-2">
+          {/* Linha 1: Logo + Nome + Botão Atualizar */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 min-w-0">
               {empresaAtual?.logotipo_url && (
-                <img src={empresaAtual.logotipo_url} alt="Logo" className="h-8 w-8 object-contain rounded" />
+                <img src={empresaAtual.logotipo_url} alt="Logo" className="h-7 w-7 object-contain rounded flex-shrink-0" />
               )}
-              <div>
-                <h1 className="text-sm font-bold text-slate-900">{empresaAtual?.apelido || empresaAtual?.nome || 'Dashboard'}</h1>
-                <p className="text-[10px] text-slate-500">Painel Executivo</p>
+              <div className="min-w-0">
+                <h1 className="text-xs font-bold text-slate-900 truncate">{empresaAtual?.apelido || empresaAtual?.nome || 'Dashboard'}</h1>
               </div>
             </div>
-            <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <RefreshCw className={`w-3 h-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-[10px] px-2"
+                onClick={() => setShowFiltroPeriodo(!showFiltroPeriodo)}
+              >
+                <Filter className="w-3 h-3 mr-1" />
+                Filtros
+              </Button>
+              <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="h-7 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700">
+                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
 
-          {/* Filtros de Período */}
-          <div className="flex flex-wrap items-center gap-2">
-            {!empresaIdParam && empresas.length > 1 && (
-              <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
-                <SelectTrigger className="h-7 w-36 text-xs">
-                  <SelectValue placeholder="Empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {empresas.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.apelido || e.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            <Select value={periodoFiltro} onValueChange={setPeriodoFiltro}>
-              <SelectTrigger className="h-7 w-32 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hoje">Hoje</SelectItem>
-                <SelectItem value="ultimos_7">Últimos 7 dias</SelectItem>
-                <SelectItem value="ultimos_30">Últimos 30 dias</SelectItem>
-                <SelectItem value="mes_atual">Mês Atual</SelectItem>
-                <SelectItem value="ano_atual">Ano Atual</SelectItem>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="personalizado">Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {periodoFiltro === 'personalizado' && (
-              <>
-                <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-7 w-28 text-xs" />
-                <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-7 w-28 text-xs" />
-              </>
-            )}
-
-            <Badge variant="outline" className="text-[10px] h-6">
+          {/* Período Selecionado - Sempre visível */}
+          <div className="flex items-center justify-center">
+            <Badge variant="outline" className="text-[10px] h-5">
               <Calendar className="w-3 h-3 mr-1" />
               {dataInicioCalc && dataFimCalc 
                 ? `${formatarData(dataInicioCalc)} a ${formatarData(dataFimCalc)}`
                 : 'Todo período'}
             </Badge>
           </div>
-        </div>
-      </div>
+
+          {/* Filtros - Expansível */}
+          {showFiltroPeriodo && (
+            <div className="mt-2 pt-2 border-t space-y-2">
+              {!empresaIdParam && empresas.length > 1 && (
+                <div>
+                  <Label className="text-[10px] text-slate-500">Empresa</Label>
+                  <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
+                    <SelectTrigger className="h-8 text-xs w-full">
+                      <SelectValue placeholder="Empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresas.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.apelido || e.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-[10px] text-slate-500">Período</Label>
+                <Select value={periodoFiltro} onValueChange={setPeriodoFiltro}>
+                  <SelectTrigger className="h-8 text-xs w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hoje">Hoje</SelectItem>
+                    <SelectItem value="ultimos_7">Últimos 7 dias</SelectItem>
+                    <SelectItem value="ultimos_30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                    <SelectItem value="ano_atual">Ano Atual</SelectItem>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="personalizado">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {periodoFiltro === 'personalizado' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px] text-slate-500">Data Início</Label>
+                    <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-slate-500">Data Fim</Label>
+                    <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-8 text-xs" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-40">
@@ -231,18 +259,18 @@ export default function DashboardPublico() {
         </div>
       ) : (
         <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-          <TabsList className="bg-white border w-full justify-start overflow-x-auto">
-            <TabsTrigger value="pecuaria" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Beef className="w-3 h-3 mr-1" /> Pecuária
+          <TabsList className="bg-white border w-full grid grid-cols-4 h-9">
+            <TabsTrigger value="pecuaria" className="text-[10px] px-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Beef className="w-3 h-3 mr-0.5" /> Pecuária
             </TabsTrigger>
-            <TabsTrigger value="pesagens" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Scale className="w-3 h-3 mr-1" /> Pesagens
+            <TabsTrigger value="pesagens" className="text-[10px] px-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Scale className="w-3 h-3 mr-0.5" /> Pesagens
             </TabsTrigger>
-            <TabsTrigger value="financeiro" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <DollarSign className="w-3 h-3 mr-1" /> Financeiro
+            <TabsTrigger value="financeiro" className="text-[10px] px-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <DollarSign className="w-3 h-3 mr-0.5" /> Financ.
             </TabsTrigger>
-            <TabsTrigger value="estoque" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Package className="w-3 h-3 mr-1" /> Estoque
+            <TabsTrigger value="estoque" className="text-[10px] px-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Package className="w-3 h-3 mr-0.5" /> Estoque
             </TabsTrigger>
           </TabsList>
 
@@ -390,9 +418,9 @@ function SecaoPecuaria({ movimentacoes, dataInicioCalc, dataFimCalc }) {
       {/* Filtros */}
       <Card>
         <CardContent className="p-2">
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Tipos</SelectItem>
                 <SelectItem value="Entrada">Entrada</SelectItem>
@@ -400,34 +428,34 @@ function SecaoPecuaria({ movimentacoes, dataInicioCalc, dataFimCalc }) {
               </SelectContent>
             </Select>
             <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Motivo" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Motivo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Motivos</SelectItem>
                 {motivosUnicos.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas Categorias</SelectItem>
                 {categoriasUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroMarca} onValueChange={setFiltroMarca}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Marca" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Marca" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas Marcas</SelectItem>
                 {marcasUnicas.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Setor" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Setores</SelectItem>
                 {setoresUnicos.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={limparFiltros}>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
               <X className="w-3 h-3 mr-1" /> Limpar
             </Button>
           </div>
@@ -436,23 +464,23 @@ function SecaoPecuaria({ movimentacoes, dataInicioCalc, dataFimCalc }) {
 
       {/* Resumo Geral */}
       <Card className="bg-emerald-50 border-emerald-200">
-        <CardContent className="p-3">
-          <div className="grid grid-cols-4 gap-2 text-center">
+        <CardContent className="p-2">
+          <div className="grid grid-cols-4 gap-1 text-center">
             <div>
-              <p className="text-[10px] text-slate-600">Registros</p>
-              <p className="text-lg font-bold text-slate-800">{formatarNumero(resumo.total)}</p>
+              <p className="text-[9px] text-slate-600">Registros</p>
+              <p className="text-sm font-bold text-slate-800">{formatarNumero(resumo.total)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Entradas</p>
-              <p className="text-lg font-bold text-green-600">+{formatarNumero(resumo.totalEntradas)}</p>
+              <p className="text-[9px] text-slate-600">Entradas</p>
+              <p className="text-sm font-bold text-green-600">+{formatarNumero(resumo.totalEntradas)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Saídas</p>
-              <p className="text-lg font-bold text-red-600">-{formatarNumero(resumo.totalSaidas)}</p>
+              <p className="text-[9px] text-slate-600">Saídas</p>
+              <p className="text-sm font-bold text-red-600">-{formatarNumero(resumo.totalSaidas)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Saldo</p>
-              <p className={`text-lg font-bold ${resumo.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              <p className="text-[9px] text-slate-600">Saldo</p>
+              <p className={`text-sm font-bold ${resumo.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
                 {formatarNumero(resumo.saldo)}
               </p>
             </div>
@@ -715,30 +743,30 @@ function SecaoPesagens({ pesagens, dataInicioCalc, dataFimCalc }) {
       {/* Filtros */}
       <Card>
         <CardContent className="p-2">
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <Select value={filtroApartacao} onValueChange={setFiltroApartacao}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Apartação" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Apartação" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas Apartações</SelectItem>
                 {apartacoesUnicas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroLote} onValueChange={setFiltroLote}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Lote" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Lote" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Lotes</SelectItem>
                 {lotesUnicos.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroSexo} onValueChange={setFiltroSexo}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sexo" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sexo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="M">Macho</SelectItem>
                 <SelectItem value="F">Fêmea</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setFiltroApartacao('todos'); setFiltroLote('todos'); setFiltroSexo('todos'); }}>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setFiltroApartacao('todos'); setFiltroLote('todos'); setFiltroSexo('todos'); }}>
               <X className="w-3 h-3 mr-1" /> Limpar
             </Button>
           </div>
@@ -747,23 +775,23 @@ function SecaoPesagens({ pesagens, dataInicioCalc, dataFimCalc }) {
 
       {/* Resumo */}
       <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-3">
-          <div className="grid grid-cols-4 gap-2 text-center">
+        <CardContent className="p-2">
+          <div className="grid grid-cols-4 gap-1 text-center">
             <div>
-              <p className="text-[10px] text-slate-600">Animais</p>
-              <p className="text-lg font-bold text-slate-800">{formatarNumero(resumo.total)}</p>
+              <p className="text-[9px] text-slate-600">Animais</p>
+              <p className="text-sm font-bold text-slate-800">{formatarNumero(resumo.total)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Peso Total</p>
-              <p className="text-lg font-bold text-blue-600">{formatarNumero(resumo.pesoTotal)} kg</p>
+              <p className="text-[9px] text-slate-600">Peso Total</p>
+              <p className="text-[11px] font-bold text-blue-600">{formatarNumero(resumo.pesoTotal)}kg</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Peso Médio</p>
-              <p className="text-lg font-bold text-emerald-600">{resumo.pesoMedio.toFixed(1)} kg</p>
+              <p className="text-[9px] text-slate-600">Peso Médio</p>
+              <p className="text-sm font-bold text-emerald-600">{resumo.pesoMedio.toFixed(1)}kg</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">GMD Médio</p>
-              <p className="text-lg font-bold text-purple-600">{resumo.gmdMedio.toFixed(3)}</p>
+              <p className="text-[9px] text-slate-600">GMD</p>
+              <p className="text-sm font-bold text-purple-600">{resumo.gmdMedio.toFixed(3)}</p>
             </div>
           </div>
         </CardContent>
@@ -926,9 +954,9 @@ function SecaoFinanceiro({ lancamentos, dataInicioCalc, dataFimCalc }) {
       {/* Filtros */}
       <Card>
         <CardContent className="p-2">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="Pagar">A Pagar</SelectItem>
@@ -936,7 +964,7 @@ function SecaoFinanceiro({ lancamentos, dataInicioCalc, dataFimCalc }) {
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Status</SelectItem>
                 <SelectItem value="Pendente">Pendente</SelectItem>
@@ -944,8 +972,8 @@ function SecaoFinanceiro({ lancamentos, dataInicioCalc, dataFimCalc }) {
                 <SelectItem value="Vencido">Vencido</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setFiltroTipo('todos'); setFiltroStatus('todos'); }}>
-              <X className="w-3 h-3 mr-1" /> Limpar
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setFiltroTipo('todos'); setFiltroStatus('todos'); }}>
+              <X className="w-3 h-3" /> Limpar
             </Button>
           </div>
         </CardContent>
@@ -953,23 +981,23 @@ function SecaoFinanceiro({ lancamentos, dataInicioCalc, dataFimCalc }) {
 
       {/* Resumo */}
       <Card className="bg-amber-50 border-amber-200">
-        <CardContent className="p-3">
-          <div className="grid grid-cols-4 gap-2 text-center">
+        <CardContent className="p-2">
+          <div className="grid grid-cols-4 gap-1 text-center">
             <div>
-              <p className="text-[10px] text-slate-600">Registros</p>
-              <p className="text-lg font-bold text-slate-800">{resumo.total}</p>
+              <p className="text-[9px] text-slate-600">Registros</p>
+              <p className="text-sm font-bold text-slate-800">{resumo.total}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">A Pagar</p>
-              <p className="text-sm font-bold text-red-600">{formatarMoeda(resumo.totalPagar)}</p>
+              <p className="text-[9px] text-slate-600">A Pagar</p>
+              <p className="text-[10px] font-bold text-red-600">{formatarMoeda(resumo.totalPagar)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">A Receber</p>
-              <p className="text-sm font-bold text-green-600">{formatarMoeda(resumo.totalReceber)}</p>
+              <p className="text-[9px] text-slate-600">A Receber</p>
+              <p className="text-[10px] font-bold text-green-600">{formatarMoeda(resumo.totalReceber)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Saldo</p>
-              <p className={`text-sm font-bold ${resumo.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              <p className="text-[9px] text-slate-600">Saldo</p>
+              <p className={`text-[10px] font-bold ${resumo.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
                 {formatarMoeda(resumo.saldo)}
               </p>
             </div>
@@ -1076,24 +1104,24 @@ function SecaoEstoque({ produtos }) {
       {/* Filtros */}
       <Card>
         <CardContent className="p-2">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas Categorias</SelectItem>
                 {categoriasUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="baixo">Abaixo do Mínimo</SelectItem>
                 <SelectItem value="ok">Estoque OK</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setFiltroCategoria('todos'); setFiltroStatus('todos'); }}>
-              <X className="w-3 h-3 mr-1" /> Limpar
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setFiltroCategoria('todos'); setFiltroStatus('todos'); }}>
+              <X className="w-3 h-3" /> Limpar
             </Button>
           </div>
         </CardContent>
@@ -1101,19 +1129,19 @@ function SecaoEstoque({ produtos }) {
 
       {/* Resumo */}
       <Card className="bg-purple-50 border-purple-200">
-        <CardContent className="p-3">
-          <div className="grid grid-cols-3 gap-2 text-center">
+        <CardContent className="p-2">
+          <div className="grid grid-cols-3 gap-1 text-center">
             <div>
-              <p className="text-[10px] text-slate-600">Total Produtos</p>
-              <p className="text-lg font-bold text-slate-800">{resumo.total}</p>
+              <p className="text-[9px] text-slate-600">Total Produtos</p>
+              <p className="text-sm font-bold text-slate-800">{resumo.total}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Com Estoque</p>
-              <p className="text-lg font-bold text-green-600">{resumo.comEstoque}</p>
+              <p className="text-[9px] text-slate-600">Com Estoque</p>
+              <p className="text-sm font-bold text-green-600">{resumo.comEstoque}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-600">Abaixo Mínimo</p>
-              <p className="text-lg font-bold text-red-600">{resumo.abaixoMinimo}</p>
+              <p className="text-[9px] text-slate-600">Abaixo Mínimo</p>
+              <p className="text-sm font-bold text-red-600">{resumo.abaixoMinimo}</p>
             </div>
           </div>
         </CardContent>
