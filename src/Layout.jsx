@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Beef
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -42,7 +42,7 @@ import {
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
-  FileText, Shield, Package, Users, Settings
+  FileText, Shield, Package, Users, Settings, Beef
 };
 
 const DEFAULT_MENU = [
@@ -53,7 +53,7 @@ const DEFAULT_MENU = [
   {
       id: "pecuaria",
       title: "Pecuaria",
-      icon: "Package",
+      icon: "Beef",
       submenu: [
         { id: "pec-controle", title: "Controle de Pecuaria", url: "ControlePecuaria" },
         { id: "pec-setores", title: "Cadastro de Setores", url: "CadastroSetores" },
@@ -143,6 +143,15 @@ const DEFAULT_MENU = [
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
 ];
 
+// Itens da barra de navegação inferior (mobile)
+const BOTTOM_NAV_ITEMS = [
+  { id: "home", title: "Início", url: "Home", icon: Home },
+  { id: "pecuaria", title: "Pecuária", url: "ControlePecuaria", icon: Beef },
+  { id: "pesagens", title: "Pesagens", url: "LancamentoPesagensIndividuais", icon: Scale },
+  { id: "financeiro", title: "Financeiro", url: "LancamentoFinanceiro", icon: DollarSign },
+  { id: "menu", title: "Menu", icon: Menu, isMenu: true },
+];
+
 const getAllPages = (menuItems) => {
   const pages = [];
   
@@ -188,9 +197,8 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2025-12-03-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2025-12-03-v1';
     
-    // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
       localStorage.setItem('custom_menu', JSON.stringify(DEFAULT_MENU));
       localStorage.setItem('menu_version', CURRENT_VERSION);
@@ -208,7 +216,6 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('empresa_selecionada_id') || null;
   });
 
-  // ATUALIZAR MENU - SEM LOOP!
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('custom_menu');
@@ -222,10 +229,7 @@ export default function Layout({ children, currentPageName }) {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const { data: empresas = [] } = useQuery({
@@ -240,14 +244,13 @@ export default function Layout({ children, currentPageName }) {
     return empresas.find(e => e.id === empresaSelecionada) || null;
   }, [empresaSelecionada, empresas]);
 
-  // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
     if (!empresaSelecionada && empresas.length > 0 && !isChangingEmpresa.current) {
       const primeiraEmpresa = empresas[0].id;
       setEmpresaSelecionada(primeiraEmpresa);
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
-  }, [empresas.length]); // Apenas quando o tamanho mudar
+  }, [empresas.length]);
 
   const handleEmpresaChange = (empresaId) => {
     if (empresaId === empresaSelecionada) return;
@@ -261,18 +264,14 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-        
-        // Carregar permissões do usuário
         try {
           const allPermissoes = await base44.entities.Permissao.list();
           const permissao = allPermissoes.find(p => p.user_email === currentUser.email);
           setUserPermissions(permissao);
         } catch (error) {
-          console.error("Erro ao carregar permissões:", error);
           setUserPermissions(null);
         }
       } catch (error) {
-        console.error("Erro ao carregar usuário:", error);
         setUser(null);
       }
     };
@@ -304,13 +303,8 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const hasAccess = (itemId) => {
-    // Admin sempre tem acesso
     if (user?.role === 'admin' || userPermissions?.is_admin) return true;
-    
-    // Se não tem permissões configuradas, libera tudo (comportamento padrão)
     if (!userPermissions) return true;
-    
-    // Verifica se o módulo está nas permissões
     return userPermissions.modulos_permitidos?.includes(itemId);
   };
 
@@ -343,6 +337,11 @@ export default function Layout({ children, currentPageName }) {
     return false;
   };
 
+  const isBottomNavActive = (item) => {
+    if (item.isMenu) return false;
+    return location.pathname === createPageUrl(item.url);
+  };
+
   const allPages = getAllPages(menuItemsFiltered);
   const filteredPages = searchTerm 
     ? allPages.filter(p => 
@@ -358,60 +357,57 @@ export default function Layout({ children, currentPageName }) {
   }, {});
 
   return (
-    <div className="min-h-screen bg-slate-50" translate="no">
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1600px] mx-auto px-4 py-2">
+    <div className="min-h-screen bg-slate-50 pb-16 md:pb-0" translate="no">
+      {/* HEADER - Compacto no mobile */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-[1600px] mx-auto px-2 md:px-4 py-1.5 md:py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="font-bold text-slate-900 text-base leading-tight">
+            {/* Logo e Nome da Empresa */}
+            <div className="flex items-center gap-2 min-w-0">
+              {empresaAtual?.logotipo_url && (
+                <img src={empresaAtual.logotipo_url} alt="" className="h-6 w-6 md:h-8 md:w-8 object-contain rounded flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <h1 className="font-bold text-slate-900 text-xs md:text-base leading-tight truncate">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'}
                 </h1>
-                <p className="text-xs text-slate-600">Sistema de Gestao</p>
+                <p className="text-[10px] text-slate-500 hidden md:block">Sistema de Gestão</p>
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-6">
+            {/* Info do clima - apenas desktop */}
+            <div className="hidden lg:flex items-center gap-4">
               {weather && (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {weather.precipitation ? (
-                      <CloudRain className="w-4 h-4 text-blue-500" />
+                      <CloudRain className="w-3.5 h-3.5 text-blue-500" />
                     ) : (
-                      <CloudOff className="w-4 h-4 text-slate-400" />
+                      <CloudOff className="w-3.5 h-3.5 text-slate-400" />
                     )}
-                    <span className="text-xs text-slate-700 font-medium">
+                    <span className="text-xs text-slate-600">
                       {weather.precipitation ? 'Chuva' : 'Sem chuva'}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="w-4 h-4 text-orange-500" />
-                    <span className="text-xs text-slate-700 font-medium">
-                      {weather.temperature}°C
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-slate-500" />
-                    <span className="text-xs text-slate-700 font-medium">
-                      Cuiaba - MT
-                    </span>
+                  <div className="flex items-center gap-1.5">
+                    <Thermometer className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-xs text-slate-600">{weather.temperature}°C</span>
                   </div>
                 </>
               )}
-
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-slate-700 font-medium">Sistema Online</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-600">Online</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Ações do Header */}
+            <div className="flex items-center gap-1">
+              {/* Seletor de Empresa - Desktop */}
               {empresas.length > 0 && (
                 <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
-                  <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
-                    <SelectValue placeholder="Selecione" />
+                  <SelectTrigger className="h-7 w-32 md:w-40 text-xs hidden md:flex border-slate-300">
+                    <SelectValue placeholder="Empresa" />
                   </SelectTrigger>
                   <SelectContent>
                     {empresas.map((empresa) => (
@@ -423,39 +419,38 @@ export default function Layout({ children, currentPageName }) {
                 </Select>
               )}
 
+              {/* Botão Buscar */}
+              <Button variant="ghost" size="icon" className="h-7 w-7 md:h-8 md:w-8" onClick={() => setSearchOpen(true)}>
+                <Search className="w-4 h-4 text-slate-600" />
+              </Button>
+
+              {/* Botão Ocultar Menu - Desktop */}
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8" 
+                className="h-8 w-8 hidden md:inline-flex" 
                 onClick={() => {
                   const novoEstado = !menuOculto;
                   setMenuOculto(novoEstado);
                   localStorage.setItem('menu_oculto', novoEstado.toString());
                 }}
-                title={menuOculto ? "Mostrar menu" : "Ocultar menu"}
               >
                 {menuOculto ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
-                <Search className="w-4 h-4 text-slate-600" />
-              </Button>
-
-              <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
-                <Bell className="w-4 h-4 text-slate-600" />
-              </Button>
-
-              <Link to={createPageUrl("ConfiguracoesGerais")}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:inline-flex">
+              {/* Configurações - Desktop */}
+              <Link to={createPageUrl("ConfiguracoesGerais")} className="hidden md:inline-flex">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Settings className="w-4 h-4 text-slate-600" />
                 </Button>
               </Link>
 
+              {/* Menu do Usuário */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 gap-2 px-2">
-                    <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center">
-                      <span className="text-slate-700 font-semibold text-xs">
+                  <Button variant="ghost" size="sm" className="h-7 md:h-8 gap-1 px-1.5 md:px-2">
+                    <div className="w-5 h-5 md:w-6 md:h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <span className="text-emerald-700 font-semibold text-[10px] md:text-xs">
                         {user?.full_name?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
@@ -467,45 +462,15 @@ export default function Layout({ children, currentPageName }) {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel className="text-xs">
                     <div className="font-semibold">{user?.full_name}</div>
-                    <div className="text-slate-500 font-normal">{user?.email}</div>
+                    <div className="text-slate-500 font-normal truncate">{user?.email}</div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-xs">
-                    <User className="w-3 h-3 mr-2" />
-                    Meu Perfil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("ConfiguracoesGerais")}>
-                      <Settings className="w-3 h-3 mr-2" />
-                      Configuracoes
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
-                    <LogOut className="w-3 h-3 mr-2" />
-                    Sair
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-72 flex flex-col">
-                  <SheetHeader>
-                    <SheetTitle className="text-left text-sm">Menu</SheetTitle>
-                  </SheetHeader>
-                  
-                  {/* Seletor de Empresa no Mobile */}
+                  {/* Seletor de Empresa - Mobile */}
                   {empresas.length > 0 && (
-                    <div className="mt-4 px-2">
-                      <label className="text-xs text-slate-500 mb-1 block">Empresa</label>
+                    <div className="px-2 py-1.5 md:hidden">
                       <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
-                        <SelectTrigger className="h-9 text-xs w-full border-slate-300">
-                          <SelectValue placeholder="Selecione a empresa" />
+                        <SelectTrigger className="h-8 text-xs w-full">
+                          <SelectValue placeholder="Empresa" />
                         </SelectTrigger>
                         <SelectContent>
                           {empresas.map((empresa) => (
@@ -517,149 +482,39 @@ export default function Layout({ children, currentPageName }) {
                       </Select>
                     </div>
                   )}
-                  
-                  <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
-                    {menuItemsFiltered.map((item) => {
-                      const Icon = iconsMap[item.icon] || Home;
-                      
-                      if (item.submenu) {
-                        return (
-                          <div key={item.id} className="space-y-1">
-                            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-slate-700">
-                              <Icon className="w-3.5 h-3.5" />
-                              {item.title}
-                            </div>
-                            <div className="ml-3 space-y-0.5">
-                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
-                                <Link 
-                                  key={sub.id}
-                                  to={createPageUrl(sub.url)}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className={`block px-2 py-1.5 text-xs rounded ${
-                                    location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                      : 'text-slate-600 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {sub.title}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <Link 
-                          key={item.id}
-                          to={createPageUrl(item.url)}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
-                            location.pathname === createPageUrl(item.url)
-                              ? 'bg-emerald-100 text-emerald-800 font-medium'
-                              : 'text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {item.title}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  <DropdownMenuItem asChild className="text-xs">
+                    <Link to={createPageUrl("ConfiguracoesGerais")}>
+                      <Settings className="w-3 h-3 mr-2" />
+                      Configurações
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
+                    <LogOut className="w-3 h-3 mr-2" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <nav className={`sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 ${menuOculto ? 'h-0 overflow-hidden border-0 py-0' : ''}`}>
+      {/* MENU HORIZONTAL - Desktop */}
+      <nav className={`sticky top-[41px] md:top-[49px] z-30 bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'h-0 overflow-hidden border-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center gap-0.5 h-10">
-            <div className="hidden md:flex items-center gap-0.5">
-              {menuItemsFiltered.map((item) => {
-                const Icon = iconsMap[item.icon] || Home;
-                const active = isActive(item);
+          <div className="flex items-center gap-0.5 h-9 overflow-x-auto">
+            {menuItemsFiltered.map((item) => {
+              const Icon = iconsMap[item.icon] || Home;
+              const active = isActive(item);
 
-                if (item.submenu) {
-                  return (
-                    <div key={item.id} className="relative group">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                          active 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        {item.title}
-                        <ChevronDown className="w-3 h-3 opacity-50" />
-                      </Button>
-                      
-                      <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                        <div className="py-1">
-                          {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
-                            if (sub.submenu && sub.submenu.length > 0) {
-                              return (
-                                <div key={sub.id} className="relative group/sub">
-                                  <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 cursor-pointer ${
-                                    location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                      : 'text-slate-700'
-                                  }`}>
-                                    <span>{sub.title}</span>
-                                    <ChevronRight className="w-3 h-3 opacity-50" />
-                                  </div>
-                                  
-                                  <div className="absolute left-full top-0 ml-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
-                                    <div className="py-1">
-                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                        <Link 
-                                          key={subsub.id}
-                                          to={createPageUrl(subsub.url)}
-                                          className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                            location.pathname === createPageUrl(subsub.url)
-                                              ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                              : 'text-slate-700'
-                                          }`}
-                                        >
-                                          {subsub.title}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <Link 
-                                key={sub.id}
-                                to={createPageUrl(sub.url)}
-                                className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                  location.pathname === createPageUrl(sub.url)
-                                    ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                    : 'text-slate-700'
-                                }`}
-                              >
-                                {sub.title}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
+              if (item.submenu) {
                 return (
-                  <Link key={item.id} to={createPageUrl(item.url)}>
+                  <div key={item.id} className="relative group">
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
+                      className={`h-7 px-2 gap-1 text-xs font-medium rounded whitespace-nowrap ${
                         active 
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                           : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
@@ -667,21 +522,58 @@ export default function Layout({ children, currentPageName }) {
                     >
                       <Icon className="w-3.5 h-3.5" />
                       {item.title}
+                      <ChevronDown className="w-3 h-3 opacity-50" />
                     </Button>
-                  </Link>
+                    
+                    <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      <div className="py-1 max-h-80 overflow-y-auto">
+                        {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                          <Link 
+                            key={sub.id}
+                            to={createPageUrl(sub.url)}
+                            className={`block px-3 py-1.5 text-xs hover:bg-slate-50 ${
+                              location.pathname === createPageUrl(sub.url)
+                                ? 'bg-emerald-50 text-emerald-800 font-medium'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            {sub.title}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 );
-              })}
-            </div>
+              }
+
+              return (
+                <Link key={item.id} to={createPageUrl(item.url)}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className={`h-7 px-2 gap-1 text-xs font-medium rounded whitespace-nowrap ${
+                      active 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {item.title}
+                  </Button>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </nav>
 
+      {/* DIALOG DE BUSCA */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col mx-2">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Search className="w-4 h-4 text-emerald-600" />
-              Buscar em todo o sistema
+              Buscar no sistema
             </DialogTitle>
           </DialogHeader>
           
@@ -690,15 +582,15 @@ export default function Layout({ children, currentPageName }) {
             <Input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Digite para buscar paginas..."
-              className="pl-10 h-10"
+              placeholder="Digite para buscar..."
+              className="pl-9 h-9 text-sm"
               autoFocus
             />
             {searchTerm && (
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
                 onClick={() => setSearchTerm("")}
               >
                 <X className="w-4 h-4" />
@@ -706,29 +598,28 @@ export default function Layout({ children, currentPageName }) {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto mt-4">
+          <div className="flex-1 overflow-auto mt-3">
             {Object.keys(pagesByCategory).length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Nenhuma pagina encontrada</p>
+              <div className="text-center py-8 text-slate-500">
+                <Search className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma página encontrada</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {Object.entries(pagesByCategory)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([categoria, pages]) => (
                   <div key={categoria}>
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">{categoria}</h3>
-                    <div className="space-y-1">
+                    <h3 className="text-[10px] font-semibold text-slate-500 uppercase mb-1 px-1">{categoria}</h3>
+                    <div className="space-y-0.5">
                       {pages.sort((a, b) => a.title.localeCompare(b.title)).map((page) => (
                         <Link
                           key={page.id}
                           to={createPageUrl(page.url)}
                           onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
-                          className="block px-3 py-2 text-sm hover:bg-emerald-50 rounded-md transition-colors"
+                          className="block px-2 py-1.5 text-xs hover:bg-emerald-50 rounded transition-colors"
                         >
-                          <div className="font-medium text-slate-900">{page.title}</div>
-                          <div className="text-xs text-slate-500">{categoria}</div>
+                          <div className="font-medium text-slate-800">{page.title}</div>
                         </Link>
                       ))}
                     </div>
@@ -740,14 +631,114 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
+      {/* MENU LATERAL MOBILE (Sheet) */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="right" className="w-72 flex flex-col p-0">
+          <SheetHeader className="p-3 border-b">
+            <SheetTitle className="text-left text-sm">Menu Completo</SheetTitle>
+          </SheetHeader>
+          
+          <div className="flex-1 overflow-y-auto p-2">
+            {menuItemsFiltered.map((item) => {
+              const Icon = iconsMap[item.icon] || Home;
+              
+              if (item.submenu) {
+                return (
+                  <div key={item.id} className="mb-2">
+                    <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded">
+                      <Icon className="w-3.5 h-3.5" />
+                      {item.title}
+                    </div>
+                    <div className="mt-1 space-y-0.5">
+                      {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
+                        <Link 
+                          key={sub.id}
+                          to={createPageUrl(sub.url)}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`block px-3 py-1.5 text-xs rounded ${
+                            location.pathname === createPageUrl(sub.url)
+                              ? 'bg-emerald-100 text-emerald-800 font-medium'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {sub.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <Link 
+                  key={item.id}
+                  to={createPageUrl(item.url)}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded mb-1 ${
+                    location.pathname === createPageUrl(item.url)
+                      ? 'bg-emerald-100 text-emerald-800 font-medium'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {item.title}
+                </Link>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* CONTEÚDO PRINCIPAL */}
       <main className="max-w-[1600px] mx-auto">
         {children}
       </main>
 
+      {/* BARRA DE NAVEGAÇÃO INFERIOR - Mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 md:hidden safe-area-bottom">
+        <div className="grid grid-cols-5 h-14">
+          {BOTTOM_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = isBottomNavActive(item);
+            
+            if (item.isMenu) {
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="flex flex-col items-center justify-center gap-0.5 text-slate-500"
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[10px]">{item.title}</span>
+                </button>
+              );
+            }
 
-      </div>
-      );
-      }
+            return (
+              <Link
+                key={item.id}
+                to={createPageUrl(item.url)}
+                className={`flex flex-col items-center justify-center gap-0.5 ${
+                  active ? 'text-emerald-600' : 'text-slate-500'
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${active ? 'text-emerald-600' : ''}`} />
+                <span className={`text-[10px] ${active ? 'font-medium' : ''}`}>{item.title}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* CSS para safe area no iPhone */}
+      <style>{`
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export const getEmpresaSelecionada = () => {
   return localStorage.getItem('empresa_selecionada_id');
