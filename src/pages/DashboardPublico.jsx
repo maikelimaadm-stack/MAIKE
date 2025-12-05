@@ -7,21 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { 
   TrendingUp, TrendingDown, Users, Package, Scale, DollarSign, 
   Calendar, RefreshCw, BarChart3, PieChart, Activity, Beef,
-  ArrowUp, ArrowDown, Minus, Target, AlertTriangle, Filter,
-  X, Eye, ChevronRight, List, FileText
+  ArrowUp, ArrowDown, Minus, Target, AlertTriangle
 } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,15 +32,6 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-const formatarData = (dataString) => {
-  if (!dataString) return '--/--/----';
-  try {
-    const date = new Date(dataString);
-    if (isNaN(date.getTime())) return '--/--/----';
-    return format(date, "dd/MM/yyyy", { locale: ptBR });
-  } catch { return '--/--/----'; }
-};
-
 export default function DashboardPublico() {
   const urlParams = new URLSearchParams(window.location.search);
   const empresaIdParam = urlParams.get('empresa');
@@ -60,16 +41,6 @@ export default function DashboardPublico() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Filtros específicos
-  const [filtroTipos, setFiltroTipos] = useState([]);
-  const [filtroMotivos, setFiltroMotivos] = useState([]);
-  const [filtroCategorias, setFiltroCategorias] = useState([]);
-  const [filtroMarcas, setFiltroMarcas] = useState([]);
-  const [filtroSetores, setFiltroSetores] = useState([]);
-
-  // Dialog de detalhes
-  const [dialogDetalhes, setDialogDetalhes] = useState({ open: false, titulo: '', dados: [], tipo: '' });
 
   // Buscar empresas
   const { data: empresas = [] } = useQuery({
@@ -99,6 +70,17 @@ export default function DashboardPublico() {
     enabled: !!empresaSelecionada,
   });
 
+  // Buscar pesagens de balança
+  const { data: pesagensBalanca = [], refetch: refetchBal, isLoading: loadingBal } = useQuery({
+    queryKey: ['pes-bal-dash-pub', empresaSelecionada],
+    queryFn: async () => {
+      if (!empresaSelecionada) return [];
+      const all = await base44.entities.Pesagem.list('-data_pesagem');
+      return all.filter(p => p.empresa_id === empresaSelecionada);
+    },
+    enabled: !!empresaSelecionada,
+  });
+
   // Buscar lançamentos financeiros
   const { data: lancamentos = [], refetch: refetchFin, isLoading: loadingFin } = useQuery({
     queryKey: ['fin-dash-pub', empresaSelecionada],
@@ -122,13 +104,6 @@ export default function DashboardPublico() {
   });
 
   const empresaAtual = empresas.find(e => e.id === empresaSelecionada);
-
-  // Valores únicos para filtros
-  const tiposUnicos = ['Entrada', 'Saída'];
-  const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo))].filter(Boolean).sort();
-  const categoriasUnicas = [...new Set(movimentacoes.map(m => m.categoria_animal))].filter(Boolean).sort();
-  const marcasUnicas = [...new Set(movimentacoes.map(m => m.marca))].filter(Boolean).sort();
-  const setoresUnicos = [...new Set(movimentacoes.map(m => m.setor_nome))].filter(Boolean).sort();
 
   // Calcular período
   const { dataInicioCalc, dataFimCalc } = useMemo(() => {
@@ -155,8 +130,6 @@ export default function DashboardPublico() {
         inicio = startOfYear(hoje);
         fim = endOfYear(hoje);
         break;
-      case 'todos':
-        return { dataInicioCalc: null, dataFimCalc: null };
       case 'personalizado':
         inicio = dataInicio ? new Date(dataInicio) : null;
         fim = dataFim ? new Date(dataFim) : null;
@@ -172,25 +145,16 @@ export default function DashboardPublico() {
     };
   }, [periodoFiltro, dataInicio, dataFim]);
 
-  // Filtrar movimentações por período e filtros
+  // Filtrar movimentações por período
   const movFiltradas = useMemo(() => {
     return movimentacoes.filter(m => {
-      if (dataInicioCalc && m.data_movimentacao) {
-        const dataM = m.data_movimentacao.split('T')[0];
-        if (dataM < dataInicioCalc) return false;
-      }
-      if (dataFimCalc && m.data_movimentacao) {
-        const dataM = m.data_movimentacao.split('T')[0];
-        if (dataM > dataFimCalc) return false;
-      }
-      if (filtroTipos.length > 0 && !filtroTipos.includes(m.tipo)) return false;
-      if (filtroMotivos.length > 0 && !filtroMotivos.includes(m.motivo)) return false;
-      if (filtroCategorias.length > 0 && !filtroCategorias.includes(m.categoria_animal)) return false;
-      if (filtroMarcas.length > 0 && !filtroMarcas.includes(m.marca)) return false;
-      if (filtroSetores.length > 0 && !filtroSetores.includes(m.setor_nome)) return false;
+      if (!m.data_movimentacao) return false;
+      const dataM = m.data_movimentacao.split('T')[0];
+      if (dataInicioCalc && dataM < dataInicioCalc) return false;
+      if (dataFimCalc && dataM > dataFimCalc) return false;
       return true;
     });
-  }, [movimentacoes, dataInicioCalc, dataFimCalc, filtroTipos, filtroMotivos, filtroCategorias, filtroMarcas, filtroSetores]);
+  }, [movimentacoes, dataInicioCalc, dataFimCalc]);
 
   // Filtrar pesagens por período
   const pesFiltradas = useMemo(() => {
@@ -224,71 +188,47 @@ export default function DashboardPublico() {
     const saldo = totalEntradas - totalSaidas;
 
     // Por motivo
-    const compras = entradas.filter(m => m.motivo === 'Compra');
-    const nascimentos = entradas.filter(m => m.motivo === 'Nascimento');
-    const vendas = saidas.filter(m => m.motivo === 'Venda');
-    const abates = saidas.filter(m => m.motivo === 'Abate');
-    const mortes = saidas.filter(m => m.motivo === 'Morte');
-
-    const qtdCompras = compras.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-    const qtdNascimentos = nascimentos.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-    const qtdVendas = vendas.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-    const qtdAbates = abates.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
-    const qtdMortes = mortes.reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+    const compras = entradas.filter(m => m.motivo === 'Compra').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+    const nascimentos = entradas.filter(m => m.motivo === 'Nascimento').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+    const vendas = saidas.filter(m => m.motivo === 'Venda').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+    const abates = saidas.filter(m => m.motivo === 'Abate').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
+    const mortes = saidas.filter(m => m.motivo === 'Morte').reduce((s, m) => s + (m.quantidade_animais || 0), 0);
 
     // Valor total vendas
-    const valorVendas = [...vendas, ...abates].reduce((s, m) => s + (m.valor_total || 0), 0);
-    const valorCompras = compras.reduce((s, m) => s + (m.valor_total || 0), 0);
+    const valorVendas = saidas.filter(m => m.motivo === 'Venda' || m.motivo === 'Abate').reduce((s, m) => s + (m.valor_total || 0), 0);
+    const valorCompras = entradas.filter(m => m.motivo === 'Compra').reduce((s, m) => s + (m.valor_total || 0), 0);
 
     // Por categoria
     const porCategoria = {};
     movFiltradas.forEach(m => {
       const cat = m.categoria_animal || 'Sem categoria';
-      if (!porCategoria[cat]) porCategoria[cat] = { entradas: 0, saidas: 0, saldo: 0, registros: [] };
+      if (!porCategoria[cat]) porCategoria[cat] = { entradas: 0, saidas: 0, saldo: 0 };
       if (m.tipo === 'Entrada') {
         porCategoria[cat].entradas += m.quantidade_animais || 0;
       } else {
         porCategoria[cat].saidas += m.quantidade_animais || 0;
       }
       porCategoria[cat].saldo = porCategoria[cat].entradas - porCategoria[cat].saidas;
-      porCategoria[cat].registros.push(m);
     });
 
     // Por setor
     const porSetor = {};
     movFiltradas.forEach(m => {
       const setor = m.setor_nome || 'Sem setor';
-      if (!porSetor[setor]) porSetor[setor] = { entradas: 0, saidas: 0, saldo: 0, registros: [] };
+      if (!porSetor[setor]) porSetor[setor] = { entradas: 0, saidas: 0, saldo: 0 };
       if (m.tipo === 'Entrada') {
         porSetor[setor].entradas += m.quantidade_animais || 0;
       } else {
         porSetor[setor].saidas += m.quantidade_animais || 0;
       }
       porSetor[setor].saldo = porSetor[setor].entradas - porSetor[setor].saidas;
-      porSetor[setor].registros.push(m);
-    });
-
-    // Por marca
-    const porMarca = {};
-    movFiltradas.forEach(m => {
-      const marca = m.marca || 'Sem marca';
-      if (!porMarca[marca]) porMarca[marca] = { entradas: 0, saidas: 0, saldo: 0, registros: [] };
-      if (m.tipo === 'Entrada') {
-        porMarca[marca].entradas += m.quantidade_animais || 0;
-      } else {
-        porMarca[marca].saidas += m.quantidade_animais || 0;
-      }
-      porMarca[marca].saldo = porMarca[marca].entradas - porMarca[marca].saidas;
-      porMarca[marca].registros.push(m);
     });
 
     return {
       totalEntradas, totalSaidas, saldo,
       compras, nascimentos, vendas, abates, mortes,
-      qtdCompras, qtdNascimentos, qtdVendas, qtdAbates, qtdMortes,
       valorVendas, valorCompras,
-      porCategoria, porSetor, porMarca,
-      entradas, saidas
+      porCategoria, porSetor
     };
   }, [movFiltradas]);
 
@@ -306,10 +246,9 @@ export default function DashboardPublico() {
     const porApartacao = {};
     pesFiltradas.forEach(p => {
       const apt = p.nome_apartacao || 'Sem apartação';
-      if (!porApartacao[apt]) porApartacao[apt] = { qtd: 0, peso: 0, registros: [] };
+      if (!porApartacao[apt]) porApartacao[apt] = { qtd: 0, peso: 0 };
       porApartacao[apt].qtd++;
       porApartacao[apt].peso += p.peso || 0;
-      porApartacao[apt].registros.push(p);
     });
 
     return { totalAnimais, pesoTotal, pesoMedio, gmdMedio, porApartacao };
@@ -327,18 +266,18 @@ export default function DashboardPublico() {
     const pagoPagar = pagar.filter(l => l.status === 'Pago').reduce((s, l) => s + (l.valor_pago || l.valor_total || 0), 0);
     const pagoReceber = receber.filter(l => l.status === 'Pago').reduce((s, l) => s + (l.valor_pago || l.valor_total || 0), 0);
 
-    const vencidos = lancFiltrados.filter(l => l.status === 'Vencido');
-    const pendentes = lancFiltrados.filter(l => l.status === 'Pendente');
+    const vencidos = lancFiltrados.filter(l => l.status === 'Vencido').length;
 
-    return { totalPagar, totalReceber, saldo, pagoPagar, pagoReceber, vencidos, pendentes, pagar, receber };
+    return { totalPagar, totalReceber, saldo, pagoPagar, pagoReceber, vencidos };
   }, [lancFiltrados]);
 
   // ========== GRÁFICOS ==========
+  // Movimentações por mês
   const dadosMovMensal = useMemo(() => {
     const meses = {};
     movFiltradas.forEach(m => {
       if (!m.data_movimentacao) return;
-      const mes = m.data_movimentacao.substring(0, 7);
+      const mes = m.data_movimentacao.substring(0, 7); // YYYY-MM
       if (!meses[mes]) meses[mes] = { mes, entradas: 0, saidas: 0 };
       if (m.tipo === 'Entrada') {
         meses[mes].entradas += m.quantidade_animais || 0;
@@ -352,66 +291,48 @@ export default function DashboardPublico() {
     }));
   }, [movFiltradas]);
 
+  // Por categoria (Pizza)
   const dadosCategorias = useMemo(() => {
     return Object.entries(indicadoresPecuaria.porCategoria)
-      .map(([nome, dados]) => ({ nome, valor: Math.abs(dados.saldo), ...dados }))
+      .map(([nome, dados]) => ({ nome, valor: Math.abs(dados.saldo) }))
       .filter(d => d.valor > 0)
       .sort((a, b) => b.valor - a.valor);
   }, [indicadoresPecuaria.porCategoria]);
 
+  // Por setor (Barras)
   const dadosSetores = useMemo(() => {
     return Object.entries(indicadoresPecuaria.porSetor)
-      .map(([nome, dados]) => ({ nome, entradas: dados.entradas, saidas: dados.saidas, saldo: dados.saldo, registros: dados.registros }))
+      .map(([nome, dados]) => ({ nome, entradas: dados.entradas, saidas: dados.saidas, saldo: dados.saldo }))
       .sort((a, b) => b.saldo - a.saldo);
   }, [indicadoresPecuaria.porSetor]);
-
-  // Toggle filtro
-  const toggleFiltro = (lista, setLista, valor) => {
-    setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
-  };
-
-  const limparFiltros = () => {
-    setFiltroTipos([]);
-    setFiltroMotivos([]);
-    setFiltroCategorias([]);
-    setFiltroMarcas([]);
-    setFiltroSetores([]);
-  };
-
-  const totalFiltrosAtivos = filtroTipos.length + filtroMotivos.length + filtroCategorias.length + filtroMarcas.length + filtroSetores.length;
-
-  // Abrir dialog de detalhes
-  const abrirDetalhes = (titulo, dados, tipo) => {
-    setDialogDetalhes({ open: true, titulo, dados, tipo });
-  };
 
   // Refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refetchMov(), refetchPes(), refetchFin(), refetchProd()]);
+    await Promise.all([refetchMov(), refetchPes(), refetchBal(), refetchFin(), refetchProd()]);
     setIsRefreshing(false);
   };
 
-  const isLoading = loadingMov || loadingPes || loadingFin;
+  const isLoading = loadingMov || loadingPes || loadingBal || loadingFin;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 bg-white rounded-lg p-4 shadow-sm border">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">
           {empresaAtual?.logotipo_url && (
-            <img src={empresaAtual.logotipo_url} alt="Logo" className="h-12 w-12 object-contain rounded" />
+            <img src={empresaAtual.logotipo_url} alt="Logo" className="h-12 w-12 object-contain rounded bg-white p-1" />
           )}
           <div>
-            <h1 className="text-xl font-bold text-slate-900">{empresaAtual?.apelido || empresaAtual?.nome || 'Dashboard Executivo'}</h1>
-            <p className="text-slate-500 text-xs">Painel de Gestão em Tempo Real</p>
+            <h1 className="text-2xl font-bold">{empresaAtual?.apelido || empresaAtual?.nome || 'Dashboard Executivo'}</h1>
+            <p className="text-slate-400 text-sm">Painel de Gestão em Tempo Real</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {!empresaIdParam && empresas.length > 1 && (
             <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
-              <SelectTrigger className="h-8 w-44 text-xs">
+              <SelectTrigger className="h-9 w-48 bg-slate-800 border-slate-700 text-white">
                 <SelectValue placeholder="Selecione empresa" />
               </SelectTrigger>
               <SelectContent>
@@ -423,7 +344,7 @@ export default function DashboardPublico() {
           )}
 
           <Select value={periodoFiltro} onValueChange={setPeriodoFiltro}>
-            <SelectTrigger className="h-8 w-36 text-xs">
+            <SelectTrigger className="h-9 w-40 bg-slate-800 border-slate-700 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -432,138 +353,33 @@ export default function DashboardPublico() {
               <SelectItem value="ultimos_30">Últimos 30 dias</SelectItem>
               <SelectItem value="mes_atual">Mês Atual</SelectItem>
               <SelectItem value="ano_atual">Ano Atual</SelectItem>
-              <SelectItem value="todos">Todos</SelectItem>
               <SelectItem value="personalizado">Personalizado</SelectItem>
             </SelectContent>
           </Select>
 
           {periodoFiltro === 'personalizado' && (
             <>
-              <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-8 w-32 text-xs" />
-              <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-8 w-32 text-xs" />
+              <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-9 w-36 bg-slate-800 border-slate-700 text-white" />
+              <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-9 w-36 bg-slate-800 border-slate-700 text-white" />
             </>
           )}
 
-          <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-            <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700">
+            <RefreshCw className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
         </div>
       </div>
 
-      {/* Filtros */}
-      <Card className="mb-4">
-        <CardContent className="p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5" /> Filtros:
-            </span>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Tipo {filtroTipos.length > 0 && `(${filtroTipos.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-40">
-                <div className="space-y-2">
-                  {tiposUnicos.map(t => (
-                    <div key={t} className="flex items-center space-x-2">
-                      <Checkbox checked={filtroTipos.includes(t)} onCheckedChange={() => toggleFiltro(filtroTipos, setFiltroTipos, t)} />
-                      <label className="text-xs cursor-pointer">{t}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Motivo {filtroMotivos.length > 0 && `(${filtroMotivos.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 max-h-64 overflow-auto">
-                <div className="space-y-2">
-                  {motivosUnicos.map(m => (
-                    <div key={m} className="flex items-center space-x-2">
-                      <Checkbox checked={filtroMotivos.includes(m)} onCheckedChange={() => toggleFiltro(filtroMotivos, setFiltroMotivos, m)} />
-                      <label className="text-xs cursor-pointer">{m}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Categoria {filtroCategorias.length > 0 && `(${filtroCategorias.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 max-h-64 overflow-auto">
-                <div className="space-y-2">
-                  {categoriasUnicas.map(c => (
-                    <div key={c} className="flex items-center space-x-2">
-                      <Checkbox checked={filtroCategorias.includes(c)} onCheckedChange={() => toggleFiltro(filtroCategorias, setFiltroCategorias, c)} />
-                      <label className="text-xs cursor-pointer">{c}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Marca {filtroMarcas.length > 0 && `(${filtroMarcas.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 max-h-64 overflow-auto">
-                <div className="space-y-2">
-                  {marcasUnicas.map(m => (
-                    <div key={m} className="flex items-center space-x-2">
-                      <Checkbox checked={filtroMarcas.includes(m)} onCheckedChange={() => toggleFiltro(filtroMarcas, setFiltroMarcas, m)} />
-                      <label className="text-xs cursor-pointer">{m}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Setor {filtroSetores.length > 0 && `(${filtroSetores.length})`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 max-h-64 overflow-auto">
-                <div className="space-y-2">
-                  {setoresUnicos.map(s => (
-                    <div key={s} className="flex items-center space-x-2">
-                      <Checkbox checked={filtroSetores.includes(s)} onCheckedChange={() => toggleFiltro(filtroSetores, setFiltroSetores, s)} />
-                      <label className="text-xs cursor-pointer">{s}</label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {totalFiltrosAtivos > 0 && (
-              <Button variant="outline" size="sm" className="h-7 text-xs text-red-600" onClick={limparFiltros}>
-                <X className="w-3 h-3 mr-1" /> Limpar ({totalFiltrosAtivos})
-              </Button>
-            )}
-
-            <Badge variant="outline" className="text-xs ml-auto">
-              <Calendar className="w-3 h-3 mr-1" />
-              {dataInicioCalc && dataFimCalc 
-                ? `${formatarData(dataInicioCalc)} a ${formatarData(dataFimCalc)}`
-                : 'Todo período'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Período selecionado */}
+      <div className="mb-4 text-center">
+        <Badge variant="outline" className="text-slate-300 border-slate-600 text-sm px-4 py-1">
+          <Calendar className="w-4 h-4 mr-2 inline" />
+          {dataInicioCalc && dataFimCalc 
+            ? `${format(new Date(dataInicioCalc), 'dd/MM/yyyy', { locale: ptBR })} até ${format(new Date(dataFimCalc), 'dd/MM/yyyy', { locale: ptBR })}`
+            : 'Período não definido'}
+        </Badge>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
@@ -571,84 +387,95 @@ export default function DashboardPublico() {
         </div>
       ) : (
         <Tabs defaultValue="pecuaria" className="space-y-4">
-          <TabsList className="bg-white border">
-            <TabsTrigger value="pecuaria" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Beef className="w-3.5 h-3.5 mr-1" /> Pecuária
+          <TabsList className="bg-slate-800 border border-slate-700">
+            <TabsTrigger value="pecuaria" className="data-[state=active]:bg-emerald-600">
+              <Beef className="w-4 h-4 mr-1" /> Pecuária
             </TabsTrigger>
-            <TabsTrigger value="pesagens" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Scale className="w-3.5 h-3.5 mr-1" /> Pesagens
+            <TabsTrigger value="pesagens" className="data-[state=active]:bg-emerald-600">
+              <Scale className="w-4 h-4 mr-1" /> Pesagens
             </TabsTrigger>
-            <TabsTrigger value="financeiro" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <DollarSign className="w-3.5 h-3.5 mr-1" /> Financeiro
+            <TabsTrigger value="financeiro" className="data-[state=active]:bg-emerald-600">
+              <DollarSign className="w-4 h-4 mr-1" /> Financeiro
             </TabsTrigger>
-            <TabsTrigger value="estoque" className="text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Package className="w-3.5 h-3.5 mr-1" /> Estoque
+            <TabsTrigger value="estoque" className="data-[state=active]:bg-emerald-600">
+              <Package className="w-4 h-4 mr-1" /> Estoque
             </TabsTrigger>
           </TabsList>
 
           {/* TAB PECUÁRIA */}
           <TabsContent value="pecuaria" className="space-y-4">
-            {/* KPIs Clicáveis */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-500" onClick={() => abrirDetalhes('Entradas', indicadoresPecuaria.entradas, 'movimentacao')}>
-                <CardContent className="p-3">
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-500 text-[10px]">Entradas</p>
-                      <p className="text-xl font-bold text-green-600">{formatarNumero(indicadoresPecuaria.totalEntradas)}</p>
+                      <p className="text-slate-400 text-xs">Entradas</p>
+                      <p className="text-2xl font-bold text-green-400">{formatarNumero(indicadoresPecuaria.totalEntradas)}</p>
                     </div>
-                    <ArrowUp className="w-6 h-6 text-green-200" />
+                    <ArrowUp className="w-8 h-8 text-green-400/30" />
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1 flex items-center"><Eye className="w-3 h-3 mr-1" /> Clique para ver</p>
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500" onClick={() => abrirDetalhes('Saídas', indicadoresPecuaria.saidas, 'movimentacao')}>
-                <CardContent className="p-3">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-500 text-[10px]">Saídas</p>
-                      <p className="text-xl font-bold text-red-600">{formatarNumero(indicadoresPecuaria.totalSaidas)}</p>
+                      <p className="text-slate-400 text-xs">Saídas</p>
+                      <p className="text-2xl font-bold text-red-400">{formatarNumero(indicadoresPecuaria.totalSaidas)}</p>
                     </div>
-                    <ArrowDown className="w-6 h-6 text-red-200" />
+                    <ArrowDown className="w-8 h-8 text-red-400/30" />
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1 flex items-center"><Eye className="w-3 h-3 mr-1" /> Clique para ver</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-l-4 border-l-blue-500">
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Saldo Período</p>
-                  <p className={`text-xl font-bold ${indicadoresPecuaria.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                    {formatarNumero(indicadoresPecuaria.saldo)}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => abrirDetalhes('Compras', indicadoresPecuaria.compras, 'movimentacao')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Compras</p>
-                  <p className="text-lg font-bold text-emerald-600">{formatarNumero(indicadoresPecuaria.qtdCompras)}</p>
-                  <p className="text-[10px] text-slate-400">{formatarMoeda(indicadoresPecuaria.valorCompras)}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => abrirDetalhes('Vendas/Abates', [...indicadoresPecuaria.vendas, ...indicadoresPecuaria.abates], 'movimentacao')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Vendas/Abates</p>
-                  <p className="text-lg font-bold text-amber-600">{formatarNumero(indicadoresPecuaria.qtdVendas + indicadoresPecuaria.qtdAbates)}</p>
-                  <p className="text-[10px] text-slate-400">{formatarMoeda(indicadoresPecuaria.valorVendas)}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-600" onClick={() => abrirDetalhes('Mortes', indicadoresPecuaria.mortes, 'movimentacao')}>
-                <CardContent className="p-3">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-500 text-[10px]">Mortes</p>
-                      <p className="text-lg font-bold text-red-600">{formatarNumero(indicadoresPecuaria.qtdMortes)}</p>
+                      <p className="text-slate-400 text-xs">Saldo</p>
+                      <p className={`text-2xl font-bold ${indicadoresPecuaria.saldo >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>
+                        {formatarNumero(indicadoresPecuaria.saldo)}
+                      </p>
                     </div>
-                    <AlertTriangle className="w-5 h-5 text-red-200" />
+                    <Activity className="w-8 h-8 text-blue-400/30" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-slate-400 text-xs">Compras</p>
+                      <p className="text-xl font-bold text-emerald-400">{formatarNumero(indicadoresPecuaria.compras)}</p>
+                    </div>
+                    <TrendingUp className="w-6 h-6 text-emerald-400/30" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-slate-400 text-xs">Vendas/Abates</p>
+                      <p className="text-xl font-bold text-amber-400">{formatarNumero(indicadoresPecuaria.vendas + indicadoresPecuaria.abates)}</p>
+                    </div>
+                    <TrendingDown className="w-6 h-6 text-amber-400/30" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-slate-400 text-xs">Mortes</p>
+                      <p className="text-xl font-bold text-red-500">{formatarNumero(indicadoresPecuaria.mortes)}</p>
+                    </div>
+                    <AlertTriangle className="w-6 h-6 text-red-500/30" />
                   </div>
                 </CardContent>
               </Card>
@@ -656,20 +483,21 @@ export default function DashboardPublico() {
 
             {/* Gráficos */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-xs text-slate-600 flex items-center gap-2">
+              {/* Movimentações por mês */}
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-slate-300 flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Movimentações por Período
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-2">
-                  <ResponsiveContainer width="100%" height={220}>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={dadosMovMensal}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="mesLabel" tick={{ fill: '#6b7280', fontSize: 10 }} />
-                      <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
-                      <Tooltip contentStyle={{ fontSize: 11 }} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="mesLabel" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: '#1f2937', border: '1px solid #374151' }} />
+                      <Legend />
                       <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -677,20 +505,21 @@ export default function DashboardPublico() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-xs text-slate-600 flex items-center gap-2">
+              {/* Por categoria */}
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-slate-300 flex items-center gap-2">
                     <PieChart className="w-4 h-4" /> Distribuição por Categoria
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-2">
-                  <ResponsiveContainer width="100%" height={220}>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
                     <RechartsPie>
                       <Pie
                         data={dadosCategorias}
                         cx="50%"
                         cy="50%"
-                        outerRadius={70}
+                        outerRadius={80}
                         dataKey="valor"
                         nameKey="nome"
                         label={({ nome, percent }) => `${nome}: ${(percent * 100).toFixed(0)}%`}
@@ -700,142 +529,103 @@ export default function DashboardPublico() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: '#1f2937', border: '1px solid #374151' }} />
                     </RechartsPie>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Tabelas Clicáveis */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="py-2 px-3 border-b">
-                  <CardTitle className="text-xs text-slate-600">Por Setor</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-64">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs py-1">Setor</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Ent.</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Saí.</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Saldo</TableHead>
-                          <TableHead className="text-xs py-1 w-8"></TableHead>
+            {/* Tabela por setor */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-slate-300">Movimentações por Setor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="text-slate-400">Setor</TableHead>
+                        <TableHead className="text-slate-400 text-right">Entradas</TableHead>
+                        <TableHead className="text-slate-400 text-right">Saídas</TableHead>
+                        <TableHead className="text-slate-400 text-right">Saldo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dadosSetores.map((setor, idx) => (
+                        <TableRow key={idx} className="border-slate-700">
+                          <TableCell className="font-medium">{setor.nome}</TableCell>
+                          <TableCell className="text-right text-green-400">{formatarNumero(setor.entradas)}</TableCell>
+                          <TableCell className="text-right text-red-400">{formatarNumero(setor.saidas)}</TableCell>
+                          <TableCell className={`text-right font-bold ${setor.saldo >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>
+                            {formatarNumero(setor.saldo)}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {dadosSetores.map((setor, idx) => (
-                          <TableRow key={idx} className="cursor-pointer hover:bg-slate-50" onClick={() => abrirDetalhes(`Setor: ${setor.nome}`, setor.registros, 'movimentacao')}>
-                            <TableCell className="text-xs py-1">{setor.nome}</TableCell>
-                            <TableCell className="text-xs py-1 text-right text-green-600">{formatarNumero(setor.entradas)}</TableCell>
-                            <TableCell className="text-xs py-1 text-right text-red-600">{formatarNumero(setor.saidas)}</TableCell>
-                            <TableCell className={`text-xs py-1 text-right font-bold ${setor.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                              {formatarNumero(setor.saldo)}
-                            </TableCell>
-                            <TableCell className="py-1"><ChevronRight className="w-3 h-3 text-slate-400" /></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="py-2 px-3 border-b">
-                  <CardTitle className="text-xs text-slate-600">Por Categoria</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-64">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs py-1">Categoria</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Ent.</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Saí.</TableHead>
-                          <TableHead className="text-xs py-1 text-right">Saldo</TableHead>
-                          <TableHead className="text-xs py-1 w-8"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(indicadoresPecuaria.porCategoria).sort((a, b) => b[1].saldo - a[1].saldo).map(([cat, dados], idx) => (
-                          <TableRow key={idx} className="cursor-pointer hover:bg-slate-50" onClick={() => abrirDetalhes(`Categoria: ${cat}`, dados.registros, 'movimentacao')}>
-                            <TableCell className="text-xs py-1">{cat}</TableCell>
-                            <TableCell className="text-xs py-1 text-right text-green-600">{formatarNumero(dados.entradas)}</TableCell>
-                            <TableCell className="text-xs py-1 text-right text-red-600">{formatarNumero(dados.saidas)}</TableCell>
-                            <TableCell className={`text-xs py-1 text-right font-bold ${dados.saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                              {formatarNumero(dados.saldo)}
-                            </TableCell>
-                            <TableCell className="py-1"><ChevronRight className="w-3 h-3 text-slate-400" /></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* TAB PESAGENS */}
           <TabsContent value="pesagens" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className="cursor-pointer hover:shadow-md" onClick={() => abrirDetalhes('Pesagens', pesFiltradas, 'pesagem')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Animais Pesados</p>
-                  <p className="text-xl font-bold text-emerald-600">{formatarNumero(indicadoresPesagens.totalAnimais)}</p>
-                  <p className="text-[10px] text-slate-400 flex items-center"><Eye className="w-3 h-3 mr-1" /> Clique para ver</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Animais Pesados</p>
+                  <p className="text-2xl font-bold text-emerald-400">{formatarNumero(indicadoresPesagens.totalAnimais)}</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Peso Total</p>
-                  <p className="text-xl font-bold text-blue-600">{formatarNumero(indicadoresPesagens.pesoTotal)} kg</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Peso Total</p>
+                  <p className="text-2xl font-bold text-blue-400">{formatarNumero(indicadoresPesagens.pesoTotal)} kg</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Peso Médio</p>
-                  <p className="text-xl font-bold text-amber-600">{indicadoresPesagens.pesoMedio.toFixed(2)} kg</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Peso Médio</p>
+                  <p className="text-2xl font-bold text-amber-400">{indicadoresPesagens.pesoMedio.toFixed(2)} kg</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">GMD Médio</p>
-                  <p className="text-xl font-bold text-purple-600">{indicadoresPesagens.gmdMedio.toFixed(3)} kg/dia</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">GMD Médio</p>
+                  <p className="text-2xl font-bold text-purple-400">{indicadoresPesagens.gmdMedio.toFixed(3)} kg/dia</p>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
-              <CardHeader className="py-2 px-3 border-b">
-                <CardTitle className="text-xs text-slate-600">Pesagens por Apartação</CardTitle>
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-slate-300">Pesagens por Apartação</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs py-1">Apartação</TableHead>
-                      <TableHead className="text-xs py-1 text-right">Quantidade</TableHead>
-                      <TableHead className="text-xs py-1 text-right">Peso Total</TableHead>
-                      <TableHead className="text-xs py-1 text-right">Peso Médio</TableHead>
-                      <TableHead className="text-xs py-1 w-8"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {Object.entries(indicadoresPesagens.porApartacao).map(([apt, dados], idx) => (
-                      <TableRow key={idx} className="cursor-pointer hover:bg-slate-50" onClick={() => abrirDetalhes(`Apartação: ${apt}`, dados.registros, 'pesagem')}>
-                        <TableCell className="text-xs py-1">{apt}</TableCell>
-                        <TableCell className="text-xs py-1 text-right">{formatarNumero(dados.qtd)}</TableCell>
-                        <TableCell className="text-xs py-1 text-right">{formatarNumero(dados.peso)} kg</TableCell>
-                        <TableCell className="text-xs py-1 text-right">{(dados.peso / dados.qtd).toFixed(2)} kg</TableCell>
-                        <TableCell className="py-1"><ChevronRight className="w-3 h-3 text-slate-400" /></TableCell>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="text-slate-400">Apartação</TableHead>
+                        <TableHead className="text-slate-400 text-right">Quantidade</TableHead>
+                        <TableHead className="text-slate-400 text-right">Peso Total</TableHead>
+                        <TableHead className="text-slate-400 text-right">Peso Médio</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(indicadoresPesagens.porApartacao).map(([apt, dados], idx) => (
+                        <TableRow key={idx} className="border-slate-700">
+                          <TableCell className="font-medium">{apt}</TableCell>
+                          <TableCell className="text-right">{formatarNumero(dados.qtd)}</TableCell>
+                          <TableCell className="text-right">{formatarNumero(dados.peso)} kg</TableCell>
+                          <TableCell className="text-right">{(dados.peso / dados.qtd).toFixed(2)} kg</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -843,38 +633,36 @@ export default function DashboardPublico() {
           {/* TAB FINANCEIRO */}
           <TabsContent value="financeiro" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              <Card className="cursor-pointer hover:shadow-md border-l-4 border-l-red-500" onClick={() => abrirDetalhes('Contas a Pagar', indicadoresFinanceiros.pagar, 'financeiro')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Total a Pagar</p>
-                  <p className="text-lg font-bold text-red-600">{formatarMoeda(indicadoresFinanceiros.totalPagar)}</p>
-                  <p className="text-[10px] text-slate-400 flex items-center"><Eye className="w-3 h-3 mr-1" /> Ver detalhes</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Total a Pagar</p>
+                  <p className="text-xl font-bold text-red-400">{formatarMoeda(indicadoresFinanceiros.totalPagar)}</p>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md border-l-4 border-l-green-500" onClick={() => abrirDetalhes('Contas a Receber', indicadoresFinanceiros.receber, 'financeiro')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Total a Receber</p>
-                  <p className="text-lg font-bold text-green-600">{formatarMoeda(indicadoresFinanceiros.totalReceber)}</p>
-                  <p className="text-[10px] text-slate-400 flex items-center"><Eye className="w-3 h-3 mr-1" /> Ver detalhes</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Total a Receber</p>
+                  <p className="text-xl font-bold text-green-400">{formatarMoeda(indicadoresFinanceiros.totalReceber)}</p>
                 </CardContent>
               </Card>
-              <Card className="border-l-4 border-l-blue-500">
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Saldo Previsto</p>
-                  <p className={`text-lg font-bold ${indicadoresFinanceiros.saldo >= 0 ? 'text-emerald-600' : 'text-orange-600'}`}>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Saldo Previsto</p>
+                  <p className={`text-xl font-bold ${indicadoresFinanceiros.saldo >= 0 ? 'text-emerald-400' : 'text-orange-400'}`}>
                     {formatarMoeda(indicadoresFinanceiros.saldo)}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md" onClick={() => abrirDetalhes('Pendentes', indicadoresFinanceiros.pendentes, 'financeiro')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Pendentes</p>
-                  <p className="text-lg font-bold text-amber-600">{indicadoresFinanceiros.pendentes.length}</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Já Pago</p>
+                  <p className="text-xl font-bold text-blue-400">{formatarMoeda(indicadoresFinanceiros.pagoPagar)}</p>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md border-l-4 border-l-red-600" onClick={() => abrirDetalhes('Vencidos', indicadoresFinanceiros.vencidos, 'financeiro')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Vencidos</p>
-                  <p className="text-lg font-bold text-red-600">{indicadoresFinanceiros.vencidos.length}</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Vencidos</p>
+                  <p className="text-xl font-bold text-red-500">{indicadoresFinanceiros.vencidos}</p>
                 </CardContent>
               </Card>
             </div>
@@ -883,57 +671,57 @@ export default function DashboardPublico() {
           {/* TAB ESTOQUE */}
           <TabsContent value="estoque" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Total de Produtos</p>
-                  <p className="text-xl font-bold text-emerald-600">{produtos.length}</p>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Total de Produtos</p>
+                  <p className="text-2xl font-bold text-emerald-400">{produtos.length}</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Em Estoque</p>
-                  <p className="text-xl font-bold text-blue-600">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Em Estoque</p>
+                  <p className="text-2xl font-bold text-blue-400">
                     {produtos.filter(p => (p.estoque_atual || 0) > 0).length}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:shadow-md border-l-4 border-l-red-500" onClick={() => abrirDetalhes('Abaixo do Mínimo', produtos.filter(p => (p.estoque_atual || 0) < (p.estoque_minimo || 0)), 'produto')}>
-                <CardContent className="p-3">
-                  <p className="text-slate-500 text-[10px]">Abaixo do Mínimo</p>
-                  <p className="text-xl font-bold text-red-600">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-4">
+                  <p className="text-slate-400 text-xs">Abaixo do Mínimo</p>
+                  <p className="text-2xl font-bold text-red-400">
                     {produtos.filter(p => (p.estoque_atual || 0) < (p.estoque_minimo || 0)).length}
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
-              <CardHeader className="py-2 px-3 border-b">
-                <CardTitle className="text-xs text-slate-600">Produtos em Estoque</CardTitle>
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-slate-300">Produtos em Estoque</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-80">
+              <CardContent>
+                <div className="overflow-x-auto max-h-96">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs py-1">Produto</TableHead>
-                        <TableHead className="text-xs py-1">Categoria</TableHead>
-                        <TableHead className="text-xs py-1 text-right">Estoque</TableHead>
-                        <TableHead className="text-xs py-1 text-right">Mínimo</TableHead>
-                        <TableHead className="text-xs py-1">Status</TableHead>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="text-slate-400">Produto</TableHead>
+                        <TableHead className="text-slate-400">Categoria</TableHead>
+                        <TableHead className="text-slate-400 text-right">Estoque</TableHead>
+                        <TableHead className="text-slate-400 text-right">Mínimo</TableHead>
+                        <TableHead className="text-slate-400">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {produtos.map((prod, idx) => {
+                      {produtos.slice(0, 20).map((prod, idx) => {
                         const abaixo = (prod.estoque_atual || 0) < (prod.estoque_minimo || 0);
                         return (
-                          <TableRow key={idx}>
-                            <TableCell className="text-xs py-1">{prod.nome_produto}</TableCell>
-                            <TableCell className="text-xs py-1">{prod.categoria || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 text-right">{formatarNumero(prod.estoque_atual || 0)} {prod.unidade_medida}</TableCell>
-                            <TableCell className="text-xs py-1 text-right">{formatarNumero(prod.estoque_minimo || 0)}</TableCell>
-                            <TableCell className="py-1">
-                              <Badge className={`text-[10px] ${abaixo ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          <TableRow key={idx} className="border-slate-700">
+                            <TableCell className="font-medium">{prod.nome_produto}</TableCell>
+                            <TableCell>{prod.categoria || '-'}</TableCell>
+                            <TableCell className="text-right">{formatarNumero(prod.estoque_atual || 0)} {prod.unidade_medida}</TableCell>
+                            <TableCell className="text-right">{formatarNumero(prod.estoque_minimo || 0)}</TableCell>
+                            <TableCell>
+                              <Badge className={abaixo ? 'bg-red-600' : 'bg-emerald-600'}>
                                 {abaixo ? 'Baixo' : 'OK'}
                               </Badge>
                             </TableCell>
@@ -942,7 +730,7 @@ export default function DashboardPublico() {
                       })}
                     </TableBody>
                   </Table>
-                </ScrollArea>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -950,152 +738,9 @@ export default function DashboardPublico() {
       )}
 
       {/* Footer */}
-      <div className="mt-6 text-center text-slate-400 text-xs">
+      <div className="mt-8 text-center text-slate-500 text-xs">
         Última atualização: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
       </div>
-
-      {/* Dialog de Detalhes */}
-      <Dialog open={dialogDetalhes.open} onOpenChange={(open) => setDialogDetalhes(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2">
-              <List className="w-4 h-4" /> {dialogDetalhes.titulo} ({dialogDetalhes.dados.length} registros)
-            </DialogTitle>
-          </DialogHeader>
-          
-          <ScrollArea className="flex-1">
-            {dialogDetalhes.tipo === 'movimentacao' && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs py-1">Data</TableHead>
-                    <TableHead className="text-xs py-1">Tipo</TableHead>
-                    <TableHead className="text-xs py-1">Motivo</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Qtd</TableHead>
-                    <TableHead className="text-xs py-1">Categoria</TableHead>
-                    <TableHead className="text-xs py-1">Marca</TableHead>
-                    <TableHead className="text-xs py-1">Setor</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dialogDetalhes.dados.map((m, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>
-                      <TableCell className="text-xs py-1">
-                        <Badge className={`text-[10px] ${m.tipo === 'Entrada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {m.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs py-1">{m.motivo || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 text-right font-medium">{formatarNumero(m.quantidade_animais)}</TableCell>
-                      <TableCell className="text-xs py-1">{m.categoria_animal || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{m.marca || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{m.setor_nome || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 text-right">{m.valor_total ? formatarMoeda(m.valor_total) : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-
-            {dialogDetalhes.tipo === 'pesagem' && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs py-1">Data</TableHead>
-                    <TableHead className="text-xs py-1">Animal</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Peso</TableHead>
-                    <TableHead className="text-xs py-1">Sexo</TableHead>
-                    <TableHead className="text-xs py-1">Raça</TableHead>
-                    <TableHead className="text-xs py-1">Apartação</TableHead>
-                    <TableHead className="text-xs py-1">Lote</TableHead>
-                    <TableHead className="text-xs py-1 text-right">GMD</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dialogDetalhes.dados.map((p, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="text-xs py-1">{formatarData(p.data_pesagem)}</TableCell>
-                      <TableCell className="text-xs py-1 font-medium">{p.numero_animal}</TableCell>
-                      <TableCell className="text-xs py-1 text-right">{p.peso} kg</TableCell>
-                      <TableCell className="text-xs py-1">{p.sexo || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{p.raca || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{p.nome_apartacao || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{p.nome_lote || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 text-right">{p.gmd ? p.gmd.toFixed(3) : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-
-            {dialogDetalhes.tipo === 'financeiro' && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs py-1">Vencimento</TableHead>
-                    <TableHead className="text-xs py-1">Tipo</TableHead>
-                    <TableHead className="text-xs py-1">Fornecedor/Cliente</TableHead>
-                    <TableHead className="text-xs py-1">Documento</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Valor</TableHead>
-                    <TableHead className="text-xs py-1">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dialogDetalhes.dados.map((l, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="text-xs py-1">{formatarData(l.data_vencimento)}</TableCell>
-                      <TableCell className="text-xs py-1">
-                        <Badge className={`text-[10px] ${l.tipo === 'Receber' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {l.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs py-1">{l.fornecedor_nome || l.cliente_nome || '-'}</TableCell>
-                      <TableCell className="text-xs py-1">{l.numero_documento || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 text-right font-medium">{formatarMoeda(l.valor_total)}</TableCell>
-                      <TableCell className="text-xs py-1">
-                        <Badge className={`text-[10px] ${
-                          l.status === 'Pago' ? 'bg-green-100 text-green-700' :
-                          l.status === 'Vencido' ? 'bg-red-100 text-red-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
-                          {l.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-
-            {dialogDetalhes.tipo === 'produto' && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs py-1">Produto</TableHead>
-                    <TableHead className="text-xs py-1">Categoria</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Estoque</TableHead>
-                    <TableHead className="text-xs py-1 text-right">Mínimo</TableHead>
-                    <TableHead className="text-xs py-1">Local</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dialogDetalhes.dados.map((p, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="text-xs py-1 font-medium">{p.nome_produto}</TableCell>
-                      <TableCell className="text-xs py-1">{p.categoria || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 text-right">{formatarNumero(p.estoque_atual || 0)} {p.unidade_medida}</TableCell>
-                      <TableCell className="text-xs py-1 text-right">{formatarNumero(p.estoque_minimo || 0)}</TableCell>
-                      <TableCell className="text-xs py-1">{p.local_estoque || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
