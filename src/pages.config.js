@@ -56,6 +56,7 @@ import FichaControleCombustivel from './pages/FichaControleCombustivel';
 import RemoverDuplicados from './pages/RemoverDuplicados';
 import FichasPersonalizadas from './pages/FichasPersonalizadas';
 import VisualizarFicha from './pages/VisualizarFicha';
+import DashboardPublico from './pages/DashboardPublico';
 import __Layout from './Layout.jsx';
 
 
@@ -118,6 +119,7 @@ export const PAGES = {
     "RemoverDuplicados": RemoverDuplicados,
     "FichasPersonalizadas": FichasPersonalizadas,
     "VisualizarFicha": VisualizarFicha,
+    "DashboardPublico": DashboardPublico,
 }
 
 export const pagesConfig = {
