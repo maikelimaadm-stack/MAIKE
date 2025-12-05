@@ -1077,127 +1077,128 @@ export default function LancamentoPesagensIndividuais() {
   };
 
   return (
-    <div className="p-3 space-y-2 bg-slate-100 min-h-screen">
-      {/* HEADER */}
-      <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-slate-900">Lançamento de Pesagens</h1>
-          {isOnline ? (
-            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
-              <Wifi className="w-3 h-3 mr-1" />Online
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-              <WifiOff className="w-3 h-3 mr-1" />Offline
-            </Badge>
-          )}
-          {pendingCount > 0 && (
-            <Badge className="text-[10px] bg-blue-500">{pendingCount} pendente(s)</Badge>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {/* Botão de sincronização oculto
-                      {pendingCount > 0 && isOnline && (
-                        <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
-                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                          Sincronizar
-                        </Button>
-                      )}
-          */}
+    <div className="p-2 md:p-3 space-y-2 bg-slate-50 min-h-screen">
+      {/* HEADER MOBILE COMPACTO */}
+      <Card className="shadow-sm">
+        <CardContent className="p-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Scale className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <h1 className="text-sm font-bold text-slate-900 truncate">Lançar Pesagens</h1>
+              {isOnline ? (
+                <Wifi className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <WifiOff className="w-3 h-3 text-amber-600 flex-shrink-0" />
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {pendingCount > 0 && (
+                <Badge className="text-[9px] bg-blue-500 h-5 px-1.5">{pendingCount}</Badge>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-2">
+                    <Settings className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowConfigColunas(true)}>
+                    <Settings className="w-3 h-3 mr-2" />
+                    Colunas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowApartacoesDialog(true)}>
+                    <FolderOpen className="w-3 h-3 mr-2" />
+                    Apartações
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => loadAllData()}>
+                    <RefreshCw className="w-3 h-3 mr-2" />
+                    Atualizar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={async () => {
+                      if (!navigator.onLine) {
+                        toast.error("Precisa estar online");
+                        return;
+                      }
+                      if (confirm("Limpar cache e recarregar?")) {
+                        await clearStore(STORES_NAMES.PESAGENS);
+                        await clearStore(STORES_NAMES.APARTACOES);
+                        await clearStore(STORES_NAMES.LOTES);
+                        await clearAllPending();
+                        setPendingPesagensDB([]);
+                        setPendingCount(0);
+                        toast.success("Cache limpo!");
+                        await loadAllData();
+                      }
+                    }}
+                    className="text-orange-600"
+                  >
+                    <X className="w-3 h-3 mr-2" />
+                    Limpar Cache
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
           {dbReady && (
-            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
-              <Database className="w-3 h-3 mr-1" />Persistente
+            <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 h-4">
+              <Database className="w-2.5 h-2.5 mr-0.5" />Persistente
             </Badge>
           )}
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
-            <Settings className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
-            Apartações
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={async () => {
-              if (!navigator.onLine) {
-                toast.error("Precisa estar online para limpar cache");
-                return;
-              }
-              if (confirm("Limpar cache local, filas pendentes e recarregar dados do servidor?")) {
-                try {
-                  // Limpar tudo: cache e filas pendentes
-                  await clearStore(STORES_NAMES.PESAGENS);
-                  await clearStore(STORES_NAMES.APARTACOES);
-                  await clearStore(STORES_NAMES.LOTES);
-                  await clearAllPending();
-                  setPendingPesagensDB([]);
-                  setPendingCount(0);
-                  toast.success("Cache e filas limpos!");
-                  await loadAllData();
-                } catch (e) {
-                  toast.error("Erro ao limpar cache");
-                }
-              }
-            }} 
-            className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-          >
-            Limpar Cache
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => loadAllData()} className="h-8 text-xs">
-            Atualizar
-          </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
-        <CardContent className="p-4">
+        <CardContent className="p-2 md:p-4">
           {/* SELEÇÃO DO TIPO DE MANEJO + AVISO */}
-          <div className="flex items-center gap-4 mb-4 pb-3 border-b flex-wrap">
-            <Label className="text-xs font-semibold text-slate-700">Tipo de Manejo:</Label>
-            <Select value={tipoManejo} onValueChange={setTipoManejo}>
-              <SelectTrigger className="h-8 text-xs w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cadastro">Manejo Cadastro</SelectItem>
-                <SelectItem value="pesagens">Manejo de Pesagens</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="mb-2 pb-2 border-b space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-semibold text-slate-700">Tipo:</Label>
+              <Select value={tipoManejo} onValueChange={setTipoManejo}>
+                <SelectTrigger className="h-7 text-xs w-full md:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cadastro">Manejo Cadastro</SelectItem>
+                  <SelectItem value="pesagens">Manejo de Pesagens</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {tipoManejo === 'pesagens' && !avisoTela && (
-              <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              <div className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Apenas animais já cadastrados
-              </span>
+              </div>
             )}
             {tipoManejo === 'cadastro' && !avisoTela && (
-              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+              <div className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                 Cadastro de novos animais
-              </span>
+              </div>
             )}
             {/* AVISO INLINE */}
             {avisoTela && (
-              <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
+              <div className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] ${
                 avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-700' :
                 avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-700' :
                 'bg-blue-100 text-blue-700'
               }`}>
-                <span>{avisoTela.mensagem}</span>
-                <button onClick={() => setAvisoTela(null)} className="hover:opacity-70">
+                <span className="flex-1">{avisoTela.mensagem}</span>
+                <button onClick={() => setAvisoTela(null)} className="hover:opacity-70 flex-shrink-0">
                   <X className="w-3 h-3" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-2 md:gap-4">
             {/* Data Pesagem */}
-            <div className="space-y-1">
+            <div className="space-y-1 w-full md:w-auto">
               <Label className="text-xs font-medium">Data Pesagem <span className="text-red-500">*</span></Label>
               <Input 
                 type="date" 
                 value={dataPesagem} 
                 onChange={(e) => setDataPesagem(e.target.value)} 
-                className="h-9 text-sm w-40"
+                className="h-8 text-xs w-full md:w-36"
               />
             </div>
             
@@ -1303,7 +1304,7 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {/* Nº Identificação */}
-            <div className="space-y-1">
+            <div className="space-y-1 w-full md:w-auto">
               <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
               <Input 
                 ref={numeroInputRef}
@@ -1382,15 +1383,15 @@ export default function LancamentoPesagensIndividuais() {
                   }
                 }} 
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
-                className="h-10 w-36 font-bold text-amber-500"
-                style={{ fontSize: '18px' }}
+                className="h-9 w-full md:w-32 font-bold text-emerald-600"
+                style={{ fontSize: '16px' }}
                 autoFocus
                 placeholder="Ex: 1234"
               />
             </div>
 
             {/* Peso */}
-            <div className="space-y-1">
+            <div className="space-y-1 w-full md:w-auto">
               <Label className="text-xs font-medium">Peso (kg) <span className="text-red-500">*</span></Label>
               <Input 
                 ref={pesoInputRef}
@@ -1398,25 +1399,26 @@ export default function LancamentoPesagensIndividuais() {
                 value={peso} 
                 onChange={(e) => setPeso(e.target.value)} 
                 onKeyDown={(e) => handleKeyDown(e, 'salvar')}
-                className="h-10 w-28 font-bold text-amber-500"
-                style={{ fontSize: '18px' }}
+                className="h-9 w-full md:w-24 font-bold text-emerald-600"
+                style={{ fontSize: '16px' }}
                 placeholder="Ex: 320"
               />
             </div>
             
             {/* Observação */}
-            <div className="space-y-1">
+            <div className="space-y-1 w-full md:w-auto hidden md:block">
               <Label className="text-xs font-medium">Observação</Label>
               <Input 
                 value={observacao} 
                 onChange={(e) => setObservacao(e.target.value)} 
-                className="h-9 text-sm w-44"
+                className="h-8 text-xs w-full md:w-36"
                 placeholder="Obs..."
               />
             </div>
 
             {/* Botões Salvar e Cancelar */}
-            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 w-full md:w-auto">
+              <Save className="w-3.5 h-3.5 mr-1" />
               {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
             </Button>
             {editingId && (
@@ -1437,8 +1439,9 @@ export default function LancamentoPesagensIndividuais() {
                   setTimeout(() => numeroInputRef.current?.focus(), 50);
                 }} 
                 size="sm"
-                className="h-8 text-xs"
+                className="h-8 text-xs w-full md:w-auto"
               >
+                <X className="w-3.5 h-3.5 mr-1" />
                 Cancelar
               </Button>
             )}
@@ -1467,13 +1470,13 @@ export default function LancamentoPesagensIndividuais() {
               );
             })()}
           </div>
-          
-          {/* Linha 2: Apartação e Transferência de Lote */}
-          <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
+
+          {/* Apartação e Lote */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 pt-2 border-t">
             <div className="space-y-1">
               <Label className="text-xs font-medium">Apartação</Label>
               <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteTransferencia(""); }}>
-                <SelectTrigger className="h-9 text-sm w-44"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Nenhuma</SelectItem>
                   {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
@@ -1481,9 +1484,9 @@ export default function LancamentoPesagensIndividuais() {
               </Select>
             </div>
             <div className="space-y-1">
-                              <Label className="text-xs font-medium">Transferência de Lote:</Label>
-                              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
-                                <SelectTrigger className="h-9 text-sm w-64"><SelectValue placeholder="Automático" /></SelectTrigger>
+              <Label className="text-xs font-medium">Lote</Label>
+              <Select value={loteTransferencia} onValueChange={setLoteTransferencia} disabled={!apartacaoSelecionada}>
+                <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Automático" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
                   <SelectItem value="NENHUM" className="text-slate-500 font-medium">-- Sem Lote --</SelectItem>
@@ -1518,38 +1521,27 @@ export default function LancamentoPesagensIndividuais() {
         {/* TABELA DE PESAGENS */}
         <div className="xl:col-span-3 lg:col-span-2">
           <Card className="shadow-sm">
-            <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
+            <CardHeader className="py-1.5 px-2 bg-slate-50 border-b flex flex-row items-center justify-between gap-2">
+              <CardTitle className="text-xs font-semibold">Pesagens ({pesagensDia.length})</CardTitle>
               {/* Campo de Pesquisa */}
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex items-center gap-1 flex-1 md:flex-initial">
+                <div className="relative flex-1 md:w-36">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
                   <Input 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Pesquisar animal, lote..."
-                    className="h-7 text-xs pl-7 w-48"
+                    placeholder="Buscar..."
+                    className="h-7 text-xs pl-7 w-full"
                   />
                   {searchTerm && (
                     <button 
                       onClick={() => setSearchTerm("")}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2"
                     >
                       <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
                     </button>
                   )}
                 </div>
-                {searchTerm && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setSearchTerm("")}
-                    className="h-7 text-xs gap-1"
-                  >
-                    <X className="w-3 h-3" />
-                    Limpar Filtro
-                  </Button>
-                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -1687,29 +1679,32 @@ export default function LancamentoPesagensIndividuais() {
           </Card>
 
           {/* RODAPÉ COM ESTATÍSTICAS */}
-          <div className="flex items-center justify-between mt-2 bg-white rounded px-3 py-2 shadow-sm">
-            <div className="flex items-center gap-6 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Animais</span>
-                <span className="font-bold text-lg">{estatisticas.total}</span>
+          <Card className="mt-2 bg-emerald-50 border-emerald-200">
+            <CardContent className="p-2">
+              <div className="grid grid-cols-4 gap-1 text-center">
+                <div>
+                  <p className="text-[9px] text-slate-600">Total</p>
+                  <p className="text-sm font-bold text-slate-800">{estatisticas.total}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-600">Machos</p>
+                  <p className="text-sm font-bold text-blue-600">{estatisticas.machos}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-600">Fêmeas</p>
+                  <p className="text-sm font-bold text-pink-600">{estatisticas.femeas}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-600">Peso Méd</p>
+                  <p className="text-sm font-bold text-emerald-600">{estatisticas.pesoMedio.toFixed(1)}kg</p>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Machos</span>
-                <span className="font-bold text-lg">{estatisticas.machos}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Total Fêmeas</span>
-                <span className="font-bold text-lg">{estatisticas.femeas}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500">Peso Médio</span>
-                <span className="font-bold text-lg">{estatisticas.pesoMedio.toFixed(2)}</span>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs">
-              Exportar
-            </Button>
-          </div>
+              <Button variant="outline" size="sm" onClick={exportarExcel} className="h-6 text-[10px] w-full mt-2">
+                <Download className="w-3 h-3 mr-1" />
+                Exportar
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* RESUMO DE LOTES */}
