@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Settings, X, MousePointer, Type, Palette, Move, Image, Plus,
-  Save, Trash2, Eye, EyeOff, Upload
-} from "lucide-react";
+import { Settings, X, MousePointer, Type, Palette, Save, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 const COMMON_ICONS = [
@@ -31,40 +28,29 @@ export default function EditorVisualPanel({ onClose }) {
     icon: '',
   });
 
+  const rgbToHex = (rgb) => {
+    if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
+    const result = rgb.match(/\d+/g);
+    if (!result || result.length < 3) return '#ffffff';
+    return '#' + result.slice(0, 3).map(x => {
+      const hex = parseInt(x).toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  };
+
   useEffect(() => {
-    // Ativar modo de edição
     document.body.style.cursor = 'crosshair';
     
-    // Criar overlay de destaque
     const overlay = document.createElement('div');
     overlay.id = 'visual-editor-highlight';
-    overlay.style.cssText = `
-      position: absolute;
-      border: 2px solid #10b981;
-      background: rgba(16, 185, 129, 0.1);
-      pointer-events: none;
-      transition: all 0.1s;
-      z-index: 999998;
-      display: none;
-    `;
+    overlay.style.cssText = 'position: absolute; border: 2px solid #10b981; background: rgba(16, 185, 129, 0.1); pointer-events: none; transition: all 0.1s; z-index: 999998; display: none;';
     document.body.appendChild(overlay);
 
     const label = document.createElement('div');
     label.id = 'visual-editor-label';
-    label.style.cssText = `
-      position: absolute;
-      background: #10b981;
-      color: white;
-      padding: 2px 8px;
-      font-size: 10px;
-      font-weight: bold;
-      border-radius: 3px;
-      z-index: 999998;
-      display: none;
-    `;
+    label.style.cssText = 'position: absolute; background: #10b981; color: white; padding: 2px 8px; font-size: 10px; font-weight: bold; border-radius: 3px; z-index: 999998; display: none;';
     document.body.appendChild(label);
 
-    // Handler de mouseover
     const handleMouseOver = (e) => {
       if (e.target.closest('#visual-editor-panel')) return;
       if (e.target.closest('#visual-editor-highlight')) return;
@@ -83,7 +69,6 @@ export default function EditorVisualPanel({ onClose }) {
       label.textContent = e.target.tagName.toLowerCase();
     };
 
-    // Handler de click
     const handleClick = (e) => {
       if (e.target.closest('#visual-editor-panel')) return;
       if (e.target.closest('#visual-editor-highlight')) return;
@@ -93,13 +78,11 @@ export default function EditorVisualPanel({ onClose }) {
       e.stopPropagation();
       
       const element = e.target;
-      element.setAttribute('data-editor-selected', 'true');
-      
       setSelectedElement(element);
       
       const computedStyle = window.getComputedStyle(element);
       setElementProps({
-        text: element.textContent || '',
+        text: element.textContent?.substring(0, 100) || '',
         backgroundColor: rgbToHex(computedStyle.backgroundColor),
         color: rgbToHex(computedStyle.color),
         padding: computedStyle.padding,
@@ -108,7 +91,7 @@ export default function EditorVisualPanel({ onClose }) {
         icon: '',
       });
       
-      toast.success('Elemento selecionado! Edite no painel.');
+      toast.success('Elemento selecionado!');
     };
 
     document.addEventListener('mouseover', handleMouseOver);
@@ -118,49 +101,43 @@ export default function EditorVisualPanel({ onClose }) {
       document.body.style.cursor = '';
       document.removeEventListener('mouseover', handleMouseOver);
       document.removeEventListener('click', handleClick, true);
-      overlay?.remove();
-      label?.remove();
+      if (overlay && overlay.parentNode) overlay.remove();
+      if (label && label.parentNode) label.remove();
     };
   }, []);
-
-  const rgbToHex = (rgb) => {
-    if (!rgb || rgb === 'transparent') return '#ffffff';
-    const result = rgb.match(/\d+/g);
-    if (!result) return '#ffffff';
-    return '#' + result.map(x => {
-      const hex = parseInt(x).toString(16);
-      return hex.length === 1 ? '0' + hex : hex;
-    }).join('');
-  };
 
   const aplicarMudancas = () => {
     if (!selectedElement) return;
     
-    if (elementProps.text) {
-      selectedElement.textContent = elementProps.text;
+    try {
+      if (elementProps.text !== selectedElement.textContent) {
+        selectedElement.textContent = elementProps.text;
+      }
+      if (elementProps.backgroundColor) {
+        selectedElement.style.backgroundColor = elementProps.backgroundColor;
+      }
+      if (elementProps.color) {
+        selectedElement.style.color = elementProps.color;
+      }
+      if (elementProps.padding) {
+        selectedElement.style.padding = elementProps.padding;
+      }
+      if (elementProps.margin) {
+        selectedElement.style.margin = elementProps.margin;
+      }
+      if (elementProps.fontSize) {
+        selectedElement.style.fontSize = elementProps.fontSize;
+      }
+      
+      toast.success('Mudanças aplicadas!');
+    } catch (error) {
+      toast.error('Erro ao aplicar mudanças');
     }
-    if (elementProps.backgroundColor) {
-      selectedElement.style.backgroundColor = elementProps.backgroundColor;
-    }
-    if (elementProps.color) {
-      selectedElement.style.color = elementProps.color;
-    }
-    if (elementProps.padding) {
-      selectedElement.style.padding = elementProps.padding;
-    }
-    if (elementProps.margin) {
-      selectedElement.style.margin = elementProps.margin;
-    }
-    if (elementProps.fontSize) {
-      selectedElement.style.fontSize = elementProps.fontSize;
-    }
-    
-    toast.success('Mudanças aplicadas!');
   };
 
   const removerElemento = () => {
     if (!selectedElement) return;
-    if (confirm('Remover este elemento?')) {
+    if (window.confirm('Remover este elemento?')) {
       selectedElement.remove();
       setSelectedElement(null);
       toast.success('Elemento removido!');
@@ -176,19 +153,19 @@ export default function EditorVisualPanel({ onClose }) {
     });
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    setPanelPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      setPanelPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -197,7 +174,7 @@ export default function EditorVisualPanel({ onClose }) {
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging]);
+  }, [isDragging, dragStart, panelPosition]);
 
   return (
     <div
@@ -246,7 +223,6 @@ export default function EditorVisualPanel({ onClose }) {
                 </p>
               </div>
 
-              {/* Texto */}
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
                   <Type className="w-3 h-3" />
@@ -260,7 +236,6 @@ export default function EditorVisualPanel({ onClose }) {
                 />
               </div>
 
-              {/* Cor de Fundo */}
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
                   <Palette className="w-3 h-3" />
@@ -281,7 +256,6 @@ export default function EditorVisualPanel({ onClose }) {
                 </div>
               </div>
 
-              {/* Cor do Texto */}
               <div className="space-y-1">
                 <Label className="text-xs">Cor do Texto</Label>
                 <div className="flex gap-2">
@@ -299,7 +273,6 @@ export default function EditorVisualPanel({ onClose }) {
                 </div>
               </div>
 
-              {/* Tamanho da Fonte */}
               <div className="space-y-1">
                 <Label className="text-xs">Tamanho da Fonte</Label>
                 <Input 
@@ -310,7 +283,6 @@ export default function EditorVisualPanel({ onClose }) {
                 />
               </div>
 
-              {/* Padding */}
               <div className="space-y-1">
                 <Label className="text-xs">Espaçamento Interno (Padding)</Label>
                 <Input 
@@ -321,7 +293,6 @@ export default function EditorVisualPanel({ onClose }) {
                 />
               </div>
 
-              {/* Margin */}
               <div className="space-y-1">
                 <Label className="text-xs">Espaçamento Externo (Margin)</Label>
                 <Input 
@@ -332,7 +303,6 @@ export default function EditorVisualPanel({ onClose }) {
                 />
               </div>
 
-              {/* Ícone (se for botão) */}
               {selectedElement.tagName === 'BUTTON' && (
                 <div className="space-y-1">
                   <Label className="text-xs">Adicionar Ícone</Label>
@@ -355,10 +325,10 @@ export default function EditorVisualPanel({ onClose }) {
                 </div>
               )}
 
-              {/* Botões de Ação */}
               <div className="pt-3 border-t space-y-2">
                 <Button 
                   onClick={aplicarMudancas}
+                  size="sm"
                   className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 w-full"
                 >
                   <Save className="w-3.5 h-3.5" />
@@ -368,6 +338,7 @@ export default function EditorVisualPanel({ onClose }) {
                 <div className="grid grid-cols-2 gap-2">
                   <Button 
                     variant="outline"
+                    size="sm"
                     onClick={() => setSelectedElement(null)}
                     className="h-8 text-xs gap-1"
                   >
@@ -377,6 +348,7 @@ export default function EditorVisualPanel({ onClose }) {
                   
                   <Button 
                     variant="destructive"
+                    size="sm"
                     onClick={removerElemento}
                     className="h-8 text-xs gap-1"
                   >
