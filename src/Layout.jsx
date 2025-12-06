@@ -51,6 +51,17 @@ const DEFAULT_MENU = [
   { id: "custos", title: "Custos de Safra", url: "CustosSafra", icon: "TrendingUp" },
   { id: "movimentacoes", title: "Movimentacoes Estoque", url: "MovimentacoesEstoque", icon: "ArrowRightLeft" },
   {
+    id: "cotacoes",
+    title: "Cotacoes",
+    icon: "DollarSign",
+    submenu: [
+      { id: "cot-produtos", title: "Cotacoes de Produtos", url: "CotacoesPecuaria" },
+      { id: "cot-lotes", title: "Lotes de Animais", url: "LotesAnimaisCotacao" },
+      { id: "cot-aplicacoes", title: "Aplicacoes de Medicamentos", url: "AplicacoesMedicamentos" },
+      { id: "cot-simulacao", title: "Simulacao de Resultados", url: "SimulacaoResultados" },
+    ],
+  },
+  {
       id: "pecuaria",
       title: "Pecuaria",
       icon: "Package",
@@ -188,7 +199,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2025-12-03-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2025-12-06-cotacoes'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
