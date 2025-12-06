@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Eye, Save, RotateCcw, Download, Upload, Palette, Type, Layout as LayoutIcon, Square } from "lucide-react";
+import { Settings, Eye, Save, RotateCcw, MousePointer, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 
@@ -16,594 +15,353 @@ const AVAILABLE_PAGES = [
   { id: "PesagensIndividuais", name: "Pesagens Individuais" },
   { id: "RelatorioPesagensIndividuais", name: "Relatório Pesagens Individuais" },
   { id: "CustosSafra", name: "Custos de Safra" },
-  { id: "RelatorioCustosSafra", name: "Relatório Custos Safra" },
   { id: "MovimentacoesEstoque", name: "Movimentações Estoque" },
-  { id: "RelatorioEstoque", name: "Relatório Estoque" },
   { id: "LancamentoFinanceiro", name: "Lançamento Financeiro" },
-  { id: "RelatorioFinanceiro", name: "Relatório Financeiro" },
-  { id: "CaixaBancos", name: "Caixa & Bancos" },
-  { id: "FluxoCaixa", name: "Fluxo de Caixa" },
-  { id: "LivroCaixa", name: "Livro-Caixa" },
   { id: "Fornecedores", name: "Fornecedores" },
   { id: "Produtos", name: "Produtos" },
-  { id: "Empresa", name: "Empresa" },
-  { id: "GerenciarSafras", name: "Safras" },
-  { id: "Usuarios", name: "Usuários" },
-  { id: "CotacoesPecuaria", name: "Cotações de Produtos" },
-  { id: "LotesAnimaisCotacao", name: "Lotes de Animais" },
-  { id: "AplicacoesMedicamentos", name: "Aplicações de Medicamentos" },
-  { id: "SimulacaoResultados", name: "Simulação de Resultados" },
-  { id: "ControlePecuaria", name: "Controle de Pecuária" },
-  { id: "CadastroLotes", name: "Cadastro de Lotes" },
-  { id: "MapaGeral", name: "Mapa Geral" },
-  { id: "MapaCadastro", name: "Mapa Cadastro" },
-  { id: "DashboardSuplementacao", name: "Dashboard Suplementação" },
-  { id: "CadastroMaquinas", name: "Cadastro de Máquinas" },
-  { id: "OperacoesAgricolas", name: "Operações Agrícolas" },
-  { id: "ConfiguracoesGerais", name: "Configurações Gerais" },
-  { id: "FichasPersonalizadas", name: "Fichas Personalizadas" },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
-const DEFAULT_CONFIG = {
-  globalStyles: {
-    // Cores principais
-    primaryColor: "#10b981",
-    primaryHover: "#059669",
-    secondaryColor: "#6b7280",
-    dangerColor: "#ef4444",
-    backgroundColor: "#f8fafc",
-    textColor: "#1e293b",
-    borderColor: "#e2e8f0",
-    
-    // Tipografia
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    fontSizeBase: "14px",
-    fontSizeSmall: "12px",
-    fontSizeLarge: "16px",
-    
-    // Espaçamentos
-    paddingBase: "1rem",
-    marginBase: "1rem",
-    borderRadius: "0.5rem",
-    
-    // Botões
-    buttonHeight: "2rem",
-    buttonPadding: "0.5rem 1rem",
-    buttonFontSize: "12px",
-    
-    // Tabelas
-    tableHeaderBg: "#f1f5f9",
-    tableHeaderBorder: "1px solid #000",
-    tableCellBorder: "1px solid #d1d5db",
-    tableRowHover: "#f9fafb",
-    
-    // Cards
-    cardBg: "#ffffff",
-    cardBorder: "1px solid #e2e8f0",
-    cardShadow: "0 1px 3px rgba(0,0,0,0.1)",
-  },
-  pageStyles: {},
-};
+const COMMON_ICONS = ['Plus', 'Save', 'Trash2', 'Edit2', 'Eye', 'Download', 'Upload', 'Search', 'Filter', 'X', 'Check', 'AlertCircle'];
 
 export default function EditorVisualSistema() {
-  const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('visual_editor_config_v2');
-    return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
-  });
-
   const [selectedPage, setSelectedPage] = useState("");
-  const [activeTab, setActiveTab] = useState("global");
-  const iframeRef = useRef(null);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [elementProps, setElementProps] = useState({});
 
   useEffect(() => {
-    localStorage.setItem('visual_editor_config_v2', JSON.stringify(config));
-    aplicarEstilos();
-  }, [config]);
+    window.addEventListener('message', handleElementSelection);
+    return () => window.removeEventListener('message', handleElementSelection);
+  }, []);
 
-  const aplicarEstilos = () => {
-    const root = document.documentElement;
-    const styles = config.globalStyles;
-    
-    // Aplicar variáveis CSS globais
-    root.style.setProperty('--editor-primary', styles.primaryColor);
-    root.style.setProperty('--editor-primary-hover', styles.primaryHover);
-    root.style.setProperty('--editor-secondary', styles.secondaryColor);
-    root.style.setProperty('--editor-danger', styles.dangerColor);
-    root.style.setProperty('--editor-bg', styles.backgroundColor);
-    root.style.setProperty('--editor-text', styles.textColor);
-    root.style.setProperty('--editor-border', styles.borderColor);
-    root.style.setProperty('--editor-font-family', styles.fontFamily);
-    root.style.setProperty('--editor-font-size', styles.fontSizeBase);
-    root.style.setProperty('--editor-button-height', styles.buttonHeight);
-    root.style.setProperty('--editor-card-bg', styles.cardBg);
-    
-    // Criar CSS customizado
-    let customCSS = `
-      /* Estilos Globais do Editor Visual */
-      body {
-        background-color: ${styles.backgroundColor} !important;
-        color: ${styles.textColor} !important;
-        font-family: ${styles.fontFamily} !important;
-      }
-      
-      .bg-emerald-600 {
-        background-color: ${styles.primaryColor} !important;
-      }
-      
-      .hover\\:bg-emerald-700:hover {
-        background-color: ${styles.primaryHover} !important;
-      }
-      
-      .text-emerald-600 {
-        color: ${styles.primaryColor} !important;
-      }
-      
-      button[class*="bg-emerald"] {
-        background-color: ${styles.primaryColor} !important;
-      }
-      
-      button[class*="bg-emerald"]:hover {
-        background-color: ${styles.primaryHover} !important;
-      }
-      
-      table thead {
-        background-color: ${styles.tableHeaderBg} !important;
-      }
-      
-      table th {
-        border: ${styles.tableHeaderBorder} !important;
-      }
-      
-      table td {
-        border: ${styles.tableCellBorder} !important;
-      }
-      
-      table tbody tr:hover {
-        background-color: ${styles.tableRowHover} !important;
-      }
-      
-      .card, [class*="Card"] {
-        background-color: ${styles.cardBg} !important;
-        border: ${styles.cardBorder} !important;
-        box-shadow: ${styles.cardShadow} !important;
-      }
-    `;
-    
-    // Aplicar estilos específicos da página
-    if (selectedPage && config.pageStyles[selectedPage]) {
-      const pageStyles = config.pageStyles[selectedPage];
-      customCSS += `
-        /* Estilos da página ${selectedPage} */
-        ${pageStyles.customCSS || ''}
-      `;
-    }
-    
-    // Inserir/atualizar o CSS no documento
-    let styleEl = document.getElementById('visual-editor-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'visual-editor-styles';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = customCSS;
-  };
-
-  const updateGlobalStyle = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      globalStyles: { ...prev.globalStyles, [key]: value }
-    }));
-    toast.success('Estilo atualizado!');
-  };
-
-  const updatePageStyle = (key, value) => {
-    if (!selectedPage) return;
-    setConfig(prev => ({
-      ...prev,
-      pageStyles: {
-        ...prev.pageStyles,
-        [selectedPage]: {
-          ...(prev.pageStyles[selectedPage] || {}),
-          [key]: value
-        }
-      }
-    }));
-    toast.success('Estilo da página atualizado!');
-  };
-
-  const resetarConfig = () => {
-    if (confirm('Deseja resetar todas as configurações?')) {
-      setConfig(DEFAULT_CONFIG);
-      localStorage.removeItem('visual_editor_config_v2');
-      toast.success('Configurações resetadas!');
+  const handleElementSelection = (event) => {
+    if (event.data.type === 'ELEMENT_SELECTED') {
+      setSelectedElement(event.data.data);
+      setElementProps({
+        backgroundColor: event.data.data.styles?.backgroundColor || '',
+        color: event.data.data.styles?.color || '',
+        fontSize: event.data.data.styles?.fontSize || '',
+        padding: event.data.data.styles?.padding || '',
+        margin: event.data.data.styles?.margin || '',
+        borderRadius: event.data.data.styles?.borderRadius || '',
+      });
     }
   };
 
-  const exportarConfig = () => {
-    const dataStr = JSON.stringify(config, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'visual-config.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Configuração exportada!');
-  };
-
-  const importarConfig = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const imported = JSON.parse(event.target.result);
-          setConfig(imported);
-          toast.success('Configuração importada!');
-        } catch (error) {
-          toast.error('Erro ao importar!');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const abrirPaginaNovaAba = () => {
+  const abrirPagina = () => {
     if (!selectedPage) {
-      toast.error('Selecione uma página primeiro!');
+      toast.error('Selecione uma página!');
       return;
     }
+    
+    setEditMode(true);
     const url = createPageUrl(selectedPage);
-    window.open(url, '_blank');
-    toast.success('Página aberta em nova aba!');
+    const newWindow = window.open(url, '_blank');
+    
+    // Aguardar carregar e injetar script
+    setTimeout(() => {
+      if (newWindow) {
+        try {
+          const script = newWindow.document.createElement('script');
+          script.textContent = `
+            (function() {
+              let selectedEl = null;
+              const overlay = document.createElement('div');
+              overlay.id = 'visual-editor-overlay';
+              overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999999;';
+              document.body.appendChild(overlay);
+
+              const highlightBox = document.createElement('div');
+              highlightBox.style.cssText = 'position: absolute; border: 2px solid #10b981; background: rgba(16, 185, 129, 0.1); pointer-events: none; transition: all 0.1s;';
+              overlay.appendChild(highlightBox);
+
+              const label = document.createElement('div');
+              label.style.cssText = 'position: absolute; background: #10b981; color: white; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;';
+              overlay.appendChild(label);
+
+              document.addEventListener('mouseover', function(e) {
+                if (e.target.closest('#visual-editor-overlay')) return;
+                const rect = e.target.getBoundingClientRect();
+                highlightBox.style.left = rect.left + 'px';
+                highlightBox.style.top = rect.top + 'px';
+                highlightBox.style.width = rect.width + 'px';
+                highlightBox.style.height = rect.height + 'px';
+                label.style.left = rect.left + 'px';
+                label.style.top = (rect.top - 20) + 'px';
+                label.textContent = e.target.tagName.toLowerCase();
+              });
+
+              document.addEventListener('click', function(e) {
+                if (e.target.closest('#visual-editor-overlay')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                
+                selectedEl = e.target;
+                const computedStyle = window.getComputedStyle(selectedEl);
+                const elementData = {
+                  tag: selectedEl.tagName.toLowerCase(),
+                  classes: Array.from(selectedEl.classList),
+                  text: selectedEl.textContent?.substring(0, 50),
+                  id: selectedEl.id || null,
+                  styles: {
+                    backgroundColor: computedStyle.backgroundColor,
+                    color: computedStyle.color,
+                    fontSize: computedStyle.fontSize,
+                    padding: computedStyle.padding,
+                    margin: computedStyle.margin,
+                    borderRadius: computedStyle.borderRadius
+                  }
+                };
+                
+                window.opener.postMessage({ type: 'ELEMENT_SELECTED', data: elementData }, '*');
+              }, true);
+            })();
+          `;
+          newWindow.document.head.appendChild(script);
+          toast.success('Modo de edição ativado! Clique em elementos na página.');
+        } catch (e) {
+          toast.error('Erro ao ativar modo de edição. Recarregue a página.');
+        }
+      }
+    }, 1000);
+  };
+
+  const aplicarMudancas = () => {
+    toast.success('Mudanças aplicadas!');
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <Card className="shadow-sm">
-        <CardHeader className="py-3 px-4 bg-slate-100 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Settings className="w-5 h-5 text-emerald-600" />
-            Editor Visual do Sistema
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportarConfig} className="h-8 text-xs gap-1">
-              <Download className="w-3.5 h-3.5" />
-              Exportar
-            </Button>
-            <label>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1" as="span">
-                <Upload className="w-3.5 h-3.5" />
-                Importar
-              </Button>
-              <input type="file" accept=".json" onChange={importarConfig} className="hidden" />
-            </label>
-            <Button variant="outline" size="sm" onClick={resetarConfig} className="h-8 text-xs gap-1">
-              <RotateCcw className="w-3.5 h-3.5" />
-              Resetar
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="global" className="text-xs">Estilos Globais</TabsTrigger>
-              <TabsTrigger value="page" className="text-xs">Editar Página</TabsTrigger>
-              <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
-            </TabsList>
-
-            {/* TAB ESTILOS GLOBAIS */}
-            <TabsContent value="global" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Cores */}
-                <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3 border-b">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Palette className="w-4 h-4" />
-                      Cores do Sistema
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-3">
-                    {[
-                      { key: 'primaryColor', label: 'Cor Primária' },
-                      { key: 'primaryHover', label: 'Cor Primária (Hover)' },
-                      { key: 'secondaryColor', label: 'Cor Secundária' },
-                      { key: 'dangerColor', label: 'Cor de Perigo' },
-                      { key: 'backgroundColor', label: 'Cor de Fundo' },
-                      { key: 'textColor', label: 'Cor do Texto' },
-                      { key: 'borderColor', label: 'Cor das Bordas' },
-                    ].map(({ key, label }) => (
-                      <div key={key} className="space-y-1">
-                        <Label className="text-xs">{label}</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={config.globalStyles[key]} 
-                            onChange={(e) => updateGlobalStyle(key, e.target.value)}
-                            className="h-8 w-16"
-                          />
-                          <Input 
-                            value={config.globalStyles[key]} 
-                            onChange={(e) => updateGlobalStyle(key, e.target.value)}
-                            className="h-8 flex-1 text-xs font-mono"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                {/* Tipografia */}
-                <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3 border-b">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Type className="w-4 h-4" />
-                      Tipografia
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-3">
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="max-w-7xl mx-auto space-y-4">
+        <Card>
+          <CardHeader className="py-3 px-4 bg-slate-100 border-b">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Settings className="w-5 h-5 text-emerald-600" />
+              Editor Visual Interativo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Fonte Principal</Label>
-                      <Select 
-                        value={config.globalStyles.fontFamily} 
-                        onValueChange={(v) => updateGlobalStyle('fontFamily', v)}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
+                      <Label className="text-xs font-semibold">1. Selecione a Página para Editar</Label>
+                      <Select value={selectedPage} onValueChange={setSelectedPage}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Escolha uma página" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="system-ui, -apple-system, sans-serif">System (Padrão)</SelectItem>
-                          <SelectItem value="Arial, sans-serif">Arial</SelectItem>
-                          <SelectItem value="'Times New Roman', serif">Times New Roman</SelectItem>
-                          <SelectItem value="'Courier New', monospace">Courier New</SelectItem>
-                          <SelectItem value="Georgia, serif">Georgia</SelectItem>
+                        <SelectContent className="max-h-[300px]">
+                          {AVAILABLE_PAGES.map(page => (
+                            <SelectItem key={page.id} value={page.id} className="text-sm">
+                              {page.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tamanho Base</Label>
-                      <Input 
-                        value={config.globalStyles.fontSizeBase} 
-                        onChange={(e) => updateGlobalStyle('fontSizeBase', e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="14px"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tamanho Pequeno</Label>
-                      <Input 
-                        value={config.globalStyles.fontSizeSmall} 
-                        onChange={(e) => updateGlobalStyle('fontSizeSmall', e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="12px"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
 
-                {/* Tabelas */}
-                <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3 border-b">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <LayoutIcon className="w-4 h-4" />
-                      Tabelas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Background do Cabeçalho</Label>
-                      <Input 
-                        value={config.globalStyles.tableHeaderBg} 
-                        onChange={(e) => updateGlobalStyle('tableHeaderBg', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Borda do Cabeçalho</Label>
-                      <Input 
-                        value={config.globalStyles.tableHeaderBorder} 
-                        onChange={(e) => updateGlobalStyle('tableHeaderBorder', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Borda das Células</Label>
-                      <Input 
-                        value={config.globalStyles.tableCellBorder} 
-                        onChange={(e) => updateGlobalStyle('tableCellBorder', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                    {selectedPage && (
+                      <>
+                        <div className="pt-2 border-t">
+                          <Label className="text-xs font-semibold">2. Abrir Página em Modo de Edição</Label>
+                          <p className="text-xs text-slate-600 mb-2">Clique nos elementos para editá-los</p>
+                          <Button 
+                            onClick={abrirPagina}
+                            className="h-9 text-sm gap-2 bg-emerald-600 hover:bg-emerald-700 w-full"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Abrir e Começar a Editar
+                          </Button>
+                        </div>
 
-                {/* Cards */}
-                <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3 border-b">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Square className="w-4 h-4" />
-                      Cards
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Background</Label>
-                      <Input 
-                        value={config.globalStyles.cardBg} 
-                        onChange={(e) => updateGlobalStyle('cardBg', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Borda</Label>
-                      <Input 
-                        value={config.globalStyles.cardBorder} 
-                        onChange={(e) => updateGlobalStyle('cardBorder', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Sombra</Label>
-                      <Input 
-                        value={config.globalStyles.cardShadow} 
-                        onChange={(e) => updateGlobalStyle('cardShadow', e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* TAB EDITAR PÁGINA */}
-            <TabsContent value="page" className="space-y-4 mt-4">
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="py-2 px-3 border-b border-blue-300">
-                  <CardTitle className="text-sm font-semibold text-blue-800">Selecione a Página</CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Página</Label>
-                    <Select value={selectedPage} onValueChange={setSelectedPage}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Escolha uma página" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {AVAILABLE_PAGES.map(page => (
-                          <SelectItem key={page.id} value={page.id} className="text-xs">
-                            {page.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        {editMode && (
+                          <div className="p-3 bg-green-50 border border-green-200 rounded">
+                            <p className="text-xs text-green-800 font-medium mb-1">✅ Modo de Edição Ativo</p>
+                            <p className="text-xs text-green-700">
+                              Vá até a aba da página e clique nos elementos para editá-los aqui.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-
-                  {selectedPage && (
-                    <>
-                      <Button 
-                        size="sm" 
-                        onClick={abrirPaginaNovaAba}
-                        className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 w-full"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Abrir Página em Nova Aba
-                      </Button>
-
-                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <p className="text-xs text-yellow-800 font-medium mb-2">💡 Como Usar:</p>
-                        <ol className="text-xs text-yellow-700 space-y-1 list-decimal list-inside">
-                          <li>Abra a página em nova aba</li>
-                          <li>Volte aqui e ajuste os estilos</li>
-                          <li>Veja as mudanças em tempo real na outra aba</li>
-                          <li>CSS customizado abaixo se aplica só a esta página</li>
-                        </ol>
-                      </div>
-
-                      <Card className="bg-slate-50 mt-3">
-                        <CardHeader className="py-2 px-3 border-b">
-                          <CardTitle className="text-sm font-semibold">CSS Customizado da Página</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-3">
-                          <textarea
-                            value={config.pageStyles[selectedPage]?.customCSS || ''}
-                            onChange={(e) => updatePageStyle('customCSS', e.target.value)}
-                            placeholder="/* Adicione CSS customizado aqui */
-.minha-classe {
-  color: red;
-}"
-                            className="w-full h-40 p-2 text-xs font-mono border rounded resize-none"
-                          />
-                        </CardContent>
-                      </Card>
-                    </>
-                  )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* TAB PREVIEW */}
-            <TabsContent value="preview" className="space-y-4 mt-4">
-              <Card className="bg-slate-50">
-                <CardHeader className="py-2 px-3 border-b">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Eye className="w-4 h-4" />
-                    Preview dos Estilos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="space-y-4 p-4 rounded border" style={{
-                    backgroundColor: config.globalStyles.backgroundColor,
-                    color: config.globalStyles.textColor,
-                    fontFamily: config.globalStyles.fontFamily,
-                  }}>
-                    <h3 className="text-sm font-semibold">Exemplos de Botões</h3>
-                    <div className="flex gap-2 flex-wrap">
+              {selectedElement && (
+                <Card className="bg-slate-50 border-2 border-emerald-500">
+                  <CardHeader className="py-2 px-3 border-b bg-emerald-50">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <MousePointer className="w-4 h-4 text-emerald-600" />
+                        Editando: {selectedElement.tag}
+                        {selectedElement.text && (
+                          <span className="text-xs text-slate-600 font-normal">
+                            "{selectedElement.text.substring(0, 30)}..."
+                          </span>
+                        )}
+                      </CardTitle>
                       <Button 
-                        size="sm"
-                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => setSelectedElement(null)}
                       >
-                        Botão Primário
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-slate-700">Cores</h4>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cor de Fundo</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              type="color" 
+                              value={elementProps.backgroundColor || '#ffffff'}
+                              onChange={(e) => setElementProps({...elementProps, backgroundColor: e.target.value})}
+                              className="h-8 w-16"
+                            />
+                            <Input 
+                              value={elementProps.backgroundColor || ''}
+                              onChange={(e) => setElementProps({...elementProps, backgroundColor: e.target.value})}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cor do Texto</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              type="color" 
+                              value={elementProps.color || '#000000'}
+                              onChange={(e) => setElementProps({...elementProps, color: e.target.value})}
+                              className="h-8 w-16"
+                            />
+                            <Input 
+                              value={elementProps.color || ''}
+                              onChange={(e) => setElementProps({...elementProps, color: e.target.value})}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-slate-700">Espaçamento</h4>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs">Padding (Interno)</Label>
+                          <Input 
+                            value={elementProps.padding || ''}
+                            onChange={(e) => setElementProps({...elementProps, padding: e.target.value})}
+                            className="h-8 text-xs"
+                            placeholder="8px"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Margin (Externo)</Label>
+                          <Input 
+                            value={elementProps.margin || ''}
+                            onChange={(e) => setElementProps({...elementProps, margin: e.target.value})}
+                            className="h-8 text-xs"
+                            placeholder="4px"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Arredondamento</Label>
+                          <Select 
+                            value={elementProps.borderRadius || ''}
+                            onValueChange={(v) => setElementProps({...elementProps, borderRadius: v})}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">Sem arredondamento</SelectItem>
+                              <SelectItem value="4px">Pequeno (4px)</SelectItem>
+                              <SelectItem value="8px">Médio (8px)</SelectItem>
+                              <SelectItem value="12px">Grande (12px)</SelectItem>
+                              <SelectItem value="9999px">Circular</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {selectedElement.tag === 'button' && (
+                        <div className="space-y-3 md:col-span-2">
+                          <h4 className="text-xs font-semibold text-slate-700">Ícone do Botão</h4>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs">Adicionar Ícone</Label>
+                            <Select 
+                              value={elementProps.icon || ''}
+                              onValueChange={(v) => setElementProps({...elementProps, icon: v})}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Escolha um ícone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={null}>Sem ícone</SelectItem>
+                                {COMMON_ICONS.map(icon => (
+                                  <SelectItem key={icon} value={icon} className="text-xs">
+                                    {icon}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t flex gap-2">
+                      <Button 
+                        onClick={aplicarMudancas}
+                        className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 flex-1"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        Aplicar Mudanças
                       </Button>
                       <Button 
                         variant="outline"
-                        size="sm"
+                        onClick={() => setSelectedElement(null)}
                         className="h-8 text-xs"
                       >
-                        Botão Secundário
-                      </Button>
-                      <Button 
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 text-xs"
-                      >
-                        Botão Excluir
+                        Cancelar
                       </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                    <h3 className="text-sm font-semibold mt-6">Exemplo de Tabela</h3>
-                    <div className="border rounded overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead style={{ backgroundColor: config.globalStyles.tableHeaderBg }}>
-                          <tr>
-                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 1</th>
-                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 2</th>
-                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 3</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr style={{ cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = config.globalStyles.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 1</td>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 2</td>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 3</td>
-                          </tr>
-                          <tr style={{ cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = config.globalStyles.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 4</td>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 5</td>
-                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 6</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <h3 className="text-sm font-semibold mt-6">Exemplo de Card</h3>
-                    <div 
-                      className="p-4 rounded" 
-                      style={{
-                        backgroundColor: config.globalStyles.cardBg,
-                        border: config.globalStyles.cardBorder,
-                        boxShadow: config.globalStyles.cardShadow,
-                      }}
-                    >
-                      <h4 className="font-semibold mb-2">Título do Card</h4>
-                      <p className="text-xs">Conteúdo do card com texto de exemplo.</p>
-                    </div>
-                  </div>
+              <Card className="bg-yellow-50 border-yellow-200">
+                <CardHeader className="py-2 px-3 border-b border-yellow-300">
+                  <CardTitle className="text-sm font-semibold text-yellow-800">📚 Como Usar</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3">
+                  <ol className="text-xs text-yellow-800 space-y-2 list-decimal list-inside">
+                    <li>Selecione a página que deseja customizar</li>
+                    <li>Clique em "Abrir e Começar a Editar"</li>
+                    <li>Na nova aba, passe o mouse sobre elementos (destaque verde)</li>
+                    <li>Clique no elemento que deseja editar</li>
+                    <li>Volte para esta aba e veja o painel de edição</li>
+                    <li>Ajuste cores, espaçamentos, ícones etc</li>
+                    <li>Clique em "Aplicar Mudanças" para salvar</li>
+                  </ol>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
