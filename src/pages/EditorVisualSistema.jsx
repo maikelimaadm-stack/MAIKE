@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Eye, Save, RotateCcw, MousePointer, Trash2, Plus } from "lucide-react";
+import { Settings, Eye, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import EditorVisualPanel from "@/components/editor/EditorVisualPanel";
 
 const AVAILABLE_PAGES = [
   { id: "Home", name: "Dashboard" },
@@ -21,113 +21,17 @@ const AVAILABLE_PAGES = [
   { id: "Produtos", name: "Produtos" },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
-const COMMON_ICONS = ['Plus', 'Save', 'Trash2', 'Edit2', 'Eye', 'Download', 'Upload', 'Search', 'Filter', 'X', 'Check', 'AlertCircle'];
-
 export default function EditorVisualSistema() {
   const [selectedPage, setSelectedPage] = useState("");
-  const [editMode, setEditMode] = useState(false);
-  const [selectedElement, setSelectedElement] = useState(null);
-  const [elementProps, setElementProps] = useState({});
+  const [showEditor, setShowEditor] = useState(false);
 
-  useEffect(() => {
-    window.addEventListener('message', handleElementSelection);
-    return () => window.removeEventListener('message', handleElementSelection);
-  }, []);
-
-  const handleElementSelection = (event) => {
-    if (event.data.type === 'ELEMENT_SELECTED') {
-      setSelectedElement(event.data.data);
-      setElementProps({
-        backgroundColor: event.data.data.styles?.backgroundColor || '',
-        color: event.data.data.styles?.color || '',
-        fontSize: event.data.data.styles?.fontSize || '',
-        padding: event.data.data.styles?.padding || '',
-        margin: event.data.data.styles?.margin || '',
-        borderRadius: event.data.data.styles?.borderRadius || '',
-      });
-    }
-  };
-
-  const abrirPagina = () => {
+  const ativarEditor = () => {
     if (!selectedPage) {
-      toast.error('Selecione uma página!');
+      toast.error('Selecione uma página primeiro!');
       return;
     }
-    
-    setEditMode(true);
-    const url = createPageUrl(selectedPage);
-    const newWindow = window.open(url, '_blank');
-    
-    // Aguardar carregar e injetar script
-    setTimeout(() => {
-      if (newWindow) {
-        try {
-          const script = newWindow.document.createElement('script');
-          script.textContent = `
-            (function() {
-              let selectedEl = null;
-              const overlay = document.createElement('div');
-              overlay.id = 'visual-editor-overlay';
-              overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999999;';
-              document.body.appendChild(overlay);
-
-              const highlightBox = document.createElement('div');
-              highlightBox.style.cssText = 'position: absolute; border: 2px solid #10b981; background: rgba(16, 185, 129, 0.1); pointer-events: none; transition: all 0.1s;';
-              overlay.appendChild(highlightBox);
-
-              const label = document.createElement('div');
-              label.style.cssText = 'position: absolute; background: #10b981; color: white; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;';
-              overlay.appendChild(label);
-
-              document.addEventListener('mouseover', function(e) {
-                if (e.target.closest('#visual-editor-overlay')) return;
-                const rect = e.target.getBoundingClientRect();
-                highlightBox.style.left = rect.left + 'px';
-                highlightBox.style.top = rect.top + 'px';
-                highlightBox.style.width = rect.width + 'px';
-                highlightBox.style.height = rect.height + 'px';
-                label.style.left = rect.left + 'px';
-                label.style.top = (rect.top - 20) + 'px';
-                label.textContent = e.target.tagName.toLowerCase();
-              });
-
-              document.addEventListener('click', function(e) {
-                if (e.target.closest('#visual-editor-overlay')) return;
-                e.preventDefault();
-                e.stopPropagation();
-                
-                selectedEl = e.target;
-                const computedStyle = window.getComputedStyle(selectedEl);
-                const elementData = {
-                  tag: selectedEl.tagName.toLowerCase(),
-                  classes: Array.from(selectedEl.classList),
-                  text: selectedEl.textContent?.substring(0, 50),
-                  id: selectedEl.id || null,
-                  styles: {
-                    backgroundColor: computedStyle.backgroundColor,
-                    color: computedStyle.color,
-                    fontSize: computedStyle.fontSize,
-                    padding: computedStyle.padding,
-                    margin: computedStyle.margin,
-                    borderRadius: computedStyle.borderRadius
-                  }
-                };
-                
-                window.opener.postMessage({ type: 'ELEMENT_SELECTED', data: elementData }, '*');
-              }, true);
-            })();
-          `;
-          newWindow.document.head.appendChild(script);
-          toast.success('Modo de edição ativado! Clique em elementos na página.');
-        } catch (e) {
-          toast.error('Erro ao ativar modo de edição. Recarregue a página.');
-        }
-      }
-    }, 1000);
-  };
-
-  const aplicarMudancas = () => {
-    toast.success('Mudanças aplicadas!');
+    setShowEditor(true);
+    toast.success('Editor ativado! Clique em elementos para editar.');
   };
 
   return (
