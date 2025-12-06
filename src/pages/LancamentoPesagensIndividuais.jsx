@@ -985,45 +985,6 @@ export default function LancamentoPesagensIndividuais() {
     try {
       if (navigator.onLine && !editingId && !editingOfflineId) {
         await base44.entities.PesagemIndividual.create(data);
-        
-        // Aplicar sanidade se selecionada
-        if (sanidadeSelecionada && (tipoManejo === 'Cadastro' || tipoManejo === 'Manejo')) {
-          const itensDaSanidade = itensSanidade.filter(i => i.configuracao_sanidade_id === sanidadeSelecionada);
-          const sanidadeConfig = configuracoesSanidade.find(c => c.id === sanidadeSelecionada);
-          
-          if (itensDaSanidade.length > 0) {
-            // Verificar se já existe sanidade aplicada para esse animal na data
-            const jaExiste = sanidadesAplicadas.some(s => 
-              s.numero_animal === numeroAnimal.trim() && 
-              s.data_aplicacao === dataPesagem &&
-              s.configuracao_sanidade_id === sanidadeSelecionada
-            );
-            
-            if (!jaExiste) {
-              const registrosSanidade = itensDaSanidade.map(item => {
-                const qtd = item.quantidade_padrao || 0;
-                const custo = item.custo_unitario || 0;
-                return {
-                  empresa_id: empresaSelecionadaId,
-                  configuracao_sanidade_id: sanidadeSelecionada,
-                  nome_sanidade: sanidadeConfig?.nome_sanidade || "",
-                  numero_animal: numeroAnimal.trim(),
-                  data_aplicacao: dataPesagem,
-                  medicamento: item.medicamento,
-                  finalidade: item.finalidade || null,
-                  quantidade: qtd,
-                  unidade_medida: item.unidade_medida,
-                  custo_unitario: custo > 0 ? custo : null,
-                  custo_total: (qtd * custo) > 0 ? qtd * custo : null,
-                  observacao: null,
-                };
-              });
-              
-              await base44.entities.SanidadeAnimal.bulkCreate(registrosSanidade);
-            }
-          }
-        }
-        
         toast.success('✓ Salvo!');
         await loadAllData();
       } else if (editingOfflineId) {
@@ -1100,7 +1061,6 @@ export default function LancamentoPesagensIndividuais() {
       setObservacao("");
       setLoteTransferencia("");
       setMotivoSaida("");
-      setSanidadeSelecionada("");
       setValorPagoCabeca("");
       setOrigemAnimal("");
       setDocumentacao("");

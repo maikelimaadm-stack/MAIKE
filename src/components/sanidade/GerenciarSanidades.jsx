@@ -22,11 +22,6 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
   const [nomeSanidade, setNomeSanidade] = useState("");
   const [editingConfigId, setEditingConfigId] = useState(null);
   const [configuracaoSelecionada, setConfiguracaoSelecionada] = useState("");
-  
-  // Estados para aplicar sanidade
-  const [dataAplicacao, setDataAplicacao] = useState(new Date().toISOString().split('T')[0]);
-  const [sanidadeParaAplicar, setSanidadeParaAplicar] = useState("");
-  const [observacaoAplicacao, setObservacaoAplicacao] = useState("");
 
   // Estados de item
   const [medicamento, setMedicamento] = useState("");
@@ -56,110 +51,74 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
     enabled: !!configuracaoSelecionada && open,
   });
   
-  // Buscar itens para aplicar
+  // Buscar todos os itens
   const { data: itensParaAplicar = [] } = useQuery({
-    queryKey: ['itens-sanidade-aplicar', sanidadeParaAplicar],
+    queryKey: ['itens-sanidade-todos'],
     queryFn: async () => {
       const all = await base44.entities.ItemSanidade.list();
-      return all.filter(i => i.configuracao_sanidade_id === sanidadeParaAplicar);
+      return all;
     },
-    enabled: !!sanidadeParaAplicar && open,
+    enabled: open,
   });
 
   const configAtual = useMemo(() => {
     return configuracoes.find(c => c.id === configuracaoSelecionada);
   }, [configuracoes, configuracaoSelecionada]);
-  
-  const sanidadeAtual = useMemo(() => {
-    return configuracoes.find(c => c.id === sanidadeParaAplicar);
-  }, [configuracoes, sanidadeParaAplicar]);
+
+  // Buscar sanidades aplicadas
+  const { data: sanidadesAplicadas = [] } = useQuery({
+    queryKey: ['sanidades-aplicadas', empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.SanidadeAnimal.list();
+      return all.filter(s => s.empresa_id === empresaId);
+    },
+    enabled: !!empresaId && open,
+  });
 
   // Mutations
   const deleteConfigMutation = useMutation({
-    mutationFn: (id) => base44.entities.ConfiguracaoSanidade.update(id, { ativo: false }),
+    mutationFn: async (id) => {
+      // Verificar se está em uso
+      const emUso = sanidadesAplicadas.some(s => s.configuracao_sanidade_id === id);
+      if (emUso) {
+        throw new Error("Esta sanidade já foi aplicada em animais e não pode ser excluída!");
+      }
+      return base44.entities.ConfiguracaoSanidade.update(id, { ativo: false });
+    },
     onSuccess: () => {
       toast.success("Sanidade removida!");
       queryClient.invalidateQueries({ queryKey: ['configuracoes-sanidade'] });
       setConfiguracaoSelecionada("");
     },
+    onError: (error) => {
+      toast.error(error.message);
+    },
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: (id) => base44.entities.ItemSanidade.delete(id),
+    mutationFn: async (itemId) => {
+      // Buscar o item para verificar qual configuração
+      const item = itens.find(i => i.id === itemId);
+      if (!item) return;
+      
+      // Verificar se a configuração está em uso
+      const emUso = sanidadesAplicadas.some(s => s.configuracao_sanidade_id === item.configuracao_sanidade_id);
+      if (emUso) {
+        throw new Error("Não é possível excluir medicamentos de sanidades já aplicadas!");
+      }
+      
+      return base44.entities.ItemSanidade.delete(itemId);
+    },
     onSuccess: () => {
       toast.success("Item excluído!");
       queryClient.invalidateQueries({ queryKey: ['itens-sanidade'] });
     },
+    onError: (error) => {
+      toast.error(error.message);
+    },
   });
   
-  const handleAplicarSanidade = async () => {
-    if (!sanidadeParaAplicar) {
-      toast.error("Selecione uma sanidade!");
-      return;
-    }
-    if (itensParaAplicar.length === 0) {
-      toast.error("Esta sanidade não possui medicamentos cadastrados!");
-      return;
-    }
-    if (!apartacaoSelecionada) {
-      toast.error("Selecione uma apartação primeiro!");
-      return;
-    }
 
-    setIsSaving(true);
-    try {
-      // Aplicar em TODOS os animais da apartação do dia
-      const animaisParaAplicar = pesagensDia
-        ?.filter(p => p.apartacao_id === apartacaoSelecionada)
-        .map(p => p.numero_animal) || [];
-
-      if (animaisParaAplicar.length === 0) {
-        toast.error("Nenhum animal pesado nesta apartação hoje!");
-        setIsSaving(false);
-        return;
-      }
-
-      // Criar registros para cada animal e cada medicamento
-      const registros = [];
-      for (const numAnimal of animaisParaAplicar) {
-        for (const item of itensParaAplicar) {
-          const qtd = item.quantidade_padrao || 0;
-          const custo = item.custo_unitario || 0;
-          registros.push({
-            empresa_id: empresaId,
-            configuracao_sanidade_id: sanidadeParaAplicar,
-            nome_sanidade: sanidadeAtual?.nome_sanidade || "",
-            numero_animal: numAnimal,
-            data_aplicacao: dataAplicacao,
-            medicamento: item.medicamento,
-            finalidade: item.finalidade || null,
-            quantidade: qtd,
-            unidade_medida: item.unidade_medida,
-            custo_unitario: custo > 0 ? custo : null,
-            custo_total: (qtd * custo) > 0 ? qtd * custo : null,
-            observacao: observacaoAplicacao.trim() || null,
-          });
-        }
-      }
-
-      await base44.entities.SanidadeAnimal.bulkCreate(registros);
-      
-      const custoTotalGeral = registros.reduce((s, r) => s + (r.custo_total || 0), 0);
-      const custoPorAnimal = custoTotalGeral / animaisParaAplicar.length;
-      
-      toast.success(`✓ Sanidade "${sanidadeAtual?.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! Custo: R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
-      queryClient.invalidateQueries({ queryKey: ['sanidade'] });
-
-      // Limpar e fechar
-      setSanidadeParaAplicar("");
-      setObservacaoAplicacao("");
-      onOpenChange(false);
-    } catch (error) {
-      toast.error("Erro: " + error.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleSalvarConfiguracao = async () => {
     if (!nomeSanidade.trim()) {
@@ -256,149 +215,121 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
 
           {/* ABA: APLICAR SANIDADE */}
           <TabsContent value="aplicar" className="flex-1 overflow-auto space-y-4 mt-4">
-            {/* Lista de sanidades configuradas */}
             <div className="bg-white border border-slate-200 rounded p-3">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Sanidades Disponíveis</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Sanidades Disponíveis - Aplicar nos Animais Lançados</h3>
+
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
+                <p className="text-xs text-blue-800">
+                  ℹ️ Selecione uma sanidade abaixo para aplicar nos <strong>{pesagensDia?.filter(p => p.apartacao_id === apartacaoSelecionada).length || 0} animais</strong> pesados nesta apartação hoje.
+                </p>
+              </div>
+
               {configuracoes.length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400">
                   Nenhuma sanidade cadastrada. Vá para a aba "Cadastro de Sanidades" para criar.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {configuracoes.map(c => {
                     const itens = itensParaAplicar.filter(i => i.configuracao_sanidade_id === c.id);
                     const custoTotal = itens.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
 
                     return (
-                      <Card key={c.id} className="border-emerald-200 bg-emerald-50">
+                      <Card key={c.id} className="border-emerald-200 bg-white">
                         <CardContent className="p-3">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
-                              <h4 className="font-semibold text-emerald-800 mb-2">{c.nome_sanidade}</h4>
-                              {itens.length > 0 ? (
-                                <div className="space-y-1">
-                                  {itens.map((item, idx) => (
-                                    <div key={idx} className="text-xs text-slate-600">
-                                      • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
-                                      {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
-                                    </div>
-                                  ))}
-                                  <div className="text-xs font-bold text-emerald-700 mt-1">
-                                    Total por animal: R$ {custoTotal.toFixed(2)}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-xs text-slate-400">Nenhum medicamento cadastrado</div>
-                              )}
+                              <h4 className="font-semibold text-emerald-800">{c.nome_sanidade}</h4>
+                              <div className="text-xs font-bold text-emerald-700 mt-1">
+                                Custo por animal: R$ {custoTotal.toFixed(2)}
+                              </div>
                             </div>
+                            <Button 
+                              onClick={async () => {
+                                if (!apartacaoSelecionada) {
+                                  toast.error("Selecione uma apartação primeiro!");
+                                  return;
+                                }
+
+                                const animaisParaAplicar = pesagensDia
+                                  ?.filter(p => p.apartacao_id === apartacaoSelecionada)
+                                  .map(p => p.numero_animal) || [];
+
+                                if (animaisParaAplicar.length === 0) {
+                                  toast.error("Nenhum animal pesado nesta apartação hoje!");
+                                  return;
+                                }
+
+                                if (itens.length === 0) {
+                                  toast.error("Esta sanidade não possui medicamentos cadastrados!");
+                                  return;
+                                }
+
+                                if (!confirm(`Aplicar "${c.nome_sanidade}" em ${animaisParaAplicar.length} animal(is)?`)) return;
+
+                                setIsSaving(true);
+                                try {
+                                  const registros = [];
+                                  for (const numAnimal of animaisParaAplicar) {
+                                    for (const item of itens) {
+                                      const qtd = item.quantidade_padrao || 0;
+                                      const custo = item.custo_unitario || 0;
+                                      registros.push({
+                                        empresa_id: empresaId,
+                                        configuracao_sanidade_id: c.id,
+                                        nome_sanidade: c.nome_sanidade,
+                                        numero_animal: numAnimal,
+                                        data_aplicacao: dataAplicacao,
+                                        medicamento: item.medicamento,
+                                        finalidade: item.finalidade || null,
+                                        quantidade: qtd,
+                                        unidade_medida: item.unidade_medida,
+                                        custo_unitario: custo > 0 ? custo : null,
+                                        custo_total: (qtd * custo) > 0 ? qtd * custo : null,
+                                        observacao: null,
+                                      });
+                                    }
+                                  }
+
+                                  await base44.entities.SanidadeAnimal.bulkCreate(registros);
+
+                                  const custoTotalGeral = registros.reduce((s, r) => s + (r.custo_total || 0), 0);
+                                  const custoPorAnimal = custoTotalGeral / animaisParaAplicar.length;
+
+                                  toast.success(`✓ "${c.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! Total: R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
+                                  queryClient.invalidateQueries({ queryKey: ['sanidade'] });
+                                  onOpenChange(false);
+                                } catch (error) {
+                                  toast.error("Erro: " + error.message);
+                                } finally {
+                                  setIsSaving(false);
+                                }
+                              }}
+                              disabled={isSaving || itens.length === 0}
+                              size="sm" 
+                              className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Aplicar
+                            </Button>
                           </div>
+                          {itens.length > 0 && (
+                            <div className="space-y-1 mt-2">
+                              {itens.map((item, idx) => (
+                                <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                                  • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
+                                  {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
                   })}
                 </div>
               )}
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
-              <h3 className="text-xs font-semibold text-emerald-800 mb-3">
-                Aplicar Tratamento {numeroAnimal && `- Animal ${numeroAnimal}`}
-              </h3>
-
-              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
-                <p className="text-xs text-blue-800">
-                  ℹ️ A sanidade será aplicada em <strong>TODOS os {pesagensDia?.filter(p => p.apartacao_id === apartacaoSelecionada).length || 0} animais</strong> pesados nesta apartação hoje.
-                </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 items-end">
-                <div className="space-y-1">
-                  <Label className="text-xs">Data Aplicação</Label>
-                  <Input
-                    type="date"
-                    value={dataAplicacao}
-                    onChange={(e) => setDataAplicacao(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Sanidade *</Label>
-                  <Select value={sanidadeParaAplicar} onValueChange={setSanidadeParaAplicar}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {configuracoes.map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-xs">
-                          {c.nome_sanidade}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {sanidadeParaAplicar && itensParaAplicar.length > 0 && (
-                <div className="mt-3 border rounded overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Medicamento</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Finalidade</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd. Padrão</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Un.</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {itensParaAplicar.map((item) => {
-                        const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
-                        return (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="text-xs py-1 border border-gray-300 font-medium">{item.medicamento}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{item.finalidade || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">
-                              {item.quantidade_padrao} {item.unidade_medida}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">
-                              {item.custo_unitario ? `R$ ${item.custo_unitario.toFixed(2)}` : '-'}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">
-                              {custoTotal > 0 ? `R$ ${custoTotal.toFixed(2)}` : '-'}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              <div className="mt-3 space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Observação</Label>
-                  <Input
-                    value={observacaoAplicacao}
-                    onChange={(e) => setObservacaoAplicacao(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Observações..."
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={handleAplicarSanidade} 
-                    disabled={isSaving}
-                    size="sm" 
-                    className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {isSaving ? 'Aplicando...' : 'Aplicar Sanidade'}
-                  </Button>
-                </div>
-              </div>
-            </div>
           </TabsContent>
 
           {/* ABA: SANIDADES */}
