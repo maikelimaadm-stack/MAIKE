@@ -1382,6 +1382,20 @@ export default function LancamentoPesagensIndividuais() {
               </Button>
             )}
             
+            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMostrarSelecionarSanidade(true)}
+                className="h-8 text-xs gap-1"
+                title="Aplicar Sanidade nos Animais Lançados"
+              >
+                <Syringe className="w-3.5 h-3.5" />
+                Sanidade
+              </Button>
+            )}
+            
 
 
             {/* Mensagens de Status */}
