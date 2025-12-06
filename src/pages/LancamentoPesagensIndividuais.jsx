@@ -265,6 +265,7 @@ export default function LancamentoPesagensIndividuais() {
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
   const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
   const [aplicarSanidade, setAplicarSanidade] = useState(false);
+  const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -456,15 +457,17 @@ export default function LancamentoPesagensIndividuais() {
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allPesagens, allApartacoes, allLotes] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes, allConfigSanidade] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
+          base44.entities.ConfiguracaoSanidade.list(),
         ]);
 
         const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
+        const configSanidadeEmpresa = allConfigSanidade.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
@@ -478,6 +481,7 @@ export default function LancamentoPesagensIndividuais() {
         setPesagens(pesagensEmpresa);
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
+        setConfiguracoesSanidade(configSanidadeEmpresa);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -1332,16 +1336,30 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setMostrarSanidade(true)}
-                className="h-8 w-8"
-                title="Gerenciar Sanidades"
-              >
-                <Syringe className="w-4 h-4" />
-              </Button>
+              <>
+                <Label className="text-xs font-medium">Aplicar Sanidade:</Label>
+                <Select value={sanidadeSelecionada} onValueChange={setSanidadeSelecionada}>
+                  <SelectTrigger className="h-8 text-xs w-56">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Nenhuma</SelectItem>
+                    {configuracoesSanidade.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome_sanidade}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setMostrarSanidade(true)}
+                  className="h-8 w-8"
+                  title="Gerenciar Sanidades"
+                >
+                  <Syringe className="w-4 h-4" />
+                </Button>
+              </>
             )}
 
             {/* Mensagens de Status */}
@@ -1512,6 +1530,8 @@ export default function LancamentoPesagensIndividuais() {
                     }
                     
                     if (historicoAnimal.length > 0) {
+                      // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
+                      const cadastroOriginal = pesagens.find(p => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
                       const ultimo = historicoAnimal[0];
                       
                       // No modo CADASTRO, avisar que animal já existe
@@ -1526,33 +1546,35 @@ export default function LancamentoPesagensIndividuais() {
                       if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         if (!pesadoHoje) {
                           const statusAtual = ultimo.status_animal || 'Ativo';
+                          const dadosCadastro = cadastroOriginal || ultimo;
                           setAvisoTela({
                             tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
                             mensagem: statusAtual === 'Inativo' 
                               ? `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)`
-                              : `✓ Animal encontrado: ${ultimo.sexo || '-'} | ${ultimo.raca || '-'} | Era: ${ultimo.era || '-'} | Marca: ${ultimo.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                              : `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                           });
                         }
                       }
                       
-                      // Preencher campos automaticamente (apenas se não estiver fixado)
-                      if (!fixarSexo) setSexo(ultimo.sexo || "M");
-                      if (!fixarRaca) setRaca(ultimo.raca || "Nelore");
-                      if (!fixarMarca) setMarca(ultimo.marca || "");
+                      // Preencher campos automaticamente com dados do CADASTRO (apenas se não estiver fixado)
+                      const dadosBase = cadastroOriginal || ultimo;
+                      if (!fixarSexo) setSexo(dadosBase.sexo || "M");
+                      if (!fixarRaca) setRaca(dadosBase.raca || "Nelore");
+                      if (!fixarMarca) setMarca(dadosBase.marca || "");
 
                       // Calcular evolução da era em meses (apenas se não estiver fixado)
                       if (!fixarEra) {
-                        if (ultimo.era && ultimo.data_pesagem) {
-                          const eraAnterior = parseInt(ultimo.era) || 0;
+                        if (dadosBase.era && dadosBase.data_pesagem) {
+                          const eraAnterior = parseInt(dadosBase.era) || 0;
                           if (eraAnterior > 0) {
-                            const dataAnterior = new Date(ultimo.data_pesagem);
+                            const dataAnterior = new Date(dadosBase.data_pesagem);
                             const dataAtual = new Date(dataPesagem);
                             const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
                             const novaEra = eraAnterior + mesesDecorridos;
                             setEra(String(novaEra > 0 ? novaEra : eraAnterior));
                           }
                         } else {
-                          setEra(ultimo.era || "");
+                          setEra(dadosBase.era || "");
                         }
                       }
                     } else {
