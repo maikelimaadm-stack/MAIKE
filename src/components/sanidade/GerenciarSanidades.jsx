@@ -256,6 +256,50 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
 
           {/* ABA: APLICAR SANIDADE */}
           <TabsContent value="aplicar" className="flex-1 overflow-auto space-y-4 mt-4">
+            {/* Lista de sanidades configuradas */}
+            <div className="bg-white border border-slate-200 rounded p-3">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Sanidades Disponíveis</h3>
+              {configuracoes.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400">
+                  Nenhuma sanidade cadastrada. Vá para a aba "Cadastro de Sanidades" para criar.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {configuracoes.map(c => {
+                    const itens = itensParaAplicar.filter(i => i.configuracao_sanidade_id === c.id);
+                    const custoTotal = itens.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
+
+                    return (
+                      <Card key={c.id} className="border-emerald-200 bg-emerald-50">
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-emerald-800 mb-2">{c.nome_sanidade}</h4>
+                              {itens.length > 0 ? (
+                                <div className="space-y-1">
+                                  {itens.map((item, idx) => (
+                                    <div key={idx} className="text-xs text-slate-600">
+                                      • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
+                                      {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
+                                    </div>
+                                  ))}
+                                  <div className="text-xs font-bold text-emerald-700 mt-1">
+                                    Total por animal: R$ {custoTotal.toFixed(2)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-slate-400">Nenhum medicamento cadastrado</div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
               <h3 className="text-xs font-semibold text-emerald-800 mb-3">
                 Aplicar Tratamento {numeroAnimal && `- Animal ${numeroAnimal}`}

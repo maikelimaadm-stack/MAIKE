@@ -1155,10 +1155,20 @@ export default function LancamentoPesagensIndividuais() {
         mensagem: `✓ Pesagem do animal ${pesagem.numero_animal} foi removida com sucesso!`
       });
     } else if (navigator.onLine) {
+      // Excluir sanidades aplicadas neste animal na mesma data
+      const sanidadesParaExcluir = sanidadesAplicadas.filter(s => 
+        s.numero_animal === pesagem.numero_animal && 
+        s.data_aplicacao === pesagem.data_pesagem
+      );
+      
+      for (const s of sanidadesParaExcluir) {
+        await base44.entities.SanidadeAnimal.delete(s.id);
+      }
+      
       await base44.entities.PesagemIndividual.delete(pesagem.id);
       setAvisoTela({
         tipo: 'info',
-        mensagem: `✓ Pesagem do animal ${pesagem.numero_animal} foi excluída com sucesso!`
+        mensagem: `✓ Pesagem do animal ${pesagem.numero_animal} foi excluída com sucesso!${sanidadesParaExcluir.length > 0 ? ` (${sanidadesParaExcluir.length} sanidade(s) também removida(s))` : ''}`
       });
       await loadAllData();
     } else {
