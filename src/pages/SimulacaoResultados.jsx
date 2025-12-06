@@ -330,6 +330,7 @@ export default function SimulacaoResultados() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black">Para que serve</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">Categoria</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">Fornecedor</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">Vendedor</TableHead>
@@ -346,23 +347,24 @@ export default function SimulacaoResultados() {
                       return (
                         <TableRow key={a.id} className="hover:bg-gray-50">
                           <TableCell className="text-xs py-1 border border-gray-300 font-semibold">{a.produto_nome}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300">{prod?.funcao_tecnica || '-'}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300">{a.categoria_produto}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300">{prod?.empresa_fornecedora || '-'}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300">{prod?.nome_vendedor || '-'}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(a.quantidade_aplicada, 2)} {a.unidade_medida}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(a.valor_unitario)}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-blue-700">{formatarMoeda(a.custo_por_animal)}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoeda(a.custo_por_animal)}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(a.quantidade_animais, 0)}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-bold text-emerald-700">{formatarMoeda(a.custo_total)}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-bold">{formatarMoeda(a.custo_total)}</TableCell>
                         </TableRow>
                       );
                     })}
                     <TableRow className="bg-gray-100">
-                      <TableCell colSpan={8} className="text-xs py-1 border border-black font-bold text-right">CUSTO TOTAL DOS MEDICAMENTOS:</TableCell>
+                      <TableCell colSpan={9} className="text-xs py-1 border border-black font-bold text-right">CUSTO TOTAL DOS MEDICAMENTOS:</TableCell>
                       <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold">{formatarMoeda(custoTotalMedicamentos)}</TableCell>
                     </TableRow>
                     <TableRow className="bg-gray-100">
-                      <TableCell colSpan={8} className="text-xs py-1 border border-black font-bold text-right">CUSTO POR ANIMAL:</TableCell>
+                      <TableCell colSpan={9} className="text-xs py-1 border border-black font-bold text-right">CUSTO POR ANIMAL:</TableCell>
                       <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold">
                         {formatarMoeda(loteAtual.quantidade_animais > 0 ? custoTotalMedicamentos / loteAtual.quantidade_animais : 0)}
                       </TableCell>
