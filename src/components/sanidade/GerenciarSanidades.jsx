@@ -16,12 +16,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState('cadastradas');
 
   // Estados de configuração
   const [nomeSanidade, setNomeSanidade] = useState("");
   const [editingConfigId, setEditingConfigId] = useState(null);
   const [configuracaoSelecionada, setConfiguracaoSelecionada] = useState("");
+  const [sanidadeAtivaId, setSanidadeAtivaId] = useState(() => {
+    return localStorage.getItem('sanidade_em_uso') || "";
+  });
 
   // Estados de item
   const [medicamento, setMedicamento] = useState("");
@@ -192,64 +194,58 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-emerald-700">
-            <Settings className="w-5 h-5" />
-            Configurar Sanidades
+            <Syringe className="w-5 h-5" />
+            Gerenciar Sanidades
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="cadastradas" className="text-xs">Sanidades Cadastradas</TabsTrigger>
-            <TabsTrigger value="medicamentos" className="text-xs">Criar/Editar Sanidades</TabsTrigger>
-          </TabsList>
-
-          {/* ABA: SANIDADES CADASTRADAS - LISTA INFORMATIVA */}
-          <TabsContent value="cadastradas" className="flex-1 overflow-auto space-y-4 mt-4">
-            {configuracoes.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-400">
-                Nenhuma sanidade cadastrada. Vá para "Criar/Editar Sanidades".
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {configuracoes.map(c => {
-                  const itensConfig = todosItens.filter(i => i.configuracao_sanidade_id === c.id);
-                  const custoTotal = itensConfig.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
-
-                  return (
-                    <Card key={c.id} className="border-slate-200 bg-white">
-                      <CardContent className="p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-slate-800">{c.nome_sanidade}</h4>
-                            <div className="text-xs font-bold text-emerald-700 mt-1">
-                              Custo por animal: R$ {custoTotal.toFixed(2)}
-                            </div>
+        <div className="flex-1 overflow-auto space-y-4">
+          {/* SELETOR DE SANIDADE AUTOMÁTICA */}
+          <Card className="border-emerald-200">
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                  <Syringe className="w-4 h-4" />
+                  Sanidade Automática (aplicada a cada animal lançado)
+                </Label>
+                <Select value={sanidadeAtivaId} onValueChange={(v) => {
+                  setSanidadeAtivaId(v);
+                  localStorage.setItem('sanidade_em_uso', v);
+                  if (v === "") {
+                    toast.success("Nenhuma sanidade será aplicada automaticamente");
+                  } else {
+                    const config = configuracoes.find(c => c.id === v);
+                    toast.success(`"${config?.nome_sanidade}" será aplicada automaticamente!`);
+                  }
+                }}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Nenhuma</SelectItem>
+                    {configuracoes.map(c => {
+                      const itensConfig = todosItens.filter(i => i.configuracao_sanidade_id === c.id);
+                      const custoTotal = itensConfig.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
+                      return (
+                        <SelectItem key={c.id} value={c.id}>
+                          <div className="flex items-center gap-2">
+                            <Syringe className="w-3.5 h-3.5 text-emerald-600" />
+                            {c.nome_sanidade} - R$ {custoTotal.toFixed(2)}/animal
                           </div>
-                        </div>
-                        {itensConfig.length > 0 && (
-                          <div className="space-y-1 mt-2">
-                            {itensConfig.map((item, idx) => (
-                              <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
-                                • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
-                                {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </TabsContent>
+            </CardContent>
+          </Card>
 
-          {/* ABA: CRIAR/EDITAR */}
-          <TabsContent value="medicamentos" className="flex-1 overflow-auto space-y-4 mt-4">
-            <Card>
-              <CardContent className="p-4">
-                {/* Criar Nova Sanidade */}
-                <div className="bg-emerald-50 border border-emerald-200 rounded p-3 mb-4">
+          {/* CRIAR/EDITAR SANIDADES */}
+          <Card>
+            <CardContent className="p-4">
+              {/* Criar Nova Sanidade */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded p-3 mb-4">
                   <h3 className="text-xs font-semibold text-emerald-800 mb-3">
                     {editingConfigId ? 'Editar Sanidade' : 'Nova Sanidade'}
                   </h3>
@@ -479,10 +475,9 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+        </div>
 
-        <div className="flex justify-end gap-2 pt-3 border-t">
+        <div className="flex justify-end gap-2 pt-3 border-t mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} size="sm" className="h-8 text-xs">
             Fechar
           </Button>
