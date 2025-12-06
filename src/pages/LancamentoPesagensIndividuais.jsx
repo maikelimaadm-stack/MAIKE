@@ -260,8 +260,10 @@ export default function LancamentoPesagensIndividuais() {
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
   const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
+  const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
+  const [itensSanidade, setItensSanidade] = useState([]);
   const [sanidadeAtivaId, setSanidadeAtivaId] = useState(() => {
-    return localStorage.getItem('sanidade_em_uso') || null;
+    return localStorage.getItem('sanidade_em_uso') || "";
   });
 
   // Campo de pesquisa
@@ -455,17 +457,21 @@ export default function LancamentoPesagensIndividuais() {
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allPesagens, allApartacoes, allLotes, allSanidades] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigs, allItens] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
           base44.entities.SanidadeAnimal.list('-data_aplicacao'),
+          base44.entities.ConfiguracaoSanidade.list(),
+          base44.entities.ItemSanidade.list(),
         ]);
 
         const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
         const sanidadesEmpresa = allSanidades.filter(s => s.empresa_id === empresaSelecionadaId);
+        const configsEmpresa = allConfigs.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
+        const itensEmpresa = allItens;
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
@@ -480,6 +486,8 @@ export default function LancamentoPesagensIndividuais() {
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
         setSanidadesAplicadas(sanidadesEmpresa);
+        setConfiguracoesSanidade(configsEmpresa);
+        setItensSanidade(itensEmpresa);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -1379,16 +1387,41 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setMostrarSanidade(true)}
-                className="h-8 w-8"
-                title="Gerenciar Sanidades"
-              >
-                <Syringe className="w-4 h-4" />
-              </Button>
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Sanidade Automática</Label>
+                  <Select value={sanidadeAtivaId} onValueChange={(v) => {
+                    setSanidadeAtivaId(v);
+                    localStorage.setItem('sanidade_em_uso', v);
+                    if (v === "") {
+                      toast.success("Nenhuma sanidade será aplicada automaticamente");
+                    } else {
+                      const config = configuracoesSanidade.find(c => c.id === v);
+                      toast.success(`"${config?.nome_sanidade}" será aplicada automaticamente!`);
+                    }
+                  }}>
+                    <SelectTrigger className="h-9 text-sm w-56">
+                      <SelectValue placeholder="Nenhuma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>Nenhuma</SelectItem>
+                      {configuracoesSanidade.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome_sanidade}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setMostrarSanidade(true)}
+                  className="h-9 w-9"
+                  title="Gerenciar Sanidades"
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </>
             )}
             
 
@@ -1892,7 +1925,14 @@ export default function LancamentoPesagensIndividuais() {
                 <SelectTrigger className="h-9 text-sm w-44"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Nenhuma</SelectItem>
-                  {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
+                  {apartacoes.map(a => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <div className="flex items-center gap-2">
+                        <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/3a7353353_Logosimplescircularesmaltariapreto1.png" alt="" className="w-4 h-4" />
+                        {a.nome_apartacao}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -2359,7 +2399,7 @@ export default function LancamentoPesagensIndividuais() {
           if (!open) {
             loadAllData();
             const id = localStorage.getItem('sanidade_em_uso');
-            setSanidadeAtivaId(id);
+            setSanidadeAtivaId(id || "");
           }
         }}
         empresaId={empresaSelecionadaId}
