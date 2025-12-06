@@ -267,6 +267,7 @@ export default function LancamentoPesagensIndividuais() {
   const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
   const [itensSanidade, setItensSanidade] = useState([]);
   const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
+  const [animalVisualizarSanidade, setAnimalVisualizarSanidade] = useState(null);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -991,26 +992,35 @@ export default function LancamentoPesagensIndividuais() {
           const sanidadeConfig = configuracoesSanidade.find(c => c.id === sanidadeSelecionada);
           
           if (itensDaSanidade.length > 0) {
-            const registrosSanidade = itensDaSanidade.map(item => {
-              const qtd = item.quantidade_padrao || 0;
-              const custo = item.custo_unitario || 0;
-              return {
-                empresa_id: empresaSelecionadaId,
-                configuracao_sanidade_id: sanidadeSelecionada,
-                nome_sanidade: sanidadeConfig?.nome_sanidade || "",
-                numero_animal: numeroAnimal.trim(),
-                data_aplicacao: dataPesagem,
-                medicamento: item.medicamento,
-                finalidade: item.finalidade || null,
-                quantidade: qtd,
-                unidade_medida: item.unidade_medida,
-                custo_unitario: custo > 0 ? custo : null,
-                custo_total: (qtd * custo) > 0 ? qtd * custo : null,
-                observacao: null,
-              };
-            });
+            // Verificar se já existe sanidade aplicada para esse animal na data
+            const jaExiste = sanidadesAplicadas.some(s => 
+              s.numero_animal === numeroAnimal.trim() && 
+              s.data_aplicacao === dataPesagem &&
+              s.configuracao_sanidade_id === sanidadeSelecionada
+            );
             
-            await base44.entities.SanidadeAnimal.bulkCreate(registrosSanidade);
+            if (!jaExiste) {
+              const registrosSanidade = itensDaSanidade.map(item => {
+                const qtd = item.quantidade_padrao || 0;
+                const custo = item.custo_unitario || 0;
+                return {
+                  empresa_id: empresaSelecionadaId,
+                  configuracao_sanidade_id: sanidadeSelecionada,
+                  nome_sanidade: sanidadeConfig?.nome_sanidade || "",
+                  numero_animal: numeroAnimal.trim(),
+                  data_aplicacao: dataPesagem,
+                  medicamento: item.medicamento,
+                  finalidade: item.finalidade || null,
+                  quantidade: qtd,
+                  unidade_medida: item.unidade_medida,
+                  custo_unitario: custo > 0 ? custo : null,
+                  custo_total: (qtd * custo) > 0 ? qtd * custo : null,
+                  observacao: null,
+                };
+              });
+              
+              await base44.entities.SanidadeAnimal.bulkCreate(registrosSanidade);
+            }
           }
         }
         
@@ -2196,23 +2206,16 @@ export default function LancamentoPesagensIndividuais() {
                             if (coluna.id === 'sanidade') {
                               const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
                               return (
-                                <TableCell key={coluna.id} className="text-xs">
+                                <TableCell key={coluna.id} className="text-xs text-center">
                                   {sanidades.length > 0 ? (
-                                    <div className="space-y-1">
-                                      {sanidades.map((san, idx) => (
-                                        <div key={idx} className="bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
-                                          <div className="font-semibold text-emerald-700 mb-0.5">{san.nome}</div>
-                                          {san.medicamentos.map((med, i) => (
-                                            <div key={i} className="text-[10px] text-slate-600">
-                                              • {med.medicamento} ({med.quantidade} {med.unidade})
-                                            </div>
-                                          ))}
-                                          <div className="text-[10px] font-bold text-emerald-700 mt-0.5">
-                                            R$ {san.custoTotal.toFixed(2)}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => setAnimalVisualizarSanidade(p.numero_animal)}
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                                    </Button>
                                   ) : '-'}
                                 </TableCell>
                               );
