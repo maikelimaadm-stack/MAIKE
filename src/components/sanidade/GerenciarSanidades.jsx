@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export default function GerenciarSanidades({ open, onOpenChange, empresaId, numeroAnimal, apartacaoSelecionada, lotesApartacaoAtual, pesagensDia }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState(numeroAnimal ? 'aplicar' : 'sanidades'); // 'aplicar', 'sanidades' ou 'medicamentos'
+  const [tab, setTab] = useState('sanidades'); // 'sanidades' ou 'medicamentos'
 
   // Estados de configuração
   const [nomeSanidade, setNomeSanidade] = useState("");
@@ -207,8 +207,7 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
 
         {/* Abas */}
         <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="aplicar" className="text-xs">Aplicar Sanidade</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="sanidades" className="text-xs">Cadastro de Sanidades</TabsTrigger>
             <TabsTrigger value="medicamentos" className="text-xs">Cadastro de Medicamentos</TabsTrigger>
           </TabsList>

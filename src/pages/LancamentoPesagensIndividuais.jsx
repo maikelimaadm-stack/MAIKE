@@ -48,6 +48,7 @@ import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
+import SelecionarAplicarSanidade from "../components/sanidade/SelecionarAplicarSanidade";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -263,10 +264,8 @@ export default function LancamentoPesagensIndividuais() {
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
+  const [mostrarSelecionarSanidade, setMostrarSelecionarSanidade] = useState(false);
   const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
-  const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
-  const [itensSanidade, setItensSanidade] = useState([]);
-  const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
   const [animalVisualizarSanidade, setAnimalVisualizarSanidade] = useState(null);
 
   // Campo de pesquisa
@@ -460,21 +459,17 @@ export default function LancamentoPesagensIndividuais() {
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigSanidade, allItensSanidade] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes, allSanidades] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
           base44.entities.SanidadeAnimal.list('-data_aplicacao'),
-          base44.entities.ConfiguracaoSanidade.list(),
-          base44.entities.ItemSanidade.list(),
         ]);
 
         const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
         const sanidadesEmpresa = allSanidades.filter(s => s.empresa_id === empresaSelecionadaId);
-        const configSanidadeEmpresa = allConfigSanidade.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
-        const itensSanidadeEmpresa = allItensSanidade.filter(i => i.empresa_id === empresaSelecionadaId);
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
@@ -489,8 +484,6 @@ export default function LancamentoPesagensIndividuais() {
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
         setSanidadesAplicadas(sanidadesEmpresa);
-        setConfiguracoesSanidade(configSanidadeEmpresa);
-        setItensSanidade(itensSanidadeEmpresa);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -947,10 +940,11 @@ export default function LancamentoPesagensIndividuais() {
       status_animal: tipoManejo === 'Saída' ? 'Inativo' : 'Ativo',
       data_pesagem: dataPesagem,
       numero_animal: numeroAnimal.trim(),
-      sexo: sexo || null,
-      raca: raca || null,
-      era: era || null,
-      marca: marca || null,
+      // Dados cadastrais SOMENTE para Cadastro
+      sexo: tipoManejo === 'Cadastro' ? (sexo || null) : null,
+      raca: tipoManejo === 'Cadastro' ? (raca || null) : null,
+      era: tipoManejo === 'Cadastro' ? (era || null) : null,
+      marca: tipoManejo === 'Cadastro' ? (marca || null) : null,
       peso: pesoNum,
       observacao: observacao || null,
       apartacao_id: apartacaoId,
@@ -1587,15 +1581,35 @@ export default function LancamentoPesagensIndividuais() {
                       const cadastroOriginal = pesagens.find(p => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
                       const ultimo = historicoAnimal[0];
                       
-                      // No modo CADASTRO, avisar que animal já existe
+                      // No modo CADASTRO, avisar que animal já existe e PREENCHER campos
                       if (tipoManejo === 'Cadastro' && !editingId) {
                         setAvisoTela({
                           tipo: 'alerta',
                           mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
                         });
+                        
+                        // Preencher campos com dados do cadastro
+                        const dadosBase = cadastroOriginal || ultimo;
+                        if (!fixarSexo && dadosBase.sexo) setSexo(dadosBase.sexo);
+                        if (!fixarRaca && dadosBase.raca) setRaca(dadosBase.raca);
+                        if (!fixarMarca && dadosBase.marca) setMarca(dadosBase.marca);
+                        if (!fixarEra) {
+                          if (dadosBase.era && dadosBase.data_pesagem) {
+                            const eraAnterior = parseInt(dadosBase.era) || 0;
+                            if (eraAnterior > 0) {
+                              const dataAnterior = new Date(dadosBase.data_pesagem);
+                              const dataAtual = new Date(dataPesagem);
+                              const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
+                              const novaEra = eraAnterior + mesesDecorridos;
+                              setEra(String(novaEra > 0 ? novaEra : eraAnterior));
+                            }
+                          } else {
+                            setEra(dadosBase.era || "");
+                          }
+                        }
                       }
                       
-                      // No modo MANEJO ou SAÍDA, mostrar info do animal
+                      // No modo MANEJO ou SAÍDA, apenas MOSTRAR info do animal (NÃO preencher campos)
                       if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         if (!pesadoHoje) {
                           const statusAtual = ultimo.status_animal || 'Ativo';
@@ -1606,28 +1620,6 @@ export default function LancamentoPesagensIndividuais() {
                               ? `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)`
                               : `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                           });
-                        }
-                      }
-                      
-                      // Preencher campos automaticamente com dados do CADASTRO (apenas se não estiver fixado)
-                      const dadosBase = cadastroOriginal || ultimo;
-                      if (!fixarSexo && dadosBase.sexo) setSexo(dadosBase.sexo);
-                      if (!fixarRaca && dadosBase.raca) setRaca(dadosBase.raca);
-                      if (!fixarMarca && dadosBase.marca) setMarca(dadosBase.marca);
-
-                      // Calcular evolução da era em meses (apenas se não estiver fixado)
-                      if (!fixarEra) {
-                        if (dadosBase.era && dadosBase.data_pesagem) {
-                          const eraAnterior = parseInt(dadosBase.era) || 0;
-                          if (eraAnterior > 0) {
-                            const dataAnterior = new Date(dadosBase.data_pesagem);
-                            const dataAtual = new Date(dataPesagem);
-                            const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
-                            const novaEra = eraAnterior + mesesDecorridos;
-                            setEra(String(novaEra > 0 ? novaEra : eraAnterior));
-                          }
-                        } else {
-                          setEra(dadosBase.era || "");
                         }
                       }
                     } else {
@@ -2448,6 +2440,23 @@ export default function LancamentoPesagensIndividuais() {
       <OfflineSyncIndicator 
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData}
+      />
+
+      {/* DIALOG SELECIONAR E APLICAR SANIDADE */}
+      <SelecionarAplicarSanidade
+        open={mostrarSelecionarSanidade}
+        onOpenChange={(open) => {
+          setMostrarSelecionarSanidade(open);
+          if (!open) loadAllData();
+        }}
+        empresaId={empresaSelecionadaId}
+        apartacaoSelecionada={apartacaoSelecionada}
+        pesagensDia={pesagensDia}
+        dataPesagem={dataPesagem}
+        onGerenciar={() => {
+          setMostrarSelecionarSanidade(false);
+          setMostrarSanidade(true);
+        }}
       />
 
       {/* DIALOG GERENCIAR SANIDADES */}
