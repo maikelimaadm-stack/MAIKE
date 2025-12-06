@@ -1425,7 +1425,6 @@ export default function LancamentoPesagensIndividuais() {
                 title="Gerenciar Sanidades"
               >
                 <Syringe className="w-3.5 h-3.5" />
-                Sanidade
               </Button>
             )}
             
