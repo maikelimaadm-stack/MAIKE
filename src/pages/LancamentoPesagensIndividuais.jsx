@@ -1336,30 +1336,16 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <>
-                <Label className="text-xs font-medium">Aplicar Sanidade:</Label>
-                <Select value={sanidadeSelecionada} onValueChange={setSanidadeSelecionada}>
-                  <SelectTrigger className="h-8 text-xs w-56">
-                    <SelectValue placeholder="Nenhuma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={null}>Nenhuma</SelectItem>
-                    {configuracoesSanidade.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.nome_sanidade}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setMostrarSanidade(true)}
-                  className="h-8 w-8"
-                  title="Gerenciar Sanidades"
-                >
-                  <Syringe className="w-4 h-4" />
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setMostrarSanidade(true)}
+                className="h-8 w-8"
+                title="Gerenciar Sanidades"
+              >
+                <Syringe className="w-4 h-4" />
+              </Button>
             )}
 
             {/* Mensagens de Status */}
