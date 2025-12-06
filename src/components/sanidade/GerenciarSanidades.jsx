@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Edit2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -481,7 +482,6 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
             </Card>
           </TabsContent>
         </Tabs>
-        </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} size="sm" className="h-8 text-xs">
