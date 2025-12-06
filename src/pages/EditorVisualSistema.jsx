@@ -11,14 +11,38 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const AVAILABLE_PAGES = [
   { id: "Home", name: "Dashboard" },
+  { id: "Pesagens", name: "Pesagens" },
   { id: "LancamentoPesagensIndividuais", name: "Lançamento de Pesagens" },
   { id: "PesagensIndividuais", name: "Pesagens Individuais" },
+  { id: "RelatorioPesagensIndividuais", name: "Relatório Pesagens Individuais" },
   { id: "CustosSafra", name: "Custos de Safra" },
+  { id: "RelatorioCustosSafra", name: "Relatório Custos Safra" },
   { id: "MovimentacoesEstoque", name: "Movimentações Estoque" },
+  { id: "RelatorioEstoque", name: "Relatório Estoque" },
   { id: "LancamentoFinanceiro", name: "Lançamento Financeiro" },
+  { id: "RelatorioFinanceiro", name: "Relatório Financeiro" },
+  { id: "CaixaBancos", name: "Caixa & Bancos" },
+  { id: "FluxoCaixa", name: "Fluxo de Caixa" },
+  { id: "LivroCaixa", name: "Livro-Caixa" },
   { id: "Fornecedores", name: "Fornecedores" },
   { id: "Produtos", name: "Produtos" },
-];
+  { id: "Empresa", name: "Empresa" },
+  { id: "GerenciarSafras", name: "Safras" },
+  { id: "Usuarios", name: "Usuários" },
+  { id: "CotacoesPecuaria", name: "Cotações de Produtos" },
+  { id: "LotesAnimaisCotacao", name: "Lotes de Animais" },
+  { id: "AplicacoesMedicamentos", name: "Aplicações de Medicamentos" },
+  { id: "SimulacaoResultados", name: "Simulação de Resultados" },
+  { id: "ControlePecuaria", name: "Controle de Pecuária" },
+  { id: "CadastroLotes", name: "Cadastro de Lotes" },
+  { id: "MapaGeral", name: "Mapa Geral" },
+  { id: "MapaCadastro", name: "Mapa Cadastro" },
+  { id: "DashboardSuplementacao", name: "Dashboard Suplementação" },
+  { id: "CadastroMaquinas", name: "Cadastro de Máquinas" },
+  { id: "OperacoesAgricolas", name: "Operações Agrícolas" },
+  { id: "ConfiguracoesGerais", name: "Configurações Gerais" },
+  { id: "FichasPersonalizadas", name: "Fichas Personalizadas" },
+].sort((a, b) => a.name.localeCompare(b.name));
 
 const DEFAULT_CONFIG = {
   theme: {
