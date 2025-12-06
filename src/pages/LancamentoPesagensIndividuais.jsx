@@ -48,7 +48,6 @@ import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
-import SelecionarSanidadeAnimal from "../components/sanidade/SelecionarSanidadeAnimal";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -261,7 +260,9 @@ export default function LancamentoPesagensIndividuais() {
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
   const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
-  const [animalSanidade, setAnimalSanidade] = useState(null);
+  const [sanidadeAtivaId, setSanidadeAtivaId] = useState(() => {
+    return localStorage.getItem('sanidade_em_uso') || null;
+  });
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -2082,15 +2083,11 @@ export default function LancamentoPesagensIndividuais() {
                              const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
                              return (
                                <TableCell key={coluna.id} className="text-xs text-center">
-                                 <Button
-                                   variant="ghost"
-                                   size="icon"
-                                   className="h-6 w-6"
-                                   onClick={() => setAnimalSanidade(p.numero_animal)}
-                                   title="Aplicar/Ver sanidades"
-                                 >
-                                   <Syringe className={`w-3.5 h-3.5 ${sanidades.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
-                                 </Button>
+                                 {sanidades.length > 0 ? (
+                                   <Syringe className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
+                                 ) : (
+                                   <span className="text-slate-400">-</span>
+                                 )}
                                </TableCell>
                              );
                             }
@@ -2359,25 +2356,13 @@ export default function LancamentoPesagensIndividuais() {
         open={mostrarSanidade}
         onOpenChange={(open) => {
           setMostrarSanidade(open);
-          if (!open) loadAllData();
+          if (!open) {
+            loadAllData();
+            const id = localStorage.getItem('sanidade_em_uso');
+            setSanidadeAtivaId(id);
+          }
         }}
         empresaId={empresaSelecionadaId}
-        numeroAnimal={numeroAnimal}
-        apartacaoSelecionada={apartacaoSelecionada}
-        lotesApartacaoAtual={lotesApartacaoAtual}
-        pesagensDia={pesagensDia}
-      />
-
-      {/* DIALOG APLICAR SANIDADE NO ANIMAL */}
-      <SelecionarSanidadeAnimal
-        open={!!animalSanidade}
-        onOpenChange={(open) => {
-          if (!open) setAnimalSanidade(null);
-          loadAllData();
-        }}
-        empresaId={empresaSelecionadaId}
-        numeroAnimal={animalSanidade}
-        dataPesagem={dataPesagem}
       />
 
 {/* Dialog de progresso oculto

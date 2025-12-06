@@ -13,7 +13,7 @@ import { Plus, Trash2, Edit2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-export default function GerenciarSanidades({ open, onOpenChange, empresaId, numeroAnimal, apartacaoSelecionada, lotesApartacaoAtual, pesagensDia }) {
+export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [tab, setTab] = useState('sanidades'); // 'sanidades' ou 'medicamentos'
@@ -245,9 +245,8 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
                             </div>
                             <Button 
                               onClick={() => {
-                                // Marcar esta sanidade como "em uso"
                                 localStorage.setItem('sanidade_em_uso', c.id);
-                                toast.success(`Sanidade "${c.nome_sanidade}" ativada! Será aplicada automaticamente nos próximos lançamentos.`);
+                                toast.success(`"${c.nome_sanidade}" será aplicada automaticamente em cada animal lançado!`);
                                 onOpenChange(false);
                               }}
                               disabled={itens.length === 0}
