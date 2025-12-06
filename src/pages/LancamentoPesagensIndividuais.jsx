@@ -48,7 +48,7 @@ import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
-import SelecionarAplicarSanidade from "../components/sanidade/SelecionarAplicarSanidade";
+import SelecionarSanidadeAnimal from "../components/sanidade/SelecionarSanidadeAnimal";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -260,9 +260,8 @@ export default function LancamentoPesagensIndividuais() {
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
-  const [mostrarSelecionarSanidade, setMostrarSelecionarSanidade] = useState(false);
   const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
-  const [animalVisualizarSanidade, setAnimalVisualizarSanidade] = useState(null);
+  const [animalSanidade, setAnimalSanidade] = useState(null);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -2087,11 +2086,8 @@ export default function LancamentoPesagensIndividuais() {
                                    variant="ghost"
                                    size="icon"
                                    className="h-6 w-6"
-                                   onClick={() => {
-                                     setNumeroAnimal(p.numero_animal);
-                                     setMostrarSanidade(true);
-                                   }}
-                                   title="Gerenciar sanidade deste animal"
+                                   onClick={() => setAnimalSanidade(p.numero_animal)}
+                                   title="Aplicar/Ver sanidades"
                                  >
                                    <Syringe className={`w-3.5 h-3.5 ${sanidades.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
                                  </Button>
@@ -2358,12 +2354,12 @@ export default function LancamentoPesagensIndividuais() {
         onSyncComplete={loadAllData}
       />
 
-      {/* DIALOG GERENCIAR SANIDADES */}
+      {/* DIALOG GERENCIAR SANIDADES (CONFIGURAÇÕES) */}
       <GerenciarSanidades
         open={mostrarSanidade}
         onOpenChange={(open) => {
           setMostrarSanidade(open);
-          if (!open) loadAllData(); // Recarregar ao fechar
+          if (!open) loadAllData();
         }}
         empresaId={empresaSelecionadaId}
         numeroAnimal={numeroAnimal}
@@ -2372,50 +2368,17 @@ export default function LancamentoPesagensIndividuais() {
         pesagensDia={pesagensDia}
       />
 
-      {/* Dialog para visualizar sanidades aplicadas */}
-      <Dialog open={!!animalVisualizarSanidade} onOpenChange={() => setAnimalVisualizarSanidade(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-700">
-              <Syringe className="w-5 h-5" />
-              Sanidades Aplicadas - Animal {animalVisualizarSanidade}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-3">
-            {animalVisualizarSanidade && sanidadesPorAnimal[animalVisualizarSanidade]?.map((san, idx) => (
-              <Card key={idx} className="border-emerald-200 bg-emerald-50">
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-emerald-800">{san.nome}</h3>
-                    <Badge className="bg-emerald-600 text-white">
-                      R$ {san.custoTotal.toFixed(2)}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1">
-                    {san.medicamentos.map((med, i) => (
-                      <div key={i} className="flex justify-between text-xs">
-                        <span className="text-slate-700">
-                          • {med.medicamento} ({med.quantidade} {med.unidade})
-                        </span>
-                        {med.custo > 0 && (
-                          <span className="font-mono text-emerald-700">R$ {med.custo.toFixed(2)}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          <div className="flex justify-end pt-3 border-t">
-            <Button variant="outline" size="sm" onClick={() => setAnimalVisualizarSanidade(null)} className="h-8 text-xs">
-              Fechar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* DIALOG APLICAR SANIDADE NO ANIMAL */}
+      <SelecionarSanidadeAnimal
+        open={!!animalSanidade}
+        onOpenChange={(open) => {
+          if (!open) setAnimalSanidade(null);
+          loadAllData();
+        }}
+        empresaId={empresaSelecionadaId}
+        numeroAnimal={animalSanidade}
+        dataPesagem={dataPesagem}
+      />
 
 {/* Dialog de progresso oculto
       <SyncProgressDialog 
