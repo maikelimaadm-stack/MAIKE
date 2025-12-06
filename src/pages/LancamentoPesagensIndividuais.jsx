@@ -2374,11 +2374,14 @@ export default function LancamentoPesagensIndividuais() {
           setMostrarSanidade(open);
           if (!open) {
             loadAllData();
-            const id = localStorage.getItem('sanidade_em_uso');
-            setSanidadeAtivaId(id || "");
           }
         }}
         empresaId={empresaSelecionadaId}
+        sanidadeAtivaId={sanidadeAtivaId}
+        onSanidadeChange={(v) => {
+          setSanidadeAtivaId(v);
+          localStorage.setItem('sanidade_em_uso', v);
+        }}
       />
 
 {/* Dialog de progresso oculto
