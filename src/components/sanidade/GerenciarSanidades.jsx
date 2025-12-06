@@ -244,72 +244,17 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
                               </div>
                             </div>
                             <Button 
-                              onClick={async () => {
-                                if (!apartacaoSelecionada) {
-                                  toast.error("Selecione uma apartação primeiro!");
-                                  return;
-                                }
-
-                                const animaisParaAplicar = pesagensDia
-                                  ?.filter(p => p.apartacao_id === apartacaoSelecionada)
-                                  .map(p => p.numero_animal) || [];
-
-                                if (animaisParaAplicar.length === 0) {
-                                  toast.error("Nenhum animal pesado nesta apartação hoje!");
-                                  return;
-                                }
-
-                                if (itens.length === 0) {
-                                  toast.error("Esta sanidade não possui medicamentos cadastrados!");
-                                  return;
-                                }
-
-                                if (!confirm(`Aplicar "${c.nome_sanidade}" em ${animaisParaAplicar.length} animal(is)?`)) return;
-
-                                setIsSaving(true);
-                                try {
-                                  const registros = [];
-                                  for (const numAnimal of animaisParaAplicar) {
-                                    for (const item of itens) {
-                                      const qtd = item.quantidade_padrao || 0;
-                                      const custo = item.custo_unitario || 0;
-                                      registros.push({
-                                        empresa_id: empresaId,
-                                        configuracao_sanidade_id: c.id,
-                                        nome_sanidade: c.nome_sanidade,
-                                        numero_animal: numAnimal,
-                                        data_aplicacao: dataAplicacao,
-                                        medicamento: item.medicamento,
-                                        finalidade: item.finalidade || null,
-                                        quantidade: qtd,
-                                        unidade_medida: item.unidade_medida,
-                                        custo_unitario: custo > 0 ? custo : null,
-                                        custo_total: (qtd * custo) > 0 ? qtd * custo : null,
-                                        observacao: null,
-                                      });
-                                    }
-                                  }
-
-                                  await base44.entities.SanidadeAnimal.bulkCreate(registros);
-
-                                  const custoTotalGeral = registros.reduce((s, r) => s + (r.custo_total || 0), 0);
-                                  const custoPorAnimal = custoTotalGeral / animaisParaAplicar.length;
-
-                                  toast.success(`✓ "${c.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! Total: R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
-                                  queryClient.invalidateQueries({ queryKey: ['sanidade'] });
-                                  onOpenChange(false);
-                                } catch (error) {
-                                  toast.error("Erro: " + error.message);
-                                } finally {
-                                  setIsSaving(false);
-                                }
+                              onClick={() => {
+                                // Marcar esta sanidade como "em uso"
+                                localStorage.setItem('sanidade_em_uso', c.id);
+                                toast.success(`Sanidade "${c.nome_sanidade}" ativada! Será aplicada automaticamente nos próximos lançamentos.`);
+                                onOpenChange(false);
                               }}
-                              disabled={isSaving || itens.length === 0}
+                              disabled={itens.length === 0}
                               size="sm" 
-                              className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
                             >
-                              <Plus className="w-3.5 h-3.5" />
-                              Aplicar
+                              Utilizar Sanidade
                             </Button>
                           </div>
                           {itens.length > 0 && (

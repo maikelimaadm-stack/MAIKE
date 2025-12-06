@@ -229,11 +229,7 @@ export default function LancamentoPesagensIndividuais() {
   const [tipoManejo, setTipoManejo] = useState('Manejo');
   const [motivoSaida, setMotivoSaida] = useState("");
   
-  // Checkboxes para fixar valores (quando marcado, campo fica desabilitado)
-  const [fixarSexo, setFixarSexo] = useState(true);
-  const [fixarRaca, setFixarRaca] = useState(true);
-  const [fixarEra, setFixarEra] = useState(false);
-  const [fixarMarca, setFixarMarca] = useState(false);
+
   
   // Campos de Cadastro (Compra)
   const [mostrarDadosCompra, setMostrarDadosCompra] = useState(false);
@@ -1043,15 +1039,15 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('💾 Salvo offline (persistente)');
       }
 
-      // Limpar formulário (mantém campos fixados)
+      // Limpar formulário
       setEditingId(null);
       setEditingOfflineId(null);
       setNumeroAnimal("");
       setPeso("");
-      if (!fixarSexo) setSexo("");
-      if (!fixarRaca) setRaca("");
-      if (!fixarEra) setEra("");
-      if (!fixarMarca) setMarca("");
+      setSexo("M");
+      setRaca("Nelore");
+      setEra("");
+      setMarca("");
       setObservacao("");
       setLoteTransferencia("");
       setMotivoSaida("");
@@ -1444,95 +1440,44 @@ export default function LancamentoPesagensIndividuais() {
             {/* CAMPOS DE CADASTRO - Mostrar APENAS em Cadastro */}
             {tipoManejo === 'Cadastro' && (
               <>
-                {/* Sexo com Checkbox para fixar */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-medium">Sexo</Label>
-                    <div className="flex items-center gap-1">
-                      <Checkbox 
-                        id="fixarSexo" 
-                        checked={fixarSexo} 
-                        onCheckedChange={setFixarSexo}
-                        className="h-3 w-3"
-                      />
-                      <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
-                    </div>
-                  </div>
-                  <Select value={sexo} onValueChange={setSexo} disabled={fixarSexo}>
-                    <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-emerald-50 border-emerald-300' : ''}`}><SelectValue /></SelectTrigger>
+                  <Label className="text-xs font-medium">Sexo</Label>
+                  <Select value={sexo} onValueChange={setSexo}>
+                    <SelectTrigger className="h-9 text-sm w-20"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="M" className="text-slate-700">M</SelectItem>
-                      <SelectItem value="F" className="text-slate-700">F</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="F">F</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
-                {/* Raça com Checkbox para fixar */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-medium">Raça</Label>
-                    <div className="flex items-center gap-1">
-                      <Checkbox 
-                        id="fixarRaca" 
-                        checked={fixarRaca} 
-                        onCheckedChange={setFixarRaca}
-                        className="h-3 w-3"
-                      />
-                      <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
-                    </div>
-                  </div>
+                  <Label className="text-xs font-medium">Raça</Label>
                   <Input 
                     value={raca}
                     onChange={(e) => setRaca(e.target.value)}
-                    disabled={fixarRaca}
                     placeholder="Nelore"
-                    className={`h-9 text-sm w-28 ${fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                    className="h-9 text-sm w-28"
                   />
                 </div>
 
-                {/* Era com Checkbox para fixar */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-medium">Era</Label>
-                    <div className="flex items-center gap-1">
-                      <Checkbox 
-                        id="fixarEra" 
-                        checked={fixarEra} 
-                        onCheckedChange={setFixarEra}
-                        className="h-3 w-3"
-                      />
-                      <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
-                    </div>
-                  </div>
+                  <Label className="text-xs font-medium">Era</Label>
                   <Input 
                     value={era}
                     onChange={(e) => setEra(e.target.value)}
-                    disabled={fixarEra}
                     placeholder="Ex: 14"
-                    className={`h-9 text-sm w-24 ${fixarEra ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                    className="h-9 text-sm w-24"
                   />
                 </div>
 
-                {/* Marca com Checkbox para fixar */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-medium">Marca</Label>
-                    <div className="flex items-center gap-1">
-                      <Checkbox 
-                        id="fixarMarca" 
-                        checked={fixarMarca} 
-                        onCheckedChange={setFixarMarca}
-                        className="h-3 w-3"
-                      />
-                      <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
-                    </div>
-                  </div>
+                  <Label className="text-xs font-medium">Marca</Label>
                   <Input 
                     value={marca}
                     onChange={(e) => setMarca(e.target.value)}
-                    disabled={fixarMarca}
                     placeholder="Ex: ABC"
-                    className={`h-9 text-sm w-24 ${fixarMarca ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                    className="h-9 text-sm w-24"
                   />
                 </div>
               </>
@@ -1575,26 +1520,7 @@ export default function LancamentoPesagensIndividuais() {
                           tipo: 'alerta',
                           mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
                         });
-                        
-                        // Preencher campos com dados do cadastro
-                        const dadosBase = cadastroOriginal || ultimo;
-                        if (!fixarSexo && dadosBase.sexo) setSexo(dadosBase.sexo);
-                        if (!fixarRaca && dadosBase.raca) setRaca(dadosBase.raca);
-                        if (!fixarMarca && dadosBase.marca) setMarca(dadosBase.marca);
-                        if (!fixarEra) {
-                          if (dadosBase.era && dadosBase.data_pesagem) {
-                            const eraAnterior = parseInt(dadosBase.era) || 0;
-                            if (eraAnterior > 0) {
-                              const dataAnterior = new Date(dadosBase.data_pesagem);
-                              const dataAtual = new Date(dataPesagem);
-                              const mesesDecorridos = Math.round((dataAtual - dataAnterior) / (1000 * 60 * 60 * 24 * 30));
-                              const novaEra = eraAnterior + mesesDecorridos;
-                              setEra(String(novaEra > 0 ? novaEra : eraAnterior));
-                            }
-                          } else {
-                            setEra(dadosBase.era || "");
-                          }
-                        }
+                        // Não preencher campos automaticamente
                       }
                       
                       // No modo MANEJO ou SAÍDA, apenas MOSTRAR info do animal (NÃO preencher campos)
@@ -1671,10 +1597,10 @@ export default function LancamentoPesagensIndividuais() {
                   setLoteTransferencia("");
                   setMotivoSaida("");
                   setAvisoTela(null);
-                  if (!fixarSexo) setSexo("M");
-                  if (!fixarRaca) setRaca("Nelore");
-                  if (!fixarEra) setEra("");
-                  if (!fixarMarca) setMarca("");
+                  setSexo("M");
+                  setRaca("Nelore");
+                  setEra("");
+                  setMarca("");
                   setTimeout(() => numeroInputRef.current?.focus(), 50);
                 }} 
                 size="sm"
