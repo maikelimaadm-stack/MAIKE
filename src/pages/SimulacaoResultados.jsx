@@ -104,7 +104,7 @@ export default function SimulacaoResultados() {
         const dias = parseInt(periodo.dias);
         const gmdUsar = periodo.gmdEspecifico ? parseFloat(periodo.gmdEspecifico) : loteAtual.gmd_esperado;
         const ganhoTotal = loteAtual.quantidade_animais * gmdUsar * dias;
-        const arrobasProduzidas = ganhoTotal / 15;
+        const arrobasProduzidas = (ganhoTotal * 0.5) / 15; // 50% de rendimento de carcaça, depois divide por 15kg (1 arroba)
         const valorGerado = arrobasProduzidas * precoArroba;
         const lucroBruto = valorGerado - custoTotalMedicamentos;
         const lucroPorAnimal = lucroBruto / loteAtual.quantidade_animais;
