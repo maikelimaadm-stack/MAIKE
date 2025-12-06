@@ -197,7 +197,7 @@ export default function EditorVisualPanel({ onClose }) {
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging]);
 
   return (
     <div
