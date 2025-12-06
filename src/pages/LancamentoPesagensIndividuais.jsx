@@ -1563,7 +1563,122 @@ export default function LancamentoPesagensIndividuais() {
                 </div>
               );
             })()}
+
+            {/* Botão de Sanidade */}
+            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMostrarSanidade(true)}
+                className="h-8 text-xs gap-1"
+              >
+                <Syringe className="w-3.5 h-3.5" />
+                Sanidade
+              </Button>
+            )}
           </div>
+
+          {/* Dados de Compra (Cadastro) - Seção Retrátil */}
+          {tipoManejo === 'Cadastro' && mostrarDadosCompra && (
+            <div className="mt-3 p-3 border-t bg-slate-50 rounded">
+              <h3 className="text-xs font-semibold text-slate-700 mb-3">Dados de Compra</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor por Cabeça (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorPagoCabeca}
+                    onChange={(e) => setValorPagoCabeca(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 2500.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Origem do Animal</Label>
+                  <Input
+                    value={origemAnimal}
+                    onChange={(e) => setOrigemAnimal(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: Fazenda ABC"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Documentação (GTA, etc)</Label>
+                  <Input
+                    value={documentacao}
+                    onChange={(e) => setDocumentacao(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: GTA 12345"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dados de Saída (Venda) */}
+          {tipoManejo === 'Saída' && motivoSaida === 'Venda' && (
+            <div className="mt-3 p-3 border-t bg-blue-50 rounded">
+              <h3 className="text-xs font-semibold text-blue-700 mb-3">Dados da Venda</h3>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Comprador</Label>
+                  <Input
+                    value={comprador}
+                    onChange={(e) => setComprador(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Nome do comprador"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor da Arroba (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorArroba}
+                    onChange={(e) => setValorArroba(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 280.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor Total (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorVendaTotal}
+                    onChange={(e) => setValorVendaTotal(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Calculado ou manual"
+                  />
+                </div>
+                {peso && valorArroba && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cálculo Automático</Label>
+                    <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
+                      R$ {(parseFloat(peso) / 15 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 15).toFixed(2)} @)
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dados de Saída (Abate) */}
+          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
+            <div className="mt-3 p-3 border-t bg-purple-50 rounded">
+              <h3 className="text-xs font-semibold text-purple-700 mb-3">Dados do Abate</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Frigorífico</Label>
+                  <Input
+                    value={frigorifico}
+                    onChange={(e) => setFrigorifico(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Nome do frigorífico"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Linha 2: Apartação e Transferência de Lote */}
           <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
