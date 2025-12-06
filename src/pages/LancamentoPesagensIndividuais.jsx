@@ -1386,13 +1386,12 @@ export default function LancamentoPesagensIndividuais() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setMostrarSelecionarSanidade(true)}
-                className="h-8 text-xs gap-1"
-                title="Aplicar Sanidade nos Animais Lançados"
+                size="icon"
+                onClick={() => setMostrarSanidade(true)}
+                className="h-8 w-8"
+                title="Gerenciar Sanidades"
               >
-                <Syringe className="w-3.5 h-3.5" />
-                Sanidade
+                <Syringe className="w-4 h-4" />
               </Button>
             )}
             
@@ -2155,21 +2154,23 @@ export default function LancamentoPesagensIndividuais() {
                               return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
                             }
                             if (coluna.id === 'sanidade') {
-                              const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
-                              return (
-                                <TableCell key={coluna.id} className="text-xs text-center">
-                                  {sanidades.length > 0 ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => setAnimalVisualizarSanidade(p.numero_animal)}
-                                    >
-                                      <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                                    </Button>
-                                  ) : '-'}
-                                </TableCell>
-                              );
+                             const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
+                             return (
+                               <TableCell key={coluna.id} className="text-xs text-center">
+                                 <Button
+                                   variant="ghost"
+                                   size="icon"
+                                   className="h-6 w-6"
+                                   onClick={() => {
+                                     setNumeroAnimal(p.numero_animal);
+                                     setMostrarSanidade(true);
+                                   }}
+                                   title="Gerenciar sanidade deste animal"
+                                 >
+                                   <Syringe className={`w-3.5 h-3.5 ${sanidades.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                 </Button>
+                               </TableCell>
+                             );
                             }
                             if (coluna.id === 'data_pesagem') {
                               return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
@@ -2429,23 +2430,6 @@ export default function LancamentoPesagensIndividuais() {
       <OfflineSyncIndicator 
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData}
-      />
-
-      {/* DIALOG SELECIONAR E APLICAR SANIDADE */}
-      <SelecionarAplicarSanidade
-        open={mostrarSelecionarSanidade}
-        onOpenChange={(open) => {
-          setMostrarSelecionarSanidade(open);
-          if (!open) loadAllData();
-        }}
-        empresaId={empresaSelecionadaId}
-        apartacaoSelecionada={apartacaoSelecionada}
-        pesagensDia={pesagensDia}
-        dataPesagem={dataPesagem}
-        onGerenciar={() => {
-          setMostrarSelecionarSanidade(false);
-          setMostrarSanidade(true);
-        }}
       />
 
       {/* DIALOG GERENCIAR SANIDADES */}
