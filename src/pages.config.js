@@ -56,6 +56,10 @@ import FichaControleCombustivel from './pages/FichaControleCombustivel';
 import RemoverDuplicados from './pages/RemoverDuplicados';
 import FichasPersonalizadas from './pages/FichasPersonalizadas';
 import VisualizarFicha from './pages/VisualizarFicha';
+import CotacoesPecuaria from './pages/CotacoesPecuaria';
+import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
+import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
+import SimulacaoResultados from './pages/SimulacaoResultados';
 import __Layout from './Layout.jsx';
 
 
@@ -118,6 +122,10 @@ export const PAGES = {
     "RemoverDuplicados": RemoverDuplicados,
     "FichasPersonalizadas": FichasPersonalizadas,
     "VisualizarFicha": VisualizarFicha,
+    "CotacoesPecuaria": CotacoesPecuaria,
+    "LotesAnimaisCotacao": LotesAnimaisCotacao,
+    "AplicacoesMedicamentos": AplicacoesMedicamentos,
+    "SimulacaoResultados": SimulacaoResultados,
 }
 
 export const pagesConfig = {
