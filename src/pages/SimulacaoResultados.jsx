@@ -357,13 +357,13 @@ export default function SimulacaoResultados() {
                         </TableRow>
                       );
                     })}
-                    <TableRow className="bg-emerald-100">
+                    <TableRow className="bg-gray-100">
                       <TableCell colSpan={8} className="text-xs py-1 border border-black font-bold text-right">CUSTO TOTAL DOS MEDICAMENTOS:</TableCell>
-                      <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold text-emerald-800">{formatarMoeda(custoTotalMedicamentos)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold">{formatarMoeda(custoTotalMedicamentos)}</TableCell>
                     </TableRow>
-                    <TableRow className="bg-blue-100">
+                    <TableRow className="bg-gray-100">
                       <TableCell colSpan={8} className="text-xs py-1 border border-black font-bold text-right">CUSTO POR ANIMAL:</TableCell>
-                      <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold text-blue-800">
+                      <TableCell className="text-xs py-1 border border-black text-right font-mono font-bold">
                         {formatarMoeda(loteAtual.quantidade_animais > 0 ? custoTotalMedicamentos / loteAtual.quantidade_animais : 0)}
                       </TableCell>
                     </TableRow>
@@ -404,8 +404,8 @@ export default function SimulacaoResultados() {
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(r.arrobasProduzidas, 2)}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarNumero(r.pesoFinal, 2)}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(r.custoTotal)}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-blue-700">{formatarMoeda(r.valorGerado)}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-bold text-emerald-700">{formatarMoeda(r.lucroBruto)}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoeda(r.valorGerado)}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-bold">{formatarMoeda(r.lucroBruto)}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(r.lucroPorAnimal)}</TableCell>
                         </TableRow>
                       ))}
@@ -415,29 +415,29 @@ export default function SimulacaoResultados() {
               </Card>
 
               {/* Conclusão Automática */}
-              <Card className="bg-emerald-50 border-emerald-200 mb-3">
-                <CardHeader className="py-2 px-3 bg-emerald-100">
-                  <CardTitle className="text-sm font-bold text-emerald-800">4. CONCLUSÃO DA ANÁLISE</CardTitle>
+              <Card className="bg-gray-50 border-gray-300 mb-3">
+                <CardHeader className="py-2 px-3 bg-gray-100">
+                  <CardTitle className="text-sm font-bold">4. CONCLUSÃO DA ANÁLISE</CardTitle>
                 </CardHeader>
                 <CardContent className="p-3">
-                  <p className="text-sm text-emerald-900 leading-relaxed">
+                  <p className="text-sm leading-relaxed">
                     Com base no preço da arroba atual de <strong>{formatarMoeda(precoArroba)}</strong>, 
                     o lote de <strong>{formatarNumero(loteAtual.quantidade_animais, 0)} animais</strong> (peso médio inicial: <strong>{formatarNumero(loteAtual.peso_medio_atual, 2)} kg</strong>) pode gerar entre{' '}
-                    <strong className="text-emerald-700">{formatarMoeda(resultados[0]?.lucroBruto)}</strong> e{' '}
-                    <strong className="text-emerald-700">{formatarMoeda(resultados[resultados.length - 1]?.lucroBruto)}</strong> de lucro 
+                    <strong>{formatarMoeda(resultados[0]?.lucroBruto)}</strong> e{' '}
+                    <strong>{formatarMoeda(resultados[resultados.length - 1]?.lucroBruto)}</strong> de lucro 
                     em {resultados[resultados.length - 1]?.dias} dias, descontando o custo de <strong>{formatarMoeda(custoTotalMedicamentos)}</strong> em medicamentos 
                     (<strong>{formatarMoeda(custoTotalMedicamentos / loteAtual.quantidade_animais)}</strong> por animal).
                   </p>
                   
-                  <div className="mt-3 pt-3 border-t border-emerald-300">
-                    <p className="text-xs font-semibold text-emerald-800 mb-2">Resumo por Período:</p>
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <p className="text-xs font-semibold mb-2">Resumo por Período:</p>
                     <div className="grid grid-cols-3 gap-2">
                       {resultados.map(r => (
-                        <div key={r.dias} className="bg-white rounded p-2 border border-emerald-300">
-                          <div className="font-bold text-emerald-800 text-xs">{r.dias} dias</div>
-                          <div className="text-[11px] text-emerald-700">GMD: {formatarNumero(r.gmd, 3)} kg/dia</div>
-                          <div className="text-[11px] text-emerald-600">Peso final: {formatarNumero(r.pesoFinal, 2)} kg</div>
-                          <div className="text-[11px] text-blue-700 font-semibold">Lucro: {formatarMoeda(r.lucroBruto)}</div>
+                        <div key={r.dias} className="bg-white rounded p-2 border border-gray-300">
+                          <div className="font-bold text-xs">{r.dias} dias</div>
+                          <div className="text-[11px]">GMD: {formatarNumero(r.gmd, 3)} kg/dia</div>
+                          <div className="text-[11px]">Peso final: {formatarNumero(r.pesoFinal, 2)} kg</div>
+                          <div className="text-[11px] font-semibold">Lucro: {formatarMoeda(r.lucroBruto)}</div>
                         </div>
                       ))}
                     </div>
