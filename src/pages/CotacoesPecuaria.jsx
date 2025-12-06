@@ -22,6 +22,11 @@ const formatarData = (dataString) => {
   } catch { return '--/--/----'; }
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return 'R$ 0,00';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 export default function CotacoesPecuaria() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -292,7 +297,7 @@ export default function CotacoesPecuaria() {
               <span className="text-sm font-semibold text-emerald-800">Custo Total da Cotação:</span>
             </div>
             <span className="text-2xl font-bold text-emerald-700">
-              R$ {custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatarMoeda(custoTotal)}
             </span>
           </div>
         </CardContent>
@@ -335,9 +340,9 @@ export default function CotacoesPecuaria() {
                       <TableCell className="text-xs py-1 border border-gray-300">{p.empresa_fornecedora}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{p.nome_vendedor || '-'}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{p.telefone_vendedor || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">R$ {p.valor_unitario.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.quantidade_comprada} {p.unidade_medida}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">R$ {p.valor_total.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(p.valor_unitario)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.quantidade_comprada.toLocaleString('pt-BR')} {p.unidade_medida}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">{formatarMoeda(p.valor_total)}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEditar(p)}>
@@ -444,7 +449,7 @@ export default function CotacoesPecuaria() {
               <div className="space-y-1">
                 <Label className="text-xs">Valor Total</Label>
                 <div className="h-8 flex items-center text-sm font-bold text-emerald-700 px-2 bg-emerald-50 rounded border border-emerald-200">
-                  R$ {((parseFloat(valorUnitario) || 0) * (parseFloat(quantidadeComprada) || 0)).toFixed(2)}
+                  {formatarMoeda((parseFloat(valorUnitario) || 0) * (parseFloat(quantidadeComprada) || 0))}
                 </div>
               </div>
             </div>

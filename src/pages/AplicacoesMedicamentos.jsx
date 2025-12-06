@@ -21,6 +21,16 @@ const formatarData = (dataString) => {
   } catch { return '--/--/----'; }
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return 'R$ 0,00';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const formatarNumero = (valor, decimals = 2) => {
+  if (!valor && valor !== 0) return '0,00';
+  return valor.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 export default function AplicacoesMedicamentos() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -210,13 +220,13 @@ export default function AplicacoesMedicamentos() {
                     <div>
                       <span className="text-emerald-600">Custo por Animal:</span>
                       <div className="font-bold text-emerald-800">
-                        R$ {(parseFloat(quantidadeAplicada) * produtos.find(p => p.id === produtoSelecionado)?.valor_unitario || 0).toFixed(2)}
+                        {formatarMoeda(parseFloat(quantidadeAplicada) * produtos.find(p => p.id === produtoSelecionado)?.valor_unitario || 0)}
                       </div>
                     </div>
                     <div>
                       <span className="text-emerald-600">Custo Total:</span>
                       <div className="font-bold text-emerald-800">
-                        R$ {((parseFloat(quantidadeAplicada) * produtos.find(p => p.id === produtoSelecionado)?.valor_unitario || 0) * loteAtual.quantidade_animais).toFixed(2)}
+                        {formatarMoeda((parseFloat(quantidadeAplicada) * produtos.find(p => p.id === produtoSelecionado)?.valor_unitario || 0) * loteAtual.quantidade_animais)}
                       </div>
                     </div>
                   </div>
@@ -247,8 +257,8 @@ export default function AplicacoesMedicamentos() {
               <CardTitle className="text-sm text-emerald-800">Medicamentos Aplicados - {loteAtual?.nome_lote}</CardTitle>
               <div className="text-right">
                 <div className="text-xs text-emerald-600">Custo Total</div>
-                <div className="text-xl font-bold text-emerald-800">R$ {custoTotalLote.toFixed(2)}</div>
-                <div className="text-[10px] text-emerald-600">R$ {custoPorAnimalTotal.toFixed(2)}/animal</div>
+                <div className="text-xl font-bold text-emerald-800">{formatarMoeda(custoTotalLote)}</div>
+                <div className="text-[10px] text-emerald-600">{formatarMoeda(custoPorAnimalTotal)}/animal</div>
               </div>
             </div>
           </CardHeader>
@@ -274,9 +284,9 @@ export default function AplicacoesMedicamentos() {
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <Badge variant="outline" className="text-[10px]">{a.categoria_produto}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{a.quantidade_aplicada} {a.unidade_medida}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">R$ {a.custo_por_animal.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">R$ {a.custo_total.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(a.quantidade_aplicada, 2)} {a.unidade_medida}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(a.custo_por_animal)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">{formatarMoeda(a.custo_total)}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => {
                           if (confirm('Excluir esta aplicação?')) deleteMutation.mutate(a.id);

@@ -22,6 +22,16 @@ const formatarData = (dataString) => {
   } catch { return '--/--/----'; }
 };
 
+const formatarMoeda = (valor) => {
+  if (!valor && valor !== 0) return 'R$ 0,00';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const formatarNumero = (valor, decimals = 2) => {
+  if (!valor && valor !== 0) return '0,00';
+  return valor.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 export default function LotesAnimaisCotacao() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -171,7 +181,7 @@ export default function LotesAnimaisCotacao() {
             <Users className="w-8 h-8 text-blue-600" />
             <div>
               <div className="text-xs text-blue-600">Total de Animais</div>
-              <div className="text-2xl font-bold text-blue-800">{stats.totalAnimais}</div>
+              <div className="text-2xl font-bold text-blue-800">{formatarNumero(stats.totalAnimais, 0)}</div>
             </div>
           </CardContent>
         </Card>
@@ -180,7 +190,7 @@ export default function LotesAnimaisCotacao() {
             <TrendingUp className="w-8 h-8 text-emerald-600" />
             <div>
               <div className="text-xs text-emerald-600">Peso Médio Geral</div>
-              <div className="text-2xl font-bold text-emerald-800">{stats.pesoMedioGeral.toFixed(2)} kg</div>
+              <div className="text-2xl font-bold text-emerald-800">{formatarNumero(stats.pesoMedioGeral, 2)} kg</div>
             </div>
           </CardContent>
         </Card>
@@ -189,7 +199,7 @@ export default function LotesAnimaisCotacao() {
             <TrendingUp className="w-8 h-8 text-amber-600" />
             <div>
               <div className="text-xs text-amber-600">GMD Médio Esperado</div>
-              <div className="text-2xl font-bold text-amber-800">{stats.gmdMedio.toFixed(3)} kg/dia</div>
+              <div className="text-2xl font-bold text-amber-800">{formatarNumero(stats.gmdMedio, 3)} kg/dia</div>
             </div>
           </CardContent>
         </Card>
@@ -227,8 +237,8 @@ export default function LotesAnimaisCotacao() {
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <Badge variant="outline" className="text-[10px]">{l.categoria_animal}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-semibold">{l.quantidade_animais}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{l.peso_medio_atual.toFixed(2)} kg</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-semibold">{formatarNumero(l.quantidade_animais, 0)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(l.peso_medio_atual, 2)} kg</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <Badge variant="outline" className={`text-[10px] ${
                           l.tipo_pasto === 'Bom' ? 'bg-emerald-50 text-emerald-700' :
@@ -239,9 +249,9 @@ export default function LotesAnimaisCotacao() {
                       <TableCell className="text-xs py-1 border border-gray-300 text-center">
                         {l.sal_mineral ? '✓' : '-'}
                       </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">{l.gmd_esperado.toFixed(3)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">{formatarNumero(l.gmd_esperado, 3)} kg/dia</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">
-                        {l.preco_arroba_atual ? `R$ ${l.preco_arroba_atual.toFixed(2)}` : '-'}
+                        {l.preco_arroba_atual ? formatarMoeda(l.preco_arroba_atual) : '-'}
                       </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         <div className="flex gap-1">
