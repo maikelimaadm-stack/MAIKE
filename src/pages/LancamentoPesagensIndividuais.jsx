@@ -1544,9 +1544,9 @@ export default function LancamentoPesagensIndividuais() {
                       
                       // Preencher campos automaticamente com dados do CADASTRO (apenas se não estiver fixado)
                       const dadosBase = cadastroOriginal || ultimo;
-                      if (!fixarSexo) setSexo(dadosBase.sexo || "M");
-                      if (!fixarRaca) setRaca(dadosBase.raca || "Nelore");
-                      if (!fixarMarca) setMarca(dadosBase.marca || "");
+                      if (!fixarSexo && dadosBase.sexo) setSexo(dadosBase.sexo);
+                      if (!fixarRaca && dadosBase.raca) setRaca(dadosBase.raca);
+                      if (!fixarMarca && dadosBase.marca) setMarca(dadosBase.marca);
 
                       // Calcular evolução da era em meses (apenas se não estiver fixado)
                       if (!fixarEra) {
@@ -2291,6 +2291,10 @@ export default function LancamentoPesagensIndividuais() {
         open={mostrarSanidade}
         onOpenChange={setMostrarSanidade}
         empresaId={empresaSelecionadaId}
+        numeroAnimal={numeroAnimal}
+        apartacaoSelecionada={apartacaoSelecionada}
+        lotesApartacaoAtual={lotesApartacaoAtual}
+        pesagensDia={pesagensDia}
       />
 
 {/* Dialog de progresso oculto

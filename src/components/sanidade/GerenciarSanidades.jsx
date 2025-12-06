@@ -13,15 +13,22 @@ import { Plus, Trash2, Edit2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
+export default function GerenciarSanidades({ open, onOpenChange, empresaId, numeroAnimal, apartacaoSelecionada, lotesApartacaoAtual, pesagensDia }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState('sanidades'); // 'sanidades' ou 'medicamentos'
+  const [tab, setTab] = useState(numeroAnimal ? 'aplicar' : 'sanidades'); // 'aplicar', 'sanidades' ou 'medicamentos'
 
   // Estados de configuração
   const [nomeSanidade, setNomeSanidade] = useState("");
   const [editingConfigId, setEditingConfigId] = useState(null);
   const [configuracaoSelecionada, setConfiguracaoSelecionada] = useState("");
+  
+  // Estados para aplicar sanidade
+  const [dataAplicacao, setDataAplicacao] = useState(new Date().toISOString().split('T')[0]);
+  const [sanidadeParaAplicar, setSanidadeParaAplicar] = useState("");
+  const [quantidadeAplicacao, setQuantidadeAplicacao] = useState("");
+  const [observacaoAplicacao, setObservacaoAplicacao] = useState("");
+  const [aplicarEm, setAplicarEm] = useState("animal_atual");
 
   // Estados de item
   const [medicamento, setMedicamento] = useState("");
@@ -50,10 +57,24 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
     },
     enabled: !!configuracaoSelecionada && open,
   });
+  
+  // Buscar itens para aplicar
+  const { data: itensParaAplicar = [] } = useQuery({
+    queryKey: ['itens-sanidade-aplicar', sanidadeParaAplicar],
+    queryFn: async () => {
+      const all = await base44.entities.ItemSanidade.list();
+      return all.filter(i => i.configuracao_sanidade_id === sanidadeParaAplicar);
+    },
+    enabled: !!sanidadeParaAplicar && open,
+  });
 
   const configAtual = useMemo(() => {
     return configuracoes.find(c => c.id === configuracaoSelecionada);
   }, [configuracoes, configuracaoSelecionada]);
+  
+  const sanidadeAtual = useMemo(() => {
+    return configuracoes.find(c => c.id === sanidadeParaAplicar);
+  }, [configuracoes, sanidadeParaAplicar]);
 
   // Mutations
   const deleteConfigMutation = useMutation({
@@ -72,6 +93,80 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
       queryClient.invalidateQueries({ queryKey: ['itens-sanidade'] });
     },
   });
+  
+  const handleAplicarSanidade = async () => {
+    if (!sanidadeParaAplicar) {
+      toast.error("Selecione uma sanidade!");
+      return;
+    }
+    if (itensParaAplicar.length === 0) {
+      toast.error("Esta sanidade não possui medicamentos cadastrados!");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Determinar quais animais aplicar
+      let animaisParaAplicar = [];
+      
+      if (aplicarEm === 'animal_atual') {
+        animaisParaAplicar = [numeroAnimal];
+      } else if (aplicarEm === 'apartacao' && apartacaoSelecionada) {
+        animaisParaAplicar = pesagensDia
+          ?.filter(p => p.apartacao_id === apartacaoSelecionada)
+          .map(p => p.numero_animal) || [];
+      } else if (aplicarEm.startsWith('lote_') && pesagensDia) {
+        const loteId = aplicarEm.replace('lote_', '');
+        animaisParaAplicar = pesagensDia
+          ?.filter(p => p.lote_id === loteId)
+          .map(p => p.numero_animal) || [];
+      }
+
+      if (animaisParaAplicar.length === 0) {
+        toast.error("Nenhum animal para aplicar!");
+        setIsSaving(false);
+        return;
+      }
+
+      // Criar registros para cada animal e cada medicamento
+      const registros = [];
+      for (const numAnimal of animaisParaAplicar) {
+        for (const item of itensParaAplicar) {
+          const qtd = item.quantidade_padrao || 0;
+          const custo = item.custo_unitario || 0;
+          registros.push({
+            empresa_id: empresaId,
+            configuracao_sanidade_id: sanidadeParaAplicar,
+            nome_sanidade: sanidadeAtual?.nome_sanidade || "",
+            numero_animal: numAnimal,
+            data_aplicacao: dataAplicacao,
+            medicamento: item.medicamento,
+            finalidade: item.finalidade || null,
+            quantidade: qtd,
+            unidade_medida: item.unidade_medida,
+            custo_unitario: custo > 0 ? custo : null,
+            custo_total: (qtd * custo) > 0 ? qtd * custo : null,
+            observacao: observacaoAplicacao.trim() || null,
+          });
+        }
+      }
+
+      await base44.entities.SanidadeAnimal.bulkCreate(registros);
+      
+      toast.success(`✓ Sanidade "${sanidadeAtual?.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animal(is)!`);
+      queryClient.invalidateQueries({ queryKey: ['sanidade'] });
+
+      // Limpar
+      setSanidadeParaAplicar("");
+      setQuantidadeAplicacao("");
+      setObservacaoAplicacao("");
+      setTab('sanidades');
+    } catch (error) {
+      toast.error("Erro: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSalvarConfiguracao = async () => {
     if (!nomeSanidade.trim()) {
@@ -160,10 +255,132 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
 
         {/* Abas */}
         <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="aplicar" className="text-xs">Aplicar Sanidade</TabsTrigger>
             <TabsTrigger value="sanidades" className="text-xs">Cadastro de Sanidades</TabsTrigger>
             <TabsTrigger value="medicamentos" className="text-xs">Cadastro de Medicamentos</TabsTrigger>
           </TabsList>
+
+          {/* ABA: APLICAR SANIDADE */}
+          <TabsContent value="aplicar" className="flex-1 overflow-auto space-y-4 mt-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+              <h3 className="text-xs font-semibold text-emerald-800 mb-3">
+                Aplicar Tratamento {numeroAnimal && `- Animal ${numeroAnimal}`}
+              </h3>
+
+              <div className="grid grid-cols-3 gap-3 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Data Aplicação</Label>
+                  <Input
+                    type="date"
+                    value={dataAplicacao}
+                    onChange={(e) => setDataAplicacao(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Sanidade *</Label>
+                  <Select value={sanidadeParaAplicar} onValueChange={setSanidadeParaAplicar}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {configuracoes.map(c => (
+                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                          {c.nome_sanidade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Aplicar em:</Label>
+                  <Select value={aplicarEm} onValueChange={setAplicarEm}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {numeroAnimal && (
+                        <SelectItem value="animal_atual">Animal Atual ({numeroAnimal})</SelectItem>
+                      )}
+                      {apartacaoSelecionada && pesagensDia && (
+                        <SelectItem value="apartacao">
+                          Toda Apartação ({pesagensDia.filter(p => p.apartacao_id === apartacaoSelecionada).length || 0} animais)
+                        </SelectItem>
+                      )}
+                      {lotesApartacaoAtual?.map(lote => (
+                        <SelectItem key={lote.id} value={`lote_${lote.id}`}>
+                          Lote {lote.nome_lote} ({pesagensDia?.filter(p => p.lote_id === lote.id).length || 0} animais)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {sanidadeParaAplicar && itensParaAplicar.length > 0 && (
+                <div className="mt-3 border rounded overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Medicamento</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Finalidade</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd. Padrão</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Un.</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {itensParaAplicar.map((item) => {
+                        const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
+                        return (
+                          <TableRow key={item.id} className="hover:bg-gray-50">
+                            <TableCell className="text-xs py-1 border border-gray-300 font-medium">{item.medicamento}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300">{item.finalidade || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">
+                              {item.quantidade_padrao} {item.unidade_medida}
+                            </TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">
+                              {item.custo_unitario ? `R$ ${item.custo_unitario.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">
+                              {custoTotal > 0 ? `R$ ${custoTotal.toFixed(2)}` : '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              <div className="mt-3 space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Observação</Label>
+                  <Input
+                    value={observacaoAplicacao}
+                    onChange={(e) => setObservacaoAplicacao(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Observações..."
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleAplicarSanidade} 
+                    disabled={isSaving}
+                    size="sm" 
+                    className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {isSaving ? 'Aplicando...' : 'Aplicar Sanidade'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
           {/* ABA: SANIDADES */}
           <TabsContent value="sanidades" className="flex-1 overflow-auto space-y-4 mt-4">
