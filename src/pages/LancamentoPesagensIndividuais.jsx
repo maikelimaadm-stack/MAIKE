@@ -47,6 +47,7 @@ import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
+import DialogSanidade from "../components/sanidade/DialogSanidade";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -233,7 +234,20 @@ export default function LancamentoPesagensIndividuais() {
   const [fixarEra, setFixarEra] = useState(false);
   const [fixarMarca, setFixarMarca] = useState(false);
   
+  // Campos de Cadastro (Compra)
+  const [mostrarDadosCompra, setMostrarDadosCompra] = useState(false);
+  const [valorPagoCabeca, setValorPagoCabeca] = useState("");
+  const [origemAnimal, setOrigemAnimal] = useState("");
+  const [documentacao, setDocumentacao] = useState("");
 
+  // Campos de Saída (Venda/Abate)
+  const [comprador, setComprador] = useState("");
+  const [valorVendaTotal, setValorVendaTotal] = useState("");
+  const [valorArroba, setValorArroba] = useState("");
+  const [frigorifico, setFrigorifico] = useState("");
+
+  // Sanidade
+  const [mostrarSanidade, setMostrarSanidade] = useState(false);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -1365,6 +1379,20 @@ export default function LancamentoPesagensIndividuais() {
                     />
                   </div>
                 </div>
+
+                {/* Botão para mostrar/ocultar dados de compra */}
+                <div className="flex items-end">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)}
+                    className="h-8 text-xs gap-1"
+                  >
+                    {mostrarDadosCompra ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {mostrarDadosCompra ? 'Ocultar Compra' : 'Dados Compra'}
+                  </Button>
+                </div>
               </>
             )}
             
@@ -1879,6 +1907,14 @@ export default function LancamentoPesagensIndividuais() {
       <OfflineSyncIndicator 
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData}
+      />
+
+      {/* DIALOG DE SANIDADE */}
+      <DialogSanidade
+        open={mostrarSanidade}
+        onOpenChange={setMostrarSanidade}
+        numeroAnimal={numeroAnimal}
+        empresaId={empresaSelecionadaId}
       />
 
 {/* Dialog de progresso oculto
