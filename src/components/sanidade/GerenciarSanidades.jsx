@@ -6,17 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Edit2, Settings } from "lucide-react";
+import { Trash2, Edit2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
-  const [tab, setTab] = useState('sanidades'); // 'sanidades' ou 'medicamentos'
+  const [tab, setTab] = useState('cadastradas');
 
   // Estados de configuração
   const [nomeSanidade, setNomeSanidade] = useState("");
@@ -41,18 +41,8 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
     enabled: !!empresaId && open,
   });
 
-  // Buscar itens da configuração selecionada
-  const { data: itens = [] } = useQuery({
-    queryKey: ['itens-sanidade', configuracaoSelecionada],
-    queryFn: async () => {
-      const all = await base44.entities.ItemSanidade.list();
-      return all.filter(i => i.configuracao_sanidade_id === configuracaoSelecionada);
-    },
-    enabled: !!configuracaoSelecionada && open,
-  });
-  
   // Buscar todos os itens
-  const { data: itensParaAplicar = [] } = useQuery({
+  const { data: todosItens = [] } = useQuery({
     queryKey: ['itens-sanidade-todos'],
     queryFn: async () => {
       const all = await base44.entities.ItemSanidade.list();
@@ -60,6 +50,12 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
     },
     enabled: open,
   });
+
+  // Buscar itens da configuração selecionada
+  const itens = useMemo(() => {
+    if (!configuracaoSelecionada) return [];
+    return todosItens.filter(i => i.configuracao_sanidade_id === configuracaoSelecionada);
+  }, [todosItens, configuracaoSelecionada]);
 
   const configAtual = useMemo(() => {
     return configuracoes.find(c => c.id === configuracaoSelecionada);
@@ -78,7 +74,6 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
   // Mutations
   const deleteConfigMutation = useMutation({
     mutationFn: async (id) => {
-      // Verificar se está em uso
       const emUso = sanidadesAplicadas.some(s => s.configuracao_sanidade_id === id);
       if (emUso) {
         throw new Error("Esta sanidade já foi aplicada em animais e não pode ser excluída!");
@@ -97,11 +92,9 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
 
   const deleteItemMutation = useMutation({
     mutationFn: async (itemId) => {
-      // Buscar o item para verificar qual configuração
       const item = itens.find(i => i.id === itemId);
       if (!item) return;
       
-      // Verificar se a configuração está em uso
       const emUso = sanidadesAplicadas.some(s => s.configuracao_sanidade_id === item.configuracao_sanidade_id);
       if (emUso) {
         throw new Error("Não é possível excluir medicamentos de sanidades já aplicadas!");
@@ -111,14 +104,12 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
     },
     onSuccess: () => {
       toast.success("Item excluído!");
-      queryClient.invalidateQueries({ queryKey: ['itens-sanidade'] });
+      queryClient.invalidateQueries({ queryKey: ['itens-sanidade-todos'] });
     },
     onError: (error) => {
       toast.error(error.message);
     },
   });
-  
-
 
   const handleSalvarConfiguracao = async () => {
     if (!nomeSanidade.trim()) {
@@ -140,7 +131,8 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
           ativo: true,
         });
         setConfiguracaoSelecionada(created.id);
-        toast.success("Sanidade criada!");
+        setTab('medicamentos');
+        toast.success("Sanidade criada! Agora adicione medicamentos.");
       }
       queryClient.invalidateQueries({ queryKey: ['configuracoes-sanidade'] });
       setNomeSanidade("");
@@ -182,7 +174,7 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
         await base44.entities.ItemSanidade.create(data);
         toast.success("Item adicionado!");
       }
-      queryClient.invalidateQueries({ queryKey: ['itens-sanidade'] });
+      queryClient.invalidateQueries({ queryKey: ['itens-sanidade-todos'] });
       setMedicamento("");
       setFinalidade("");
       setQuantidadePadrao("");
@@ -201,91 +193,124 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-emerald-700">
             <Settings className="w-5 h-5" />
-            Gerenciar Sanidades
+            Configurar Sanidades
           </DialogTitle>
         </DialogHeader>
 
-        {/* Abas */}
         <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sanidades" className="text-xs">Sanidades Cadastradas</TabsTrigger>
-            <TabsTrigger value="medicamentos" className="text-xs">Gerenciar Medicamentos</TabsTrigger>
+            <TabsTrigger value="cadastradas" className="text-xs">Sanidades Cadastradas</TabsTrigger>
+            <TabsTrigger value="medicamentos" className="text-xs">Criar/Editar Sanidades</TabsTrigger>
           </TabsList>
 
           {/* ABA: SANIDADES CADASTRADAS */}
-          <TabsContent value="sanidades" className="flex-1 overflow-auto space-y-4 mt-4">
-            <div className="bg-white border border-slate-200 rounded p-3">
-              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
-                <p className="text-xs text-blue-800">
-                  ℹ️ Clique em "Utilizar Sanidade" para ativar a aplicação automática nos animais lançados.
-                </p>
+          <TabsContent value="cadastradas" className="flex-1 overflow-auto space-y-4 mt-4">
+            <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
+              <p className="text-xs text-blue-800">
+                ℹ️ Clique em "Utilizar Sanidade" para ativar a aplicação automática nos animais lançados.
+              </p>
+            </div>
+
+            {configuracoes.length === 0 ? (
+              <div className="text-center py-8 text-xs text-slate-400">
+                Nenhuma sanidade cadastrada. Vá para "Criar/Editar Sanidades".
               </div>
+            ) : (
+              <div className="space-y-3">
+                {configuracoes.map(c => {
+                  const itensConfig = todosItens.filter(i => i.configuracao_sanidade_id === c.id);
+                  const custoTotal = itensConfig.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
 
-              {configuracoes.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400">
-                  Nenhuma sanidade cadastrada. Vá para "Gerenciar Medicamentos" para criar.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {configuracoes.map(c => {
-                    const itens = itensParaAplicar.filter(i => i.configuracao_sanidade_id === c.id);
-                    const custoTotal = itens.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
-
-                    return (
-                      <Card key={c.id} className="border-emerald-200 bg-white">
-                        <CardContent className="p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-emerald-800">{c.nome_sanidade}</h4>
-                              <div className="text-xs font-bold text-emerald-700 mt-1">
-                                Custo por animal: R$ {custoTotal.toFixed(2)}
-                              </div>
+                  return (
+                    <Card key={c.id} className="border-emerald-200 bg-white">
+                      <CardContent className="p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-emerald-800">{c.nome_sanidade}</h4>
+                            <div className="text-xs font-bold text-emerald-700 mt-1">
+                              Custo por animal: R$ {custoTotal.toFixed(2)}
                             </div>
-                            <Button 
-                              onClick={() => {
-                                localStorage.setItem('sanidade_em_uso', c.id);
-                                toast.success(`"${c.nome_sanidade}" será aplicada automaticamente em cada animal lançado!`);
-                                onOpenChange(false);
-                              }}
-                              disabled={itens.length === 0}
-                              size="sm" 
-                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              Utilizar Sanidade
-                            </Button>
                           </div>
-                          {itens.length > 0 && (
-                            <div className="space-y-1 mt-2">
-                              {itens.map((item, idx) => (
-                                <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
-                                  • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
-                                  {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+                          <Button 
+                            onClick={() => {
+                              localStorage.setItem('sanidade_em_uso', c.id);
+                              toast.success(`"${c.nome_sanidade}" será aplicada automaticamente!`);
+                              onOpenChange(false);
+                            }}
+                            disabled={itensConfig.length === 0}
+                            size="sm" 
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            Utilizar Sanidade
+                          </Button>
+                        </div>
+                        {itensConfig.length > 0 && (
+                          <div className="space-y-1 mt-2">
+                            {itensConfig.map((item, idx) => (
+                              <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                                • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
+                                {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
+            )}
           </TabsContent>
 
-          {/* ABA: GERENCIAR MEDICAMENTOS */}
+          {/* ABA: CRIAR/EDITAR */}
           <TabsContent value="medicamentos" className="flex-1 overflow-auto space-y-4 mt-4">
-
-
-
             <Card>
               <CardContent className="p-4">
+                {/* Criar Nova Sanidade */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded p-3 mb-4">
+                  <h3 className="text-xs font-semibold text-emerald-800 mb-3">
+                    {editingConfigId ? 'Editar Sanidade' : 'Nova Sanidade'}
+                  </h3>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs">Nome da Sanidade</Label>
+                      <Input
+                        value={nomeSanidade}
+                        onChange={(e) => setNomeSanidade(e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="Ex: Vermifugação Completa"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSalvarConfiguracao} 
+                      disabled={isSaving}
+                      size="sm" 
+                      className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {isSaving ? 'Salvando...' : (editingConfigId ? 'Atualizar' : 'Criar')}
+                    </Button>
+                    {editingConfigId && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingConfigId(null);
+                          setNomeSanidade("");
+                        }}
+                        className="h-8 text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Selecionar Sanidade */}
                 <div className="mb-4">
-                  <Label className="text-xs font-semibold mb-2 block">Selecione a Sanidade *</Label>
+                  <Label className="text-xs font-semibold mb-2 block">Selecione a Sanidade para Adicionar Medicamentos</Label>
                   <Select value={configuracaoSelecionada} onValueChange={setConfiguracaoSelecionada}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Escolha uma sanidade para gerenciar medicamentos" />
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Escolha uma sanidade" />
                     </SelectTrigger>
                     <SelectContent>
                       {configuracoes.map(c => (
@@ -298,161 +323,160 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
                 {/* Gerenciar Medicamentos */}
                 {configuracaoSelecionada && (
                   <div>
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
-                <h3 className="text-xs font-semibold text-blue-800 mb-3">
-                  Medicamentos - {configAtual?.nome_sanidade}
-                </h3>
-                
-                <div className="grid grid-cols-6 gap-2 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Medicamento *</Label>
-                    <Input
-                      value={medicamento}
-                      onChange={(e) => setMedicamento(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Ex: Ivermectina"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Finalidade</Label>
-                    <Input
-                      value={finalidade}
-                      onChange={(e) => setFinalidade(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Ex: Vermífugo"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Qtd. Padrão</Label>
-                    <Input
-                      type="number"
-                      value={quantidadePadrao}
-                      onChange={(e) => setQuantidadePadrao(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="10"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Un.</Label>
-                    <Input
-                      value={unidadeMedida}
-                      onChange={(e) => setUnidadeMedida(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="ml"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Custo Un. (R$)</Label>
-                    <Input
-                      type="number"
-                      value={custoUnitario}
-                      onChange={(e) => setCustoUnitario(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="flex gap-1">
-                    {editingItemId && (
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingItemId(null);
-                          setMedicamento("");
-                          setFinalidade("");
-                          setQuantidadePadrao("");
-                          setCustoUnitario("");
-                        }}
-                        className="h-8 text-xs"
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                    <Button 
-                      onClick={handleSalvarItem} 
-                      disabled={isSaving}
-                      size="sm" 
-                      className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {isSaving ? 'Salvando...' : (editingItemId ? 'Atualizar' : 'Adicionar')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                      <h3 className="text-xs font-semibold text-blue-800 mb-3">
+                        Medicamentos - {configAtual?.nome_sanidade}
+                      </h3>
+                      
+                      <div className="grid grid-cols-6 gap-2 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Medicamento</Label>
+                          <Input
+                            value={medicamento}
+                            onChange={(e) => setMedicamento(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder="Ex: Ivermectina"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Finalidade</Label>
+                          <Input
+                            value={finalidade}
+                            onChange={(e) => setFinalidade(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder="Ex: Vermífugo"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Qtd. Padrão</Label>
+                          <Input
+                            type="number"
+                            value={quantidadePadrao}
+                            onChange={(e) => setQuantidadePadrao(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder="10"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Un.</Label>
+                          <Input
+                            value={unidadeMedida}
+                            onChange={(e) => setUnidadeMedida(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder="ml"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Custo Un. (R$)</Label>
+                          <Input
+                            type="number"
+                            value={custoUnitario}
+                            onChange={(e) => setCustoUnitario(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="flex gap-1">
+                          {editingItemId && (
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingItemId(null);
+                                setMedicamento("");
+                                setFinalidade("");
+                                setQuantidadePadrao("");
+                                setCustoUnitario("");
+                              }}
+                              className="h-8 text-xs"
+                            >
+                              Cancelar
+                            </Button>
+                          )}
+                          <Button 
+                            onClick={handleSalvarItem} 
+                            disabled={isSaving}
+                            size="sm" 
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            {isSaving ? 'Salvando...' : (editingItemId ? 'Atualizar' : 'Adicionar')}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Lista de Itens */}
-              {itens.length === 0 ? (
-                <div className="text-center py-6 text-xs text-slate-400">
-                  Nenhum medicamento cadastrado nesta sanidade
-                </div>
-              ) : (
-                <div className="border rounded overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Medicamento</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Finalidade</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd. Padrão</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Un.</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Total</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black w-20">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {itens.map((item) => {
-                        const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
-                        return (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="text-xs py-1 border border-gray-300 font-medium">{item.medicamento}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{item.finalidade || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">
-                              {item.quantidade_padrao} {item.unidade_medida}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">
-                              {item.custo_unitario ? `R$ ${item.custo_unitario.toFixed(2)}` : '-'}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">
-                              {custoTotal > 0 ? `R$ ${custoTotal.toFixed(2)}` : '-'}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => {
-                                    setEditingItemId(item.id);
-                                    setMedicamento(item.medicamento);
-                                    setFinalidade(item.finalidade || "");
-                                    setQuantidadePadrao(String(item.quantidade_padrao || ""));
-                                    setUnidadeMedida(item.unidade_medida);
-                                    setCustoUnitario(String(item.custo_unitario || ""));
-                                  }}
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-red-500"
-                                  onClick={() => {
-                                    if (confirm('Excluir este medicamento?')) {
-                                      deleteItemMutation.mutate(item.id);
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                    {/* Lista de Itens */}
+                    {itens.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-400">
+                        Nenhum medicamento cadastrado nesta sanidade
+                      </div>
+                    ) : (
+                      <div className="border rounded overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Medicamento</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Finalidade</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd. Padrão</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Un.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Total</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black w-20">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {itens.map((item) => {
+                              const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
+                              return (
+                                <TableRow key={item.id} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs py-1 border border-gray-300 font-medium">{item.medicamento}</TableCell>
+                                  <TableCell className="text-xs py-1 border border-gray-300">{item.finalidade || '-'}</TableCell>
+                                  <TableCell className="text-xs py-1 border border-gray-300 text-right">
+                                    {item.quantidade_padrao} {item.unidade_medida}
+                                  </TableCell>
+                                  <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">
+                                    {item.custo_unitario ? `R$ ${item.custo_unitario.toFixed(2)}` : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold text-emerald-700">
+                                    {custoTotal > 0 ? `R$ ${custoTotal.toFixed(2)}` : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs py-1 border border-gray-300">
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          setEditingItemId(item.id);
+                                          setMedicamento(item.medicamento);
+                                          setFinalidade(item.finalidade || "");
+                                          setQuantidadePadrao(String(item.quantidade_padrao || ""));
+                                          setUnidadeMedida(item.unidade_medida);
+                                          setCustoUnitario(String(item.custo_unitario || ""));
+                                        }}
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-red-500"
+                                        onClick={() => {
+                                          if (confirm('Excluir este medicamento?')) {
+                                            deleteItemMutation.mutate(item.id);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
 
                     {/* Total da Sanidade */}
                     {itens.length > 0 && (
