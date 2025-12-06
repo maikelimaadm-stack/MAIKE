@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripVertical, Eye, EyeOff } from "lucide-react";
 import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe, Truck } from "lucide-react";
@@ -2128,7 +2129,34 @@ export default function LancamentoPesagensIndividuais() {
                              return (
                                <TableCell key={coluna.id} className="text-xs text-center">
                                  {sanidades.length > 0 ? (
-                                   <Syringe className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
+                                   <Popover>
+                                     <PopoverTrigger asChild>
+                                       <button className="hover:opacity-70 transition-opacity">
+                                         <Syringe className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
+                                       </button>
+                                     </PopoverTrigger>
+                                     <PopoverContent className="w-80">
+                                       <div className="space-y-2">
+                                         <h4 className="font-semibold text-sm text-emerald-700">Sanidades Aplicadas</h4>
+                                         {sanidades.map((sanidade, idx) => (
+                                           <div key={idx} className="border-b pb-2 last:border-b-0">
+                                             <div className="font-medium text-xs text-slate-800 mb-1">{sanidade.nome}</div>
+                                             <div className="space-y-1">
+                                               {sanidade.medicamentos.map((med, i) => (
+                                                 <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
+                                                   <span className="font-medium">{med.medicamento}</span>
+                                                   <span className="text-slate-600">{med.quantidade} {med.unidade}</span>
+                                                 </div>
+                                               ))}
+                                             </div>
+                                             <div className="text-xs text-emerald-700 font-semibold mt-1">
+                                               Total: R$ {sanidade.custoTotal.toFixed(2)}
+                                             </div>
+                                           </div>
+                                         ))}
+                                       </div>
+                                     </PopoverContent>
+                                   </Popover>
                                  ) : (
                                    <span className="text-slate-400">-</span>
                                  )}
