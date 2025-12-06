@@ -1387,41 +1387,17 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Sanidade Automática</Label>
-                  <Select value={sanidadeAtivaId} onValueChange={(v) => {
-                    setSanidadeAtivaId(v);
-                    localStorage.setItem('sanidade_em_uso', v);
-                    if (v === "") {
-                      toast.success("Nenhuma sanidade será aplicada automaticamente");
-                    } else {
-                      const config = configuracoesSanidade.find(c => c.id === v);
-                      toast.success(`"${config?.nome_sanidade}" será aplicada automaticamente!`);
-                    }
-                  }}>
-                    <SelectTrigger className="h-9 text-sm w-56">
-                      <SelectValue placeholder="Nenhuma" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={null}>Nenhuma</SelectItem>
-                      {configuracoesSanidade.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.nome_sanidade}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setMostrarSanidade(true)}
-                  className="h-9 w-9"
-                  title="Gerenciar Sanidades"
-                >
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMostrarSanidade(true)}
+                className="h-8 text-xs gap-1"
+                title="Gerenciar Sanidades"
+              >
+                <Syringe className="w-3.5 h-3.5" />
+                Sanidade
+              </Button>
             )}
             
 

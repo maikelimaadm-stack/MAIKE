@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit2, Settings, Syringe } from "lucide-react";
+import { Trash2, Edit2, Settings, Syringe, X } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
+export default function GerenciarSanidades({ open, onOpenChange, empresaId, sanidadeAtivaId, onSanidadeChange }) {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -21,9 +21,6 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
   const [nomeSanidade, setNomeSanidade] = useState("");
   const [editingConfigId, setEditingConfigId] = useState(null);
   const [configuracaoSelecionada, setConfiguracaoSelecionada] = useState("");
-  const [sanidadeAtivaId, setSanidadeAtivaId] = useState(() => {
-    return localStorage.getItem('sanidade_em_uso') || "";
-  });
 
   // Estados de item
   const [medicamento, setMedicamento] = useState("");
