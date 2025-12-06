@@ -2066,15 +2066,11 @@ export default function LancamentoPesagensIndividuais() {
         onSyncComplete={loadAllData}
       />
 
-      {/* DIALOG DE SANIDADE */}
-      <DialogSanidade
+      {/* DIALOG GERENCIAR SANIDADES */}
+      <GerenciarSanidades
         open={mostrarSanidade}
         onOpenChange={setMostrarSanidade}
-        numeroAnimal={numeroAnimal}
         empresaId={empresaSelecionadaId}
-        apartacaoSelecionada={apartacaoSelecionada}
-        lotesApartacaoAtual={lotesApartacaoAtual}
-        pesagensDia={pesagensDia}
       />
 
 {/* Dialog de progresso oculto
