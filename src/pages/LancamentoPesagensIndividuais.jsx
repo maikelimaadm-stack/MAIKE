@@ -264,6 +264,9 @@ export default function LancamentoPesagensIndividuais() {
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
   const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
+  const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
+  const [itensSanidade, setItensSanidade] = useState([]);
+  const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -287,6 +290,7 @@ export default function LancamentoPesagensIndividuais() {
     { id: 'motivo_saida', label: 'Motivo Saída', default: true },
     { id: 'numero_animal', label: 'Identificação', default: true },
     { id: 'peso', label: 'Peso', default: true },
+    { id: 'sanidade', label: 'Sanidade', default: true },
     { id: 'data_pesagem', label: 'Data', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
     { id: 'raca', label: 'Raça', default: true },
@@ -333,6 +337,40 @@ export default function LancamentoPesagensIndividuais() {
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
+  
+  // Buscar sanidades aplicadas para cada animal do dia
+  const sanidadesPorAnimal = useMemo(() => {
+    const map = {};
+    pesagensDia.forEach(p => {
+      const sanidadesDoAnimal = sanidadesAplicadas.filter(s => 
+        s.numero_animal === p.numero_animal && 
+        s.data_aplicacao === dataPesagem
+      );
+      if (sanidadesDoAnimal.length > 0) {
+        // Agrupar por nome_sanidade
+        const porNome = sanidadesDoAnimal.reduce((acc, s) => {
+          const key = s.nome_sanidade || 'Sem nome';
+          if (!acc[key]) {
+            acc[key] = {
+              nome: key,
+              medicamentos: [],
+              custoTotal: 0
+            };
+          }
+          acc[key].medicamentos.push({
+            medicamento: s.medicamento,
+            quantidade: s.quantidade,
+            unidade: s.unidade_medida,
+            custo: s.custo_total || 0
+          });
+          acc[key].custoTotal += (s.custo_total || 0);
+          return acc;
+        }, {});
+        map[p.numero_animal] = Object.values(porNome);
+      }
+    });
+    return map;
+  }, [pesagensDia, sanidadesAplicadas, dataPesagem]);
 
   const toggleColuna = (colunaId) => {
     const novasColunas = colunasVisiveis.includes(colunaId)
@@ -455,17 +493,21 @@ export default function LancamentoPesagensIndividuais() {
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allPesagens, allApartacoes, allLotes, allSanidades] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigSanidade, allItensSanidade] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
           base44.entities.SanidadeAnimal.list('-data_aplicacao'),
+          base44.entities.ConfiguracaoSanidade.list(),
+          base44.entities.ItemSanidade.list(),
         ]);
 
         const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
         const sanidadesEmpresa = allSanidades.filter(s => s.empresa_id === empresaSelecionadaId);
+        const configSanidadeEmpresa = allConfigSanidade.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
+        const itensSanidadeEmpresa = allItensSanidade.filter(i => i.empresa_id === empresaSelecionadaId);
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
@@ -480,6 +522,8 @@ export default function LancamentoPesagensIndividuais() {
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
         setSanidadesAplicadas(sanidadesEmpresa);
+        setConfiguracoesSanidade(configSanidadeEmpresa);
+        setItensSanidade(itensSanidadeEmpresa);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -940,6 +984,36 @@ export default function LancamentoPesagensIndividuais() {
     try {
       if (navigator.onLine && !editingId && !editingOfflineId) {
         await base44.entities.PesagemIndividual.create(data);
+        
+        // Aplicar sanidade se selecionada
+        if (sanidadeSelecionada && (tipoManejo === 'Cadastro' || tipoManejo === 'Manejo')) {
+          const itensDaSanidade = itensSanidade.filter(i => i.configuracao_sanidade_id === sanidadeSelecionada);
+          const sanidadeConfig = configuracoesSanidade.find(c => c.id === sanidadeSelecionada);
+          
+          if (itensDaSanidade.length > 0) {
+            const registrosSanidade = itensDaSanidade.map(item => {
+              const qtd = item.quantidade_padrao || 0;
+              const custo = item.custo_unitario || 0;
+              return {
+                empresa_id: empresaSelecionadaId,
+                configuracao_sanidade_id: sanidadeSelecionada,
+                nome_sanidade: sanidadeConfig?.nome_sanidade || "",
+                numero_animal: numeroAnimal.trim(),
+                data_aplicacao: dataPesagem,
+                medicamento: item.medicamento,
+                finalidade: item.finalidade || null,
+                quantidade: qtd,
+                unidade_medida: item.unidade_medida,
+                custo_unitario: custo > 0 ? custo : null,
+                custo_total: (qtd * custo) > 0 ? qtd * custo : null,
+                observacao: null,
+              };
+            });
+            
+            await base44.entities.SanidadeAnimal.bulkCreate(registrosSanidade);
+          }
+        }
+        
         toast.success('✓ Salvo!');
         await loadAllData();
       } else if (editingOfflineId) {
@@ -1016,6 +1090,7 @@ export default function LancamentoPesagensIndividuais() {
       setObservacao("");
       setLoteTransferencia("");
       setMotivoSaida("");
+      setSanidadeSelecionada("");
       setValorPagoCabeca("");
       setOrigemAnimal("");
       setDocumentacao("");
@@ -1334,16 +1409,30 @@ export default function LancamentoPesagensIndividuais() {
             )}
             
             {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setMostrarSanidade(true)}
-                className="h-8 w-8"
-                title="Gerenciar Sanidades"
-              >
-                <Syringe className="w-4 h-4" />
-              </Button>
+              <>
+                <Label className="text-xs font-medium">Sanidade (automática):</Label>
+                <Select value={sanidadeSelecionada} onValueChange={setSanidadeSelecionada}>
+                  <SelectTrigger className="h-8 text-xs w-56">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Nenhuma</SelectItem>
+                    {configuracoesSanidade.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome_sanidade}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setMostrarSanidade(true)}
+                  className="h-8 w-8"
+                  title="Gerenciar Sanidades"
+                >
+                  <Syringe className="w-4 h-4" />
+                </Button>
+              </>
             )}
 
             {/* Mensagens de Status */}
@@ -2103,6 +2192,30 @@ export default function LancamentoPesagensIndividuais() {
                             }
                             if (coluna.id === 'peso') {
                               return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
+                            }
+                            if (coluna.id === 'sanidade') {
+                              const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
+                              return (
+                                <TableCell key={coluna.id} className="text-xs">
+                                  {sanidades.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {sanidades.map((san, idx) => (
+                                        <div key={idx} className="bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                                          <div className="font-semibold text-emerald-700 mb-0.5">{san.nome}</div>
+                                          {san.medicamentos.map((med, i) => (
+                                            <div key={i} className="text-[10px] text-slate-600">
+                                              • {med.medicamento} ({med.quantidade} {med.unidade})
+                                            </div>
+                                          ))}
+                                          <div className="text-[10px] font-bold text-emerald-700 mt-0.5">
+                                            R$ {san.custoTotal.toFixed(2)}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : '-'}
+                                </TableCell>
+                              );
                             }
                             if (coluna.id === 'data_pesagem') {
                               return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
