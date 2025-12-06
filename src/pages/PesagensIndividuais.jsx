@@ -82,6 +82,9 @@ export default function PesagensIndividuais() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [tipoManejoImport, setTipoManejoImport] = useState('Manejo');
+  const [motivoSaidaImport, setMotivoSaidaImport] = useState('');
+  const [destinoVendaImport, setDestinoVendaImport] = useState('');
   
   // Estado para vinculação de lotes
   const [showVincularLotes, setShowVincularLotes] = useState(false);
@@ -498,6 +501,10 @@ export default function PesagensIndividuais() {
         const batch = importData.slice(i, i + batchSize).map(item => ({
           ...item,
           empresa_id: empresaSelecionadaId,
+          tipo_manejo: tipoManejoImport,
+          motivo_saida: tipoManejoImport === 'Saída' ? motivoSaidaImport : null,
+          status_animal: tipoManejoImport === 'Saída' ? 'Inativo' : 'Ativo',
+          destino_venda: (tipoManejoImport === 'Saída' && motivoSaidaImport === 'Venda') ? destinoVendaImport : null,
         }));
 
         setImportProgressText(`Importando registros ${i + 1} a ${Math.min(i + batchSize, importData.length)} de ${importData.length}...`);
@@ -513,6 +520,9 @@ export default function PesagensIndividuais() {
       setImportErrors([]);
       setLotesParaVincular([]);
       setVincularLotesSelecionados({});
+      setTipoManejoImport('Manejo');
+      setMotivoSaidaImport('');
+      setDestinoVendaImport('');
       queryClient.invalidateQueries({ queryKey: ['pesagens-individuais'] });
     } catch (error) {
       toast.error('Erro ao importar: ' + error.message);
@@ -1268,6 +1278,72 @@ export default function PesagensIndividuais() {
           </DialogHeader>
           
           <div className="flex-1 overflow-auto space-y-4">
+            {/* Seleção de Tipo de Manejo */}
+            <Card className="border-emerald-200 bg-emerald-50">
+              <CardContent className="p-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Tipo de Movimentação *</Label>
+                    <Select value={tipoManejoImport} onValueChange={(v) => { setTipoManejoImport(v); setMotivoSaidaImport(''); setDestinoVendaImport(''); }}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cadastro">Cadastro (Novo Animal)</SelectItem>
+                        <SelectItem value="Manejo">Manejo (Pesagem)</SelectItem>
+                        <SelectItem value="Saída">Saída (Venda/Morte/Doação)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {tipoManejoImport === 'Saída' && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Motivo da Saída *</Label>
+                        <Select value={motivoSaidaImport} onValueChange={setMotivoSaidaImport}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Venda">Venda</SelectItem>
+                            <SelectItem value="Morte">Morte</SelectItem>
+                            <SelectItem value="Doação">Doação</SelectItem>
+                            <SelectItem value="Abate">Abate</SelectItem>
+                            <SelectItem value="Transferência">Transferência</SelectItem>
+                            <SelectItem value="Outros">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {motivoSaidaImport === 'Venda' && (
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Destino da Venda</Label>
+                          <Input
+                            value={destinoVendaImport}
+                            onChange={(e) => setDestinoVendaImport(e.target.value)}
+                            placeholder="Ex: Fazenda XYZ"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="bg-white border border-emerald-300 rounded p-2">
+                  <p className="text-xs text-emerald-800">
+                    ℹ️ <strong>{tipoManejoImport}:</strong> {
+                      tipoManejoImport === 'Cadastro' 
+                        ? 'Novos animais serão marcados como ATIVOS (não calcula ganho de peso)' 
+                        : tipoManejoImport === 'Saída'
+                        ? 'Animais serão marcados como INATIVOS automaticamente'
+                        : 'Pesagem periódica com cálculo de ganho de peso'
+                    }
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Resumo */}
             <div className="grid grid-cols-2 gap-3">
               <Card className="bg-emerald-50">
@@ -1366,10 +1442,19 @@ export default function PesagensIndividuais() {
           </div>
 
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setShowImportDialog(false)} disabled={isImporting}>
+            <Button variant="outline" onClick={() => {
+              setShowImportDialog(false);
+              setTipoManejoImport('Manejo');
+              setMotivoSaidaImport('');
+              setDestinoVendaImport('');
+            }} disabled={isImporting}>
               Cancelar
             </Button>
-            <Button onClick={confirmarImportacao} disabled={isImporting || importData.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button 
+              onClick={confirmarImportacao} 
+              disabled={isImporting || importData.length === 0 || (tipoManejoImport === 'Saída' && !motivoSaidaImport)} 
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
               {isImporting ? 'Importando...' : `Importar ${importData.length} Registros`}
             </Button>
           </DialogFooter>
