@@ -152,6 +152,7 @@ const DEFAULT_MENU = [
         ],
       },
   { id: "usuarios", title: "Usuarios", url: "Usuarios", icon: "Shield" },
+  { id: "editor-visual", title: "Editor Visual", url: "EditorVisualSistema", icon: "Settings" },
 ];
 
 const getAllPages = (menuItems) => {
