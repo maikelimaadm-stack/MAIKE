@@ -1221,6 +1221,34 @@ export default function LancamentoPesagensIndividuais() {
                 <SelectItem value="Saída">Saída (Venda/Morte/Doação)</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Ícones de Ações Rápidas */}
+            {tipoManejo === 'Cadastro' && (
+              <Button 
+                type="button"
+                variant="outline" 
+                size="icon"
+                onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)}
+                className="h-8 w-8"
+                title={mostrarDadosCompra ? 'Ocultar Dados de Compra' : 'Mostrar Dados de Compra'}
+              >
+                {mostrarDadosCompra ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            )}
+            
+            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setMostrarSanidade(true)}
+                className="h-8 w-8"
+                title="Abrir Sanidade"
+              >
+                <Syringe className="w-4 h-4" />
+              </Button>
+            )}
+
             {tipoManejo === 'Cadastro' && !avisoTela && (
               <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                 Cadastro de novos animais (Ativo)
@@ -1378,20 +1406,6 @@ export default function LancamentoPesagensIndividuais() {
                       placeholder="Ex: ABC"
                     />
                   </div>
-                </div>
-
-                {/* Botão para mostrar/ocultar dados de compra */}
-                <div className="flex items-end">
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)}
-                    className="h-8 text-xs gap-1"
-                  >
-                    {mostrarDadosCompra ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {mostrarDadosCompra ? 'Ocultar Compra' : 'Dados Compra'}
-                  </Button>
                 </div>
               </>
             )}
@@ -1563,20 +1577,6 @@ export default function LancamentoPesagensIndividuais() {
                 </div>
               );
             })()}
-
-            {/* Botão de Sanidade */}
-            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setMostrarSanidade(true)}
-                className="h-8 text-xs gap-1"
-              >
-                <Syringe className="w-3.5 h-3.5" />
-                Sanidade
-              </Button>
-            )}
           </div>
 
           {/* Dados de Compra (Cadastro) - Seção Retrátil */}
@@ -1604,13 +1604,17 @@ export default function LancamentoPesagensIndividuais() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Documentação (GTA, etc)</Label>
-                  <Input
-                    value={documentacao}
-                    onChange={(e) => setDocumentacao(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: GTA 12345"
-                  />
+                  <Label className="text-xs">Documentação</Label>
+                  <Select value={documentacao} onValueChange={setDocumentacao}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>Nenhuma</SelectItem>
+                      <SelectItem value="GTA">GTA</SelectItem>
+                      <SelectItem value="NF-e">NF-e</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
