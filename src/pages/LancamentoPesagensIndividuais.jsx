@@ -1243,8 +1243,8 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* CAMPOS DE CADASTRO - Mostrar em Cadastro e Saída */}
-            {(tipoManejo === 'Cadastro' || tipoManejo === 'Saída') && (
+            {/* CAMPOS DE CADASTRO - Mostrar APENAS em Cadastro */}
+            {tipoManejo === 'Cadastro' && (
               <>
                 {/* Sexo com Checkbox para fixar */}
                 <div className="space-y-1">
