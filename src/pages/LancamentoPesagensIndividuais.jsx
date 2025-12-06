@@ -983,7 +983,35 @@ export default function LancamentoPesagensIndividuais() {
     try {
       if (navigator.onLine && !editingId && !editingOfflineId) {
         await base44.entities.PesagemIndividual.create(data);
-        toast.success('✓ Salvo!');
+        
+        // Aplicar sanidade automática se configurada
+        if (sanidadeAtivaId && (tipoManejo === 'Cadastro' || tipoManejo === 'Manejo')) {
+          const configSanidade = configuracoesSanidade.find(c => c.id === sanidadeAtivaId);
+          const itens = itensSanidade.filter(i => i.configuracao_sanidade_id === sanidadeAtivaId);
+          
+          if (itens.length > 0) {
+            for (const item of itens) {
+              const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
+              await base44.entities.SanidadeAnimal.create({
+                empresa_id: empresaSelecionadaId,
+                configuracao_sanidade_id: sanidadeAtivaId,
+                nome_sanidade: configSanidade?.nome_sanidade || "",
+                numero_animal: numeroAnimal.trim(),
+                data_aplicacao: dataPesagem,
+                medicamento: item.medicamento,
+                finalidade: item.finalidade,
+                quantidade: item.quantidade_padrao,
+                unidade_medida: item.unidade_medida,
+                custo_unitario: item.custo_unitario,
+                custo_total: custoTotal,
+              });
+            }
+            toast.success(`✓ Salvo + ${itens.length} medicamento(s) aplicado(s)!`);
+          }
+        } else {
+          toast.success('✓ Salvo!');
+        }
+        
         await loadAllData();
       } else if (editingOfflineId) {
         // Edição de pesagem pendente offline - atualizar no IndexedDB
