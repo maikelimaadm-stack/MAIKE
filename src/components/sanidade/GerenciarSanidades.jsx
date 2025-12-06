@@ -26,9 +26,7 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
   // Estados para aplicar sanidade
   const [dataAplicacao, setDataAplicacao] = useState(new Date().toISOString().split('T')[0]);
   const [sanidadeParaAplicar, setSanidadeParaAplicar] = useState("");
-  const [quantidadeAplicacao, setQuantidadeAplicacao] = useState("");
   const [observacaoAplicacao, setObservacaoAplicacao] = useState("");
-  const [aplicarEm, setAplicarEm] = useState("animal_atual");
 
   // Estados de item
   const [medicamento, setMedicamento] = useState("");
@@ -103,27 +101,20 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
       toast.error("Esta sanidade não possui medicamentos cadastrados!");
       return;
     }
+    if (!apartacaoSelecionada) {
+      toast.error("Selecione uma apartação primeiro!");
+      return;
+    }
 
     setIsSaving(true);
     try {
-      // Determinar quais animais aplicar
-      let animaisParaAplicar = [];
-      
-      if (aplicarEm === 'animal_atual') {
-        animaisParaAplicar = [numeroAnimal];
-      } else if (aplicarEm === 'apartacao' && apartacaoSelecionada) {
-        animaisParaAplicar = pesagensDia
-          ?.filter(p => p.apartacao_id === apartacaoSelecionada)
-          .map(p => p.numero_animal) || [];
-      } else if (aplicarEm.startsWith('lote_') && pesagensDia) {
-        const loteId = aplicarEm.replace('lote_', '');
-        animaisParaAplicar = pesagensDia
-          ?.filter(p => p.lote_id === loteId)
-          .map(p => p.numero_animal) || [];
-      }
+      // Aplicar em TODOS os animais da apartação do dia
+      const animaisParaAplicar = pesagensDia
+        ?.filter(p => p.apartacao_id === apartacaoSelecionada)
+        .map(p => p.numero_animal) || [];
 
       if (animaisParaAplicar.length === 0) {
-        toast.error("Nenhum animal para aplicar!");
+        toast.error("Nenhum animal pesado nesta apartação hoje!");
         setIsSaving(false);
         return;
       }
@@ -153,14 +144,16 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
 
       await base44.entities.SanidadeAnimal.bulkCreate(registros);
       
-      toast.success(`✓ Sanidade "${sanidadeAtual?.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animal(is)!`);
+      const custoTotalGeral = registros.reduce((s, r) => s + (r.custo_total || 0), 0);
+      const custoPorAnimal = custoTotalGeral / animaisParaAplicar.length;
+      
+      toast.success(`✓ Sanidade "${sanidadeAtual?.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! Custo: R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
       queryClient.invalidateQueries({ queryKey: ['sanidade'] });
 
-      // Limpar
+      // Limpar e fechar
       setSanidadeParaAplicar("");
-      setQuantidadeAplicacao("");
       setObservacaoAplicacao("");
-      setTab('sanidades');
+      onOpenChange(false);
     } catch (error) {
       toast.error("Erro: " + error.message);
     } finally {
@@ -268,7 +261,13 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
                 Aplicar Tratamento {numeroAnimal && `- Animal ${numeroAnimal}`}
               </h3>
 
-              <div className="grid grid-cols-3 gap-3 items-end">
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
+                <p className="text-xs text-blue-800">
+                  ℹ️ A sanidade será aplicada em <strong>TODOS os {pesagensDia?.filter(p => p.apartacao_id === apartacaoSelecionada).length || 0} animais</strong> pesados nesta apartação hoje.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs">Data Aplicação</Label>
                   <Input
@@ -289,30 +288,6 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId, nume
                       {configuracoes.map(c => (
                         <SelectItem key={c.id} value={c.id} className="text-xs">
                           {c.nome_sanidade}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Aplicar em:</Label>
-                  <Select value={aplicarEm} onValueChange={setAplicarEm}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {numeroAnimal && (
-                        <SelectItem value="animal_atual">Animal Atual ({numeroAnimal})</SelectItem>
-                      )}
-                      {apartacaoSelecionada && pesagensDia && (
-                        <SelectItem value="apartacao">
-                          Toda Apartação ({pesagensDia.filter(p => p.apartacao_id === apartacaoSelecionada).length || 0} animais)
-                        </SelectItem>
-                      )}
-                      {lotesApartacaoAtual?.map(lote => (
-                        <SelectItem key={lote.id} value={`lote_${lote.id}`}>
-                          Lote {lote.nome_lote} ({pesagensDia?.filter(p => p.lote_id === lote.id).length || 0} animais)
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -263,9 +263,7 @@ export default function LancamentoPesagensIndividuais() {
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
-  const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
-  const [aplicarSanidade, setAplicarSanidade] = useState(false);
-  const [configuracoesSanidade, setConfiguracoesSanidade] = useState([]);
+  const [sanidadesAplicadas, setSanidadesAplicadas] = useState([]);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -457,17 +455,17 @@ export default function LancamentoPesagensIndividuais() {
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        const [allPesagens, allApartacoes, allLotes, allConfigSanidade] = await Promise.all([
+        const [allPesagens, allApartacoes, allLotes, allSanidades] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
           base44.entities.Apartacao.list(),
           base44.entities.LoteApartacao.list(),
-          base44.entities.ConfiguracaoSanidade.list(),
+          base44.entities.SanidadeAnimal.list('-data_aplicacao'),
         ]);
 
         const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
         const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
         const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
-        const configSanidadeEmpresa = allConfigSanidade.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
+        const sanidadesEmpresa = allSanidades.filter(s => s.empresa_id === empresaSelecionadaId);
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
@@ -481,7 +479,7 @@ export default function LancamentoPesagensIndividuais() {
         setPesagens(pesagensEmpresa);
         setApartacoes(apartacoesEmpresa);
         setLotesApartacao(lotesEmpresa);
-        setConfiguracoesSanidade(configSanidadeEmpresa);
+        setSanidadesAplicadas(sanidadesEmpresa);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -2196,7 +2194,87 @@ export default function LancamentoPesagensIndividuais() {
           pendingPesagensDB={pendingPesagensDB}
           dataPesagem={dataPesagem}
         />
-        </div>
+      </div>
+
+      {/* RESUMO DE SANIDADES APLICADAS */}
+      {apartacaoSelecionada && sanidadesAplicadas.filter(s => 
+        s.data_aplicacao === dataPesagem && 
+        pesagensDia.some(p => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
+      ).length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="py-2 px-3 bg-emerald-50 border-b">
+            <CardTitle className="text-xs font-semibold text-emerald-700 flex items-center gap-2">
+              <Syringe className="w-4 h-4" />
+              Sanidades Aplicadas Hoje
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3">
+            {(() => {
+              // Agrupar por sanidade
+              const sanidadesHoje = sanidadesAplicadas.filter(s => 
+                s.data_aplicacao === dataPesagem && 
+                pesagensDia.some(p => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
+              );
+              
+              const porSanidade = sanidadesHoje.reduce((acc, s) => {
+                const key = s.nome_sanidade || 'Sem nome';
+                if (!acc[key]) {
+                  acc[key] = {
+                    nome: key,
+                    animais: new Set(),
+                    medicamentos: {},
+                    custoTotal: 0
+                  };
+                }
+                acc[key].animais.add(s.numero_animal);
+                if (!acc[key].medicamentos[s.medicamento]) {
+                  acc[key].medicamentos[s.medicamento] = {
+                    nome: s.medicamento,
+                    finalidade: s.finalidade,
+                    quantidade: s.quantidade,
+                    unidade: s.unidade_medida,
+                    custo: s.custo_unitario || 0
+                  };
+                }
+                acc[key].custoTotal += (s.custo_total || 0);
+                return acc;
+              }, {});
+
+              return Object.values(porSanidade).map((sanidade, idx) => {
+                const qtdAnimais = sanidade.animais.size;
+                const custoPorAnimal = qtdAnimais > 0 ? sanidade.custoTotal / qtdAnimais : 0;
+                
+                return (
+                  <div key={idx} className="mb-3 last:mb-0 border rounded p-2 bg-white">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-bold text-emerald-700">{sanidade.nome}</h4>
+                      <div className="text-right">
+                        <div className="text-xs text-slate-600">{qtdAnimais} animais</div>
+                        <div className="text-sm font-bold text-emerald-700">R$ {sanidade.custoTotal.toFixed(2)}</div>
+                        <div className="text-[10px] text-slate-500">R$ {custoPorAnimal.toFixed(2)}/animal</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      {Object.values(sanidade.medicamentos).map((med, i) => (
+                        <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
+                          <div>
+                            <span className="font-medium">{med.nome}</span>
+                            {med.finalidade && <span className="text-slate-500"> - {med.finalidade}</span>}
+                          </div>
+                          <div className="text-slate-600">
+                            {med.quantidade} {med.unidade} {med.custo > 0 && `(R$ ${med.custo.toFixed(2)})`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
       {/* DIALOG APARTAÇÕES/LOTES */}
       <GerenciarApartacoesDialog 
@@ -2289,7 +2367,10 @@ export default function LancamentoPesagensIndividuais() {
       {/* DIALOG GERENCIAR SANIDADES */}
       <GerenciarSanidades
         open={mostrarSanidade}
-        onOpenChange={setMostrarSanidade}
+        onOpenChange={(open) => {
+          setMostrarSanidade(open);
+          if (!open) loadAllData(); // Recarregar ao fechar
+        }}
         empresaId={empresaSelecionadaId}
         numeroAnimal={numeroAnimal}
         apartacaoSelecionada={apartacaoSelecionada}
