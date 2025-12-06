@@ -288,6 +288,9 @@ export default function SimulacaoResultados() {
               <p className="text-xs text-gray-600">
                 Lote: <strong>{loteAtual?.nome_lote}</strong> | Emitido em: {new Date().toLocaleDateString('pt-BR')}
               </p>
+              <p className="text-xs font-semibold text-red-700 mt-1">
+                ⚠️ IMPORTANTE: Este relatório considera APENAS os custos com SANIDADE/MEDICAMENTOS aplicados no lote.
+              </p>
             </div>
           </div>
 
@@ -323,7 +326,7 @@ export default function SimulacaoResultados() {
           {loteAtual && aplicacoesLote.length > 0 && (
             <Card className="mb-3">
               <CardHeader className="py-2 px-3 bg-slate-100">
-                <CardTitle className="text-sm font-bold">2. PRODUTOS APLICADOS</CardTitle>
+                <CardTitle className="text-sm font-bold">2. MEDICAMENTOS/SANIDADE APLICADOS</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -427,8 +430,11 @@ export default function SimulacaoResultados() {
                     o lote de <strong>{formatarNumero(loteAtual.quantidade_animais, 0)} animais</strong> (peso médio inicial: <strong>{formatarNumero(loteAtual.peso_medio_atual, 2)} kg</strong>) pode gerar entre{' '}
                     <strong>{formatarMoeda(resultados[0]?.lucroBruto)}</strong> e{' '}
                     <strong>{formatarMoeda(resultados[resultados.length - 1]?.lucroBruto)}</strong> de lucro 
-                    em {resultados[resultados.length - 1]?.dias} dias, descontando o custo de <strong>{formatarMoeda(custoTotalMedicamentos)}</strong> em medicamentos 
+                    em {resultados[resultados.length - 1]?.dias} dias, descontando <strong>APENAS</strong> o custo de <strong>{formatarMoeda(custoTotalMedicamentos)}</strong> em <strong>sanidade/medicamentos</strong>
                     (<strong>{formatarMoeda(custoTotalMedicamentos / loteAtual.quantidade_animais)}</strong> por animal).
+                  </p>
+                  <p className="text-xs text-red-700 font-semibold mt-2">
+                    ⚠️ ATENÇÃO: Este cálculo NÃO inclui outros custos operacionais como alimentação, mão de obra, impostos, etc.
                   </p>
                   
                   <div className="mt-3 pt-3 border-t border-gray-300">
