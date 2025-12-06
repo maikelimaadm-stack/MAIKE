@@ -1725,7 +1725,10 @@ export default function LancamentoPesagensIndividuais() {
           {/* Dados de Saída (Venda) */}
           {tipoManejo === 'Saída' && motivoSaida === 'Venda' && mostrarDadosVenda && (
             <div className="mt-3 p-3 border-t bg-blue-50 rounded">
-              <h3 className="text-xs font-semibold text-blue-700 mb-3">Dados da Venda</h3>
+              <h3 className="text-xs font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Dados da Venda
+              </h3>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Comprador</Label>
@@ -1765,6 +1768,14 @@ export default function LancamentoPesagensIndividuais() {
                     placeholder="Calculado ou manual"
                   />
                 </div>
+                {peso && valorArroba && (
+                  <div className="space-y-1 col-span-4">
+                    <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
+                    <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
+                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label className="text-xs">Número GTA</Label>
                   <Input
@@ -1793,14 +1804,6 @@ export default function LancamentoPesagensIndividuais() {
                     placeholder="0.00"
                   />
                 </div>
-                {peso && valorArroba && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
-                    <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
-                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
-                    </div>
-                  </div>
-                )}
                 <div className="space-y-1 col-span-4">
                   <Label className="text-xs">Observações</Label>
                   <Input
@@ -1817,7 +1820,10 @@ export default function LancamentoPesagensIndividuais() {
           {/* Dados de Saída (Abate) */}
           {tipoManejo === 'Saída' && motivoSaida === 'Abate' && mostrarDadosAbate && (
             <div className="mt-3 p-3 border-t bg-purple-50 rounded">
-              <h3 className="text-xs font-semibold text-purple-700 mb-3">Dados do Abate</h3>
+              <h3 className="text-xs font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Dados do Abate
+              </h3>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Frigorífico</Label>
@@ -1865,7 +1871,26 @@ export default function LancamentoPesagensIndividuais() {
                     placeholder="Ex: 12345"
                   />
                 </div>
-                <div className="space-y-1 col-span-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Número NF-e</Label>
+                  <Input
+                    value={numeroNFeVenda}
+                    onChange={(e) => setNumeroNFeVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 98765"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor do Frete (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorFreteVenda}
+                    onChange={(e) => setValorFreteVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1 col-span-4">
                   <Label className="text-xs">Observações</Label>
                   <Input
                     value={observacoesAbate}
