@@ -285,6 +285,7 @@ export default function LancamentoPesagensIndividuais() {
     { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'numero_registro', label: 'Nº', default: true },
     { id: 'tipo_manejo', label: 'Tipo', default: true },
+    { id: 'motivo_saida', label: 'Motivo Saída', default: true },
     { id: 'numero_animal', label: 'Identificação', default: true },
     { id: 'peso', label: 'Peso', default: true },
     { id: 'data_pesagem', label: 'Data', default: true },
@@ -294,6 +295,14 @@ export default function LancamentoPesagensIndividuais() {
     { id: 'marca', label: 'Marca', default: true },
     { id: 'nome_apartacao', label: 'Apartação', default: true },
     { id: 'nome_lote', label: 'Lote', default: true },
+    { id: 'valor_pago_cabeca', label: 'Valor Compra', default: true },
+    { id: 'origem_animal', label: 'Origem', default: false },
+    { id: 'comprador', label: 'Comprador', default: true },
+    { id: 'destino_venda', label: 'Destino', default: false },
+    { id: 'valor_venda_total', label: 'Valor Venda', default: true },
+    { id: 'valor_arroba', label: 'Valor @', default: true },
+    { id: 'quantidade_arrobas', label: 'Qtd @', default: true },
+    { id: 'frigorifico', label: 'Frigorífico', default: true },
     { id: 'data_anterior', label: 'Data Anterior', default: false },
     { id: 'peso_anterior', label: 'Peso Anterior', default: false },
     { id: 'dias', label: 'Dias', default: false },
@@ -904,9 +913,15 @@ export default function LancamentoPesagensIndividuais() {
       // Dados de Cadastro (Compra)
       valor_pago_cabeca: tipoManejo === 'Cadastro' && valorPagoCabeca ? parseFloat(valorPagoCabeca) : null,
       origem_animal: tipoManejo === 'Cadastro' ? origemAnimal : null,
-      documentacao: tipoManejo === 'Cadastro' ? documentacao : null,
+      documentacao: tipoManejo === 'Cadastro' ? (numeroGTA || numeroNFeCompra || valorFreteCompra || observacoesCompra ? JSON.stringify({
+        gta: numeroGTA,
+        nfe: numeroNFeCompra,
+        frete: valorFreteCompra,
+        obs: observacoesCompra
+      }) : null) : null,
       // Dados de Saída (Venda)
       comprador: tipoManejo === 'Saída' && motivoSaida === 'Venda' ? comprador : null,
+      destino_venda: tipoManejo === 'Saída' && motivoSaida === 'Venda' ? destinoVenda : null,
       valor_venda_total: tipoManejo === 'Saída' && motivoSaida === 'Venda' && valorVendaTotal ? parseFloat(valorVendaTotal) : null,
       valor_arroba: tipoManejo === 'Saída' && motivoSaida === 'Venda' && valorArroba ? parseFloat(valorArroba) : null,
       quantidade_arrobas: quantidadeArrobas ? parseFloat(quantidadeArrobas.toFixed(2)) : null,
@@ -2009,12 +2024,43 @@ export default function LancamentoPesagensIndividuais() {
                                 <TableCell key={coluna.id} className="text-xs">
                                   <Badge 
                                     variant="outline" 
-                                    className={`text-[10px] ${p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-blue-50 text-blue-700 border-blue-300'}`}
+                                    className={`text-[10px] ${
+                                      p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 
+                                      p.tipo_manejo === 'Saída' ? 'bg-red-50 text-red-700 border-red-300' :
+                                      'bg-blue-50 text-blue-700 border-blue-300'
+                                    }`}
                                   >
-                                    {p.tipo_manejo || 'Pesagens'}
+                                    {p.tipo_manejo || 'Manejo'}
                                   </Badge>
                                 </TableCell>
                               );
+                            }
+                            if (coluna.id === 'motivo_saida') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.motivo_saida || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'valor_pago_cabeca') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_pago_cabeca ? `R$ ${p.valor_pago_cabeca.toFixed(2)}` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'origem_animal') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.origem_animal || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'comprador') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.comprador || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'destino_venda') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.destino_venda || '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'valor_venda_total') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_venda_total ? `R$ ${p.valor_venda_total.toFixed(2)}` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'valor_arroba') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_arroba ? `R$ ${p.valor_arroba.toFixed(2)}` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'quantidade_arrobas') {
+                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.quantidade_arrobas ? `${p.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                            }
+                            if (coluna.id === 'frigorifico') {
+                              return <TableCell key={coluna.id} className="text-xs">{p.frigorifico || '-'}</TableCell>;
                             }
                             if (coluna.id === 'numero_animal') {
                               return (
