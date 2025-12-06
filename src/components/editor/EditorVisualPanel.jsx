@@ -145,7 +145,6 @@ export default function EditorVisualPanel({ onClose }) {
   };
 
   const handlePanelMouseDown = (e) => {
-    if (e.target.closest('.panel-content')) return;
     setIsDragging(true);
     setDragStart({
       x: e.clientX - panelPosition.x,
@@ -153,19 +152,19 @@ export default function EditorVisualPanel({ onClose }) {
     });
   };
 
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPanelPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      setPanelPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -174,7 +173,7 @@ export default function EditorVisualPanel({ onClose }) {
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragStart, panelPosition]);
+  }, [isDragging, dragStart.x, dragStart.y]);
 
   return (
     <div
