@@ -125,6 +125,8 @@ export default function PesagensIndividuais() {
     { id: 'selecao', label: 'Seleção', default: true, fixo: true },
     { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'data_pesagem', label: 'Data', default: true },
+    { id: 'tipo_manejo', label: 'Tipo', default: true },
+    { id: 'motivo_saida', label: 'Motivo Saída', default: true },
     { id: 'numero_animal', label: 'Animal', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
     { id: 'raca', label: 'Raça', default: true },
@@ -132,6 +134,14 @@ export default function PesagensIndividuais() {
     { id: 'peso', label: 'Peso', default: true },
     { id: 'nome_lote', label: 'Lote', default: true },
     { id: 'nome_apartacao', label: 'Apartação', default: true },
+    { id: 'valor_pago_cabeca', label: 'Valor Compra', default: false },
+    { id: 'origem_animal', label: 'Origem', default: false },
+    { id: 'comprador', label: 'Comprador', default: false },
+    { id: 'destino_venda', label: 'Destino', default: false },
+    { id: 'valor_venda_total', label: 'Valor Venda', default: false },
+    { id: 'valor_arroba', label: 'Valor @', default: false },
+    { id: 'quantidade_arrobas', label: 'Qtd @', default: false },
+    { id: 'frigorifico', label: 'Frigorífico', default: false },
     { id: 'dias', label: 'Dias', default: false },
     { id: 'ganho', label: 'Ganho', default: false },
     { id: 'gmd', label: 'GMD', default: true },
@@ -927,6 +937,25 @@ export default function PesagensIndividuais() {
                         if (coluna.id === 'data_pesagem') {
                           return <TableCell key={coluna.id} className="text-xs py-2 px-3">{formatarData(p.data_pesagem)}</TableCell>;
                         }
+                        if (coluna.id === 'tipo_manejo') {
+                          return (
+                            <TableCell key={coluna.id} className="text-xs py-2 px-3">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] ${
+                                  p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 
+                                  p.tipo_manejo === 'Saída' ? 'bg-red-50 text-red-700 border-red-300' :
+                                  'bg-blue-50 text-blue-700 border-blue-300'
+                                }`}
+                              >
+                                {p.tipo_manejo || 'Manejo'}
+                              </Badge>
+                            </TableCell>
+                          );
+                        }
+                        if (coluna.id === 'motivo_saida') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.motivo_saida || '-'}</TableCell>;
+                        }
                         if (coluna.id === 'numero_animal') {
                           return <TableCell key={coluna.id} className="text-xs py-2 px-3 font-semibold">{p.numero_animal}</TableCell>;
                         }
@@ -936,6 +965,30 @@ export default function PesagensIndividuais() {
                               {p.sexo === 'M' ? 'Macho' : p.sexo === 'F' ? 'Fêmea' : '-'}
                             </TableCell>
                           );
+                        }
+                        if (coluna.id === 'valor_pago_cabeca') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 text-right font-mono">{p.valor_pago_cabeca ? `R$ ${p.valor_pago_cabeca.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'origem_animal') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.origem_animal || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'comprador') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.comprador || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'destino_venda') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.destino_venda || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'valor_venda_total') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 text-right font-mono">{p.valor_venda_total ? `R$ ${p.valor_venda_total.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'valor_arroba') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 text-right font-mono">{p.valor_arroba ? `R$ ${p.valor_arroba.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'quantidade_arrobas') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 text-right font-mono">{p.quantidade_arrobas ? `${p.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'frigorifico') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.frigorifico || '-'}</TableCell>;
                         }
                         if (coluna.id === 'raca') {
                           return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.raca || '-'}</TableCell>;
