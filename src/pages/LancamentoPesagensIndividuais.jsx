@@ -47,7 +47,7 @@ import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
-import DialogSanidade from "../components/sanidade/DialogSanidade";
+import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -250,6 +250,8 @@ export default function LancamentoPesagensIndividuais() {
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
+  const [sanidadeSelecionada, setSanidadeSelecionada] = useState("");
+  const [aplicarSanidade, setAplicarSanidade] = useState(false);
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -1295,9 +1297,9 @@ export default function LancamentoPesagensIndividuais() {
                 size="icon"
                 onClick={() => setMostrarSanidade(true)}
                 className="h-8 w-8"
-                title="Abrir Sanidade"
+                title="Gerenciar Sanidades"
               >
-                <Syringe className="w-4 h-4" />
+                <Settings className="w-4 h-4" />
               </Button>
             )}
 
