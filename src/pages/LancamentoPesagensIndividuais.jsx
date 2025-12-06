@@ -241,9 +241,11 @@ export default function LancamentoPesagensIndividuais() {
   const [documentacao, setDocumentacao] = useState("");
 
   // Campos de Saída (Venda/Abate)
+  const [mostrarDadosVenda, setMostrarDadosVenda] = useState(false);
   const [comprador, setComprador] = useState("");
   const [valorVendaTotal, setValorVendaTotal] = useState("");
   const [valorArroba, setValorArroba] = useState("");
+  const [mostrarDadosAbate, setMostrarDadosAbate] = useState(false);
   const [frigorifico, setFrigorifico] = useState("");
 
   // Sanidade
@@ -989,6 +991,8 @@ export default function LancamentoPesagensIndividuais() {
       setValorVendaTotal("");
       setValorArroba("");
       setFrigorifico("");
+      setMostrarDadosVenda(false);
+      setMostrarDadosAbate(false);
       setAvisoTela(null);
       setTimeout(() => numeroInputRef.current?.focus(), 50);
     } catch (error) {
@@ -1208,11 +1212,11 @@ export default function LancamentoPesagensIndividuais() {
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
-          {/* SELEÇÃO DO TIPO DE MANEJO + AVISO */}
-          <div className="flex items-center gap-4 mb-4 pb-3 border-b flex-wrap">
+          {/* SELEÇÃO DO TIPO DE MANEJO + MOTIVO SAÍDA + ÍCONES */}
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
-            <Select value={tipoManejo} onValueChange={(v) => { setTipoManejo(v); setMotivoSaida(""); }}>
-              <SelectTrigger className="h-8 text-xs w-64">
+            <Select value={tipoManejo} onValueChange={(v) => { setTipoManejo(v); setMotivoSaida(""); setMostrarDadosVenda(false); setMostrarDadosAbate(false); }}>
+              <SelectTrigger className="h-8 text-xs w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1222,7 +1226,55 @@ export default function LancamentoPesagensIndividuais() {
               </SelectContent>
             </Select>
 
-            {/* Ícones de Ações Rápidas */}
+            {/* Motivo da Saída (rente ao Tipo) */}
+            {tipoManejo === 'Saída' && (
+              <>
+                <Label className="text-xs font-medium">Motivo da Saída <span className="text-red-500">*</span></Label>
+                <Select value={motivoSaida} onValueChange={setMotivoSaida}>
+                  <SelectTrigger className="h-8 text-xs w-44">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Venda">Venda</SelectItem>
+                    <SelectItem value="Morte">Morte</SelectItem>
+                    <SelectItem value="Doação">Doação</SelectItem>
+                    <SelectItem value="Abate">Abate</SelectItem>
+                    <SelectItem value="Transferência">Transferência</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Ícone para Venda */}
+                {motivoSaida === 'Venda' && (
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => setMostrarDadosVenda(!mostrarDadosVenda)}
+                    className="h-8 w-8"
+                    title={mostrarDadosVenda ? 'Ocultar Dados de Venda' : 'Mostrar Dados de Venda'}
+                  >
+                    {mostrarDadosVenda ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                )}
+
+                {/* Ícone para Abate */}
+                {motivoSaida === 'Abate' && (
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => setMostrarDadosAbate(!mostrarDadosAbate)}
+                    className="h-8 w-8"
+                    title={mostrarDadosAbate ? 'Ocultar Dados de Abate' : 'Mostrar Dados de Abate'}
+                  >
+                    {mostrarDadosAbate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* Ícones de Ações Rápidas - Cadastro/Manejo */}
             {tipoManejo === 'Cadastro' && (
               <Button 
                 type="button"
@@ -1249,6 +1301,7 @@ export default function LancamentoPesagensIndividuais() {
               </Button>
             )}
 
+            {/* Mensagens de Status */}
             {tipoManejo === 'Cadastro' && !avisoTela && (
               <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                 Cadastro de novos animais (Ativo)
@@ -1264,24 +1317,7 @@ export default function LancamentoPesagensIndividuais() {
                 Animal será marcado como INATIVO
               </span>
             )}
-            {tipoManejo === 'Saída' && (
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Motivo da Saída <span className="text-red-500">*</span></Label>
-                <Select value={motivoSaida} onValueChange={setMotivoSaida}>
-                  <SelectTrigger className="h-8 text-xs w-44">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Venda">Venda</SelectItem>
-                    <SelectItem value="Morte">Morte</SelectItem>
-                    <SelectItem value="Doação">Doação</SelectItem>
-                    <SelectItem value="Abate">Abate</SelectItem>
-                    <SelectItem value="Transferência">Transferência</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+
             {/* AVISO INLINE */}
             {avisoTela && (
               <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
@@ -1621,7 +1657,7 @@ export default function LancamentoPesagensIndividuais() {
           )}
 
           {/* Dados de Saída (Venda) */}
-          {tipoManejo === 'Saída' && motivoSaida === 'Venda' && (
+          {tipoManejo === 'Saída' && motivoSaida === 'Venda' && mostrarDadosVenda && (
             <div className="mt-3 p-3 border-t bg-blue-50 rounded">
               <h3 className="text-xs font-semibold text-blue-700 mb-3">Dados da Venda</h3>
               <div className="grid grid-cols-4 gap-3">
@@ -1667,7 +1703,7 @@ export default function LancamentoPesagensIndividuais() {
           )}
 
           {/* Dados de Saída (Abate) */}
-          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
+          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && mostrarDadosAbate && (
             <div className="mt-3 p-3 border-t bg-purple-50 rounded">
               <h3 className="text-xs font-semibold text-purple-700 mb-3">Dados do Abate</h3>
               <div className="grid grid-cols-2 gap-3">
