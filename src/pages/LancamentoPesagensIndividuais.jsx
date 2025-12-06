@@ -224,6 +224,8 @@ export default function LancamentoPesagensIndividuais() {
   const [apartacaoSelecionada, setApartacaoSelecionada] = useState("");
   const [loteTransferencia, setLoteTransferencia] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [tipoManejo, setTipoManejo] = useState('Manejo');
+  const [motivoSaida, setMotivoSaida] = useState("");
   
   // Checkboxes para fixar valores (quando marcado, campo fica desabilitado)
   const [fixarSexo, setFixarSexo] = useState(true);
@@ -231,8 +233,7 @@ export default function LancamentoPesagensIndividuais() {
   const [fixarEra, setFixarEra] = useState(false);
   const [fixarMarca, setFixarMarca] = useState(false);
   
-  // Tipo de Manejo: 'cadastro' ou 'pesagens'
-  const [tipoManejo, setTipoManejo] = useState('cadastro');
+
 
   // Campo de pesquisa
   const [searchTerm, setSearchTerm] = useState("");
@@ -733,6 +734,10 @@ export default function LancamentoPesagensIndividuais() {
       pesoInputRef.current?.focus();
       return; 
     }
+    if (tipoManejo === 'Saída' && !motivoSaida) {
+      toast.error("⚠️ Campo obrigatório: Motivo da Saída");
+      return;
+    }
 
     // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN
     const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
@@ -750,21 +755,34 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
-    // No modo "Manejo de Pesagens", verificar se o brinco existe no cadastro
-    if (tipoManejo === 'pesagens' && !isSN && !editingId) {
-      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
+    // No modo "Manejo", verificar se o brinco existe no cadastro
+    if (tipoManejo === 'Manejo' && !isSN && !editingId) {
+      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
       if (!animalExiste) {
         setAvisoTela({
           tipo: 'erro',
-          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO! Use "Manejo Cadastro" para cadastrar primeiro.`
+          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
         });
         numeroInputRef.current?.focus();
         return;
       }
     }
 
-    // No modo "Manejo Cadastro", verificar se o brinco JÁ existe (não permitir duplicado)
-    if (tipoManejo === 'cadastro' && !isSN && !editingId) {
+    // No modo "Saída", verificar se o brinco existe
+    if (tipoManejo === 'Saída' && !isSN && !editingId) {
+      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
+      if (!animalExiste) {
+        setAvisoTela({
+          tipo: 'erro',
+          mensagem: `❌ Brinco ${numeroAnimal.trim()} NÃO CADASTRADO ou já está INATIVO!`
+        });
+        numeroInputRef.current?.focus();
+        return;
+      }
+    }
+
+    // No modo "Cadastro", verificar se o brinco JÁ existe (não permitir duplicado)
+    if (tipoManejo === 'Cadastro' && !isSN && !editingId) {
       const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
       if (animalExiste) {
         const ultimo = pesagens
@@ -772,7 +790,7 @@ export default function LancamentoPesagensIndividuais() {
           .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
         setAvisoTela({
           tipo: 'erro',
-          mensagem: `❌ Animal ${numeroAnimal.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo de Pesagens" para nova pesagem.`
+          mensagem: `❌ Animal ${numeroAnimal.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo" para nova pesagem.`
         });
         numeroInputRef.current?.focus();
         return;
@@ -828,13 +846,12 @@ export default function LancamentoPesagensIndividuais() {
       }
     }
 
-    // Determinar tipo_manejo baseado no modo selecionado
-    const tipoManejoRegistro = tipoManejo === 'cadastro' ? 'Cadastro' : 'Pesagens';
-
-    // Se for cadastro, NÃO calcula ganho de peso (é o registro inicial)
+    // Se for cadastro ou saída, NÃO calcula ganho de peso
     const data = {
       empresa_id: empresaSelecionadaId,
-      tipo_manejo: tipoManejoRegistro,
+      tipo_manejo: tipoManejo,
+      motivo_saida: tipoManejo === 'Saída' ? motivoSaida : null,
+      status_animal: tipoManejo === 'Saída' ? 'Inativo' : 'Ativo',
       data_pesagem: dataPesagem,
       numero_animal: numeroAnimal.trim(),
       sexo: sexo || null,
@@ -847,12 +864,12 @@ export default function LancamentoPesagensIndividuais() {
       nome_apartacao: nomeApartacao,
       lote_id: loteId,
       nome_lote: nomeLote,
-      // Cadastro não tem ganho de peso (é o registro inicial)
-      data_anterior: tipoManejo === 'cadastro' ? null : dataAnterior,
-      peso_anterior: tipoManejo === 'cadastro' ? null : pesoAnterior,
-      dias: tipoManejo === 'cadastro' ? null : dias,
-      ganho: tipoManejo === 'cadastro' ? null : (ganho ? parseFloat(ganho.toFixed(2)) : null),
-      gmd: tipoManejo === 'cadastro' ? null : gmd,
+      // Cadastro e Saída não têm ganho de peso
+      data_anterior: tipoManejo === 'Manejo' ? dataAnterior : null,
+      peso_anterior: tipoManejo === 'Manejo' ? pesoAnterior : null,
+      dias: tipoManejo === 'Manejo' ? dias : null,
+      ganho: tipoManejo === 'Manejo' ? (ganho ? parseFloat(ganho.toFixed(2)) : null) : null,
+      gmd: tipoManejo === 'Manejo' ? gmd : null,
     };
 
     try {
@@ -933,6 +950,7 @@ export default function LancamentoPesagensIndividuais() {
       if (!fixarMarca) setMarca("");
       setObservacao("");
       setLoteTransferencia("");
+      setMotivoSaida("");
       setAvisoTela(null);
       setTimeout(() => numeroInputRef.current?.focus(), 50);
     } catch (error) {
@@ -991,8 +1009,8 @@ export default function LancamentoPesagensIndividuais() {
     setEra(p.era || "");
     setMarca(p.marca || "");
     setObservacao(p.observacao || "");
-    // Definir tipo de manejo baseado no registro
-    setTipoManejo(p.tipo_manejo === 'Cadastro' ? 'cadastro' : 'pesagens');
+    setTipoManejo(p.tipo_manejo || 'Manejo');
+    setMotivoSaida(p.motivo_saida || "");
     if (p.apartacao_id) setApartacaoSelecionada(p.apartacao_id);
     if (p.lote_id) setLoteTransferencia(p.lote_id);
     numeroInputRef.current?.focus();
@@ -1154,25 +1172,49 @@ export default function LancamentoPesagensIndividuais() {
         <CardContent className="p-4">
           {/* SELEÇÃO DO TIPO DE MANEJO + AVISO */}
           <div className="flex items-center gap-4 mb-4 pb-3 border-b flex-wrap">
-            <Label className="text-xs font-semibold text-slate-700">Tipo de Manejo:</Label>
-            <Select value={tipoManejo} onValueChange={setTipoManejo}>
-              <SelectTrigger className="h-8 text-xs w-48">
+            <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
+            <Select value={tipoManejo} onValueChange={(v) => { setTipoManejo(v); setMotivoSaida(""); }}>
+              <SelectTrigger className="h-8 text-xs w-64">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cadastro">Manejo Cadastro</SelectItem>
-                <SelectItem value="pesagens">Manejo de Pesagens</SelectItem>
+                <SelectItem value="Cadastro">Cadastro (Novo Animal)</SelectItem>
+                <SelectItem value="Manejo">Manejo (Pesagem Periódica)</SelectItem>
+                <SelectItem value="Saída">Saída (Venda/Morte/Doação)</SelectItem>
               </SelectContent>
             </Select>
-            {tipoManejo === 'pesagens' && !avisoTela && (
-              <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Apenas animais já cadastrados
+            {tipoManejo === 'Cadastro' && !avisoTela && (
+              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                Cadastro de novos animais (Ativo)
               </span>
             )}
-            {tipoManejo === 'cadastro' && !avisoTela && (
-              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                Cadastro de novos animais
+            {tipoManejo === 'Manejo' && !avisoTela && (
+              <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Apenas animais já cadastrados (Ativo)
               </span>
+            )}
+            {tipoManejo === 'Saída' && !avisoTela && (
+              <span className="text-[10px] text-red-600 bg-red-50 px-2 py-1 rounded">
+                Animal será marcado como INATIVO
+              </span>
+            )}
+            {tipoManejo === 'Saída' && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Motivo da Saída <span className="text-red-500">*</span></Label>
+                <Select value={motivoSaida} onValueChange={setMotivoSaida}>
+                  <SelectTrigger className="h-8 text-xs w-44">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Venda">Venda</SelectItem>
+                    <SelectItem value="Morte">Morte</SelectItem>
+                    <SelectItem value="Doação">Doação</SelectItem>
+                    <SelectItem value="Abate">Abate</SelectItem>
+                    <SelectItem value="Transferência">Transferência</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             {/* AVISO INLINE */}
             {avisoTela && (
@@ -1201,8 +1243,8 @@ export default function LancamentoPesagensIndividuais() {
               />
             </div>
             
-            {/* CAMPOS DE CADASTRO - Mostrar apenas no Manejo Cadastro */}
-            {tipoManejo === 'cadastro' && (
+            {/* CAMPOS DE CADASTRO - Mostrar em Cadastro e Saída */}
+            {(tipoManejo === 'Cadastro' || tipoManejo === 'Saída') && (
               <>
                 {/* Sexo com Checkbox para fixar */}
                 <div className="space-y-1">
@@ -1332,31 +1374,33 @@ export default function LancamentoPesagensIndividuais() {
                       const ultimo = historicoAnimal[0];
                       
                       // No modo CADASTRO, avisar que animal já existe
-                      if (tipoManejo === 'cadastro' && !editingId) {
+                      if (tipoManejo === 'Cadastro' && !editingId) {
                         setAvisoTela({
                           tipo: 'alerta',
-                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo de Pesagens" para nova pesagem.`
+                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
                         });
                       }
                       
-                      // No modo PESAGENS, mostrar info do animal
-                      if (tipoManejo === 'pesagens') {
+                      // No modo MANEJO ou SAÍDA, mostrar info do animal
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         if (!pesadoHoje) {
+                          const statusAtual = ultimo.status_animal || 'Ativo';
                           setAvisoTela({
-                            tipo: 'info',
-                            mensagem: `✓ Animal encontrado: ${ultimo.sexo || '-'} | ${ultimo.raca || '-'} | Era: ${ultimo.era || '-'} | Marca: ${ultimo.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                            tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
+                            mensagem: statusAtual === 'Inativo' 
+                              ? `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)`
+                              : `✓ Animal encontrado: ${ultimo.sexo || '-'} | ${ultimo.raca || '-'} | Era: ${ultimo.era || '-'} | Marca: ${ultimo.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                           });
                         }
                       }
                       
-                      // Preencher campos SEMPRE (no modo pesagens, são readonly)
-                      // No modo cadastro, preencher apenas se NÃO estiverem fixados
-                      if (tipoManejo === 'pesagens' || !fixarSexo) setSexo(ultimo.sexo || "M");
-                      if (tipoManejo === 'pesagens' || !fixarRaca) setRaca(ultimo.raca || "Nelore");
-                      if (tipoManejo === 'pesagens' || !fixarMarca) setMarca(ultimo.marca || "");
+                      // Preencher campos automaticamente
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarSexo) setSexo(ultimo.sexo || "M");
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarRaca) setRaca(ultimo.raca || "Nelore");
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarMarca) setMarca(ultimo.marca || "");
                       
                       // Calcular evolução da era em meses
-                      if (tipoManejo === 'pesagens' || !fixarEra) {
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarEra) {
                         if (ultimo.era && ultimo.data_pesagem) {
                           const eraAnterior = parseInt(ultimo.era) || 0;
                           if (eraAnterior > 0) {
@@ -1372,10 +1416,10 @@ export default function LancamentoPesagensIndividuais() {
                       }
                     } else {
                       // Animal não encontrado
-                      if (tipoManejo === 'pesagens') {
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         setAvisoTela({
                           tipo: 'erro',
-                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Manejo Cadastro" para cadastrar primeiro.`
+                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
                         });
                       }
                     }
@@ -1429,6 +1473,7 @@ export default function LancamentoPesagensIndividuais() {
                   setPeso("");
                   setObservacao("");
                   setLoteTransferencia("");
+                  setMotivoSaida("");
                   setAvisoTela(null);
                   if (!fixarSexo) setSexo("M");
                   if (!fixarRaca) setRaca("Nelore");
