@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical } from "lucide-react";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database } from "lucide-react";
+import { GripVertical, Eye, EyeOff } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -847,6 +847,12 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     // Se for cadastro ou saída, NÃO calcula ganho de peso
+    // Calcular arrobas se for venda
+    let quantidadeArrobas = null;
+    if (tipoManejo === 'Saída' && motivoSaida === 'Venda' && pesoNum) {
+      quantidadeArrobas = pesoNum / 15;
+    }
+
     const data = {
       empresa_id: empresaSelecionadaId,
       tipo_manejo: tipoManejo,
@@ -864,6 +870,17 @@ export default function LancamentoPesagensIndividuais() {
       nome_apartacao: nomeApartacao,
       lote_id: loteId,
       nome_lote: nomeLote,
+      // Dados de Cadastro (Compra)
+      valor_pago_cabeca: tipoManejo === 'Cadastro' && valorPagoCabeca ? parseFloat(valorPagoCabeca) : null,
+      origem_animal: tipoManejo === 'Cadastro' ? origemAnimal : null,
+      documentacao: tipoManejo === 'Cadastro' ? documentacao : null,
+      // Dados de Saída (Venda)
+      comprador: tipoManejo === 'Saída' && motivoSaida === 'Venda' ? comprador : null,
+      valor_venda_total: tipoManejo === 'Saída' && motivoSaida === 'Venda' && valorVendaTotal ? parseFloat(valorVendaTotal) : null,
+      valor_arroba: tipoManejo === 'Saída' && motivoSaida === 'Venda' && valorArroba ? parseFloat(valorArroba) : null,
+      quantidade_arrobas: quantidadeArrobas ? parseFloat(quantidadeArrobas.toFixed(2)) : null,
+      // Dados de Saída (Abate)
+      frigorifico: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? frigorifico : null,
       // Cadastro e Saída não têm ganho de peso
       data_anterior: tipoManejo === 'Manejo' ? dataAnterior : null,
       peso_anterior: tipoManejo === 'Manejo' ? pesoAnterior : null,
@@ -951,6 +968,13 @@ export default function LancamentoPesagensIndividuais() {
       setObservacao("");
       setLoteTransferencia("");
       setMotivoSaida("");
+      setValorPagoCabeca("");
+      setOrigemAnimal("");
+      setDocumentacao("");
+      setComprador("");
+      setValorVendaTotal("");
+      setValorArroba("");
+      setFrigorifico("");
       setAvisoTela(null);
       setTimeout(() => numeroInputRef.current?.focus(), 50);
     } catch (error) {
