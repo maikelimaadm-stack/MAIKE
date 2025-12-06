@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripVertical, Eye, EyeOff } from "lucide-react";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe, Truck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -239,14 +239,27 @@ export default function LancamentoPesagensIndividuais() {
   const [valorPagoCabeca, setValorPagoCabeca] = useState("");
   const [origemAnimal, setOrigemAnimal] = useState("");
   const [documentacao, setDocumentacao] = useState("");
+  const [numeroGTA, setNumeroGTA] = useState("");
+  const [numeroNFeCompra, setNumeroNFeCompra] = useState("");
+  const [valorFreteCompra, setValorFreteCompra] = useState("");
+  const [observacoesCompra, setObservacoesCompra] = useState("");
 
   // Campos de Saída (Venda/Abate)
   const [mostrarDadosVenda, setMostrarDadosVenda] = useState(false);
   const [comprador, setComprador] = useState("");
   const [valorVendaTotal, setValorVendaTotal] = useState("");
   const [valorArroba, setValorArroba] = useState("");
+  const [destinoVenda, setDestinoVenda] = useState("");
+  const [numeroGTAVenda, setNumeroGTAVenda] = useState("");
+  const [numeroNFeVenda, setNumeroNFeVenda] = useState("");
+  const [valorFreteVenda, setValorFreteVenda] = useState("");
+  const [observacoesVenda, setObservacoesVenda] = useState("");
   const [mostrarDadosAbate, setMostrarDadosAbate] = useState(false);
   const [frigorifico, setFrigorifico] = useState("");
+  const [valorArrobaAbate, setValorArrobaAbate] = useState("");
+  const [valorTotalAbate, setValorTotalAbate] = useState("");
+  const [numeroGTAAbate, setNumeroGTAAbate] = useState("");
+  const [observacoesAbate, setObservacoesAbate] = useState("");
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
@@ -989,10 +1002,23 @@ export default function LancamentoPesagensIndividuais() {
       setValorPagoCabeca("");
       setOrigemAnimal("");
       setDocumentacao("");
+      setNumeroGTA("");
+      setNumeroNFeCompra("");
+      setValorFreteCompra("");
+      setObservacoesCompra("");
       setComprador("");
       setValorVendaTotal("");
       setValorArroba("");
+      setDestinoVenda("");
+      setNumeroGTAVenda("");
+      setNumeroNFeVenda("");
+      setValorFreteVenda("");
+      setObservacoesVenda("");
       setFrigorifico("");
+      setValorArrobaAbate("");
+      setValorTotalAbate("");
+      setNumeroGTAAbate("");
+      setObservacoesAbate("");
       setMostrarDadosVenda(false);
       setMostrarDadosAbate(false);
       setAvisoTela(null);
@@ -1299,7 +1325,7 @@ export default function LancamentoPesagensIndividuais() {
                 className="h-8 w-8"
                 title="Gerenciar Sanidades"
               >
-                <Settings className="w-4 h-4" />
+                <Syringe className="w-4 h-4" />
               </Button>
             )}
 
@@ -1364,7 +1390,7 @@ export default function LancamentoPesagensIndividuais() {
                       <label htmlFor="fixarSexo" className="text-[10px] text-slate-500">Fixar</label>
                     </div>
                   </div>
-                  <Select value={sexo} onValueChange={setSexo}>
+                  <Select value={sexo} onValueChange={setSexo} disabled={fixarSexo}>
                     <SelectTrigger className={`h-9 text-sm w-20 ${fixarSexo ? 'bg-emerald-50 border-emerald-300' : ''}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="M" className="text-slate-700">M</SelectItem>
@@ -1387,15 +1413,13 @@ export default function LancamentoPesagensIndividuais() {
                       <label htmlFor="fixarRaca" className="text-[10px] text-slate-500">Fixar</label>
                     </div>
                   </div>
-                  <div className="w-28">
-                    <ComboboxComNovo
-                      value={raca}
-                      onChange={setRaca}
-                      options={racasExistentes}
-                      placeholder="Nelore"
-                      className={fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}
-                    />
-                  </div>
+                  <Input 
+                    value={raca}
+                    onChange={(e) => setRaca(e.target.value)}
+                    disabled={fixarRaca}
+                    placeholder="Nelore"
+                    className={`h-9 text-sm w-28 ${fixarRaca ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                  />
                 </div>
 
                 {/* Era com Checkbox para fixar */}
@@ -1412,14 +1436,13 @@ export default function LancamentoPesagensIndividuais() {
                       <label htmlFor="fixarEra" className="text-[10px] text-slate-500">Fixar</label>
                     </div>
                   </div>
-                  <div className="w-24">
-                    <ComboboxComNovo
-                      value={era}
-                      onChange={setEra}
-                      options={erasExistentes}
-                      placeholder="Ex: 14"
-                    />
-                  </div>
+                  <Input 
+                    value={era}
+                    onChange={(e) => setEra(e.target.value)}
+                    disabled={fixarEra}
+                    placeholder="Ex: 14"
+                    className={`h-9 text-sm w-24 ${fixarEra ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                  />
                 </div>
 
                 {/* Marca com Checkbox para fixar */}
@@ -1436,14 +1459,13 @@ export default function LancamentoPesagensIndividuais() {
                       <label htmlFor="fixarMarca" className="text-[10px] text-slate-500">Fixar</label>
                     </div>
                   </div>
-                  <div className="w-24">
-                    <ComboboxComNovo
-                      value={marca}
-                      onChange={setMarca}
-                      options={marcasExistentes}
-                      placeholder="Ex: ABC"
-                    />
-                  </div>
+                  <Input 
+                    value={marca}
+                    onChange={(e) => setMarca(e.target.value)}
+                    disabled={fixarMarca}
+                    placeholder="Ex: ABC"
+                    className={`h-9 text-sm w-24 ${fixarMarca ? 'bg-emerald-50 border-emerald-300' : ''}`}
+                  />
                 </div>
               </>
             )}
@@ -1620,8 +1642,11 @@ export default function LancamentoPesagensIndividuais() {
           {/* Dados de Compra (Cadastro) - Seção Retrátil */}
           {tipoManejo === 'Cadastro' && mostrarDadosCompra && (
             <div className="mt-3 p-3 border-t bg-slate-50 rounded">
-              <h3 className="text-xs font-semibold text-slate-700 mb-3">Dados de Compra</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <h3 className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Dados de Compra
+              </h3>
+              <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Valor por Cabeça (R$)</Label>
                   <Input
@@ -1642,17 +1667,41 @@ export default function LancamentoPesagensIndividuais() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Documentação</Label>
-                  <Select value={documentacao} onValueChange={setDocumentacao}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={null}>Nenhuma</SelectItem>
-                      <SelectItem value="GTA">GTA</SelectItem>
-                      <SelectItem value="NF-e">NF-e</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Número GTA</Label>
+                  <Input
+                    value={numeroGTA}
+                    onChange={(e) => setNumeroGTA(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 12345"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Número NF-e</Label>
+                  <Input
+                    value={numeroNFeCompra}
+                    onChange={(e) => setNumeroNFeCompra(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 98765"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor do Frete (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorFreteCompra}
+                    onChange={(e) => setValorFreteCompra(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1 col-span-3">
+                  <Label className="text-xs">Observações</Label>
+                  <Input
+                    value={observacoesCompra}
+                    onChange={(e) => setObservacoesCompra(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Observações da compra..."
+                  />
                 </div>
               </div>
             </div>
@@ -1670,6 +1719,15 @@ export default function LancamentoPesagensIndividuais() {
                     onChange={(e) => setComprador(e.target.value)}
                     className="h-8 text-xs"
                     placeholder="Nome do comprador"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Destino</Label>
+                  <Input
+                    value={destinoVenda}
+                    onChange={(e) => setDestinoVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: Fazenda XYZ"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1692,6 +1750,34 @@ export default function LancamentoPesagensIndividuais() {
                     placeholder="Calculado ou manual"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Número GTA</Label>
+                  <Input
+                    value={numeroGTAVenda}
+                    onChange={(e) => setNumeroGTAVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 12345"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Número NF-e</Label>
+                  <Input
+                    value={numeroNFeVenda}
+                    onChange={(e) => setNumeroNFeVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 98765"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor do Frete (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorFreteVenda}
+                    onChange={(e) => setValorFreteVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="0.00"
+                  />
+                </div>
                 {peso && valorArroba && (
                   <div className="space-y-1">
                     <Label className="text-xs">Cálculo Automático</Label>
@@ -1700,6 +1786,15 @@ export default function LancamentoPesagensIndividuais() {
                     </div>
                   </div>
                 )}
+                <div className="space-y-1 col-span-4">
+                  <Label className="text-xs">Observações</Label>
+                  <Input
+                    value={observacoesVenda}
+                    onChange={(e) => setObservacoesVenda(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Observações da venda..."
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1708,7 +1803,7 @@ export default function LancamentoPesagensIndividuais() {
           {tipoManejo === 'Saída' && motivoSaida === 'Abate' && mostrarDadosAbate && (
             <div className="mt-3 p-3 border-t bg-purple-50 rounded">
               <h3 className="text-xs font-semibold text-purple-700 mb-3">Dados do Abate</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Frigorífico</Label>
                   <Input
@@ -1716,6 +1811,52 @@ export default function LancamentoPesagensIndividuais() {
                     onChange={(e) => setFrigorifico(e.target.value)}
                     className="h-8 text-xs"
                     placeholder="Nome do frigorífico"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor por Arroba (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorArrobaAbate}
+                    onChange={(e) => setValorArrobaAbate(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 280.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor Total (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorTotalAbate}
+                    onChange={(e) => setValorTotalAbate(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Calculado ou manual"
+                  />
+                </div>
+                {peso && valorArrobaAbate && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cálculo Automático</Label>
+                    <div className="h-8 flex items-center text-xs font-semibold text-purple-700">
+                      R$ {(parseFloat(peso) / 15 * parseFloat(valorArrobaAbate || 0)).toFixed(2)} ({(parseFloat(peso) / 15).toFixed(2)} @)
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Número GTA</Label>
+                  <Input
+                    value={numeroGTAAbate}
+                    onChange={(e) => setNumeroGTAAbate(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Ex: 12345"
+                  />
+                </div>
+                <div className="space-y-1 col-span-3">
+                  <Label className="text-xs">Observações</Label>
+                  <Input
+                    value={observacoesAbate}
+                    onChange={(e) => setObservacoesAbate(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Observações do abate..."
                   />
                 </div>
               </div>
