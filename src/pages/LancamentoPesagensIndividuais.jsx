@@ -878,10 +878,10 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     // Se for cadastro ou saída, NÃO calcula ganho de peso
-    // Calcular arrobas se for venda
+    // Calcular arrobas se for venda (peso / 2 / 15 = peso / 30, considerando 50% de aproveitamento)
     let quantidadeArrobas = null;
     if (tipoManejo === 'Saída' && motivoSaida === 'Venda' && pesoNum) {
-      quantidadeArrobas = pesoNum / 15;
+      quantidadeArrobas = pesoNum / 30;
     }
 
     const data = {
@@ -1780,9 +1780,9 @@ export default function LancamentoPesagensIndividuais() {
                 </div>
                 {peso && valorArroba && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Cálculo Automático</Label>
+                    <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
-                      R$ {(parseFloat(peso) / 15 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 15).toFixed(2)} @)
+                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
                     </div>
                   </div>
                 )}
@@ -1835,9 +1835,9 @@ export default function LancamentoPesagensIndividuais() {
                 </div>
                 {peso && valorArrobaAbate && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Cálculo Automático</Label>
+                    <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-purple-700">
-                      R$ {(parseFloat(peso) / 15 * parseFloat(valorArrobaAbate || 0)).toFixed(2)} ({(parseFloat(peso) / 15).toFixed(2)} @)
+                      R$ {(parseFloat(peso) / 30 * parseFloat(valorArrobaAbate || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
                     </div>
                   </div>
                 )}
