@@ -2034,6 +2034,9 @@ export default function LancamentoPesagensIndividuais() {
         onOpenChange={setMostrarSanidade}
         numeroAnimal={numeroAnimal}
         empresaId={empresaSelecionadaId}
+        apartacaoSelecionada={apartacaoSelecionada}
+        lotesApartacaoAtual={lotesApartacaoAtual}
+        pesagensDia={pesagensDia}
       />
 
 {/* Dialog de progresso oculto
