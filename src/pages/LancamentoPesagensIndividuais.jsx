@@ -1394,13 +1394,13 @@ export default function LancamentoPesagensIndividuais() {
                         }
                       }
                       
-                      // Preencher campos automaticamente
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarSexo) setSexo(ultimo.sexo || "M");
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarRaca) setRaca(ultimo.raca || "Nelore");
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarMarca) setMarca(ultimo.marca || "");
-                      
-                      // Calcular evolução da era em meses
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída' || !fixarEra) {
+                      // Preencher campos automaticamente (apenas se não estiver fixado)
+                      if (!fixarSexo) setSexo(ultimo.sexo || "M");
+                      if (!fixarRaca) setRaca(ultimo.raca || "Nelore");
+                      if (!fixarMarca) setMarca(ultimo.marca || "");
+
+                      // Calcular evolução da era em meses (apenas se não estiver fixado)
+                      if (!fixarEra) {
                         if (ultimo.era && ultimo.data_pesagem) {
                           const eraAnterior = parseInt(ultimo.era) || 0;
                           if (eraAnterior > 0) {
