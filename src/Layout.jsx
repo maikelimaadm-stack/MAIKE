@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { 
   Scale, FileText, Users, LogOut, Package, Shield, FolderOpen, Cloud, 
   Thermometer, Building2, TrendingUp, ArrowRightLeft, DollarSign, Home, 
-  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye
+  BookOpen, Settings, ChevronDown, Bell, User, Menu, CloudRain, CloudOff, Wifi, Search, X, ChevronRight, EyeOff, Eye, Sparkles
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -490,6 +490,12 @@ export default function Layout({ children, currentPageName }) {
                     <Link to={createPageUrl("ConfiguracoesGerais")}>
                       <Settings className="w-3 h-3 mr-2" />
                       Configuracoes
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="text-xs">
+                    <Link to={createPageUrl("EditorVisualSistema")}>
+                      <Sparkles className="w-3 h-3 mr-2" />
+                      Editor Visual
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
