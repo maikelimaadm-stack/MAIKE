@@ -337,40 +337,6 @@ export default function LancamentoPesagensIndividuais() {
     }
     return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
   });
-  
-  // Buscar sanidades aplicadas para cada animal do dia
-  const sanidadesPorAnimal = useMemo(() => {
-    const map = {};
-    pesagensDia.forEach(p => {
-      const sanidadesDoAnimal = sanidadesAplicadas.filter(s => 
-        s.numero_animal === p.numero_animal && 
-        s.data_aplicacao === dataPesagem
-      );
-      if (sanidadesDoAnimal.length > 0) {
-        // Agrupar por nome_sanidade
-        const porNome = sanidadesDoAnimal.reduce((acc, s) => {
-          const key = s.nome_sanidade || 'Sem nome';
-          if (!acc[key]) {
-            acc[key] = {
-              nome: key,
-              medicamentos: [],
-              custoTotal: 0
-            };
-          }
-          acc[key].medicamentos.push({
-            medicamento: s.medicamento,
-            quantidade: s.quantidade,
-            unidade: s.unidade_medida,
-            custo: s.custo_total || 0
-          });
-          acc[key].custoTotal += (s.custo_total || 0);
-          return acc;
-        }, {});
-        map[p.numero_animal] = Object.values(porNome);
-      }
-    });
-    return map;
-  }, [pesagensDia, sanidadesAplicadas, dataPesagem]);
 
   const toggleColuna = (colunaId) => {
     const novasColunas = colunasVisiveis.includes(colunaId)
@@ -775,6 +741,40 @@ export default function LancamentoPesagensIndividuais() {
     const pesoMedio = total > 0 ? pesagensDia.reduce((s, p) => s + (p.peso || 0), 0) / total : 0;
     return { total, machos, femeas, pesoMedio };
   }, [pesagensDia]);
+
+  // Buscar sanidades aplicadas para cada animal do dia
+  const sanidadesPorAnimal = useMemo(() => {
+    const map = {};
+    pesagensDia.forEach(p => {
+      const sanidadesDoAnimal = sanidadesAplicadas.filter(s => 
+        s.numero_animal === p.numero_animal && 
+        s.data_aplicacao === dataPesagem
+      );
+      if (sanidadesDoAnimal.length > 0) {
+        // Agrupar por nome_sanidade
+        const porNome = sanidadesDoAnimal.reduce((acc, s) => {
+          const key = s.nome_sanidade || 'Sem nome';
+          if (!acc[key]) {
+            acc[key] = {
+              nome: key,
+              medicamentos: [],
+              custoTotal: 0
+            };
+          }
+          acc[key].medicamentos.push({
+            medicamento: s.medicamento,
+            quantidade: s.quantidade,
+            unidade: s.unidade_medida,
+            custo: s.custo_total || 0
+          });
+          acc[key].custoTotal += (s.custo_total || 0);
+          return acc;
+        }, {});
+        map[p.numero_animal] = Object.values(porNome);
+      }
+    });
+    return map;
+  }, [pesagensDia, sanidadesAplicadas, dataPesagem]);
 
   // ========== VERIFICAR SE LOTE ESTÁ CHEIO ==========
   const isLoteCheio = (lote) => {
