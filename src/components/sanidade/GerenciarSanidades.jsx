@@ -208,11 +208,72 @@ export default function GerenciarSanidades({ open, onOpenChange, empresaId }) {
         {/* Abas */}
         <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sanidades" className="text-xs">Cadastro de Sanidades</TabsTrigger>
-            <TabsTrigger value="medicamentos" className="text-xs">Cadastro de Medicamentos</TabsTrigger>
+            <TabsTrigger value="sanidades" className="text-xs">Sanidades Cadastradas</TabsTrigger>
+            <TabsTrigger value="medicamentos" className="text-xs">Gerenciar Medicamentos</TabsTrigger>
           </TabsList>
 
-          {/* ABA: APLICAR SANIDADE */}
+          {/* ABA: SANIDADES CADASTRADAS */}
+          <TabsContent value="sanidades" className="flex-1 overflow-auto space-y-4 mt-4">
+            <div className="bg-white border border-slate-200 rounded p-3">
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3">
+                <p className="text-xs text-blue-800">
+                  ℹ️ Clique em "Utilizar Sanidade" para ativar a aplicação automática nos animais lançados.
+                </p>
+              </div>
+
+              {configuracoes.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400">
+                  Nenhuma sanidade cadastrada. Vá para "Gerenciar Medicamentos" para criar.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {configuracoes.map(c => {
+                    const itens = itensParaAplicar.filter(i => i.configuracao_sanidade_id === c.id);
+                    const custoTotal = itens.reduce((s, i) => s + ((i.quantidade_padrao || 0) * (i.custo_unitario || 0)), 0);
+
+                    return (
+                      <Card key={c.id} className="border-emerald-200 bg-white">
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-emerald-800">{c.nome_sanidade}</h4>
+                              <div className="text-xs font-bold text-emerald-700 mt-1">
+                                Custo por animal: R$ {custoTotal.toFixed(2)}
+                              </div>
+                            </div>
+                            <Button 
+                              onClick={() => {
+                                localStorage.setItem('sanidade_em_uso', c.id);
+                                toast.success(`"${c.nome_sanidade}" será aplicada automaticamente em cada animal lançado!`);
+                                onOpenChange(false);
+                              }}
+                              disabled={itens.length === 0}
+                              size="sm" 
+                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              Utilizar Sanidade
+                            </Button>
+                          </div>
+                          {itens.length > 0 && (
+                            <div className="space-y-1 mt-2">
+                              {itens.map((item, idx) => (
+                                <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                                  • {item.medicamento} {item.finalidade && `(${item.finalidade})`} - {item.quantidade_padrao} {item.unidade_medida}
+                                  {item.custo_unitario > 0 && ` - R$ ${((item.quantidade_padrao || 0) * (item.custo_unitario || 0)).toFixed(2)}`}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+              </div>
+          </TabsContent>
+
+          {/* ABA ANTIGA: APLICAR SANIDADE */}
           <TabsContent value="aplicar" className="flex-1 overflow-auto space-y-4 mt-4">
             <div className="bg-white border border-slate-200 rounded p-3">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Sanidades Disponíveis - Aplicar nos Animais Lançados</h3>
