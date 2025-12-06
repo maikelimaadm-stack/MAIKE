@@ -60,6 +60,7 @@ import CotacoesPecuaria from './pages/CotacoesPecuaria';
 import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
 import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
 import SimulacaoResultados from './pages/SimulacaoResultados';
+import EditorVisualSistema from './pages/EditorVisualSistema';
 import __Layout from './Layout.jsx';
 
 
@@ -126,6 +127,7 @@ export const PAGES = {
     "LotesAnimaisCotacao": LotesAnimaisCotacao,
     "AplicacoesMedicamentos": AplicacoesMedicamentos,
     "SimulacaoResultados": SimulacaoResultados,
+    "EditorVisualSistema": EditorVisualSistema,
 }
 
 export const pagesConfig = {
