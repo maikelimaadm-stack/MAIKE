@@ -2494,6 +2494,51 @@ export default function LancamentoPesagensIndividuais() {
         pesagensDia={pesagensDia}
       />
 
+      {/* Dialog para visualizar sanidades aplicadas */}
+      <Dialog open={!!animalVisualizarSanidade} onOpenChange={() => setAnimalVisualizarSanidade(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700">
+              <Syringe className="w-5 h-5" />
+              Sanidades Aplicadas - Animal {animalVisualizarSanidade}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            {animalVisualizarSanidade && sanidadesPorAnimal[animalVisualizarSanidade]?.map((san, idx) => (
+              <Card key={idx} className="border-emerald-200 bg-emerald-50">
+                <CardContent className="p-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-emerald-800">{san.nome}</h3>
+                    <Badge className="bg-emerald-600 text-white">
+                      R$ {san.custoTotal.toFixed(2)}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {san.medicamentos.map((med, i) => (
+                      <div key={i} className="flex justify-between text-xs">
+                        <span className="text-slate-700">
+                          • {med.medicamento} ({med.quantidade} {med.unidade})
+                        </span>
+                        {med.custo > 0 && (
+                          <span className="font-mono text-emerald-700">R$ {med.custo.toFixed(2)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          <div className="flex justify-end pt-3 border-t">
+            <Button variant="outline" size="sm" onClick={() => setAnimalVisualizarSanidade(null)} className="h-8 text-xs">
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 {/* Dialog de progresso oculto
       <SyncProgressDialog 
         open={syncDialogOpen}
