@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Eye, Code, Save, RotateCcw, Download, Upload, Layers, MousePointer, Move, Trash2 } from "lucide-react";
+import { Settings, Eye, Save, RotateCcw, Download, Upload, Palette, Type, Layout as LayoutIcon, Square } from "lucide-react";
 import { toast } from "sonner";
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { createPageUrl } from "@/utils";
 
 const AVAILABLE_PAGES = [
   { id: "Home", name: "Dashboard" },
@@ -45,58 +45,176 @@ const AVAILABLE_PAGES = [
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 const DEFAULT_CONFIG = {
-  theme: {
+  globalStyles: {
+    // Cores principais
     primaryColor: "#10b981",
+    primaryHover: "#059669",
     secondaryColor: "#6b7280",
     dangerColor: "#ef4444",
     backgroundColor: "#f8fafc",
     textColor: "#1e293b",
+    borderColor: "#e2e8f0",
+    
+    // Tipografia
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    fontSizeBase: "14px",
+    fontSizeSmall: "12px",
+    fontSizeLarge: "16px",
+    
+    // Espaçamentos
+    paddingBase: "1rem",
+    marginBase: "1rem",
+    borderRadius: "0.5rem",
+    
+    // Botões
+    buttonHeight: "2rem",
+    buttonPadding: "0.5rem 1rem",
+    buttonFontSize: "12px",
+    
+    // Tabelas
+    tableHeaderBg: "#f1f5f9",
+    tableHeaderBorder: "1px solid #000",
+    tableCellBorder: "1px solid #d1d5db",
+    tableRowHover: "#f9fafb",
+    
+    // Cards
+    cardBg: "#ffffff",
+    cardBorder: "1px solid #e2e8f0",
+    cardShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
-  buttons: {
-    primaryBg: "bg-emerald-600",
-    primaryHover: "hover:bg-emerald-700",
-    secondaryVariant: "outline",
-    size: "sm",
-    iconSize: "w-3.5 h-3.5",
-  },
-  tables: {
-    headerBg: "bg-slate-100",
-    headerBorder: "border-black",
-    cellBorder: "border-gray-300",
-    rowHover: "hover:bg-gray-50",
-  },
-  pages: {},
+  pageStyles: {},
 };
 
 export default function EditorVisualSistema() {
   const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('visual_editor_config');
+    const saved = localStorage.getItem('visual_editor_config_v2');
     return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
   });
 
   const [selectedPage, setSelectedPage] = useState("");
-  const [selectedElement, setSelectedElement] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [activeTab, setActiveTab] = useState("global");
+  const iframeRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem('visual_editor_config', JSON.stringify(config));
+    localStorage.setItem('visual_editor_config_v2', JSON.stringify(config));
     aplicarEstilos();
   }, [config]);
 
   const aplicarEstilos = () => {
     const root = document.documentElement;
-    root.style.setProperty('--primary-color', config.theme.primaryColor);
-    root.style.setProperty('--secondary-color', config.theme.secondaryColor);
-    root.style.setProperty('--danger-color', config.theme.dangerColor);
-    root.style.setProperty('--bg-color', config.theme.backgroundColor);
-    root.style.setProperty('--text-color', config.theme.textColor);
+    const styles = config.globalStyles;
+    
+    // Aplicar variáveis CSS globais
+    root.style.setProperty('--editor-primary', styles.primaryColor);
+    root.style.setProperty('--editor-primary-hover', styles.primaryHover);
+    root.style.setProperty('--editor-secondary', styles.secondaryColor);
+    root.style.setProperty('--editor-danger', styles.dangerColor);
+    root.style.setProperty('--editor-bg', styles.backgroundColor);
+    root.style.setProperty('--editor-text', styles.textColor);
+    root.style.setProperty('--editor-border', styles.borderColor);
+    root.style.setProperty('--editor-font-family', styles.fontFamily);
+    root.style.setProperty('--editor-font-size', styles.fontSizeBase);
+    root.style.setProperty('--editor-button-height', styles.buttonHeight);
+    root.style.setProperty('--editor-card-bg', styles.cardBg);
+    
+    // Criar CSS customizado
+    let customCSS = `
+      /* Estilos Globais do Editor Visual */
+      body {
+        background-color: ${styles.backgroundColor} !important;
+        color: ${styles.textColor} !important;
+        font-family: ${styles.fontFamily} !important;
+      }
+      
+      .bg-emerald-600 {
+        background-color: ${styles.primaryColor} !important;
+      }
+      
+      .hover\\:bg-emerald-700:hover {
+        background-color: ${styles.primaryHover} !important;
+      }
+      
+      .text-emerald-600 {
+        color: ${styles.primaryColor} !important;
+      }
+      
+      button[class*="bg-emerald"] {
+        background-color: ${styles.primaryColor} !important;
+      }
+      
+      button[class*="bg-emerald"]:hover {
+        background-color: ${styles.primaryHover} !important;
+      }
+      
+      table thead {
+        background-color: ${styles.tableHeaderBg} !important;
+      }
+      
+      table th {
+        border: ${styles.tableHeaderBorder} !important;
+      }
+      
+      table td {
+        border: ${styles.tableCellBorder} !important;
+      }
+      
+      table tbody tr:hover {
+        background-color: ${styles.tableRowHover} !important;
+      }
+      
+      .card, [class*="Card"] {
+        background-color: ${styles.cardBg} !important;
+        border: ${styles.cardBorder} !important;
+        box-shadow: ${styles.cardShadow} !important;
+      }
+    `;
+    
+    // Aplicar estilos específicos da página
+    if (selectedPage && config.pageStyles[selectedPage]) {
+      const pageStyles = config.pageStyles[selectedPage];
+      customCSS += `
+        /* Estilos da página ${selectedPage} */
+        ${pageStyles.customCSS || ''}
+      `;
+    }
+    
+    // Inserir/atualizar o CSS no documento
+    let styleEl = document.getElementById('visual-editor-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'visual-editor-styles';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = customCSS;
+  };
+
+  const updateGlobalStyle = (key, value) => {
+    setConfig(prev => ({
+      ...prev,
+      globalStyles: { ...prev.globalStyles, [key]: value }
+    }));
+    toast.success('Estilo atualizado!');
+  };
+
+  const updatePageStyle = (key, value) => {
+    if (!selectedPage) return;
+    setConfig(prev => ({
+      ...prev,
+      pageStyles: {
+        ...prev.pageStyles,
+        [selectedPage]: {
+          ...(prev.pageStyles[selectedPage] || {}),
+          [key]: value
+        }
+      }
+    }));
+    toast.success('Estilo da página atualizado!');
   };
 
   const resetarConfig = () => {
-    if (confirm('Deseja resetar todas as configurações para o padrão?')) {
+    if (confirm('Deseja resetar todas as configurações?')) {
       setConfig(DEFAULT_CONFIG);
-      localStorage.removeItem('visual_editor_config');
+      localStorage.removeItem('visual_editor_config_v2');
       toast.success('Configurações resetadas!');
     }
   };
@@ -123,62 +241,21 @@ export default function EditorVisualSistema() {
           setConfig(imported);
           toast.success('Configuração importada!');
         } catch (error) {
-          toast.error('Erro ao importar arquivo!');
+          toast.error('Erro ao importar!');
         }
       };
       reader.readAsText(file);
     }
   };
 
-  const iniciarEdicaoPagina = () => {
+  const abrirPaginaNovaAba = () => {
     if (!selectedPage) {
       toast.error('Selecione uma página primeiro!');
       return;
     }
-    setEditMode(true);
-    toast.info('Modo de edição ativado! Clique nos elementos para editá-los.');
-  };
-
-  const salvarEdicaoPagina = () => {
-    setEditMode(false);
-    toast.success('Edições salvas!');
-  };
-
-  const updateTheme = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      theme: { ...prev.theme, [key]: value }
-    }));
-  };
-
-  const updateButtons = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      buttons: { ...prev.buttons, [key]: value }
-    }));
-  };
-
-  const updateTables = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      tables: { ...prev.tables, [key]: value }
-    }));
-  };
-
-  const updatePageElement = (elementId, properties) => {
-    setConfig(prev => ({
-      ...prev,
-      pages: {
-        ...prev.pages,
-        [selectedPage]: {
-          ...prev.pages[selectedPage],
-          elements: {
-            ...(prev.pages[selectedPage]?.elements || {}),
-            [elementId]: properties
-          }
-        }
-      }
-    }));
+    const url = createPageUrl(selectedPage);
+    window.open(url, '_blank');
+    toast.success('Página aberta em nova aba!');
   };
 
   return (
@@ -208,159 +285,169 @@ export default function EditorVisualSistema() {
           </div>
         </CardHeader>
         <CardContent className="p-4">
-          <Tabs defaultValue="theme" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="theme" className="text-xs">Tema Global</TabsTrigger>
-              <TabsTrigger value="pages" className="text-xs">Editor de Páginas</TabsTrigger>
-              <TabsTrigger value="components" className="text-xs">Componentes</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="global" className="text-xs">Estilos Globais</TabsTrigger>
+              <TabsTrigger value="page" className="text-xs">Editar Página</TabsTrigger>
               <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
             </TabsList>
 
-            {/* TAB TEMA GLOBAL */}
-            <TabsContent value="theme" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TAB ESTILOS GLOBAIS */}
+            <TabsContent value="global" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Cores */}
                 <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3">
-                    <CardTitle className="text-sm font-semibold">Cores do Sistema</CardTitle>
+                  <CardHeader className="py-2 px-3 border-b">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Palette className="w-4 h-4" />
+                      Cores do Sistema
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="p-3 space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Cor Primária</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="color" 
-                          value={config.theme.primaryColor} 
-                          onChange={(e) => updateTheme('primaryColor', e.target.value)}
-                          className="h-8 w-16"
-                        />
-                        <Input 
-                          value={config.theme.primaryColor} 
-                          onChange={(e) => updateTheme('primaryColor', e.target.value)}
-                          className="h-8 flex-1 text-xs"
-                        />
+                    {[
+                      { key: 'primaryColor', label: 'Cor Primária' },
+                      { key: 'primaryHover', label: 'Cor Primária (Hover)' },
+                      { key: 'secondaryColor', label: 'Cor Secundária' },
+                      { key: 'dangerColor', label: 'Cor de Perigo' },
+                      { key: 'backgroundColor', label: 'Cor de Fundo' },
+                      { key: 'textColor', label: 'Cor do Texto' },
+                      { key: 'borderColor', label: 'Cor das Bordas' },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-xs">{label}</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="color" 
+                            value={config.globalStyles[key]} 
+                            onChange={(e) => updateGlobalStyle(key, e.target.value)}
+                            className="h-8 w-16"
+                          />
+                          <Input 
+                            value={config.globalStyles[key]} 
+                            onChange={(e) => updateGlobalStyle(key, e.target.value)}
+                            className="h-8 flex-1 text-xs font-mono"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Cor Secundária</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="color" 
-                          value={config.theme.secondaryColor} 
-                          onChange={(e) => updateTheme('secondaryColor', e.target.value)}
-                          className="h-8 w-16"
-                        />
-                        <Input 
-                          value={config.theme.secondaryColor} 
-                          onChange={(e) => updateTheme('secondaryColor', e.target.value)}
-                          className="h-8 flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Cor de Perigo</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="color" 
-                          value={config.theme.dangerColor} 
-                          onChange={(e) => updateTheme('dangerColor', e.target.value)}
-                          className="h-8 w-16"
-                        />
-                        <Input 
-                          value={config.theme.dangerColor} 
-                          onChange={(e) => updateTheme('dangerColor', e.target.value)}
-                          className="h-8 flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Cor de Fundo</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="color" 
-                          value={config.theme.backgroundColor} 
-                          onChange={(e) => updateTheme('backgroundColor', e.target.value)}
-                          className="h-8 w-16"
-                        />
-                        <Input 
-                          value={config.theme.backgroundColor} 
-                          onChange={(e) => updateTheme('backgroundColor', e.target.value)}
-                          className="h-8 flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </CardContent>
                 </Card>
 
+                {/* Tipografia */}
                 <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3">
-                    <CardTitle className="text-sm font-semibold">Padrões de Botões</CardTitle>
+                  <CardHeader className="py-2 px-3 border-b">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      Tipografia
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="p-3 space-y-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Background Primário</Label>
-                      <Input 
-                        value={config.buttons.primaryBg} 
-                        onChange={(e) => updateButtons('primaryBg', e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="bg-emerald-600"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Hover Primário</Label>
-                      <Input 
-                        value={config.buttons.primaryHover} 
-                        onChange={(e) => updateButtons('primaryHover', e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="hover:bg-emerald-700"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tamanho Padrão</Label>
-                      <Select value={config.buttons.size} onValueChange={(v) => updateButtons('size', v)}>
+                      <Label className="text-xs">Fonte Principal</Label>
+                      <Select 
+                        value={config.globalStyles.fontFamily} 
+                        onValueChange={(v) => updateGlobalStyle('fontFamily', v)}
+                      >
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="xs">Extra Pequeno (xs)</SelectItem>
-                          <SelectItem value="sm">Pequeno (sm)</SelectItem>
-                          <SelectItem value="default">Médio (default)</SelectItem>
-                          <SelectItem value="lg">Grande (lg)</SelectItem>
+                          <SelectItem value="system-ui, -apple-system, sans-serif">System (Padrão)</SelectItem>
+                          <SelectItem value="Arial, sans-serif">Arial</SelectItem>
+                          <SelectItem value="'Times New Roman', serif">Times New Roman</SelectItem>
+                          <SelectItem value="'Courier New', monospace">Courier New</SelectItem>
+                          <SelectItem value="Georgia, serif">Georgia</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tamanho Base</Label>
+                      <Input 
+                        value={config.globalStyles.fontSizeBase} 
+                        onChange={(e) => updateGlobalStyle('fontSizeBase', e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="14px"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tamanho Pequeno</Label>
+                      <Input 
+                        value={config.globalStyles.fontSizeSmall} 
+                        onChange={(e) => updateGlobalStyle('fontSizeSmall', e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="12px"
+                      />
                     </div>
                   </CardContent>
                 </Card>
 
+                {/* Tabelas */}
                 <Card className="bg-slate-50">
-                  <CardHeader className="py-2 px-3">
-                    <CardTitle className="text-sm font-semibold">Padrões de Tabelas</CardTitle>
+                  <CardHeader className="py-2 px-3 border-b">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <LayoutIcon className="w-4 h-4" />
+                      Tabelas
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="p-3 space-y-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Background do Cabeçalho</Label>
                       <Input 
-                        value={config.tables.headerBg} 
-                        onChange={(e) => updateTables('headerBg', e.target.value)}
+                        value={config.globalStyles.tableHeaderBg} 
+                        onChange={(e) => updateGlobalStyle('tableHeaderBg', e.target.value)}
                         className="h-8 text-xs"
-                        placeholder="bg-slate-100"
                       />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Borda do Cabeçalho</Label>
                       <Input 
-                        value={config.tables.headerBorder} 
-                        onChange={(e) => updateTables('headerBorder', e.target.value)}
+                        value={config.globalStyles.tableHeaderBorder} 
+                        onChange={(e) => updateGlobalStyle('tableHeaderBorder', e.target.value)}
                         className="h-8 text-xs"
-                        placeholder="border-black"
                       />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Borda das Células</Label>
                       <Input 
-                        value={config.tables.cellBorder} 
-                        onChange={(e) => updateTables('cellBorder', e.target.value)}
+                        value={config.globalStyles.tableCellBorder} 
+                        onChange={(e) => updateGlobalStyle('tableCellBorder', e.target.value)}
                         className="h-8 text-xs"
-                        placeholder="border-gray-300"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Cards */}
+                <Card className="bg-slate-50">
+                  <CardHeader className="py-2 px-3 border-b">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Square className="w-4 h-4" />
+                      Cards
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Background</Label>
+                      <Input 
+                        value={config.globalStyles.cardBg} 
+                        onChange={(e) => updateGlobalStyle('cardBg', e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Borda</Label>
+                      <Input 
+                        value={config.globalStyles.cardBorder} 
+                        onChange={(e) => updateGlobalStyle('cardBorder', e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Sombra</Label>
+                      <Input 
+                        value={config.globalStyles.cardShadow} 
+                        onChange={(e) => updateGlobalStyle('cardShadow', e.target.value)}
+                        className="h-8 text-xs"
                       />
                     </div>
                   </CardContent>
@@ -368,25 +455,22 @@ export default function EditorVisualSistema() {
               </div>
             </TabsContent>
 
-            {/* TAB EDITOR DE PÁGINAS */}
-            <TabsContent value="pages" className="space-y-4 mt-4">
+            {/* TAB EDITAR PÁGINA */}
+            <TabsContent value="page" className="space-y-4 mt-4">
               <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-sm font-semibold text-blue-800 flex items-center gap-2">
-                    <Layers className="w-4 h-4" />
-                    Editor Visual de Páginas
-                  </CardTitle>
+                <CardHeader className="py-2 px-3 border-b border-blue-300">
+                  <CardTitle className="text-sm font-semibold text-blue-800">Selecione a Página</CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Selecione a Página para Editar</Label>
+                    <Label className="text-xs">Página</Label>
                     <Select value={selectedPage} onValueChange={setSelectedPage}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Escolha uma página" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[300px]">
                         {AVAILABLE_PAGES.map(page => (
-                          <SelectItem key={page.id} value={page.id}>
+                          <SelectItem key={page.id} value={page.id} className="text-xs">
                             {page.name}
                           </SelectItem>
                         ))}
@@ -395,150 +479,44 @@ export default function EditorVisualSistema() {
                   </div>
 
                   {selectedPage && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        {!editMode ? (
-                          <Button 
-                            size="sm" 
-                            onClick={iniciarEdicaoPagina}
-                            className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
-                          >
-                            <MousePointer className="w-3.5 h-3.5" />
-                            Iniciar Edição Visual
-                          </Button>
-                        ) : (
-                          <>
-                            <Button 
-                              size="sm" 
-                              onClick={salvarEdicaoPagina}
-                              className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              <Save className="w-3.5 h-3.5" />
-                              Salvar Edições
-                            </Button>
-                            <Button 
-                              variant="outline"
-                              size="sm" 
-                              onClick={() => setEditMode(false)}
-                              className="h-8 text-xs gap-1"
-                            >
-                              Cancelar
-                            </Button>
-                          </>
-                        )}
+                    <>
+                      <Button 
+                        size="sm" 
+                        onClick={abrirPaginaNovaAba}
+                        className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 w-full"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Abrir Página em Nova Aba
+                      </Button>
+
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-xs text-yellow-800 font-medium mb-2">💡 Como Usar:</p>
+                        <ol className="text-xs text-yellow-700 space-y-1 list-decimal list-inside">
+                          <li>Abra a página em nova aba</li>
+                          <li>Volte aqui e ajuste os estilos</li>
+                          <li>Veja as mudanças em tempo real na outra aba</li>
+                          <li>CSS customizado abaixo se aplica só a esta página</li>
+                        </ol>
                       </div>
 
-                      {editMode && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                          <p className="text-xs text-yellow-800 font-medium">
-                            ⚡ Modo de Edição Ativo
-                          </p>
-                          <p className="text-xs text-yellow-700 mt-1">
-                            • Clique em qualquer elemento na página para selecioná-lo<br/>
-                            • Use o painel de propriedades para editar cores, tamanhos, etc<br/>
-                            • Arraste elementos para reposicioná-los
-                          </p>
-                        </div>
-                      )}
-
-                      {selectedElement && (
-                        <Card className="bg-slate-50 mt-3">
-                          <CardHeader className="py-2 px-3">
-                            <div className="flex items-center justify-between">
-                              <CardTitle className="text-sm font-semibold">Propriedades do Elemento</CardTitle>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6"
-                                onClick={() => setSelectedElement(null)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-3 space-y-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">ID do Elemento</Label>
-                              <Input 
-                                value={selectedElement.id} 
-                                disabled
-                                className="h-8 text-xs bg-slate-200"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Cor de Fundo</Label>
-                              <Input 
-                                type="color" 
-                                className="h-8"
-                                onChange={(e) => {
-                                  updatePageElement(selectedElement.id, {
-                                    ...selectedElement.properties,
-                                    backgroundColor: e.target.value
-                                  });
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Cor do Texto</Label>
-                              <Input 
-                                type="color" 
-                                className="h-8"
-                                onChange={(e) => {
-                                  updatePageElement(selectedElement.id, {
-                                    ...selectedElement.properties,
-                                    color: e.target.value
-                                  });
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Classes CSS Personalizadas</Label>
-                              <Input 
-                                placeholder="bg-blue-500 text-white p-4"
-                                className="h-8 text-xs"
-                                onChange={(e) => {
-                                  updatePageElement(selectedElement.id, {
-                                    ...selectedElement.properties,
-                                    customClasses: e.target.value
-                                  });
-                                }}
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
+                      <Card className="bg-slate-50 mt-3">
+                        <CardHeader className="py-2 px-3 border-b">
+                          <CardTitle className="text-sm font-semibold">CSS Customizado da Página</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3">
+                          <textarea
+                            value={config.pageStyles[selectedPage]?.customCSS || ''}
+                            onChange={(e) => updatePageStyle('customCSS', e.target.value)}
+                            placeholder="/* Adicione CSS customizado aqui */
+.minha-classe {
+  color: red;
+}"
+                            className="w-full h-40 p-2 text-xs font-mono border rounded resize-none"
+                          />
+                        </CardContent>
+                      </Card>
+                    </>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-50">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-sm font-semibold">Instruções de Uso</CardTitle>
-                </CardHeader>
-                <CardContent className="p-3">
-                  <ol className="text-xs text-slate-700 space-y-2">
-                    <li>1. Selecione a página que deseja customizar</li>
-                    <li>2. Clique em "Iniciar Edição Visual"</li>
-                    <li>3. Navegue até a página selecionada em outra aba</li>
-                    <li>4. Clique nos elementos para editá-los</li>
-                    <li>5. Volte aqui e ajuste as propriedades no painel</li>
-                    <li>6. Salve as alterações</li>
-                  </ol>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* TAB COMPONENTES */}
-            <TabsContent value="components" className="space-y-4 mt-4">
-              <Card className="bg-slate-50">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-sm font-semibold">Biblioteca de Componentes</CardTitle>
-                </CardHeader>
-                <CardContent className="p-3">
-                  <p className="text-xs text-slate-600">
-                    Em breve: Biblioteca de componentes reutilizáveis que você pode arrastar para suas páginas.
-                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -546,34 +524,37 @@ export default function EditorVisualSistema() {
             {/* TAB PREVIEW */}
             <TabsContent value="preview" className="space-y-4 mt-4">
               <Card className="bg-slate-50">
-                <CardHeader className="py-2 px-3">
+                <CardHeader className="py-2 px-3 border-b">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <Eye className="w-4 h-4" />
-                    Preview das Configurações
+                    Preview dos Estilos
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="space-y-4 p-4 rounded border" style={{
-                    backgroundColor: config.theme.backgroundColor,
-                    color: config.theme.textColor
+                    backgroundColor: config.globalStyles.backgroundColor,
+                    color: config.globalStyles.textColor,
+                    fontFamily: config.globalStyles.fontFamily,
                   }}>
                     <h3 className="text-sm font-semibold">Exemplos de Botões</h3>
                     <div className="flex gap-2 flex-wrap">
                       <Button 
-                        size={config.buttons.size}
-                        className={`${config.buttons.primaryBg} ${config.buttons.primaryHover} text-white`}
+                        size="sm"
+                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
                       >
                         Botão Primário
                       </Button>
                       <Button 
-                        variant={config.buttons.secondaryVariant}
-                        size={config.buttons.size}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
                       >
                         Botão Secundário
                       </Button>
                       <Button 
                         variant="destructive"
-                        size={config.buttons.size}
+                        size="sm"
+                        className="h-8 text-xs"
                       >
                         Botão Excluir
                       </Button>
@@ -582,26 +563,39 @@ export default function EditorVisualSistema() {
                     <h3 className="text-sm font-semibold mt-6">Exemplo de Tabela</h3>
                     <div className="border rounded overflow-hidden">
                       <table className="w-full text-xs">
-                        <thead className={config.tables.headerBg}>
+                        <thead style={{ backgroundColor: config.globalStyles.tableHeaderBg }}>
                           <tr>
-                            <th className={`p-2 text-left border ${config.tables.headerBorder}`}>Coluna 1</th>
-                            <th className={`p-2 text-left border ${config.tables.headerBorder}`}>Coluna 2</th>
-                            <th className={`p-2 text-left border ${config.tables.headerBorder}`}>Coluna 3</th>
+                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 1</th>
+                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 2</th>
+                            <th className="p-2 text-left" style={{ border: config.globalStyles.tableHeaderBorder }}>Coluna 3</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className={config.tables.rowHover}>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 1</td>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 2</td>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 3</td>
+                          <tr style={{ cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = config.globalStyles.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 1</td>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 2</td>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 3</td>
                           </tr>
-                          <tr className={config.tables.rowHover}>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 4</td>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 5</td>
-                            <td className={`p-2 border ${config.tables.cellBorder}`}>Dado 6</td>
+                          <tr style={{ cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = config.globalStyles.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 4</td>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 5</td>
+                            <td className="p-2" style={{ border: config.globalStyles.tableCellBorder }}>Dado 6</td>
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    <h3 className="text-sm font-semibold mt-6">Exemplo de Card</h3>
+                    <div 
+                      className="p-4 rounded" 
+                      style={{
+                        backgroundColor: config.globalStyles.cardBg,
+                        border: config.globalStyles.cardBorder,
+                        boxShadow: config.globalStyles.cardShadow,
+                      }}
+                    >
+                      <h4 className="font-semibold mb-2">Título do Card</h4>
+                      <p className="text-xs">Conteúdo do card com texto de exemplo.</p>
                     </div>
                   </div>
                 </CardContent>
