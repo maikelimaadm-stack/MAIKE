@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1283,14 +1284,12 @@ export default function LancamentoPesagensIndividuais() {
           )}
         </div>
         <div className="flex gap-2">
-          {/* Botão de sincronização oculto
-                      {pendingCount > 0 && isOnline && (
-                        <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
-                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                          Sincronizar
-                        </Button>
-                      )}
-          */}
+          {pendingCount > 0 && isOnline && (
+            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sincronizar
+            </Button>
+          )}
           {dbReady && (
             <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
               <Database className="w-3 h-3 mr-1" />Persistente
@@ -1298,9 +1297,6 @@ export default function LancamentoPesagensIndividuais() {
           )}
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
             <Settings className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs">
-            Apartações
           </Button>
           <Button 
             variant="outline" 
@@ -1339,7 +1335,7 @@ export default function LancamentoPesagensIndividuais() {
       {/* FORMULÁRIO DE LANÇAMENTO */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
-          {/* SELEÇÃO DO TIPO DE MANEJO + MOTIVO SAÍDA + ÍCONES */}
+          {/* SELEÇÃO DO TIPO DE MANEJO + BOTÃO APARTAÇÕES */}
           <div className="flex items-center gap-3 mb-4 pb-3 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
             <Select value={tipoManejo} onValueChange={(v) => { setTipoManejo(v); setMotivoSaida(""); setMostrarDadosVenda(false); setMostrarDadosAbate(false); }}>
@@ -1352,6 +1348,11 @@ export default function LancamentoPesagensIndividuais() {
                 <SelectItem value="Saída">Saída (Venda/Morte/Doação)</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Settings className="w-3.5 h-3.5" />
+              Apartações
+            </Button>
 
             {/* Motivo da Saída (rente ao Tipo) */}
             {tipoManejo === 'Saída' && (
