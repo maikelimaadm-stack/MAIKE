@@ -1352,7 +1352,7 @@ export default function LancamentoPesagensIndividuais() {
               className="h-8 w-8"
               title="Gerenciar Apartações"
             >
-              <FolderOpen className="w-4 h-4" />
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/a75ec14d9_Logosimplescircularesmaltariapreto1.png" alt="" className="w-4 h-4" />
             </Button>
 
             {/* Motivo da Saída (rente ao Tipo) */}
@@ -1535,55 +1535,59 @@ export default function LancamentoPesagensIndividuais() {
 
                   // Buscar dados anteriores do animal (exceto SN)
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                    const historicoAnimal = pesagens.
-                    filter((p) => p.numero_animal === valor.trim()).
-                    sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                   const historicoAnimal = pesagens.
+                   filter((p) => p.numero_animal === valor.trim()).
+                   sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
-                    // Verificar se já foi pesado hoje
-                    const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim());
-                    if (pesadoHoje && !editingId) {
-                      setAvisoTela({
-                        tipo: 'erro',
-                        mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
-                      });
-                    }
+                   // Verificar se já foi pesado hoje
+                   const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim() && (p.id !== editingId && p._offlineId !== editingOfflineId));
+                   if (pesadoHoje) {
+                     setAvisoTela({
+                       tipo: 'erro',
+                       mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
+                     });
+                   }
 
-                    if (historicoAnimal.length > 0) {
-                      // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
-                      const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
-                      const ultimo = historicoAnimal[0];
+                   if (historicoAnimal.length > 0) {
+                     // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
+                     const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
+                     const ultimo = historicoAnimal[0];
 
-                      // No modo CADASTRO, avisar que animal já existe e PREENCHER campos
-                      if (tipoManejo === 'Cadastro' && !editingId) {
-                        setAvisoTela({
-                          tipo: 'alerta',
-                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
-                        });
-                        // Não preencher campos automaticamente
-                      }
+                     // No modo CADASTRO, avisar que animal já existe
+                     if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
+                       setAvisoTela({
+                         tipo: 'alerta',
+                         mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
+                       });
+                     }
 
-                      // No modo MANEJO ou SAÍDA, apenas MOSTRAR info do animal (NÃO preencher campos)
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
-                        if (!pesadoHoje) {
-                          const statusAtual = ultimo.status_animal || 'Ativo';
-                          const dadosCadastro = cadastroOriginal || ultimo;
-                          setAvisoTela({
-                            tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
-                            mensagem: statusAtual === 'Inativo' ?
-                            `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
-                            `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
-                          });
-                        }
-                      }
-                    } else {
-                      // Animal não encontrado
-                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
-                        setAvisoTela({
-                          tipo: 'erro',
-                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
-                        });
-                      }
-                    }
+                     // No modo MANEJO ou SAÍDA, mostrar info do animal e preencher dados de cadastro
+                     if ((tipoManejo === 'Manejo' || tipoManejo === 'Saída') && !pesadoHoje) {
+                       const statusAtual = ultimo.status_animal || 'Ativo';
+                       const dadosCadastro = cadastroOriginal || ultimo;
+
+                       // PREENCHER campos de cadastro automaticamente
+                       if (dadosCadastro.sexo) setSexo(dadosCadastro.sexo);
+                       if (dadosCadastro.raca) setRaca(dadosCadastro.raca);
+                       if (dadosCadastro.era) setEra(dadosCadastro.era);
+                       if (dadosCadastro.marca) setMarca(dadosCadastro.marca);
+
+                       setAvisoTela({
+                         tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
+                         mensagem: statusAtual === 'Inativo' ?
+                         `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
+                         `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                       });
+                     }
+                   } else {
+                     // Animal não encontrado
+                     if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
+                       setAvisoTela({
+                         tipo: 'erro',
+                         mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
+                       });
+                     }
+                   }
                   }
                 }}
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
