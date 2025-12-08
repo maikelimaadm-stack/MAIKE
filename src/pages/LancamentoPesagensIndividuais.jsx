@@ -1332,7 +1332,7 @@ export default function LancamentoPesagensIndividuais() {
       <Card className="shadow-sm">
         <CardContent className="p-4">
           {/* SELEÇÃO DO TIPO DE MANEJO + BOTÃO APARTAÇÕES */}
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b flex-wrap">
+          <div className="flex items-center gap-1 mb-1 pb-1 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
             <Select value={tipoManejo} onValueChange={(v) => {setTipoManejo(v);setMotivoSaida("");setMostrarDadosVenda(false);setMostrarDadosAbate(false);}}>
               <SelectTrigger className="h-8 text-xs w-56">
@@ -1345,14 +1345,14 @@ export default function LancamentoPesagensIndividuais() {
               </SelectContent>
             </Select>
 
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
-              onClick={() => setShowApartacoesDialog(true)} 
+              onClick={() => setShowApartacoesDialog(true)}
               className="h-8 w-8"
-              title="Gerenciar Apartações"
-            >
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/a75ec14d9_Logosimplescircularesmaltariapreto1.png" alt="" className="w-4 h-4" />
+              title="Gerenciar Apartações">
+
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/a75ec14d9_Logosimplescircularesmaltariapreto1.png" alt="" className="w-8 h-8" />
             </Button>
 
             {/* Motivo da Saída (rente ao Tipo) */}
@@ -1422,8 +1422,8 @@ export default function LancamentoPesagensIndividuais() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setMostrarSanidade(true)}
-              className="h-8 text-xs gap-1"
+              onClick={() => setMostrarSanidade(true)} className="[&_svg]:size- [&_svg]:size- [&_svg]:size- [&_svg]:size- inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-8 text-xs gap-1"
+
               title="Gerenciar Sanidades">
 
                 <Syringe className="w-3.5 h-3.5" />
@@ -1464,7 +1464,7 @@ export default function LancamentoPesagensIndividuais() {
             }
           </div>
 
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="gap- gap- gap- gap- gap- gap- gap- gap- gap- flex flex-wrap items-end gap-1">
             {/* Data Pesagem */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Data Pesagem <span className="text-red-500">*</span></Label>
@@ -1535,63 +1535,63 @@ export default function LancamentoPesagensIndividuais() {
 
                   // Buscar dados anteriores do animal (exceto SN)
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                   const historicoAnimal = pesagens.
-                   filter((p) => p.numero_animal === valor.trim()).
-                   sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+                    const historicoAnimal = pesagens.
+                    filter((p) => p.numero_animal === valor.trim()).
+                    sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
-                   // Verificar se já foi pesado hoje
-                   const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim() && (p.id !== editingId && p._offlineId !== editingOfflineId));
-                   if (pesadoHoje) {
-                     setAvisoTela({
-                       tipo: 'erro',
-                       mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
-                     });
-                   }
+                    // Verificar se já foi pesado hoje
+                    const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim() && p.id !== editingId && p._offlineId !== editingOfflineId);
+                    if (pesadoHoje) {
+                      setAvisoTela({
+                        tipo: 'erro',
+                        mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
+                      });
+                    }
 
-                   if (historicoAnimal.length > 0) {
-                     // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
-                     const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
-                     const ultimo = historicoAnimal[0];
+                    if (historicoAnimal.length > 0) {
+                      // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
+                      const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
+                      const ultimo = historicoAnimal[0];
 
-                     // No modo CADASTRO, avisar que animal já existe
-                     if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
-                       setAvisoTela({
-                         tipo: 'alerta',
-                         mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
-                       });
-                     }
+                      // No modo CADASTRO, avisar que animal já existe
+                      if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
+                        setAvisoTela({
+                          tipo: 'alerta',
+                          mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
+                        });
+                      }
 
-                     // No modo MANEJO ou SAÍDA, mostrar info do animal e preencher dados de cadastro
-                     if ((tipoManejo === 'Manejo' || tipoManejo === 'Saída') && !pesadoHoje) {
-                       const statusAtual = ultimo.status_animal || 'Ativo';
-                       const dadosCadastro = cadastroOriginal || ultimo;
+                      // No modo MANEJO ou SAÍDA, mostrar info do animal e preencher dados de cadastro
+                      if ((tipoManejo === 'Manejo' || tipoManejo === 'Saída') && !pesadoHoje) {
+                        const statusAtual = ultimo.status_animal || 'Ativo';
+                        const dadosCadastro = cadastroOriginal || ultimo;
 
-                       // PREENCHER campos de cadastro automaticamente
-                       if (dadosCadastro.sexo) setSexo(dadosCadastro.sexo);
-                       if (dadosCadastro.raca) setRaca(dadosCadastro.raca);
-                       if (dadosCadastro.era) setEra(dadosCadastro.era);
-                       if (dadosCadastro.marca) setMarca(dadosCadastro.marca);
+                        // PREENCHER campos de cadastro automaticamente
+                        if (dadosCadastro.sexo) setSexo(dadosCadastro.sexo);
+                        if (dadosCadastro.raca) setRaca(dadosCadastro.raca);
+                        if (dadosCadastro.era) setEra(dadosCadastro.era);
+                        if (dadosCadastro.marca) setMarca(dadosCadastro.marca);
 
-                       setAvisoTela({
-                         tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
-                         mensagem: statusAtual === 'Inativo' ?
-                         `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
-                         `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
-                       });
-                     }
-                   } else {
-                     // Animal não encontrado
-                     if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
-                       setAvisoTela({
-                         tipo: 'erro',
-                         mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
-                       });
-                     }
-                   }
+                        setAvisoTela({
+                          tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
+                          mensagem: statusAtual === 'Inativo' ?
+                          `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
+                          `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                        });
+                      }
+                    } else {
+                      // Animal não encontrado
+                      if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
+                        setAvisoTela({
+                          tipo: 'erro',
+                          mensagem: `❌ Brinco ${valor.trim()} NÃO CADASTRADO! Use "Cadastro" para cadastrar primeiro.`
+                        });
+                      }
+                    }
                   }
                 }}
-                onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
-                className="h-10 w-36 font-bold text-amber-500"
+                onKeyDown={(e) => handleKeyDown(e, pesoInputRef)} className="px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-300md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-30md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-3md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-50md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-5md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-8md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity-80md:text-sm px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- disabled:opacity- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- px- px- px- px- py- py- h- h- h- bg-transparent text-amber-500 px-2 py-1 text-base font-bold rounded-md flex border border-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-9 w-36"
+
                 style={{ fontSize: '18px' }}
                 autoFocus
                 placeholder="Ex: 1234" />
@@ -1606,8 +1606,8 @@ export default function LancamentoPesagensIndividuais() {
                 type="number"
                 value={peso}
                 onChange={(e) => setPeso(e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'salvar')}
-                className="h-10 w-28 font-bold text-amber-500"
+                onKeyDown={(e) => handleKeyDown(e, 'salvar')} className="flex rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-9 w-28 font-bold text-amber-500"
+
                 style={{ fontSize: '18px' }}
                 placeholder="Ex: 320" />
 
@@ -1625,7 +1625,7 @@ export default function LancamentoPesagensIndividuais() {
             </div>
 
             {/* Botões Salvar e Cancelar */}
-            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-primary-foreground shadow rounded-md px-4 h-9 text-xs bg-emerald-600 hover:bg-emerald-700">
               {isSaving ? 'Salvando...' : editingId ? 'Atualizar' : 'Salvar'}
             </Button>
             {editingId &&
@@ -1928,7 +1928,7 @@ export default function LancamentoPesagensIndividuais() {
           }
           
           {/* Linha 2: Apartação e Transferência de Lote */}
-          <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
+          <div className="flex flex-wrap items-end gap-1 mt-1 pt-1 border-t">
             <div className="space-y-1">
               <Label className="text-xs font-medium">Apartação</Label>
               <Select value={apartacaoSelecionada} onValueChange={(v) => {setApartacaoSelecionada(v);setLoteTransferencia("");}}>
@@ -2033,8 +2033,8 @@ export default function LancamentoPesagensIndividuais() {
                         const isSortable = ['numero_registro', 'numero_animal', 'peso', 'sexo', 'raca', 'marca', 'nome_apartacao', 'nome_lote'].includes(coluna.id);
                         return (
                           <TableHead
-                            key={coluna.id}
-                            className={`text-xs ${coluna.id === 'peso' ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-slate-200 select-none' : ''}`}
+                            key={coluna.id} className="bg-transparent text-muted-foreground px-2 text-xs font-medium text-left h-10 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+
                             onClick={() => isSortable && handleSort(coluna.id)}>
 
                             <div className={`flex items-center ${coluna.id === 'peso' ? 'justify-end' : ''}`}>
@@ -2449,11 +2449,11 @@ export default function LancamentoPesagensIndividuais() {
 
 
       {/* Dialog de progresso oculto
-             <SyncProgressDialog 
-               open={syncDialogOpen}
-               syncState={syncState}
-             />
-        */}
+                      <SyncProgressDialog 
+                        open={syncDialogOpen}
+                        syncState={syncState}
+                      />
+                 */}
     </div>);
 
 }
