@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,8 +19,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,8 +43,8 @@ import {
   deleteItem,
   clearStore,
   getAllItems,
-  STORES_NAMES,
-} from "../components/offline/IndexedDBManager";
+  STORES_NAMES } from
+"../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
@@ -56,31 +57,31 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
 
   const resumoLotes = useMemo(() => {
     if (!apartacaoSelecionada || !lotesApartacaoAtual || lotesApartacaoAtual.length === 0) return [];
-    
+
     let todasPesagensApartacao;
     if (modoVisualizacao === 'dia') {
       // Apenas pesagens do dia
       todasPesagensApartacao = [
-        ...(pesagensDia || []).filter(p => p.apartacao_id === apartacaoSelecionada),
-      ];
+      ...(pesagensDia || []).filter((p) => p.apartacao_id === apartacaoSelecionada)];
+
     } else {
       // Todas as pesagens da apartação
       todasPesagensApartacao = [
-        ...(pesagens || []).filter(p => p.apartacao_id === apartacaoSelecionada),
-        ...(pendingPesagensDB || []).filter(p => p.apartacao_id === apartacaoSelecionada)
-      ];
+      ...(pesagens || []).filter((p) => p.apartacao_id === apartacaoSelecionada),
+      ...(pendingPesagensDB || []).filter((p) => p.apartacao_id === apartacaoSelecionada)];
+
     }
 
-    return lotesApartacaoAtual.map(lote => {
-      const animaisLote = todasPesagensApartacao.filter(p => p.lote_id === lote.id);
+    return lotesApartacaoAtual.map((lote) => {
+      const animaisLote = todasPesagensApartacao.filter((p) => p.lote_id === lote.id);
       const qtd = animaisLote.length;
       const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
       const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
-      
+
       return {
         ...lote,
         quantidade_atual: qtd,
-        peso_medio: pesoMedio,
+        peso_medio: pesoMedio
       };
     }).sort((a, b) => (a.nome_lote || '').localeCompare(b.nome_lote || ''));
   }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, modoVisualizacao]);
@@ -91,33 +92,33 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
       <Card className="shadow-sm sticky top-2">
         <CardHeader className="py-2 px-3 bg-slate-200 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-xs font-semibold">Distribuição de Lotes</CardTitle>
-          {apartacaoSelecionada && resumoLotes.length > 0 && (
-            <div className="flex gap-1">
-              <Button 
-                variant={modoVisualizacao === 'dia' ? 'default' : 'outline'} 
-                size="sm" 
-                className="h-6 text-[10px] px-2"
-                onClick={() => setModoVisualizacao('dia')}
-              >
+          {apartacaoSelecionada && resumoLotes.length > 0 &&
+          <div className="flex gap-1">
+              <Button
+              variant={modoVisualizacao === 'dia' ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => setModoVisualizacao('dia')}>
+
                 Dia
               </Button>
-              <Button 
-                variant={modoVisualizacao === 'total' ? 'default' : 'outline'} 
-                size="sm" 
-                className="h-6 text-[10px] px-2"
-                onClick={() => setModoVisualizacao('total')}
-              >
+              <Button
+              variant={modoVisualizacao === 'total' ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => setModoVisualizacao('total')}>
+
                 Total
               </Button>
             </div>
-          )}
+          }
         </CardHeader>
         <CardContent className="p-2">
-          {apartacaoSelecionada && resumoLotes.length > 0 ? (
-            <>
+          {apartacaoSelecionada && resumoLotes.length > 0 ?
+          <>
               <div className="text-center mb-2 py-2 bg-emerald-50 rounded">
                 <span className="text-lg font-bold text-emerald-800">
-                  {apartacoes?.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || 'Apartação'}
+                  {apartacoes?.find((a) => a.id === apartacaoSelecionada)?.nome_apartacao || 'Apartação'}
                 </span>
                 <div className="text-[10px] text-emerald-600">
                   {modoVisualizacao === 'dia' ? `Pesagens do dia (${formatarData(dataPesagem)})` : 'Todas as pesagens'}
@@ -132,10 +133,10 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {resumoLotes.map(lote => {
-                    const cheio = lote.fechado || (lote.quantidade_atual >= (lote.quantidade_maxima || 999999));
-                    return (
-                      <TableRow key={lote.id} className={cheio ? "bg-red-50" : ""}>
+                  {resumoLotes.map((lote) => {
+                  const cheio = lote.fechado || lote.quantidade_atual >= (lote.quantidade_maxima || 999999);
+                  return (
+                    <TableRow key={lote.id} className={cheio ? "bg-red-50" : ""}>
                         <TableCell className={`text-xs font-medium ${cheio ? "text-red-700" : ""}`}>
                           {lote.nome_lote} {cheio && "[FECHADO]"}
                         </TableCell>
@@ -143,26 +144,26 @@ function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pe
                           {lote.quantidade_atual}/{lote.quantidade_maxima || 0}
                         </TableCell>
                         <TableCell className="text-xs text-right font-mono">{lote.peso_medio?.toFixed(2) || '0.00'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      </TableRow>);
+
+                })}
                 </TableBody>
               </Table>
               <div className="mt-2 pt-2 border-t text-xs text-center text-slate-500">
                 Qtd. Lançada: {resumoLotes.reduce((s, l) => s + (l.quantidade_atual || 0), 0)}
               </div>
-            </>
-          ) : (
-            <div className="text-center py-6 text-slate-400 text-xs">
-              {apartacaoSelecionada 
-                ? 'Nenhum lote cadastrado nesta apartação' 
-                : 'Selecione uma apartação para ver os lotes'}
+            </> :
+
+          <div className="text-center py-6 text-slate-400 text-xs">
+              {apartacaoSelecionada ?
+            'Nenhum lote cadastrado nesta apartação' :
+            'Selecione uma apartação para ver os lotes'}
             </div>
-          )}
+          }
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>);
+
 }
 
 const formatarData = (dataString) => {
@@ -173,13 +174,13 @@ const formatarData = (dataString) => {
     const [ano, mes, dia] = dataStr.split('-');
     if (!ano || !mes || !dia) return '--/--/----';
     return `${dia}/${mes}/${ano}`;
-  } catch { return '--/--/----'; }
+  } catch {return '--/--/----';}
 };
 
 export default function LancamentoPesagensIndividuais() {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
-  
+
   // Verificar se veio para editar
   const urlParams = new URLSearchParams(window.location.search);
   const editarId = urlParams.get('editar');
@@ -189,7 +190,7 @@ export default function LancamentoPesagensIndividuais() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dbReady, setDbReady] = useState(false);
-  
+
   // Estado do dialog de sincronização
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [syncState, setSyncState] = useState({
@@ -228,9 +229,9 @@ export default function LancamentoPesagensIndividuais() {
   const [isSaving, setIsSaving] = useState(false);
   const [tipoManejo, setTipoManejo] = useState('Manejo');
   const [motivoSaida, setMotivoSaida] = useState("");
-  
 
-  
+
+
   // Campos de Cadastro (Compra)
   const [mostrarDadosCompra, setMostrarDadosCompra] = useState(false);
   const [valorPagoCabeca, setValorPagoCabeca] = useState("");
@@ -283,35 +284,35 @@ export default function LancamentoPesagensIndividuais() {
 
   // Configuração de colunas
   const COLUNAS_DISPONIVEIS = [
-    { id: 'acoes', label: 'Ações', default: true, fixo: true },
-    { id: 'numero_registro', label: 'Nº', default: true },
-    { id: 'tipo_manejo', label: 'Tipo', default: true },
-    { id: 'motivo_saida', label: 'Motivo Saída', default: true },
-    { id: 'numero_animal', label: 'Identificação', default: true },
-    { id: 'peso', label: 'Peso', default: true },
-    { id: 'sanidade', label: 'Sanidade', default: true },
-    { id: 'data_pesagem', label: 'Data', default: true },
-    { id: 'sexo', label: 'Sexo', default: true },
-    { id: 'raca', label: 'Raça', default: true },
-    { id: 'era', label: 'Era', default: true },
-    { id: 'marca', label: 'Marca', default: true },
-    { id: 'nome_apartacao', label: 'Apartação', default: true },
-    { id: 'nome_lote', label: 'Lote', default: true },
-    { id: 'valor_pago_cabeca', label: 'Valor Compra', default: true },
-    { id: 'origem_animal', label: 'Origem', default: false },
-    { id: 'comprador', label: 'Comprador', default: true },
-    { id: 'destino_venda', label: 'Destino', default: false },
-    { id: 'valor_venda_total', label: 'Valor Venda', default: true },
-    { id: 'valor_arroba', label: 'Valor @', default: true },
-    { id: 'quantidade_arrobas', label: 'Qtd @', default: true },
-    { id: 'frigorifico', label: 'Frigorífico', default: true },
-    { id: 'data_anterior', label: 'Data Anterior', default: false },
-    { id: 'peso_anterior', label: 'Peso Anterior', default: false },
-    { id: 'dias', label: 'Dias', default: false },
-    { id: 'ganho', label: 'Ganho', default: false },
-    { id: 'gmd', label: 'GMD', default: true },
-    { id: 'observacao', label: 'Observação', default: false },
-  ];
+  { id: 'acoes', label: 'Ações', default: true, fixo: true },
+  { id: 'numero_registro', label: 'Nº', default: true },
+  { id: 'tipo_manejo', label: 'Tipo', default: true },
+  { id: 'motivo_saida', label: 'Motivo Saída', default: true },
+  { id: 'numero_animal', label: 'Identificação', default: true },
+  { id: 'peso', label: 'Peso', default: true },
+  { id: 'sanidade', label: 'Sanidade', default: true },
+  { id: 'data_pesagem', label: 'Data', default: true },
+  { id: 'sexo', label: 'Sexo', default: true },
+  { id: 'raca', label: 'Raça', default: true },
+  { id: 'era', label: 'Era', default: true },
+  { id: 'marca', label: 'Marca', default: true },
+  { id: 'nome_apartacao', label: 'Apartação', default: true },
+  { id: 'nome_lote', label: 'Lote', default: true },
+  { id: 'valor_pago_cabeca', label: 'Valor Compra', default: true },
+  { id: 'origem_animal', label: 'Origem', default: false },
+  { id: 'comprador', label: 'Comprador', default: true },
+  { id: 'destino_venda', label: 'Destino', default: false },
+  { id: 'valor_venda_total', label: 'Valor Venda', default: true },
+  { id: 'valor_arroba', label: 'Valor @', default: true },
+  { id: 'quantidade_arrobas', label: 'Qtd @', default: true },
+  { id: 'frigorifico', label: 'Frigorífico', default: true },
+  { id: 'data_anterior', label: 'Data Anterior', default: false },
+  { id: 'peso_anterior', label: 'Peso Anterior', default: false },
+  { id: 'dias', label: 'Dias', default: false },
+  { id: 'ganho', label: 'Ganho', default: false },
+  { id: 'gmd', label: 'GMD', default: true },
+  { id: 'observacao', label: 'Observação', default: false }];
+
 
   const [colunasOrdem, setColunasOrdem] = useState(() => {
     const saved = localStorage.getItem('colunas_ordem_lancamento_pesagens');
@@ -319,10 +320,10 @@ export default function LancamentoPesagensIndividuais() {
       try {
         return JSON.parse(saved);
       } catch {
-        return COLUNAS_DISPONIVEIS.map(c => c.id);
+        return COLUNAS_DISPONIVEIS.map((c) => c.id);
       }
     }
-    return COLUNAS_DISPONIVEIS.map(c => c.id);
+    return COLUNAS_DISPONIVEIS.map((c) => c.id);
   });
 
   const [colunasVisiveis, setColunasVisiveis] = useState(() => {
@@ -331,16 +332,16 @@ export default function LancamentoPesagensIndividuais() {
       try {
         return JSON.parse(saved);
       } catch {
-        return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+        return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
       }
     }
-    return COLUNAS_DISPONIVEIS.filter(c => c.default).map(c => c.id);
+    return COLUNAS_DISPONIVEIS.filter((c) => c.default).map((c) => c.id);
   });
 
   const toggleColuna = (colunaId) => {
-    const novasColunas = colunasVisiveis.includes(colunaId)
-      ? colunasVisiveis.filter(id => id !== colunaId)
-      : [...colunasVisiveis, colunaId];
+    const novasColunas = colunasVisiveis.includes(colunaId) ?
+    colunasVisiveis.filter((id) => id !== colunaId) :
+    [...colunasVisiveis, colunaId];
     setColunasVisiveis(novasColunas);
     localStorage.setItem('colunas_visiveis_lancamento_pesagens', JSON.stringify(novasColunas));
   };
@@ -354,15 +355,15 @@ export default function LancamentoPesagensIndividuais() {
     localStorage.setItem('colunas_ordem_lancamento_pesagens', JSON.stringify(items));
   };
 
-  const colunasOrdenadas = colunasOrdem
-    .map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id))
-    .filter(c => c && colunasVisiveis.includes(c.id));
+  const colunasOrdenadas = colunasOrdem.
+  map((id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id)).
+  filter((c) => c && colunasVisiveis.includes(c.id));
 
   // ========== CARREGAR REGISTRO PARA EDIÇÃO ==========
   useEffect(() => {
     const carregarParaEdicao = async () => {
       if (editarId && pesagens.length > 0) {
-        const pesagem = pesagens.find(p => p.id === editarId);
+        const pesagem = pesagens.find((p) => p.id === editarId);
         if (pesagem) {
           setEditingId(pesagem.id);
           setDataPesagem(pesagem.data_pesagem || format(new Date(), 'yyyy-MM-dd'));
@@ -375,7 +376,7 @@ export default function LancamentoPesagensIndividuais() {
           setObservacao(pesagem.observacao || "");
           if (pesagem.apartacao_id) setApartacaoSelecionada(pesagem.apartacao_id);
           if (pesagem.lote_id) setLoteTransferencia(pesagem.lote_id);
-          
+
           // Limpar o parâmetro da URL para evitar recarregar
           window.history.replaceState({}, '', window.location.pathname);
         }
@@ -398,9 +399,9 @@ export default function LancamentoPesagensIndividuais() {
         await loadAllData();
       }
     };
-    
+
     init();
-    
+
     const handleOnline = () => {
       setIsOnline(true);
       toast.success("Conexão restaurada!");
@@ -429,16 +430,16 @@ export default function LancamentoPesagensIndividuais() {
 
   const loadAllData = async () => {
     setIsLoading(true);
-    
+
     try {
       // Tentar carregar do IndexedDB primeiro
       if (dbReady) {
         const [cachedPesagensDB, cachedApartacoesDB, cachedLotesDB] = await Promise.all([
-          getCachedPesagens(empresaSelecionadaId),
-          getCachedApartacoes(empresaSelecionadaId),
-          getCachedLotes(empresaSelecionadaId),
-        ]);
-        
+        getCachedPesagens(empresaSelecionadaId),
+        getCachedApartacoes(empresaSelecionadaId),
+        getCachedLotes(empresaSelecionadaId)]
+        );
+
         setPesagens(cachedPesagensDB);
         setApartacoes(cachedApartacoesDB);
         setLotesApartacao(cachedLotesDB);
@@ -447,40 +448,40 @@ export default function LancamentoPesagensIndividuais() {
         const cachedPesagens = JSON.parse(localStorage.getItem('offline_pesagens_individuais') || '[]');
         const cachedApartacoes = JSON.parse(localStorage.getItem('offline_apartacoes') || '[]');
         const cachedLotes = JSON.parse(localStorage.getItem('offline_lotes_apartacao') || '[]');
-        
-        setPesagens(cachedPesagens.filter(p => p.empresa_id === empresaSelecionadaId));
-        setApartacoes(cachedApartacoes.filter(a => a.empresa_id === empresaSelecionadaId));
-        setLotesApartacao(cachedLotes.filter(l => l.empresa_id === empresaSelecionadaId));
+
+        setPesagens(cachedPesagens.filter((p) => p.empresa_id === empresaSelecionadaId));
+        setApartacoes(cachedApartacoes.filter((a) => a.empresa_id === empresaSelecionadaId));
+        setLotesApartacao(cachedLotes.filter((l) => l.empresa_id === empresaSelecionadaId));
       }
-      
+
       await updatePendingCount();
       setIsLoading(false);
 
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
         const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigs, allItens] = await Promise.all([
-          base44.entities.PesagemIndividual.list('-data_pesagem'),
-          base44.entities.Apartacao.list(),
-          base44.entities.LoteApartacao.list(),
-          base44.entities.SanidadeAnimal.list('-data_aplicacao'),
-          base44.entities.ConfiguracaoSanidade.list(),
-          base44.entities.ItemSanidade.list(),
-        ]);
+        base44.entities.PesagemIndividual.list('-data_pesagem'),
+        base44.entities.Apartacao.list(),
+        base44.entities.LoteApartacao.list(),
+        base44.entities.SanidadeAnimal.list('-data_aplicacao'),
+        base44.entities.ConfiguracaoSanidade.list(),
+        base44.entities.ItemSanidade.list()]
+        );
 
-        const pesagensEmpresa = allPesagens.filter(p => p.empresa_id === empresaSelecionadaId);
-        const apartacoesEmpresa = allApartacoes.filter(a => a.empresa_id === empresaSelecionadaId);
-        const lotesEmpresa = allLotes.filter(l => l.empresa_id === empresaSelecionadaId);
-        const sanidadesEmpresa = allSanidades.filter(s => s.empresa_id === empresaSelecionadaId);
-        const configsEmpresa = allConfigs.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo);
+        const pesagensEmpresa = allPesagens.filter((p) => p.empresa_id === empresaSelecionadaId);
+        const apartacoesEmpresa = allApartacoes.filter((a) => a.empresa_id === empresaSelecionadaId);
+        const lotesEmpresa = allLotes.filter((l) => l.empresa_id === empresaSelecionadaId);
+        const sanidadesEmpresa = allSanidades.filter((s) => s.empresa_id === empresaSelecionadaId);
+        const configsEmpresa = allConfigs.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo);
         const itensEmpresa = allItens;
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
           await Promise.all([
-            cachePesagens(pesagensEmpresa),
-            cacheApartacoes(apartacoesEmpresa),
-            cacheLotes(lotesEmpresa),
-          ]);
+          cachePesagens(pesagensEmpresa),
+          cacheApartacoes(apartacoesEmpresa),
+          cacheLotes(lotesEmpresa)]
+          );
         }
 
         setPesagens(pesagensEmpresa);
@@ -528,25 +529,25 @@ export default function LancamentoPesagensIndividuais() {
       completed: false,
       errors: 0
     });
-    
+
     try {
       const result = await syncAll(empresaSelecionadaId, (progress) => {
-        setSyncState(prev => ({
+        setSyncState((prev) => ({
           ...prev,
           currentStep: progress.current || prev.currentStep,
           totalSteps: progress.total || prev.totalSteps,
           currentItem: progress.currentItem || prev.currentItem
         }));
       });
-      
-      setSyncState(prev => ({
+
+      setSyncState((prev) => ({
         ...prev,
         isRunning: false,
         completed: true,
         items: result.items || [],
         errors: result.totalErrors || 0
       }));
-      
+
       if (result.success) {
         await loadAllData();
         // Fechar dialog após 2 segundos
@@ -559,7 +560,7 @@ export default function LancamentoPesagensIndividuais() {
       }
     } catch (error) {
       console.error('Erro na sincronização:', error);
-      setSyncState(prev => ({
+      setSyncState((prev) => ({
         ...prev,
         isRunning: false,
         completed: true,
@@ -573,7 +574,7 @@ export default function LancamentoPesagensIndividuais() {
 
   // Estado para pesagens pendentes do IndexedDB
   const [pendingPesagensDB, setPendingPesagensDB] = useState([]);
-  
+
   // Carregar pesagens pendentes do IndexedDB
   useEffect(() => {
     const loadPending = async () => {
@@ -591,27 +592,27 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
   const pesagensDia = useMemo(() => {
-    const pendentes = pendingPesagensDB
-      .filter(p => p.data_pesagem === dataPesagem)
-      .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
-    
+    const pendentes = pendingPesagensDB.
+    filter((p) => p.data_pesagem === dataPesagem).
+    map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
+
     // Ordenar por created_date para atribuir número sequencial fixo
-    const sincronizadas = pesagens
-      .filter(p => p.data_pesagem === dataPesagem)
-      .sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0))
-      .map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
-    
+    const sincronizadas = pesagens.
+    filter((p) => p.data_pesagem === dataPesagem).
+    sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0)).
+    map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
+
     let resultado = [...pendentes, ...sincronizadas];
-    
+
     // Aplicar filtro de pesquisa
     if (searchTerm.trim()) {
       const termo = searchTerm.toLowerCase().trim();
-      resultado = resultado.filter(p => 
-        p.numero_animal?.toLowerCase().includes(termo) ||
-        p.nome_lote?.toLowerCase().includes(termo) ||
-        p.nome_apartacao?.toLowerCase().includes(termo) ||
-        p.raca?.toLowerCase().includes(termo) ||
-        p.marca?.toLowerCase().includes(termo)
+      resultado = resultado.filter((p) =>
+      p.numero_animal?.toLowerCase().includes(termo) ||
+      p.nome_lote?.toLowerCase().includes(termo) ||
+      p.nome_apartacao?.toLowerCase().includes(termo) ||
+      p.raca?.toLowerCase().includes(termo) ||
+      p.marca?.toLowerCase().includes(termo)
       );
     }
 
@@ -660,13 +661,13 @@ export default function LancamentoPesagensIndividuais() {
           valB = new Date(b.created_date || 0);
           break;
       }
-      
+
       if (typeof valA === 'string') {
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
       return sortDirection === 'asc' ? valA - valB : valB - valA;
     });
-    
+
     return resultado;
   }, [pesagens, dataPesagem, pendingPesagensDB, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
 
@@ -683,51 +684,51 @@ export default function LancamentoPesagensIndividuais() {
   // Renderizar ícone de ordenação
   const SortIcon = ({ column }) => {
     if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" />
-      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
+    return sortDirection === 'asc' ?
+    <ArrowUp className="w-3 h-3 ml-1 text-emerald-600" /> :
+    <ArrowDown className="w-3 h-3 ml-1 text-emerald-600" />;
   };
 
   // ========== VALORES ÚNICOS PARA AUTOCOMPLETE ==========
-  const marcasExistentes = useMemo(() => 
-    [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort(),
-    [pesagens]
+  const marcasExistentes = useMemo(() =>
+  [...new Set(pesagens.map((p) => p.marca).filter(Boolean))].sort(),
+  [pesagens]
   );
-  const racasExistentes = useMemo(() => 
-    [...new Set(pesagens.map(p => p.raca).filter(Boolean))].sort(),
-    [pesagens]
+  const racasExistentes = useMemo(() =>
+  [...new Set(pesagens.map((p) => p.raca).filter(Boolean))].sort(),
+  [pesagens]
   );
-  const erasExistentes = useMemo(() => 
-    [...new Set(pesagens.map(p => p.era).filter(Boolean))].sort(),
-    [pesagens]
+  const erasExistentes = useMemo(() =>
+  [...new Set(pesagens.map((p) => p.era).filter(Boolean))].sort(),
+  [pesagens]
   );
 
   // ========== LOTES DA APARTAÇÃO SELECIONADA (inclui lotes offline) ==========
   const lotesApartacaoAtual = useMemo(() => {
     if (!apartacaoSelecionada) return [];
     // Combina lotes sincronizados + lotes criados offline (do cache)
-    return lotesApartacao.filter(l => l.apartacao_id === apartacaoSelecionada);
+    return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada);
   }, [apartacaoSelecionada, lotesApartacao]);
 
   // ========== RESUMO DE LOTES COM CONTAGEM ==========
   const resumoLotes = useMemo(() => {
     if (!apartacaoSelecionada) return [];
-    
-    const todasPesagensApartacao = [
-      ...pesagens.filter(p => p.apartacao_id === apartacaoSelecionada),
-      ...pendingPesagensDB.filter(p => p.apartacao_id === apartacaoSelecionada)
-    ];
 
-    return lotesApartacaoAtual.map(lote => {
-      const animaisLote = todasPesagensApartacao.filter(p => p.lote_id === lote.id);
+    const todasPesagensApartacao = [
+    ...pesagens.filter((p) => p.apartacao_id === apartacaoSelecionada),
+    ...pendingPesagensDB.filter((p) => p.apartacao_id === apartacaoSelecionada)];
+
+
+    return lotesApartacaoAtual.map((lote) => {
+      const animaisLote = todasPesagensApartacao.filter((p) => p.lote_id === lote.id);
       const qtd = animaisLote.length;
       const pesoTotal = animaisLote.reduce((s, p) => s + (p.peso || 0), 0);
       const pesoMedio = qtd > 0 ? pesoTotal / qtd : 0;
-      
+
       return {
         ...lote,
         quantidade_atual: qtd,
-        peso_medio: pesoMedio,
+        peso_medio: pesoMedio
       };
     }).sort((a, b) => a.nome_lote.localeCompare(b.nome_lote));
   }, [apartacaoSelecionada, lotesApartacaoAtual, pesagens, pendingPesagensDB]);
@@ -735,8 +736,8 @@ export default function LancamentoPesagensIndividuais() {
   // ========== ESTATÍSTICAS DO DIA ==========
   const estatisticas = useMemo(() => {
     const total = pesagensDia.length;
-    const machos = pesagensDia.filter(p => p.sexo === 'M').length;
-    const femeas = pesagensDia.filter(p => p.sexo === 'F').length;
+    const machos = pesagensDia.filter((p) => p.sexo === 'M').length;
+    const femeas = pesagensDia.filter((p) => p.sexo === 'F').length;
     const pesoMedio = total > 0 ? pesagensDia.reduce((s, p) => s + (p.peso || 0), 0) / total : 0;
     return { total, machos, femeas, pesoMedio };
   }, [pesagensDia]);
@@ -744,10 +745,10 @@ export default function LancamentoPesagensIndividuais() {
   // Buscar sanidades aplicadas para cada animal do dia
   const sanidadesPorAnimal = useMemo(() => {
     const map = {};
-    pesagensDia.forEach(p => {
-      const sanidadesDoAnimal = sanidadesAplicadas.filter(s => 
-        s.numero_animal === p.numero_animal && 
-        s.data_aplicacao === dataPesagem
+    pesagensDia.forEach((p) => {
+      const sanidadesDoAnimal = sanidadesAplicadas.filter((s) =>
+      s.numero_animal === p.numero_animal &&
+      s.data_aplicacao === dataPesagem
       );
       if (sanidadesDoAnimal.length > 0) {
         // Agrupar por nome_sanidade
@@ -766,7 +767,7 @@ export default function LancamentoPesagensIndividuais() {
             unidade: s.unidade_medida,
             custo: s.custo_total || 0
           });
-          acc[key].custoTotal += (s.custo_total || 0);
+          acc[key].custoTotal += s.custo_total || 0;
           return acc;
         }, {});
         map[p.numero_animal] = Object.values(porNome);
@@ -779,13 +780,13 @@ export default function LancamentoPesagensIndividuais() {
   const isLoteCheio = (lote) => {
     if (!lote) return false;
     if (lote.fechado) return true;
-    
+
     // Contar animais no lote (pesagens sincronizadas + pendentes)
     const animaisNoLote = [
-      ...pesagens.filter(p => p.lote_id === lote.id),
-      ...pendingPesagensDB.filter(p => p.lote_id === lote.id)
-    ].length;
-    
+    ...pesagens.filter((p) => p.lote_id === lote.id),
+    ...pendingPesagensDB.filter((p) => p.lote_id === lote.id)].
+    length;
+
     return animaisNoLote >= (lote.quantidade_maxima || 999999);
   };
 
@@ -793,8 +794,8 @@ export default function LancamentoPesagensIndividuais() {
   const getLoteAutomatico = (pesoNum) => {
     if (!apartacaoSelecionada || !pesoNum) return null;
     // Não sugerir lotes fechados ou cheios
-    const lote = lotesApartacaoAtual.find(l => 
-      pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado && !isLoteCheio(l)
+    const lote = lotesApartacaoAtual.find((l) =>
+    pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado && !isLoteCheio(l)
     );
     return lote;
   };
@@ -803,21 +804,21 @@ export default function LancamentoPesagensIndividuais() {
   const handleSalvar = async () => {
     // Evitar cliques duplos
     if (isSaving) return;
-    
+
     // Validações com avisos
-    if (!dataPesagem) { 
-      toast.error("⚠️ Campo obrigatório: Data da Pesagem"); 
-      return; 
+    if (!dataPesagem) {
+      toast.error("⚠️ Campo obrigatório: Data da Pesagem");
+      return;
     }
-    if (!numeroAnimal?.trim()) { 
-      toast.error("⚠️ Campo obrigatório: Nº Identificação"); 
+    if (!numeroAnimal?.trim()) {
+      toast.error("⚠️ Campo obrigatório: Nº Identificação");
       numeroInputRef.current?.focus();
-      return; 
+      return;
     }
-    if (!peso || isNaN(parseFloat(peso)) || parseFloat(peso) <= 0) { 
-      toast.error("⚠️ Campo obrigatório: Peso (deve ser maior que zero)"); 
+    if (!peso || isNaN(parseFloat(peso)) || parseFloat(peso) <= 0) {
+      toast.error("⚠️ Campo obrigatório: Peso (deve ser maior que zero)");
       pesoInputRef.current?.focus();
-      return; 
+      return;
     }
     if (tipoManejo === 'Saída' && !motivoSaida) {
       toast.error("⚠️ Campo obrigatório: Motivo da Saída");
@@ -827,22 +828,22 @@ export default function LancamentoPesagensIndividuais() {
     // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN
     const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
     if (!editingId && !isSN) {
-      const duplicado = pesagensDia.find(p => 
-        p.numero_animal === numeroAnimal.trim() && 
-        p.id !== editingId
+      const duplicado = pesagensDia.find((p) =>
+      p.numero_animal === numeroAnimal.trim() &&
+      p.id !== editingId
       );
-      if (duplicado) { 
+      if (duplicado) {
         setAvisoTela({
           tipo: 'erro',
           mensagem: `⚠️ Animal ${numeroAnimal.trim()} já foi pesado hoje! Peso registrado: ${duplicado.peso}kg`
         });
-        return; 
+        return;
       }
     }
 
     // No modo "Manejo", verificar se o brinco existe no cadastro
     if (tipoManejo === 'Manejo' && !isSN && !editingId) {
-      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
+      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
       if (!animalExiste) {
         setAvisoTela({
           tipo: 'erro',
@@ -855,7 +856,7 @@ export default function LancamentoPesagensIndividuais() {
 
     // No modo "Saída", verificar se o brinco existe
     if (tipoManejo === 'Saída' && !isSN && !editingId) {
-      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
+      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
       if (!animalExiste) {
         setAvisoTela({
           tipo: 'erro',
@@ -868,11 +869,11 @@ export default function LancamentoPesagensIndividuais() {
 
     // No modo "Cadastro", verificar se o brinco JÁ existe (não permitir duplicado)
     if (tipoManejo === 'Cadastro' && !isSN && !editingId) {
-      const animalExiste = pesagens.some(p => p.numero_animal === numeroAnimal.trim());
+      const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim());
       if (animalExiste) {
-        const ultimo = pesagens
-          .filter(p => p.numero_animal === numeroAnimal.trim())
-          .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
+        const ultimo = pesagens.
+        filter((p) => p.numero_animal === numeroAnimal.trim()).
+        sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem))[0];
         setAvisoTela({
           tipo: 'erro',
           mensagem: `❌ Animal ${numeroAnimal.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg! Use "Manejo" para nova pesagem.`
@@ -885,14 +886,14 @@ export default function LancamentoPesagensIndividuais() {
     setIsSaving(true);
 
     const pesoNum = parseFloat(peso);
-    
+
     // Buscar histórico para cálculo de ganho - exceto SN
-    let dataAnterior = null, pesoAnterior = null, dias = null, ganho = null, gmd = null;
+    let dataAnterior = null,pesoAnterior = null,dias = null,ganho = null,gmd = null;
 
     if (!isSN) {
-      const historicoAnimal = pesagens
-        .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-        .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+      const historicoAnimal = pesagens.
+      filter((p) => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem).
+      sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
       if (historicoAnimal.length > 0 && historicoAnimal[0].peso) {
         const ultimo = historicoAnimal[0];
@@ -905,21 +906,21 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     // Determinar lote
-    let loteId = null, nomeLote = null, apartacaoId = null, nomeApartacao = null;
-    
+    let loteId = null,nomeLote = null,apartacaoId = null,nomeApartacao = null;
+
     if (loteTransferencia === "NENHUM") {
       // Usuário optou por não vincular a nenhum lote
       loteId = null;
       nomeLote = null;
       apartacaoId = apartacaoSelecionada || null;
-      nomeApartacao = apartacaoSelecionada ? apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || "" : null;
+      nomeApartacao = apartacaoSelecionada ? apartacoes.find((a) => a.id === apartacaoSelecionada)?.nome_apartacao || "" : null;
     } else if (loteTransferencia) {
-      const lote = lotesApartacaoAtual.find(l => l.id === loteTransferencia);
+      const lote = lotesApartacaoAtual.find((l) => l.id === loteTransferencia);
       if (lote) {
         loteId = lote.id;
         nomeLote = lote.nome_lote;
         apartacaoId = apartacaoSelecionada;
-        nomeApartacao = apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || "";
+        nomeApartacao = apartacoes.find((a) => a.id === apartacaoSelecionada)?.nome_apartacao || "";
       }
     } else if (apartacaoSelecionada) {
       const loteAuto = getLoteAutomatico(pesoNum);
@@ -927,7 +928,7 @@ export default function LancamentoPesagensIndividuais() {
         loteId = loteAuto.id;
         nomeLote = loteAuto.nome_lote;
         apartacaoId = apartacaoSelecionada;
-        nomeApartacao = apartacoes.find(a => a.id === apartacaoSelecionada)?.nome_apartacao || "";
+        nomeApartacao = apartacoes.find((a) => a.id === apartacaoSelecionada)?.nome_apartacao || "";
       }
     }
 
@@ -946,10 +947,10 @@ export default function LancamentoPesagensIndividuais() {
       data_pesagem: dataPesagem,
       numero_animal: numeroAnimal.trim(),
       // Dados cadastrais SOMENTE para Cadastro
-      sexo: tipoManejo === 'Cadastro' ? (sexo || null) : null,
-      raca: tipoManejo === 'Cadastro' ? (raca || null) : null,
-      era: tipoManejo === 'Cadastro' ? (era || null) : null,
-      marca: tipoManejo === 'Cadastro' ? (marca || null) : null,
+      sexo: tipoManejo === 'Cadastro' ? sexo || null : null,
+      raca: tipoManejo === 'Cadastro' ? raca || null : null,
+      era: tipoManejo === 'Cadastro' ? era || null : null,
+      marca: tipoManejo === 'Cadastro' ? marca || null : null,
       peso: pesoNum,
       observacao: observacao || null,
       apartacao_id: apartacaoId,
@@ -959,12 +960,12 @@ export default function LancamentoPesagensIndividuais() {
       // Dados de Cadastro (Compra)
       valor_pago_cabeca: tipoManejo === 'Cadastro' && valorPagoCabeca ? parseFloat(valorPagoCabeca) : null,
       origem_animal: tipoManejo === 'Cadastro' ? origemAnimal : null,
-      documentacao: tipoManejo === 'Cadastro' ? (numeroGTA || numeroNFeCompra || valorFreteCompra || observacoesCompra ? JSON.stringify({
+      documentacao: tipoManejo === 'Cadastro' ? numeroGTA || numeroNFeCompra || valorFreteCompra || observacoesCompra ? JSON.stringify({
         gta: numeroGTA,
         nfe: numeroNFeCompra,
         frete: valorFreteCompra,
         obs: observacoesCompra
-      }) : null) : null,
+      }) : null : null,
       // Dados de Saída (Venda)
       comprador: tipoManejo === 'Saída' && motivoSaida === 'Venda' ? comprador : null,
       destino_venda: tipoManejo === 'Saída' && motivoSaida === 'Venda' ? destinoVenda : null,
@@ -977,19 +978,19 @@ export default function LancamentoPesagensIndividuais() {
       data_anterior: tipoManejo === 'Manejo' ? dataAnterior : null,
       peso_anterior: tipoManejo === 'Manejo' ? pesoAnterior : null,
       dias: tipoManejo === 'Manejo' ? dias : null,
-      ganho: tipoManejo === 'Manejo' ? (ganho ? parseFloat(ganho.toFixed(2)) : null) : null,
-      gmd: tipoManejo === 'Manejo' ? gmd : null,
+      ganho: tipoManejo === 'Manejo' ? ganho ? parseFloat(ganho.toFixed(2)) : null : null,
+      gmd: tipoManejo === 'Manejo' ? gmd : null
     };
 
     try {
       if (navigator.onLine && !editingId && !editingOfflineId) {
         await base44.entities.PesagemIndividual.create(data);
-        
+
         // Aplicar sanidade automática se configurada
         if (sanidadeAtivaId && (tipoManejo === 'Cadastro' || tipoManejo === 'Manejo')) {
-          const configSanidade = configuracoesSanidade.find(c => c.id === sanidadeAtivaId);
-          const itens = itensSanidade.filter(i => i.configuracao_sanidade_id === sanidadeAtivaId);
-          
+          const configSanidade = configuracoesSanidade.find((c) => c.id === sanidadeAtivaId);
+          const itens = itensSanidade.filter((i) => i.configuracao_sanidade_id === sanidadeAtivaId);
+
           if (itens.length > 0) {
             for (const item of itens) {
               const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
@@ -1004,7 +1005,7 @@ export default function LancamentoPesagensIndividuais() {
                 quantidade: item.quantidade_padrao,
                 unidade_medida: item.unidade_medida,
                 custo_unitario: item.custo_unitario,
-                custo_total: custoTotal,
+                custo_total: custoTotal
               });
             }
             toast.success(`✓ Salvo + ${itens.length} medicamento(s) aplicado(s)!`);
@@ -1012,7 +1013,7 @@ export default function LancamentoPesagensIndividuais() {
         } else {
           toast.success('✓ Salvo!');
         }
-        
+
         await loadAllData();
       } else if (editingOfflineId) {
         // Edição de pesagem pendente offline - atualizar no IndexedDB
@@ -1028,20 +1029,20 @@ export default function LancamentoPesagensIndividuais() {
         // Edição de pesagem sincronizada - funciona online e offline
         if (navigator.onLine) {
           // Buscar o registro original para saber o tipo_manejo
-          const registroOriginal = pesagens.find(p => p.id === editingId);
-          
+          const registroOriginal = pesagens.find((p) => p.id === editingId);
+
           await base44.entities.PesagemIndividual.update(editingId, data);
-          
+
           // Se estamos editando um registro de CADASTRO, propagar dados para todos os registros do animal
           if (registroOriginal?.tipo_manejo === 'Cadastro') {
             await atualizarDadosCadastroEmTodos(numeroAnimal.trim(), {
               sexo: sexo || null,
               raca: raca || null,
               era: era || null,
-              marca: marca || null,
+              marca: marca || null
             });
           }
-          
+
           toast.success('✓ Atualizado!');
           await loadAllData();
         } else {
@@ -1133,7 +1134,7 @@ export default function LancamentoPesagensIndividuais() {
         setPendingPesagensDB(pending);
       } else {
         const pending = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
-        const updated = pending.filter(p => p._offlineId !== pesagem._offlineId);
+        const updated = pending.filter((p) => p._offlineId !== pesagem._offlineId);
         localStorage.setItem('pending_pesagens_individuais', JSON.stringify(updated));
       }
       await updatePendingCount();
@@ -1143,15 +1144,15 @@ export default function LancamentoPesagensIndividuais() {
       });
     } else if (navigator.onLine) {
       // Excluir sanidades aplicadas neste animal na mesma data
-      const sanidadesParaExcluir = sanidadesAplicadas.filter(s => 
-        s.numero_animal === pesagem.numero_animal && 
-        s.data_aplicacao === pesagem.data_pesagem
+      const sanidadesParaExcluir = sanidadesAplicadas.filter((s) =>
+      s.numero_animal === pesagem.numero_animal &&
+      s.data_aplicacao === pesagem.data_pesagem
       );
-      
+
       for (const s of sanidadesParaExcluir) {
         await base44.entities.SanidadeAnimal.delete(s.id);
       }
-      
+
       await base44.entities.PesagemIndividual.delete(pesagem.id);
       setAvisoTela({
         tipo: 'info',
@@ -1193,8 +1194,8 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     // Buscar TODOS os registros deste animal
-    const registrosAnimal = pesagens.filter(p => p.numero_animal === numeroAnimalAtual);
-    
+    const registrosAnimal = pesagens.filter((p) => p.numero_animal === numeroAnimalAtual);
+
     if (registrosAnimal.length <= 1) return; // Só tem um registro, não precisa propagar
 
     // Atualizar todos os registros com os novos dados de cadastro
@@ -1205,7 +1206,7 @@ export default function LancamentoPesagensIndividuais() {
           sexo: novosDados.sexo,
           raca: novosDados.raca,
           era: novosDados.era,
-          marca: novosDados.marca,
+          marca: novosDados.marca
         });
         atualizados++;
       } catch (e) {
@@ -1233,26 +1234,26 @@ export default function LancamentoPesagensIndividuais() {
   // ========== EXPORTAR EXCEL ==========
   const exportarExcel = () => {
     const headers = ['Nº', 'Identificação', 'Data', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Apartação', 'Lote', 'Data Anterior', 'Peso Anterior', 'Dias', 'Ganho', 'GMD', 'Observação'];
-    const rows = pesagensDia.map(p => [
-      p._numero_registro || '',
-      p.numero_animal || '',
-      formatarData(p.data_pesagem),
-      p.sexo || '',
-      p.raca || '',
-      p.era || '',
-      p.marca || '',
-      p.peso ? String(p.peso).replace('.', ',') : '',
-      p.nome_apartacao || '',
-      p.nome_lote || '',
-      formatarData(p.data_anterior),
-      p.peso_anterior ? String(p.peso_anterior).replace('.', ',') : '',
-      p.dias || '',
-      p.ganho ? p.ganho.toFixed(2).replace('.', ',') : '',
-      p.gmd ? p.gmd.toFixed(3).replace('.', ',') : '',
-      p.observacao || ''
-    ]);
-    
-    const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const rows = pesagensDia.map((p) => [
+    p._numero_registro || '',
+    p.numero_animal || '',
+    formatarData(p.data_pesagem),
+    p.sexo || '',
+    p.raca || '',
+    p.era || '',
+    p.marca || '',
+    p.peso ? String(p.peso).replace('.', ',') : '',
+    p.nome_apartacao || '',
+    p.nome_lote || '',
+    formatarData(p.data_anterior),
+    p.peso_anterior ? String(p.peso_anterior).replace('.', ',') : '',
+    p.dias || '',
+    p.ganho ? p.ganho.toFixed(2).replace('.', ',') : '',
+    p.gmd ? p.gmd.toFixed(3).replace('.', ',') : '',
+    p.observacao || '']
+    );
+
+    const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1269,37 +1270,37 @@ export default function LancamentoPesagensIndividuais() {
       <div className="flex justify-between items-center bg-white rounded px-3 py-2 shadow-sm border-b border-slate-200">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold text-slate-900">Lançamento de Pesagens</h1>
-          {isOnline ? (
-            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+          {isOnline ?
+          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
               <Wifi className="w-3 h-3 mr-1" />Online
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+            </Badge> :
+
+          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
               <WifiOff className="w-3 h-3 mr-1" />Offline
             </Badge>
-          )}
-          {pendingCount > 0 && (
-            <Badge className="text-[10px] bg-blue-500">{pendingCount} pendente(s)</Badge>
-          )}
+          }
+          {pendingCount > 0 &&
+          <Badge className="text-[10px] bg-blue-500">{pendingCount} pendente(s)</Badge>
+          }
         </div>
         <div className="flex gap-2">
-          {pendingCount > 0 && isOnline && (
-            <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
+          {pendingCount > 0 && isOnline &&
+          <Button size="sm" onClick={handleSyncAll} disabled={isSyncing} className="h-8 text-xs gap-1 bg-slate-700 hover:bg-slate-800">
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar
             </Button>
-          )}
-          {dbReady && (
-            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+          }
+          {dbReady &&
+          <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
               <Database className="w-3 h-3 mr-1" />Persistente
             </Badge>
-          )}
+          }
           <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
             <Settings className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={async () => {
               if (!navigator.onLine) {
                 toast.error("Precisa estar online para limpar cache");
@@ -1320,9 +1321,9 @@ export default function LancamentoPesagensIndividuais() {
                   toast.error("Erro ao limpar cache");
                 }
               }
-            }} 
-            className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-          >
+            }}
+            className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50">
+
             Limpar Cache
           </Button>
           <Button variant="outline" size="sm" onClick={() => loadAllData()} className="h-8 text-xs">
@@ -1337,7 +1338,7 @@ export default function LancamentoPesagensIndividuais() {
           {/* SELEÇÃO DO TIPO DE MANEJO + BOTÃO APARTAÇÕES */}
           <div className="flex items-center gap-3 mb-4 pb-3 border-b flex-wrap">
             <Label className="text-xs font-semibold text-slate-700">Tipo de Movimentação:</Label>
-            <Select value={tipoManejo} onValueChange={(v) => { setTipoManejo(v); setMotivoSaida(""); setMostrarDadosVenda(false); setMostrarDadosAbate(false); }}>
+            <Select value={tipoManejo} onValueChange={(v) => {setTipoManejo(v);setMotivoSaida("");setMostrarDadosVenda(false);setMostrarDadosAbate(false);}}>
               <SelectTrigger className="h-8 text-xs w-56">
                 <SelectValue />
               </SelectTrigger>
@@ -1348,14 +1349,14 @@ export default function LancamentoPesagensIndividuais() {
               </SelectContent>
             </Select>
 
-            <Button size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+            <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="bg-slate-950 text-slate-950 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:text-accent-foreground h-8 gap-1 hover:bg-emerald-700">
               <Settings className="w-3.5 h-3.5" />
               Apartações
             </Button>
 
             {/* Motivo da Saída (rente ao Tipo) */}
-            {tipoManejo === 'Saída' && (
-              <>
+            {tipoManejo === 'Saída' &&
+            <>
                 <Label className="text-xs font-medium">Motivo da Saída <span className="text-red-500">*</span></Label>
                 <Select value={motivoSaida} onValueChange={setMotivoSaida}>
                   <SelectTrigger className="h-8 text-xs w-44">
@@ -1372,111 +1373,111 @@ export default function LancamentoPesagensIndividuais() {
                 </Select>
 
                 {/* Ícone para Venda */}
-                {motivoSaida === 'Venda' && (
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => setMostrarDadosVenda(!mostrarDadosVenda)}
-                    className="h-8 w-8"
-                    title={mostrarDadosVenda ? 'Ocultar Dados de Venda' : 'Mostrar Dados de Venda'}
-                  >
-                    {mostrarDadosVenda ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                )}
-
-                {/* Ícone para Abate */}
-                {motivoSaida === 'Abate' && (
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => setMostrarDadosAbate(!mostrarDadosAbate)}
-                    className="h-8 w-8"
-                    title={mostrarDadosAbate ? 'Ocultar Dados de Abate' : 'Mostrar Dados de Abate'}
-                  >
-                    {mostrarDadosAbate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                )}
-              </>
-            )}
-
-            {/* Ícones de Ações Rápidas - Cadastro/Manejo */}
-            {tipoManejo === 'Cadastro' && (
-              <Button 
-                type="button"
-                variant="outline" 
-                size="icon"
-                onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)}
-                className="h-8 w-8"
-                title={mostrarDadosCompra ? 'Ocultar Dados de Compra' : 'Mostrar Dados de Compra'}
-              >
-                {mostrarDadosCompra ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </Button>
-            )}
-            
-            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') && (
+                {motivoSaida === 'Venda' &&
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setMostrarSanidade(true)}
-                className="h-8 text-xs gap-1"
-                title="Gerenciar Sanidades"
-              >
+                size="icon"
+                onClick={() => setMostrarDadosVenda(!mostrarDadosVenda)}
+                className="h-8 w-8"
+                title={mostrarDadosVenda ? 'Ocultar Dados de Venda' : 'Mostrar Dados de Venda'}>
+
+                    {mostrarDadosVenda ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+              }
+
+                {/* Ícone para Abate */}
+                {motivoSaida === 'Abate' &&
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setMostrarDadosAbate(!mostrarDadosAbate)}
+                className="h-8 w-8"
+                title={mostrarDadosAbate ? 'Ocultar Dados de Abate' : 'Mostrar Dados de Abate'}>
+
+                    {mostrarDadosAbate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+              }
+              </>
+            }
+
+            {/* Ícones de Ações Rápidas - Cadastro/Manejo */}
+            {tipoManejo === 'Cadastro' &&
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setMostrarDadosCompra(!mostrarDadosCompra)}
+              className="h-8 w-8"
+              title={mostrarDadosCompra ? 'Ocultar Dados de Compra' : 'Mostrar Dados de Compra'}>
+
+                {mostrarDadosCompra ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            }
+            
+            {(tipoManejo === 'Cadastro' || tipoManejo === 'Manejo') &&
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMostrarSanidade(true)}
+              className="h-8 text-xs gap-1"
+              title="Gerenciar Sanidades">
+
                 <Syringe className="w-3.5 h-3.5" />
               </Button>
-            )}
+            }
             
 
 
             {/* Mensagens de Status */}
-            {tipoManejo === 'Cadastro' && !avisoTela && (
-              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+            {tipoManejo === 'Cadastro' && !avisoTela &&
+            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
                 Cadastro de novos animais (Ativo)
               </span>
-            )}
-            {tipoManejo === 'Manejo' && !avisoTela && (
-              <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
+            }
+            {tipoManejo === 'Manejo' && !avisoTela &&
+            <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Apenas animais já cadastrados (Ativo)
               </span>
-            )}
-            {tipoManejo === 'Saída' && !avisoTela && (
-              <span className="text-[10px] text-red-600 bg-red-50 px-2 py-1 rounded">
+            }
+            {tipoManejo === 'Saída' && !avisoTela &&
+            <span className="text-[10px] text-red-600 bg-red-50 px-2 py-1 rounded">
                 Animal será marcado como INATIVO
               </span>
-            )}
+            }
 
             {/* AVISO INLINE */}
-            {avisoTela && (
-              <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
-                avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-700' :
-                avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
+            {avisoTela &&
+            <div className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
+            avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-700' :
+            avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-700' :
+            'bg-blue-100 text-blue-700'}`
+            }>
                 <span>{avisoTela.mensagem}</span>
                 <button onClick={() => setAvisoTela(null)} className="hover:opacity-70">
                   <X className="w-3 h-3" />
                 </button>
               </div>
-            )}
+            }
           </div>
 
           <div className="flex flex-wrap items-end gap-4">
             {/* Data Pesagem */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Data Pesagem <span className="text-red-500">*</span></Label>
-              <Input 
-                type="date" 
-                value={dataPesagem} 
-                onChange={(e) => setDataPesagem(e.target.value)} 
-                className="h-9 text-sm w-40"
-              />
+              <Input
+                type="date"
+                value={dataPesagem}
+                onChange={(e) => setDataPesagem(e.target.value)}
+                className="h-9 text-sm w-40" />
+
             </div>
             
             {/* CAMPOS DE CADASTRO - Mostrar APENAS em Cadastro */}
-            {tipoManejo === 'Cadastro' && (
-              <>
+            {tipoManejo === 'Cadastro' &&
+            <>
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Sexo</Label>
                   <Select value={sexo} onValueChange={setSexo}>
@@ -1490,67 +1491,67 @@ export default function LancamentoPesagensIndividuais() {
                 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Raça</Label>
-                  <Input 
-                    value={raca}
-                    onChange={(e) => setRaca(e.target.value)}
-                    placeholder="Nelore"
-                    className="h-9 text-sm w-28"
-                  />
+                  <Input
+                  value={raca}
+                  onChange={(e) => setRaca(e.target.value)}
+                  placeholder="Nelore"
+                  className="h-9 text-sm w-28" />
+
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Era</Label>
-                  <Input 
-                    value={era}
-                    onChange={(e) => setEra(e.target.value)}
-                    placeholder="Ex: 14"
-                    className="h-9 text-sm w-24"
-                  />
+                  <Input
+                  value={era}
+                  onChange={(e) => setEra(e.target.value)}
+                  placeholder="Ex: 14"
+                  className="h-9 text-sm w-24" />
+
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Marca</Label>
-                  <Input 
-                    value={marca}
-                    onChange={(e) => setMarca(e.target.value)}
-                    placeholder="Ex: ABC"
-                    className="h-9 text-sm w-24"
-                  />
+                  <Input
+                  value={marca}
+                  onChange={(e) => setMarca(e.target.value)}
+                  placeholder="Ex: ABC"
+                  className="h-9 text-sm w-24" />
+
                 </div>
               </>
-            )}
+            }
             
             {/* Nº Identificação */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Nº Ident./Nome <span className="text-red-500">*</span></Label>
-              <Input 
+              <Input
                 ref={numeroInputRef}
-                value={numeroAnimal} 
+                value={numeroAnimal}
                 onChange={(e) => {
                   const valor = e.target.value;
                   setNumeroAnimal(valor);
                   setAvisoTela(null); // Limpar aviso anterior
-                  
+
                   // Buscar dados anteriores do animal (exceto SN)
                   if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                    const historicoAnimal = pesagens
-                      .filter(p => p.numero_animal === valor.trim())
-                      .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-                    
+                    const historicoAnimal = pesagens.
+                    filter((p) => p.numero_animal === valor.trim()).
+                    sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+
                     // Verificar se já foi pesado hoje
-                    const pesadoHoje = pesagensDia.find(p => p.numero_animal === valor.trim());
+                    const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim());
                     if (pesadoHoje && !editingId) {
                       setAvisoTela({
                         tipo: 'erro',
                         mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
                       });
                     }
-                    
+
                     if (historicoAnimal.length > 0) {
                       // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
-                      const cadastroOriginal = pesagens.find(p => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
+                      const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
                       const ultimo = historicoAnimal[0];
-                      
+
                       // No modo CADASTRO, avisar que animal já existe e PREENCHER campos
                       if (tipoManejo === 'Cadastro' && !editingId) {
                         setAvisoTela({
@@ -1559,7 +1560,7 @@ export default function LancamentoPesagensIndividuais() {
                         });
                         // Não preencher campos automaticamente
                       }
-                      
+
                       // No modo MANEJO ou SAÍDA, apenas MOSTRAR info do animal (NÃO preencher campos)
                       if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         if (!pesadoHoje) {
@@ -1567,9 +1568,9 @@ export default function LancamentoPesagensIndividuais() {
                           const dadosCadastro = cadastroOriginal || ultimo;
                           setAvisoTela({
                             tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
-                            mensagem: statusAtual === 'Inativo' 
-                              ? `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)`
-                              : `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                            mensagem: statusAtual === 'Inativo' ?
+                            `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
+                            `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                           });
                         }
                       }
@@ -1583,83 +1584,83 @@ export default function LancamentoPesagensIndividuais() {
                       }
                     }
                   }
-                }} 
+                }}
                 onKeyDown={(e) => handleKeyDown(e, pesoInputRef)}
                 className="h-10 w-36 font-bold text-amber-500"
                 style={{ fontSize: '18px' }}
                 autoFocus
-                placeholder="Ex: 1234"
-              />
+                placeholder="Ex: 1234" />
+
             </div>
 
             {/* Peso */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Peso (kg) <span className="text-red-500">*</span></Label>
-              <Input 
+              <Input
                 ref={pesoInputRef}
                 type="number"
-                value={peso} 
-                onChange={(e) => setPeso(e.target.value)} 
+                value={peso}
+                onChange={(e) => setPeso(e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, 'salvar')}
                 className="h-10 w-28 font-bold text-amber-500"
                 style={{ fontSize: '18px' }}
-                placeholder="Ex: 320"
-              />
+                placeholder="Ex: 320" />
+
             </div>
             
             {/* Observação */}
             <div className="space-y-1">
               <Label className="text-xs font-medium">Observação</Label>
-              <Input 
-                value={observacao} 
-                onChange={(e) => setObservacao(e.target.value)} 
+              <Input
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
                 className="h-9 text-sm w-44"
-                placeholder="Obs..."
-              />
+                placeholder="Obs..." />
+
             </div>
 
             {/* Botões Salvar e Cancelar */}
             <Button onClick={handleSalvar} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              {isSaving ? 'Salvando...' : (editingId ? 'Atualizar' : 'Salvar')}
+              {isSaving ? 'Salvando...' : editingId ? 'Atualizar' : 'Salvar'}
             </Button>
-            {editingId && (
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setEditingId(null);
-                  setEditingOfflineId(null);
-                  setNumeroAnimal("");
-                  setPeso("");
-                  setObservacao("");
-                  setLoteTransferencia("");
-                  setMotivoSaida("");
-                  setAvisoTela(null);
-                  setSexo("M");
-                  setRaca("Nelore");
-                  setEra("");
-                  setMarca("");
-                  setTimeout(() => numeroInputRef.current?.focus(), 50);
-                }} 
-                size="sm"
-                className="h-8 text-xs"
-              >
+            {editingId &&
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingId(null);
+                setEditingOfflineId(null);
+                setNumeroAnimal("");
+                setPeso("");
+                setObservacao("");
+                setLoteTransferencia("");
+                setMotivoSaida("");
+                setAvisoTela(null);
+                setSexo("M");
+                setRaca("Nelore");
+                setEra("");
+                setMarca("");
+                setTimeout(() => numeroInputRef.current?.focus(), 50);
+              }}
+              size="sm"
+              className="h-8 text-xs">
+
                 Cancelar
               </Button>
-            )}
+            }
 
             {/* Exibir cálculo de ganho APÓS o botão Salvar */}
             {(() => {
               if (!numeroAnimal?.trim() || !peso) return null;
               if (numeroAnimal.trim().toUpperCase() === 'SN') return null;
-              const historicoAnimal = pesagens
-                .filter(p => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem)
-                .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
+              const historicoAnimal = pesagens.
+              filter((p) => p.numero_animal === numeroAnimal.trim() && p.data_pesagem < dataPesagem).
+              sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
               if (historicoAnimal.length === 0 || !historicoAnimal[0].peso) return null;
               const ultimo = historicoAnimal[0];
               const pesoNum = parseFloat(peso);
               const dias = Math.floor((new Date(dataPesagem) - new Date(ultimo.data_pesagem)) / (1000 * 60 * 60 * 24));
               const ganho = pesoNum - ultimo.peso;
-              const gmd = dias > 0 ? (ganho / dias) : 0;
+              const gmd = dias > 0 ? ganho / dias : 0;
               return (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold">
                   <span>{dias}d</span>
@@ -1667,14 +1668,14 @@ export default function LancamentoPesagensIndividuais() {
                   <span>{ganho.toFixed(1)}kg</span>
                   <span>|</span>
                   <span>GMD: {gmd.toFixed(3)}</span>
-                </div>
-              );
+                </div>);
+
             })()}
           </div>
 
           {/* Dados de Compra (Cadastro) - Seção Retrátil */}
-          {tipoManejo === 'Cadastro' && mostrarDadosCompra && (
-            <div className="mt-3 p-3 border-t bg-slate-50 rounded">
+          {tipoManejo === 'Cadastro' && mostrarDadosCompra &&
+          <div className="mt-3 p-3 border-t bg-slate-50 rounded">
               <h3 className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
                 Dados de Compra
@@ -1683,66 +1684,66 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="space-y-1">
                   <Label className="text-xs">Valor por Cabeça (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorPagoCabeca}
-                    onChange={(e) => setValorPagoCabeca(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 2500.00"
-                  />
+                  type="number"
+                  value={valorPagoCabeca}
+                  onChange={(e) => setValorPagoCabeca(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 2500.00" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Origem do Animal</Label>
                   <Input
-                    value={origemAnimal}
-                    onChange={(e) => setOrigemAnimal(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: Fazenda ABC"
-                  />
+                  value={origemAnimal}
+                  onChange={(e) => setOrigemAnimal(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: Fazenda ABC" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número GTA</Label>
                   <Input
-                    value={numeroGTA}
-                    onChange={(e) => setNumeroGTA(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 12345"
-                  />
+                  value={numeroGTA}
+                  onChange={(e) => setNumeroGTA(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 12345" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número NF-e</Label>
                   <Input
-                    value={numeroNFeCompra}
-                    onChange={(e) => setNumeroNFeCompra(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 98765"
-                  />
+                  value={numeroNFeCompra}
+                  onChange={(e) => setNumeroNFeCompra(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 98765" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor do Frete (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorFreteCompra}
-                    onChange={(e) => setValorFreteCompra(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="0.00"
-                  />
+                  type="number"
+                  value={valorFreteCompra}
+                  onChange={(e) => setValorFreteCompra(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="0.00" />
+
                 </div>
                 <div className="space-y-1 col-span-3">
                   <Label className="text-xs">Observações</Label>
                   <Input
-                    value={observacoesCompra}
-                    onChange={(e) => setObservacoesCompra(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Observações da compra..."
-                  />
+                  value={observacoesCompra}
+                  onChange={(e) => setObservacoesCompra(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Observações da compra..." />
+
                 </div>
               </div>
             </div>
-          )}
+          }
 
           {/* Dados de Saída (Venda) */}
-          {tipoManejo === 'Saída' && motivoSaida === 'Venda' && mostrarDadosVenda && (
-            <div className="mt-3 p-3 border-t bg-blue-50 rounded">
+          {tipoManejo === 'Saída' && motivoSaida === 'Venda' && mostrarDadosVenda &&
+          <div className="mt-3 p-3 border-t bg-blue-50 rounded">
               <h3 className="text-xs font-semibold text-blue-700 mb-3 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
                 Dados da Venda
@@ -1751,93 +1752,93 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="space-y-1">
                   <Label className="text-xs">Comprador</Label>
                   <Input
-                    value={comprador}
-                    onChange={(e) => setComprador(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Nome do comprador"
-                  />
+                  value={comprador}
+                  onChange={(e) => setComprador(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Nome do comprador" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Destino</Label>
                   <Input
-                    value={destinoVenda}
-                    onChange={(e) => setDestinoVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: Fazenda XYZ"
-                  />
+                  value={destinoVenda}
+                  onChange={(e) => setDestinoVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: Fazenda XYZ" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor da Arroba (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorArroba}
-                    onChange={(e) => setValorArroba(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 280.00"
-                  />
+                  type="number"
+                  value={valorArroba}
+                  onChange={(e) => setValorArroba(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 280.00" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor Total (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorVendaTotal}
-                    onChange={(e) => setValorVendaTotal(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Calculado ou manual"
-                  />
+                  type="number"
+                  value={valorVendaTotal}
+                  onChange={(e) => setValorVendaTotal(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Calculado ou manual" />
+
                 </div>
-                {peso && valorArroba && (
-                  <div className="space-y-1 col-span-4">
+                {peso && valorArroba &&
+              <div className="space-y-1 col-span-4">
                     <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-blue-700">
                       R$ {(parseFloat(peso) / 30 * parseFloat(valorArroba || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
                     </div>
                   </div>
-                )}
+              }
                 <div className="space-y-1">
                   <Label className="text-xs">Número GTA</Label>
                   <Input
-                    value={numeroGTAVenda}
-                    onChange={(e) => setNumeroGTAVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 12345"
-                  />
+                  value={numeroGTAVenda}
+                  onChange={(e) => setNumeroGTAVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 12345" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número NF-e</Label>
                   <Input
-                    value={numeroNFeVenda}
-                    onChange={(e) => setNumeroNFeVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 98765"
-                  />
+                  value={numeroNFeVenda}
+                  onChange={(e) => setNumeroNFeVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 98765" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor do Frete (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorFreteVenda}
-                    onChange={(e) => setValorFreteVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="0.00"
-                  />
+                  type="number"
+                  value={valorFreteVenda}
+                  onChange={(e) => setValorFreteVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="0.00" />
+
                 </div>
                 <div className="space-y-1 col-span-4">
                   <Label className="text-xs">Observações</Label>
                   <Input
-                    value={observacoesVenda}
-                    onChange={(e) => setObservacoesVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Observações da venda..."
-                  />
+                  value={observacoesVenda}
+                  onChange={(e) => setObservacoesVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Observações da venda..." />
+
                 </div>
               </div>
             </div>
-          )}
+          }
 
           {/* Dados de Saída (Abate) */}
-          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && mostrarDadosAbate && (
-            <div className="mt-3 p-3 border-t bg-purple-50 rounded">
+          {tipoManejo === 'Saída' && motivoSaida === 'Abate' && mostrarDadosAbate &&
+          <div className="mt-3 p-3 border-t bg-purple-50 rounded">
               <h3 className="text-xs font-semibold text-purple-700 mb-3 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
                 Dados do Abate
@@ -1846,97 +1847,97 @@ export default function LancamentoPesagensIndividuais() {
                 <div className="space-y-1">
                   <Label className="text-xs">Frigorífico</Label>
                   <Input
-                    value={frigorifico}
-                    onChange={(e) => setFrigorifico(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Nome do frigorífico"
-                  />
+                  value={frigorifico}
+                  onChange={(e) => setFrigorifico(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Nome do frigorífico" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor por Arroba (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorArrobaAbate}
-                    onChange={(e) => setValorArrobaAbate(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 280.00"
-                  />
+                  type="number"
+                  value={valorArrobaAbate}
+                  onChange={(e) => setValorArrobaAbate(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 280.00" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor Total (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorTotalAbate}
-                    onChange={(e) => setValorTotalAbate(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Calculado ou manual"
-                  />
+                  type="number"
+                  value={valorTotalAbate}
+                  onChange={(e) => setValorTotalAbate(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Calculado ou manual" />
+
                 </div>
-                {peso && valorArrobaAbate && (
-                  <div className="space-y-1">
+                {peso && valorArrobaAbate &&
+              <div className="space-y-1">
                     <Label className="text-xs">Cálculo Automático (50% aproveitamento)</Label>
                     <div className="h-8 flex items-center text-xs font-semibold text-purple-700">
                       R$ {(parseFloat(peso) / 30 * parseFloat(valorArrobaAbate || 0)).toFixed(2)} ({(parseFloat(peso) / 30).toFixed(2)} @)
                     </div>
                   </div>
-                )}
+              }
                 <div className="space-y-1">
                   <Label className="text-xs">Número GTA</Label>
                   <Input
-                    value={numeroGTAAbate}
-                    onChange={(e) => setNumeroGTAAbate(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 12345"
-                  />
+                  value={numeroGTAAbate}
+                  onChange={(e) => setNumeroGTAAbate(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 12345" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número NF-e</Label>
                   <Input
-                    value={numeroNFeVenda}
-                    onChange={(e) => setNumeroNFeVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Ex: 98765"
-                  />
+                  value={numeroNFeVenda}
+                  onChange={(e) => setNumeroNFeVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Ex: 98765" />
+
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Valor do Frete (R$)</Label>
                   <Input
-                    type="number"
-                    value={valorFreteVenda}
-                    onChange={(e) => setValorFreteVenda(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="0.00"
-                  />
+                  type="number"
+                  value={valorFreteVenda}
+                  onChange={(e) => setValorFreteVenda(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="0.00" />
+
                 </div>
                 <div className="space-y-1 col-span-4">
                   <Label className="text-xs">Observações</Label>
                   <Input
-                    value={observacoesAbate}
-                    onChange={(e) => setObservacoesAbate(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="Observações do abate..."
-                  />
+                  value={observacoesAbate}
+                  onChange={(e) => setObservacoesAbate(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Observações do abate..." />
+
                 </div>
               </div>
             </div>
-          )}
+          }
           
           {/* Linha 2: Apartação e Transferência de Lote */}
           <div className="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
             <div className="space-y-1">
               <Label className="text-xs font-medium">Apartação</Label>
-              <Select value={apartacaoSelecionada} onValueChange={(v) => { setApartacaoSelecionada(v); setLoteTransferencia(""); }}>
+              <Select value={apartacaoSelecionada} onValueChange={(v) => {setApartacaoSelecionada(v);setLoteTransferencia("");}}>
                 <SelectTrigger className="h-9 text-sm w-44"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>Nenhuma</SelectItem>
-                  {apartacoes.map(a => (
-                    <SelectItem key={a.id} value={a.id}>
+                  {apartacoes.map((a) =>
+                  <SelectItem key={a.id} value={a.id}>
                       <div className="flex items-center gap-2">
                         <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/690cd380760c45b456c6ef81/3a7353353_Logosimplescircularesmaltariapreto1.png" alt="" className="w-4 h-4" />
                         {a.nome_apartacao}
                       </div>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1947,28 +1948,28 @@ export default function LancamentoPesagensIndividuais() {
                 <SelectContent>
                   <SelectItem value={null}>Automático</SelectItem>
                   <SelectItem value="NENHUM" className="text-slate-500 font-medium">-- Sem Lote --</SelectItem>
-                  {lotesApartacaoAtual.map(l => {
+                  {lotesApartacaoAtual.map((l) => {
                     const cheio = isLoteCheio(l);
                     return (
                       <SelectItem key={l.id} value={l.id} className={cheio ? "text-red-600" : ""}>
                         {l.nome_lote} ({l.peso_minimo}-{l.peso_maximo}kg) {cheio ? "[FECHADO]" : ""}
-                      </SelectItem>
-                    );
+                      </SelectItem>);
+
                   })}
                 </SelectContent>
               </Select>
             </div>
-            {peso && apartacaoSelecionada && !loteTransferencia && (
-              (() => {
-                const loteAuto = getLoteAutomatico(parseFloat(peso));
-                return (
-                  <div className={`text-base font-bold px-4 py-2 rounded border-2 ${loteAuto ? 'text-orange-700 bg-orange-100 border-orange-300' : 'text-red-700 bg-red-100 border-red-300'}`}>
+            {peso && apartacaoSelecionada && !loteTransferencia &&
+            (() => {
+              const loteAuto = getLoteAutomatico(parseFloat(peso));
+              return (
+                <div className={`text-base font-bold px-4 py-2 rounded border-2 ${loteAuto ? 'text-orange-700 bg-orange-100 border-orange-300' : 'text-red-700 bg-red-100 border-red-300'}`}>
                     <ChevronRight className="w-5 h-5 inline" />
                     Lote: {loteAuto?.nome_lote || 'Não encontrado (todos cheios ou fora da faixa)'}
-                  </div>
-                );
-              })()
-            )}
+                  </div>);
+
+            })()
+            }
           </div>
         </CardContent>
       </Card>
@@ -1984,32 +1985,32 @@ export default function LancamentoPesagensIndividuais() {
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
-                  <Input 
+                  <Input
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Pesquisar animal, lote..."
-                    className="h-7 text-xs pl-7 w-48"
-                  />
-                  {searchTerm && (
-                    <button 
-                      onClick={() => setSearchTerm("")}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                    >
+                    className="h-7 text-xs pl-7 w-48" />
+
+                  {searchTerm &&
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2">
+
                       <X className="w-3 h-3 text-slate-400 hover:text-slate-600" />
                     </button>
-                  )}
+                  }
                 </div>
-                {searchTerm && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setSearchTerm("")}
-                    className="h-7 text-xs gap-1"
-                  >
+                {searchTerm &&
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchTerm("")}
+                  className="h-7 text-xs gap-1">
+
                     <X className="w-3 h-3" />
                     Limpar Filtro
                   </Button>
-                )}
+                }
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -2023,31 +2024,31 @@ export default function LancamentoPesagensIndividuais() {
                         }
                         const isSortable = ['numero_registro', 'numero_animal', 'peso', 'sexo', 'raca', 'marca', 'nome_apartacao', 'nome_lote'].includes(coluna.id);
                         return (
-                          <TableHead 
+                          <TableHead
                             key={coluna.id}
                             className={`text-xs ${coluna.id === 'peso' ? 'text-right' : ''} ${isSortable ? 'cursor-pointer hover:bg-slate-200 select-none' : ''}`}
-                            onClick={() => isSortable && handleSort(coluna.id)}
-                          >
+                            onClick={() => isSortable && handleSort(coluna.id)}>
+
                             <div className={`flex items-center ${coluna.id === 'peso' ? 'justify-end' : ''}`}>
                               {coluna.label} {isSortable && <SortIcon column={coluna.id} />}
                             </div>
-                          </TableHead>
-                        );
+                          </TableHead>);
+
                       })}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
-                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow>
-                    ) : pesagensDia.length === 0 ? (
-                      <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow>
-                    ) : (
-                      pesagensDia.map((p, idx) => (
-                        <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
+                    {isLoading ?
+                    <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs">Carregando...</TableCell></TableRow> :
+                    pesagensDia.length === 0 ?
+                    <TableRow><TableCell colSpan={20} className="text-center py-4 text-xs text-slate-400">Nenhuma pesagem</TableCell></TableRow> :
+
+                    pesagensDia.map((p, idx) =>
+                    <TableRow key={p.id || p._offlineId} className={p._offlineId ? 'bg-amber-50' : 'hover:bg-slate-50'}>
                           {colunasOrdenadas.map((coluna) => {
-                            if (coluna.id === 'acoes') {
-                              return (
-                                <TableCell key="acoes" className="text-xs">
+                        if (coluna.id === 'acoes') {
+                          return (
+                            <TableCell key="acoes" className="text-xs">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -2063,72 +2064,72 @@ export default function LancamentoPesagensIndividuais() {
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
-                                </TableCell>
-                              );
-                            }
-                            if (coluna.id === 'numero_registro') {
-                              return <TableCell key={coluna.id} className="text-xs font-mono font-bold text-slate-700">{p._numero_registro}</TableCell>;
-                            }
-                            if (coluna.id === 'tipo_manejo') {
-                              return (
-                                <TableCell key={coluna.id} className="text-xs">
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-[10px] ${
-                                      p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 
-                                      p.tipo_manejo === 'Saída' ? 'bg-red-50 text-red-700 border-red-300' :
-                                      'bg-blue-50 text-blue-700 border-blue-300'
-                                    }`}
-                                  >
+                                </TableCell>);
+
+                        }
+                        if (coluna.id === 'numero_registro') {
+                          return <TableCell key={coluna.id} className="text-xs font-mono font-bold text-slate-700">{p._numero_registro}</TableCell>;
+                        }
+                        if (coluna.id === 'tipo_manejo') {
+                          return (
+                            <TableCell key={coluna.id} className="text-xs">
+                                  <Badge
+                                variant="outline"
+                                className={`text-[10px] ${
+                                p.tipo_manejo === 'Cadastro' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                                p.tipo_manejo === 'Saída' ? 'bg-red-50 text-red-700 border-red-300' :
+                                'bg-blue-50 text-blue-700 border-blue-300'}`
+                                }>
+
                                     {p.tipo_manejo || 'Manejo'}
                                   </Badge>
-                                </TableCell>
-                              );
-                            }
-                            if (coluna.id === 'motivo_saida') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.motivo_saida || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'valor_pago_cabeca') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_pago_cabeca ? `R$ ${p.valor_pago_cabeca.toFixed(2)}` : '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'origem_animal') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.origem_animal || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'comprador') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.comprador || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'destino_venda') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.destino_venda || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'valor_venda_total') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_venda_total ? `R$ ${p.valor_venda_total.toFixed(2)}` : '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'valor_arroba') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_arroba ? `R$ ${p.valor_arroba.toFixed(2)}` : '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'quantidade_arrobas') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.quantidade_arrobas ? `${p.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'frigorifico') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.frigorifico || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'numero_animal') {
-                              return (
-                                <TableCell key={coluna.id} className="text-xs font-bold">
+                                </TableCell>);
+
+                        }
+                        if (coluna.id === 'motivo_saida') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.motivo_saida || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'valor_pago_cabeca') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_pago_cabeca ? `R$ ${p.valor_pago_cabeca.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'origem_animal') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.origem_animal || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'comprador') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.comprador || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'destino_venda') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.destino_venda || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'valor_venda_total') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_venda_total ? `R$ ${p.valor_venda_total.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'valor_arroba') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.valor_arroba ? `R$ ${p.valor_arroba.toFixed(2)}` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'quantidade_arrobas') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.quantidade_arrobas ? `${p.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'frigorifico') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.frigorifico || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'numero_animal') {
+                          return (
+                            <TableCell key={coluna.id} className="text-xs font-bold">
                                   {p.numero_animal}
                                   {p._offlineId && <Badge variant="outline" className="ml-1 text-[8px] bg-amber-100 text-amber-700">P</Badge>}
-                                </TableCell>
-                              );
-                            }
-                            if (coluna.id === 'peso') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
-                            }
-                            if (coluna.id === 'sanidade') {
-                             const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
-                             return (
-                               <TableCell key={coluna.id} className="text-xs text-center">
-                                 {sanidades.length > 0 ? (
-                                   <Popover>
+                                </TableCell>);
+
+                        }
+                        if (coluna.id === 'peso') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso}</TableCell>;
+                        }
+                        if (coluna.id === 'sanidade') {
+                          const sanidades = sanidadesPorAnimal[p.numero_animal] || [];
+                          return (
+                            <TableCell key={coluna.id} className="text-xs text-center">
+                                 {sanidades.length > 0 ?
+                              <Popover>
                                      <PopoverTrigger asChild>
                                        <button className="hover:opacity-70 transition-opacity">
                                          <Syringe className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
@@ -2137,79 +2138,79 @@ export default function LancamentoPesagensIndividuais() {
                                      <PopoverContent className="w-80">
                                        <div className="space-y-2">
                                          <h4 className="font-semibold text-sm text-emerald-700">Sanidades Aplicadas</h4>
-                                         {sanidades.map((sanidade, idx) => (
-                                           <div key={idx} className="border-b pb-2 last:border-b-0">
+                                         {sanidades.map((sanidade, idx) =>
+                                    <div key={idx} className="border-b pb-2 last:border-b-0">
                                              <div className="font-medium text-xs text-slate-800 mb-1">{sanidade.nome}</div>
                                              <div className="space-y-1">
-                                               {sanidade.medicamentos.map((med, i) => (
-                                                 <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
+                                               {sanidade.medicamentos.map((med, i) =>
+                                        <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
                                                    <span className="font-medium">{med.medicamento}</span>
                                                    <span className="text-slate-600">{med.quantidade} {med.unidade}</span>
                                                  </div>
-                                               ))}
+                                        )}
                                              </div>
                                              <div className="text-xs text-emerald-700 font-semibold mt-1">
                                                Total: R$ {sanidade.custoTotal.toFixed(2)}
                                              </div>
                                            </div>
-                                         ))}
+                                    )}
                                        </div>
                                      </PopoverContent>
-                                   </Popover>
-                                 ) : (
-                                   <span className="text-slate-400">-</span>
-                                 )}
-                               </TableCell>
-                             );
-                            }
-                            if (coluna.id === 'data_pesagem') {
-                              return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
-                            }
-                            if (coluna.id === 'sexo') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.sexo || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'raca') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'era') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.era || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'marca') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'nome_apartacao') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.nome_apartacao || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'nome_lote') {
-                              return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'data_anterior') {
-                              return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_anterior) || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'peso_anterior') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso_anterior || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'dias') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'ganho') {
-                              return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? p.ganho.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>;
-                            }
-                            if (coluna.id === 'gmd') {
-                              return (
-                                <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
+                                   </Popover> :
+
+                              <span className="text-slate-400">-</span>
+                              }
+                               </TableCell>);
+
+                        }
+                        if (coluna.id === 'data_pesagem') {
+                          return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_pesagem)}</TableCell>;
+                        }
+                        if (coluna.id === 'sexo') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.sexo || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'raca') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.raca || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'era') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.era || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'marca') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.marca || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'nome_apartacao') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.nome_apartacao || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'nome_lote') {
+                          return <TableCell key={coluna.id} className="text-xs font-medium">{p.nome_lote || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'data_anterior') {
+                          return <TableCell key={coluna.id} className="text-xs">{formatarData(p.data_anterior) || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'peso_anterior') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.peso_anterior || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'dias') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.dias || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'ganho') {
+                          return <TableCell key={coluna.id} className="text-xs text-right font-mono">{p.ganho ? p.ganho.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'gmd') {
+                          return (
+                            <TableCell key={coluna.id} className={`text-xs text-right font-mono font-semibold ${p.gmd && p.gmd > 0 ? 'text-emerald-600' : p.gmd && p.gmd < 0 ? 'text-red-600' : ''}`}>
                                   {p.gmd ? p.gmd.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
-                                </TableCell>
-                              );
-                            }
-                            if (coluna.id === 'observacao') {
-                              return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
-                            }
-                            return <TableCell key={coluna.id} className="text-xs">-</TableCell>;
-                          })}
+                                </TableCell>);
+
+                        }
+                        if (coluna.id === 'observacao') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.observacao || '-'}</TableCell>;
+                        }
+                        return <TableCell key={coluna.id} className="text-xs">-</TableCell>;
+                      })}
                         </TableRow>
-                      ))
-                    )}
+                    )
+                    }
                   </TableBody>
                 </Table>
               </div>
@@ -2243,23 +2244,23 @@ export default function LancamentoPesagensIndividuais() {
         </div>
 
         {/* RESUMO DE LOTES */}
-        <ResumoLotes 
+        <ResumoLotes
           apartacaoSelecionada={apartacaoSelecionada}
           apartacoes={apartacoes}
           lotesApartacaoAtual={lotesApartacaoAtual}
           pesagens={pesagens}
           pesagensDia={pesagensDia}
           pendingPesagensDB={pendingPesagensDB}
-          dataPesagem={dataPesagem}
-        />
+          dataPesagem={dataPesagem} />
+
       </div>
 
       {/* RESUMO DE SANIDADES APLICADAS */}
-      {apartacaoSelecionada && sanidadesAplicadas.filter(s => 
-        s.data_aplicacao === dataPesagem && 
-        pesagensDia.some(p => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
-      ).length > 0 && (
-        <Card className="shadow-sm">
+      {apartacaoSelecionada && sanidadesAplicadas.filter((s) =>
+      s.data_aplicacao === dataPesagem &&
+      pesagensDia.some((p) => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
+      ).length > 0 &&
+      <Card className="shadow-sm">
           <CardHeader className="py-2 px-3 bg-emerald-50 border-b">
             <CardTitle className="text-xs font-semibold text-emerald-700 flex items-center gap-2">
               <Syringe className="w-4 h-4" />
@@ -2268,42 +2269,42 @@ export default function LancamentoPesagensIndividuais() {
           </CardHeader>
           <CardContent className="p-3">
             {(() => {
-              // Agrupar por sanidade
-              const sanidadesHoje = sanidadesAplicadas.filter(s => 
-                s.data_aplicacao === dataPesagem && 
-                pesagensDia.some(p => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
-              );
-              
-              const porSanidade = sanidadesHoje.reduce((acc, s) => {
-                const key = s.nome_sanidade || 'Sem nome';
-                if (!acc[key]) {
-                  acc[key] = {
-                    nome: key,
-                    animais: new Set(),
-                    medicamentos: {},
-                    custoTotal: 0
-                  };
-                }
-                acc[key].animais.add(s.numero_animal);
-                if (!acc[key].medicamentos[s.medicamento]) {
-                  acc[key].medicamentos[s.medicamento] = {
-                    nome: s.medicamento,
-                    finalidade: s.finalidade,
-                    quantidade: s.quantidade,
-                    unidade: s.unidade_medida,
-                    custo: s.custo_unitario || 0
-                  };
-                }
-                acc[key].custoTotal += (s.custo_total || 0);
-                return acc;
-              }, {});
+            // Agrupar por sanidade
+            const sanidadesHoje = sanidadesAplicadas.filter((s) =>
+            s.data_aplicacao === dataPesagem &&
+            pesagensDia.some((p) => p.numero_animal === s.numero_animal && p.apartacao_id === apartacaoSelecionada)
+            );
 
-              return Object.values(porSanidade).map((sanidade, idx) => {
-                const qtdAnimais = sanidade.animais.size;
-                const custoPorAnimal = qtdAnimais > 0 ? sanidade.custoTotal / qtdAnimais : 0;
-                
-                return (
-                  <div key={idx} className="mb-3 last:mb-0 border rounded p-2 bg-white">
+            const porSanidade = sanidadesHoje.reduce((acc, s) => {
+              const key = s.nome_sanidade || 'Sem nome';
+              if (!acc[key]) {
+                acc[key] = {
+                  nome: key,
+                  animais: new Set(),
+                  medicamentos: {},
+                  custoTotal: 0
+                };
+              }
+              acc[key].animais.add(s.numero_animal);
+              if (!acc[key].medicamentos[s.medicamento]) {
+                acc[key].medicamentos[s.medicamento] = {
+                  nome: s.medicamento,
+                  finalidade: s.finalidade,
+                  quantidade: s.quantidade,
+                  unidade: s.unidade_medida,
+                  custo: s.custo_unitario || 0
+                };
+              }
+              acc[key].custoTotal += s.custo_total || 0;
+              return acc;
+            }, {});
+
+            return Object.values(porSanidade).map((sanidade, idx) => {
+              const qtdAnimais = sanidade.animais.size;
+              const custoPorAnimal = qtdAnimais > 0 ? sanidade.custoTotal / qtdAnimais : 0;
+
+              return (
+                <div key={idx} className="mb-3 last:mb-0 border rounded p-2 bg-white">
                     <div className="flex justify-between items-center mb-2">
                       <h4 className="text-sm font-bold text-emerald-700">{sanidade.nome}</h4>
                       <div className="text-right">
@@ -2314,8 +2315,8 @@ export default function LancamentoPesagensIndividuais() {
                     </div>
                     
                     <div className="space-y-1">
-                      {Object.values(sanidade.medicamentos).map((med, i) => (
-                        <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
+                      {Object.values(sanidade.medicamentos).map((med, i) =>
+                    <div key={i} className="text-xs bg-slate-50 rounded px-2 py-1 flex justify-between">
                           <div>
                             <span className="font-medium">{med.nome}</span>
                             {med.finalidade && <span className="text-slate-500"> - {med.finalidade}</span>}
@@ -2324,27 +2325,27 @@ export default function LancamentoPesagensIndividuais() {
                             {med.quantidade} {med.unidade} {med.custo > 0 && `(R$ ${med.custo.toFixed(2)})`}
                           </div>
                         </div>
-                      ))}
+                    )}
                     </div>
-                  </div>
-                );
-              });
-            })()}
+                  </div>);
+
+            });
+          })()}
           </CardContent>
         </Card>
-      )}
+      }
 
       {/* DIALOG APARTAÇÕES/LOTES */}
-      <GerenciarApartacoesDialog 
-        open={showApartacoesDialog} 
+      <GerenciarApartacoesDialog
+        open={showApartacoesDialog}
         onOpenChange={setShowApartacoesDialog}
         empresaId={empresaSelecionadaId}
         apartacoes={apartacoes}
         lotes={lotesApartacao}
         pesagens={pesagens}
         onRefresh={loadAllData}
-        dbReady={dbReady}
-      />
+        dbReady={dbReady} />
+
 
       {/* DIALOG DE CONFIGURAÇÃO DE COLUNAS */}
       <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
@@ -2357,17 +2358,17 @@ export default function LancamentoPesagensIndividuais() {
             <div className="space-y-1">
               <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
               <div className="grid grid-cols-2 gap-2">
-                {COLUNAS_DISPONIVEIS.filter(c => !c.fixo).map((coluna) => (
-                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                {COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).map((coluna) =>
+                <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
                     <input
-                      type="checkbox"
-                      checked={colunasVisiveis.includes(coluna.id)}
-                      onChange={() => toggleColuna(coluna.id)}
-                      className="rounded"
-                    />
+                    type="checkbox"
+                    checked={colunasVisiveis.includes(coluna.id)}
+                    onChange={() => toggleColuna(coluna.id)}
+                    className="rounded" />
+
                     <span>{coluna.label}</span>
                   </label>
-                ))}
+                )}
               </div>
             </div>
 
@@ -2375,36 +2376,36 @@ export default function LancamentoPesagensIndividuais() {
               <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="colunas">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                  {(provided) =>
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                       {colunasOrdem.map((colunaId, index) => {
-                        const coluna = COLUNAS_DISPONIVEIS.find(c => c.id === colunaId);
-                        if (!coluna || coluna.fixo) return null;
-                        
-                        return (
-                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`flex items-center gap-2 p-2 border rounded text-xs ${
-                                  snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'
-                                } ${!colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
-                              >
+                      const coluna = COLUNAS_DISPONIVEIS.find((c) => c.id === colunaId);
+                      if (!coluna || coluna.fixo) return null;
+
+                      return (
+                        <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) =>
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`flex items-center gap-2 p-2 border rounded text-xs ${
+                            snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'} ${
+                            !colunasVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}>
+
                                 <GripVertical className="w-4 h-4 text-slate-400" />
                                 <span className="flex-1">{coluna.label}</span>
-                                {colunasVisiveis.includes(colunaId) && (
-                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
-                                )}
+                                {colunasVisiveis.includes(colunaId) &&
+                            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300">Visível</Badge>
+                            }
                               </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
+                          }
+                          </Draggable>);
+
+                    })}
                       {provided.placeholder}
                     </div>
-                  )}
+                  }
                 </Droppable>
               </DragDropContext>
             </div>
@@ -2417,10 +2418,10 @@ export default function LancamentoPesagensIndividuais() {
       </Dialog>
 
       {/* INDICADOR DE SINCRONIZAÇÃO OFFLINE */}
-      <OfflineSyncIndicator 
+      <OfflineSyncIndicator
         empresaId={empresaSelecionadaId}
-        onSyncComplete={loadAllData}
-      />
+        onSyncComplete={loadAllData} />
+
 
       {/* DIALOG GERENCIAR SANIDADES (CONFIGURAÇÕES) */}
       <GerenciarSanidades
@@ -2436,28 +2437,28 @@ export default function LancamentoPesagensIndividuais() {
         onSanidadeChange={(v) => {
           setSanidadeAtivaId(v);
           localStorage.setItem('sanidade_em_uso', v);
-        }}
-      />
+        }} />
 
-{/* Dialog de progresso oculto
-      <SyncProgressDialog 
-        open={syncDialogOpen}
-        syncState={syncState}
-      />
-*/}
-    </div>
-  );
+
+      {/* Dialog de progresso oculto
+             <SyncProgressDialog 
+               open={syncDialogOpen}
+               syncState={syncState}
+             />
+        */}
+    </div>);
+
 }
 
 // ========== DIALOG PARA GERENCIAR APARTAÇÕES E LOTES ==========
 function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, lotes, pesagens, onRefresh, dbReady }) {
   const [tab, setTab] = useState('apartacoes');
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Formulário apartação
   const [nomeApartacao, setNomeApartacao] = useState("");
   const [editingApartacaoId, setEditingApartacaoId] = useState(null);
-  
+
   // Formulário lote
   const [apartacaoIdLote, setApartacaoIdLote] = useState("");
   const [nomeLote, setNomeLote] = useState("");
@@ -2469,7 +2470,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   // Lotes filtrados pela apartação selecionada
   const lotesFiltrados = useMemo(() => {
     if (!apartacaoIdLote) return lotes;
-    return lotes.filter(l => l.apartacao_id === apartacaoIdLote);
+    return lotes.filter((l) => l.apartacao_id === apartacaoIdLote);
   }, [lotes, apartacaoIdLote]);
 
   const [progressoAtualizacao, setProgressoAtualizacao] = useState({ show: false, current: 0, total: 0, texto: "" });
@@ -2477,17 +2478,17 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   const salvarApartacao = async () => {
     // Evitar cliques duplos
     if (isSaving) return;
-    
-    if (!nomeApartacao.trim()) { 
-      toast.error("Nome obrigatório"); 
-      return; 
+
+    if (!nomeApartacao.trim()) {
+      toast.error("Nome obrigatório");
+      return;
     }
 
     // Verificar duplicado
     const nomeNormalizado = nomeApartacao.trim().toUpperCase();
-    const duplicado = apartacoes.find(a => 
-      a.nome_apartacao.toUpperCase() === nomeNormalizado && 
-      a.id !== editingApartacaoId
+    const duplicado = apartacoes.find((a) =>
+    a.nome_apartacao.toUpperCase() === nomeNormalizado &&
+    a.id !== editingApartacaoId
     );
     if (duplicado) {
       toast.error("Já existe uma apartação com esse nome!");
@@ -2506,30 +2507,30 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
           // Buscar pesagens e lotes vinculados
           const [todasPesagens, todosLotes] = await Promise.all([
-            base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId }),
-            base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId })
-          ]);
+          base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId }),
+          base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId })]
+          );
 
           const totalItens = todasPesagens.length + todosLotes.length;
-          
+
           if (totalItens > 0) {
             setProgressoAtualizacao({ show: true, current: 0, total: totalItens, texto: "Atualizando registros..." });
 
             // Atualizar lotes primeiro (são poucos)
             for (const l of todosLotes) {
               await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-              setProgressoAtualizacao(prev => ({ ...prev, current: prev.current + 1 }));
+              setProgressoAtualizacao((prev) => ({ ...prev, current: prev.current + 1 }));
             }
 
             // Atualizar pesagens em lotes de 10 para maior velocidade
             const batchSize = 10;
             for (let i = 0; i < todasPesagens.length; i += batchSize) {
               const batch = todasPesagens.slice(i, i + batchSize);
-              await Promise.all(batch.map(p => 
-                base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() })
+              await Promise.all(batch.map((p) =>
+              base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() })
               ));
-              setProgressoAtualizacao(prev => ({ 
-                ...prev, 
+              setProgressoAtualizacao((prev) => ({
+                ...prev,
                 current: todosLotes.length + Math.min(i + batchSize, todasPesagens.length),
                 texto: `Atualizando pesagens ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
               }));
@@ -2550,23 +2551,23 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           setIsSaving(false);
           return;
         }
-        
+
         const offlineId = `offline_apt_${Date.now()}`;
-        const apartacaoOffline = { 
-          ...data, 
+        const apartacaoOffline = {
+          ...data,
           id: offlineId,
           _isOffline: true,
           _offlineTimestamp: new Date().toISOString()
         };
-        
+
         if (dbReady) {
           await putItem(STORES_NAMES.APARTACOES, apartacaoOffline);
         }
-        
+
         toast.success("💾 Apartação salva offline!");
       }
-      
-      setNomeApartacao(""); 
+
+      setNomeApartacao("");
       setEditingApartacaoId(null);
       onRefresh();
     } catch (error) {
@@ -2580,18 +2581,18 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   const salvarLote = async () => {
     // Evitar cliques duplos
     if (isSaving) return;
-    
-    if (!apartacaoIdLote) { 
-      toast.error("Selecione uma apartação"); 
-      return; 
+
+    if (!apartacaoIdLote) {
+      toast.error("Selecione uma apartação");
+      return;
     }
-    if (!nomeLote.trim()) { 
-      toast.error("Nome do lote obrigatório"); 
-      return; 
+    if (!nomeLote.trim()) {
+      toast.error("Nome do lote obrigatório");
+      return;
     }
-    if (!pesoMinimo || !pesoMaximo) { 
-      toast.error("Peso mínimo e máximo obrigatórios"); 
-      return; 
+    if (!pesoMinimo || !pesoMaximo) {
+      toast.error("Peso mínimo e máximo obrigatórios");
+      return;
     }
     if (parseFloat(pesoMinimo) > parseFloat(pesoMaximo)) {
       toast.error("Peso mínimo não pode ser maior que o máximo");
@@ -2600,10 +2601,10 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
     // Verificar duplicado na mesma apartação
     const nomeNormalizado = nomeLote.trim().toUpperCase();
-    const duplicado = lotes.find(l => 
-      l.apartacao_id === apartacaoIdLote &&
-      l.nome_lote.toUpperCase() === nomeNormalizado && 
-      l.id !== editingLoteId
+    const duplicado = lotes.find((l) =>
+    l.apartacao_id === apartacaoIdLote &&
+    l.nome_lote.toUpperCase() === nomeNormalizado &&
+    l.id !== editingLoteId
     );
     if (duplicado) {
       toast.error("Já existe um lote com esse nome nesta apartação!");
@@ -2611,7 +2612,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
     }
 
     setIsSaving(true);
-    const apt = apartacoes.find(a => a.id === apartacaoIdLote);
+    const apt = apartacoes.find((a) => a.id === apartacaoIdLote);
     const data = {
       empresa_id: empresaId,
       apartacao_id: apartacaoIdLote,
@@ -2620,7 +2621,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
       quantidade_maxima: parseInt(qtdMaxima) || 500,
       peso_minimo: parseFloat(pesoMinimo),
       peso_maximo: parseFloat(pesoMaximo),
-      fechado: false,
+      fechado: false
     };
 
     try {
@@ -2631,7 +2632,7 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
 
           // Buscar pesagens vinculadas
           const todasPesagens = await base44.entities.PesagemIndividual.filter({ lote_id: editingLoteId });
-          
+
           if (todasPesagens.length > 0) {
             setProgressoAtualizacao({ show: true, current: 0, total: todasPesagens.length, texto: "Atualizando pesagens..." });
 
@@ -2639,11 +2640,11 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
             const batchSize = 10;
             for (let i = 0; i < todasPesagens.length; i += batchSize) {
               const batch = todasPesagens.slice(i, i + batchSize);
-              await Promise.all(batch.map(p => 
-                base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() })
+              await Promise.all(batch.map((p) =>
+              base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() })
               ));
-              setProgressoAtualizacao(prev => ({ 
-                ...prev, 
+              setProgressoAtualizacao((prev) => ({
+                ...prev,
                 current: Math.min(i + batchSize, todasPesagens.length),
                 texto: `Atualizando ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
               }));
@@ -2664,26 +2665,26 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
           setIsSaving(false);
           return;
         }
-        
+
         const offlineId = `offline_lote_${Date.now()}`;
-        const loteOffline = { 
-          ...data, 
+        const loteOffline = {
+          ...data,
           id: offlineId,
           _isOffline: true,
           _offlineTimestamp: new Date().toISOString()
         };
-        
+
         if (dbReady) {
           await putItem(STORES_NAMES.LOTES, loteOffline);
         }
-        
+
         toast.success("💾 Lote salvo offline!");
       }
-      
-      setNomeLote(""); 
-      setQtdMaxima("500"); 
-      setPesoMinimo(""); 
-      setPesoMaximo(""); 
+
+      setNomeLote("");
+      setQtdMaxima("500");
+      setPesoMinimo("");
+      setPesoMaximo("");
       setEditingLoteId(null);
       onRefresh();
     } catch (error) {
@@ -2695,9 +2696,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirApartacao = async (id) => {
-    const pesagensVinculadas = pesagens.filter(p => p.apartacao_id === id);
-    const lotesVinculados = lotes.filter(l => l.apartacao_id === id);
-    
+    const pesagensVinculadas = pesagens.filter((p) => p.apartacao_id === id);
+    const lotesVinculados = lotes.filter((l) => l.apartacao_id === id);
+
     if (pesagensVinculadas.length > 0) {
       alert(`⚠️ NÃO É POSSÍVEL EXCLUIR!\n\nEsta apartação possui:\n• ${pesagensVinculadas.length} pesagens vinculadas\n• ${lotesVinculados.length} lotes vinculados\n\nRemova primeiro as pesagens e lotes antes de excluir a apartação.`);
       return;
@@ -2735,9 +2736,9 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
   };
 
   const excluirLote = async (id) => {
-    const pesagensVinculadas = pesagens.filter(p => p.lote_id === id);
-    const loteInfo = lotes.find(l => l.id === id);
-    
+    const pesagensVinculadas = pesagens.filter((p) => p.lote_id === id);
+    const loteInfo = lotes.find((l) => l.id === id);
+
     if (pesagensVinculadas.length > 0) {
       alert(`⚠️ NÃO É POSSÍVEL EXCLUIR!\n\nO lote "${loteInfo?.nome_lote || 'Selecionado'}" possui ${pesagensVinculadas.length} pesagens vinculadas.\n\nRemova primeiro as pesagens antes de excluir o lote.`);
       return;
@@ -2779,43 +2780,43 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         </div>
 
         <div className="flex-1 overflow-auto">
-          {tab === 'apartacoes' ? (
-            <div className="space-y-3">
+          {tab === 'apartacoes' ?
+          <div className="space-y-3">
               <div className="flex gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Nome da Apartação</Label>
-                  <Input 
-                    value={nomeApartacao} 
-                    onChange={(e) => setNomeApartacao(e.target.value)} 
-                    className="h-9 text-sm" 
-                    placeholder="Ex: ROTINA" 
-                  />
+                  <Input
+                  value={nomeApartacao}
+                  onChange={(e) => setNomeApartacao(e.target.value)}
+                  className="h-9 text-sm"
+                  placeholder="Ex: ROTINA" />
+
                 </div>
                 <Button onClick={salvarApartacao} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  {isSaving ? 'Salvando...' : (editingApartacaoId ? 'Atualizar' : 'Adicionar')}
+                  {isSaving ? 'Salvando...' : editingApartacaoId ? 'Atualizar' : 'Adicionar'}
                 </Button>
-                {editingApartacaoId && (
-                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingApartacaoId(null); setNomeApartacao(""); }}>
+                {editingApartacaoId &&
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {setEditingApartacaoId(null);setNomeApartacao("");}}>
                     Cancelar
                   </Button>
-                )}
+              }
               </div>
               {/* Barra de progresso de atualização */}
-              {progressoAtualizacao.show && (
-                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+              {progressoAtualizacao.show &&
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
                   <div className="flex justify-between text-xs text-blue-800 mb-1">
                     <span>{progressoAtualizacao.texto}</span>
-                    <span className="font-bold">{Math.round((progressoAtualizacao.current / progressoAtualizacao.total) * 100)}%</span>
+                    <span className="font-bold">{Math.round(progressoAtualizacao.current / progressoAtualizacao.total * 100)}%</span>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all" 
-                      style={{ width: `${(progressoAtualizacao.current / progressoAtualizacao.total) * 100}%` }} 
-                    />
+                    <div
+                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  style={{ width: `${progressoAtualizacao.current / progressoAtualizacao.total * 100}%` }} />
+
                   </div>
                   <p className="text-[10px] text-blue-600 mt-1">Aguarde, não feche esta janela...</p>
                 </div>
-              )}
+            }
 
               <Table>
                 <TableHeader>
@@ -2827,58 +2828,58 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apartacoes.map(a => {
-                    const qtdLotes = lotes.filter(l => l.apartacao_id === a.id).length;
-                    const qtdPesagens = pesagens.filter(p => p.apartacao_id === a.id).length;
-                    return (
-                      <TableRow key={a.id}>
+                  {apartacoes.map((a) => {
+                  const qtdLotes = lotes.filter((l) => l.apartacao_id === a.id).length;
+                  const qtdPesagens = pesagens.filter((p) => p.apartacao_id === a.id).length;
+                  return (
+                    <TableRow key={a.id}>
                         <TableCell className="text-xs font-medium">{a.nome_apartacao}</TableCell>
                         <TableCell className="text-xs text-center">{qtdLotes}</TableCell>
                         <TableCell className="text-xs text-center">
-                          {qtdPesagens > 0 ? (
-                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
-                          ) : '-'}
+                          {qtdPesagens > 0 ?
+                        <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge> :
+                        '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                              setNomeApartacao(a.nome_apartacao); 
-                              setEditingApartacaoId(a.id);
-                            }}>
+                            setNomeApartacao(a.nome_apartacao);
+                            setEditingApartacaoId(a.id);
+                          }}>
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 text-red-500" 
-                              onClick={() => excluirApartacao(a.id)}
-                            >
+                            <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500"
+                            onClick={() => excluirApartacao(a.id)}>
+
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {apartacoes.length === 0 && (
-                    <TableRow>
+                      </TableRow>);
+
+                })}
+                  {apartacoes.length === 0 &&
+                <TableRow>
                       <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-6">
                         Nenhuma apartação cadastrada
                       </TableCell>
                     </TableRow>
-                  )}
+                }
                 </TableBody>
               </Table>
-            </div>
-          ) : (
-            <div className="space-y-3">
+            </div> :
+
+          <div className="space-y-3">
               <div className="grid grid-cols-6 gap-2 items-end bg-slate-50 p-3 rounded">
                 <div className="space-y-1">
                   <Label className="text-xs">Apartação</Label>
                   <Select value={apartacaoIdLote} onValueChange={setApartacaoIdLote}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {apartacoes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
+                      {apartacoes.map((a) => <SelectItem key={a.id} value={a.id}>{a.nome_apartacao}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2900,19 +2901,19 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                 </div>
                 <div className="flex gap-1">
                   <Button onClick={salvarLote} disabled={isSaving} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                    {isSaving ? 'Salvando...' : (editingLoteId ? 'Atualizar' : 'Adicionar')}
+                    {isSaving ? 'Salvando...' : editingLoteId ? 'Atualizar' : 'Adicionar'}
                   </Button>
-                  {editingLoteId && (
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { 
-                      setEditingLoteId(null); 
-                      setNomeLote(""); 
-                      setQtdMaxima("500"); 
-                      setPesoMinimo(""); 
-                      setPesoMaximo(""); 
-                    }}>
+                  {editingLoteId &&
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {
+                  setEditingLoteId(null);
+                  setNomeLote("");
+                  setQtdMaxima("500");
+                  setPesoMinimo("");
+                  setPesoMaximo("");
+                }}>
                       Cancelar
                     </Button>
-                  )}
+                }
                 </div>
               </div>
               <Table>
@@ -2928,58 +2929,58 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lotesFiltrados.map(l => {
-                    const qtdPesagens = pesagens.filter(p => p.lote_id === l.id).length;
-                    return (
-                      <TableRow key={l.id}>
+                  {lotesFiltrados.map((l) => {
+                  const qtdPesagens = pesagens.filter((p) => p.lote_id === l.id).length;
+                  return (
+                    <TableRow key={l.id}>
                         <TableCell className="text-xs">{l.nome_apartacao}</TableCell>
                         <TableCell className="text-xs font-medium">{l.nome_lote}</TableCell>
                         <TableCell className="text-xs text-center">{l.quantidade_maxima}</TableCell>
                         <TableCell className="text-xs text-center">{l.peso_minimo}</TableCell>
                         <TableCell className="text-xs text-center">{l.peso_maximo}</TableCell>
                         <TableCell className="text-xs text-center">
-                          {qtdPesagens > 0 ? (
-                            <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge>
-                          ) : '-'}
+                          {qtdPesagens > 0 ?
+                        <Badge variant="outline" className="text-[10px]">{qtdPesagens}</Badge> :
+                        '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                              setApartacaoIdLote(l.apartacao_id); 
-                              setNomeLote(l.nome_lote);
-                              setQtdMaxima(String(l.quantidade_maxima)); 
-                              setPesoMinimo(String(l.peso_minimo));
-                              setPesoMaximo(String(l.peso_maximo)); 
-                              setEditingLoteId(l.id);
-                            }}>
+                            setApartacaoIdLote(l.apartacao_id);
+                            setNomeLote(l.nome_lote);
+                            setQtdMaxima(String(l.quantidade_maxima));
+                            setPesoMinimo(String(l.peso_minimo));
+                            setPesoMaximo(String(l.peso_maximo));
+                            setEditingLoteId(l.id);
+                          }}>
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 text-red-500" 
-                              onClick={() => excluirLote(l.id)}
-                            >
+                            <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500"
+                            onClick={() => excluirLote(l.id)}>
+
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {lotesFiltrados.length === 0 && (
-                    <TableRow>
+                      </TableRow>);
+
+                })}
+                  {lotesFiltrados.length === 0 &&
+                <TableRow>
                       <TableCell colSpan={7} className="text-center text-xs text-slate-400 py-6">
                         {apartacaoIdLote ? 'Nenhum lote nesta apartação' : 'Selecione uma apartação ou cadastre lotes'}
                       </TableCell>
                     </TableRow>
-                  )}
+                }
                 </TableBody>
               </Table>
             </div>
-          )}
+          }
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
