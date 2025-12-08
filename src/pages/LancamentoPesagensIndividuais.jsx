@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1349,7 +1348,7 @@ export default function LancamentoPesagensIndividuais() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+            <Button size="sm" onClick={() => setShowApartacoesDialog(true)} className="h-8 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
               <Settings className="w-3.5 h-3.5" />
               Apartações
             </Button>
