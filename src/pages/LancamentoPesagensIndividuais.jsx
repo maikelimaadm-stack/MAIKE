@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripVertical, Eye, EyeOff } from "lucide-react";
-import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe, Truck } from "lucide-react";
+import { Scale, Save, Trash2, Edit2, RefreshCw, Settings, WifiOff, Wifi, Plus, Download, ChevronRight, MoreVertical, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Database, Syringe, Truck, FolderOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1295,9 +1294,6 @@ export default function LancamentoPesagensIndividuais() {
               <Database className="w-3 h-3 mr-1" />Persistente
             </Badge>
           }
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
-            <Settings className="w-4 h-4" />
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1349,9 +1345,14 @@ export default function LancamentoPesagensIndividuais() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={() => setShowApartacoesDialog(true)} className="bg-slate-950 text-slate-950 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:text-accent-foreground h-8 gap-1 hover:bg-emerald-700">
-              <Settings className="w-3.5 h-3.5" />
-              Apartações
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => setShowApartacoesDialog(true)} 
+              className="h-8 w-8"
+              title="Gerenciar Apartações"
+            >
+              <FolderOpen className="w-4 h-4" />
             </Button>
 
             {/* Motivo da Saída (rente ao Tipo) */}
@@ -1981,7 +1982,7 @@ export default function LancamentoPesagensIndividuais() {
           <Card className="shadow-sm">
             <CardHeader className="py-2 px-3 bg-slate-50 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-semibold">Pesagens do Dia</CardTitle>
-              {/* Campo de Pesquisa */}
+              {/* Campo de Pesquisa + Controles */}
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
@@ -2008,9 +2009,12 @@ export default function LancamentoPesagensIndividuais() {
                   className="h-7 text-xs gap-1">
 
                     <X className="w-3 h-3" />
-                    Limpar Filtro
+                    Limpar
                   </Button>
                 }
+                <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-7 w-7" title="Configurar Colunas">
+                  <Settings className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
