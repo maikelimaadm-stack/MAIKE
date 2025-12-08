@@ -1498,32 +1498,35 @@ export default function LancamentoPesagensIndividuais() {
                 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Raça</Label>
-                  <Input
-                  value={raca}
-                  onChange={(e) => setRaca(e.target.value)}
-                  placeholder="Nelore"
-                  className="h-9 text-sm w-28" />
-
+                  <ComboboxComNovo
+                    value={raca}
+                    onChange={setRaca}
+                    options={racasExistentes}
+                    placeholder="Nelore"
+                    className="h-9 text-sm w-28"
+                  />
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Era</Label>
-                  <Input
-                  value={era}
-                  onChange={(e) => setEra(e.target.value)}
-                  placeholder="Ex: 14"
-                  className="h-9 text-sm w-24" />
-
+                  <ComboboxComNovo
+                    value={era}
+                    onChange={setEra}
+                    options={erasExistentes}
+                    placeholder="Ex: 14"
+                    className="h-9 text-sm w-24"
+                  />
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Marca</Label>
-                  <Input
-                  value={marca}
-                  onChange={(e) => setMarca(e.target.value)}
-                  placeholder="Ex: ABC"
-                  className="h-9 text-sm w-24" />
-
+                  <ComboboxComNovo
+                    value={marca}
+                    onChange={setMarca}
+                    options={marcasExistentes}
+                    placeholder="Ex: ABC"
+                    className="h-9 text-sm w-24"
+                  />
                 </div>
               </>
             }
