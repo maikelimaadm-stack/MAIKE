@@ -983,17 +983,19 @@ export default function LancamentoPesagensIndividuais() {
 
     try {
       if (navigator.onLine && !editingId && !editingOfflineId) {
-        await base44.entities.PesagemIndividual.create(data);
+        // Salvar pesagem
+        const novaPesagem = await base44.entities.PesagemIndividual.create(data);
+        toast.success('✓ Salvo!');
 
-        // Aplicar sanidade automática se configurada
+        // Aplicar sanidade em background (não bloquear UI)
         if (sanidadeAtivaId && (tipoManejo === 'Cadastro' || tipoManejo === 'Manejo')) {
           const configSanidade = configuracoesSanidade.find((c) => c.id === sanidadeAtivaId);
           const itens = itensSanidade.filter((i) => i.configuracao_sanidade_id === sanidadeAtivaId);
 
           if (itens.length > 0) {
-            for (const item of itens) {
+            Promise.all(itens.map(item => {
               const custoTotal = (item.quantidade_padrao || 0) * (item.custo_unitario || 0);
-              await base44.entities.SanidadeAnimal.create({
+              return base44.entities.SanidadeAnimal.create({
                 empresa_id: empresaSelecionadaId,
                 configuracao_sanidade_id: sanidadeAtivaId,
                 nome_sanidade: configSanidade?.nome_sanidade || "",
@@ -1006,14 +1008,22 @@ export default function LancamentoPesagensIndividuais() {
                 custo_unitario: item.custo_unitario,
                 custo_total: custoTotal
               });
-            }
-            toast.success(`✓ Salvo + ${itens.length} medicamento(s) aplicado(s)!`);
+            })).then(() => loadAllData());
           }
-        } else {
-          toast.success('✓ Salvo!');
         }
 
-        await loadAllData();
+        // Atualizar apenas as pesagens do dia (mais rápido)
+        const novasPesagens = await base44.entities.PesagemIndividual.filter({ data_pesagem: dataPesagem, empresa_id: empresaSelecionadaId });
+        const sanidadesNovas = await base44.entities.SanidadeAnimal.filter({ data_aplicacao: dataPesagem, empresa_id: empresaSelecionadaId });
+        
+        setPesagens(prev => {
+          const outrosDias = prev.filter(p => p.data_pesagem !== dataPesagem);
+          return [...outrosDias, ...novasPesagens];
+        });
+        setSanidadesAplicadas(prev => {
+          const outrosDias = prev.filter(s => s.data_aplicacao !== dataPesagem);
+          return [...outrosDias, ...sanidadesNovas];
+        });
       } else if (editingOfflineId) {
         // Edição de pesagem pendente offline - atualizar no IndexedDB
         if (dbReady) {
@@ -1076,15 +1086,11 @@ export default function LancamentoPesagensIndividuais() {
         toast.success('💾 Salvo offline (persistente)');
       }
 
-      // Limpar formulário
+      // Limpar formulário (manter sexo, raça, era, marca para facilitar lançamento em lote)
       setEditingId(null);
       setEditingOfflineId(null);
       setNumeroAnimal("");
       setPeso("");
-      setSexo("M");
-      setRaca("Nelore");
-      setEra("");
-      setMarca("");
       setObservacao("");
       setLoteTransferencia("");
       setMotivoSaida("");
@@ -1111,7 +1117,7 @@ export default function LancamentoPesagensIndividuais() {
       setMostrarDadosVenda(false);
       setMostrarDadosAbate(false);
       setAvisoTela(null);
-      setTimeout(() => numeroInputRef.current?.focus(), 50);
+      numeroInputRef.current?.focus();
     } catch (error) {
       toast.error('Erro: ' + error.message);
     } finally {
@@ -1546,12 +1552,20 @@ export default function LancamentoPesagensIndividuais() {
                         tipo: 'erro',
                         mensagem: `⚠️ Animal ${valor.trim()} já foi pesado hoje! Peso: ${pesadoHoje.peso}kg`
                       });
+                      return; // Não preenche dados se já foi pesado
                     }
 
                     if (historicoAnimal.length > 0) {
                       // BUSCAR O REGISTRO DE CADASTRO (tipo_manejo === 'Cadastro')
                       const cadastroOriginal = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
                       const ultimo = historicoAnimal[0];
+                      const dadosCadastro = cadastroOriginal || ultimo;
+
+                      // PREENCHER DADOS AUTOMATICAMENTE EM TODOS OS MODOS
+                      setSexo(dadosCadastro.sexo || "M");
+                      setRaca(dadosCadastro.raca || "Nelore");
+                      setEra(dadosCadastro.era || "");
+                      setMarca(dadosCadastro.marca || "");
 
                       // No modo CADASTRO, avisar que animal já existe
                       if (tipoManejo === 'Cadastro' && !editingId && !editingOfflineId) {
@@ -1559,24 +1573,13 @@ export default function LancamentoPesagensIndividuais() {
                           tipo: 'alerta',
                           mensagem: `⚠️ Animal ${valor.trim()} já cadastrado em ${formatarData(ultimo.data_pesagem)} com peso ${ultimo.peso}kg. Use "Manejo" para nova pesagem.`
                         });
-                      }
-
-                      // No modo MANEJO ou SAÍDA, mostrar info do animal e preencher dados de cadastro
-                      if ((tipoManejo === 'Manejo' || tipoManejo === 'Saída') && !pesadoHoje) {
+                      } else if (tipoManejo === 'Manejo' || tipoManejo === 'Saída') {
                         const statusAtual = ultimo.status_animal || 'Ativo';
-                        const dadosCadastro = cadastroOriginal || ultimo;
-
-                        // PREENCHER campos de cadastro automaticamente
-                        if (dadosCadastro.sexo) setSexo(dadosCadastro.sexo);
-                        if (dadosCadastro.raca) setRaca(dadosCadastro.raca);
-                        if (dadosCadastro.era) setEra(dadosCadastro.era);
-                        if (dadosCadastro.marca) setMarca(dadosCadastro.marca);
-
                         setAvisoTela({
                           tipo: statusAtual === 'Inativo' ? 'erro' : 'info',
                           mensagem: statusAtual === 'Inativo' ?
                           `❌ Animal ${valor.trim()} está INATIVO (já teve saída registrada)` :
-                          `✓ Animal encontrado: ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última pesagem: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                          `✓ ${dadosCadastro.sexo || '-'} | ${dadosCadastro.raca || '-'} | Era: ${dadosCadastro.era || '-'} | Marca: ${dadosCadastro.marca || '-'} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                         });
                       }
                     } else {
