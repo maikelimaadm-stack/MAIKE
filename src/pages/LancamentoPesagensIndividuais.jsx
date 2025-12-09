@@ -939,17 +939,17 @@ export default function LancamentoPesagensIndividuais() {
     }
 
     const data = {
-      empresa_id: empresaSelecionadaId,
-      tipo_manejo: tipoManejo,
-      motivo_saida: tipoManejo === 'Saída' ? motivoSaida : null,
-      status_animal: tipoManejo === 'Saída' ? 'Inativo' : 'Ativo',
-      data_pesagem: dataPesagem,
-      numero_animal: numeroAnimal.trim(),
-      // Dados cadastrais SOMENTE para Cadastro
-      sexo: tipoManejo === 'Cadastro' ? sexo || null : null,
-      raca: tipoManejo === 'Cadastro' ? raca || null : null,
-      era: tipoManejo === 'Cadastro' ? era || null : null,
-      marca: tipoManejo === 'Cadastro' ? marca || null : null,
+    empresa_id: empresaSelecionadaId,
+    tipo_manejo: tipoManejo,
+    motivo_saida: tipoManejo === 'Saída' ? motivoSaida : null,
+    status_animal: tipoManejo === 'Saída' ? 'Inativo' : 'Ativo',
+    data_pesagem: dataPesagem,
+    numero_animal: numeroAnimal.trim(),
+    // Dados cadastrais - SEMPRE SALVAR (não só em Cadastro)
+    sexo: sexo || null,
+    raca: raca || null,
+    era: era || null,
+    marca: marca || null,
       peso: pesoNum,
       observacao: observacao || null,
       apartacao_id: apartacaoId,
