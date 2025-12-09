@@ -573,6 +573,8 @@ export default function PesagensIndividuais() {
     setShowEditarLote(true);
   };
 
+  const [progressoEdicao, setProgressoEdicao] = useState({ show: false, current: 0, total: 0, texto: "" });
+
   const confirmarEdicaoLote = async () => {
     const dadosParaAtualizar = {};
     if (edicaoLote.sexo) dadosParaAtualizar.sexo = edicaoLote.sexo;
@@ -597,20 +599,36 @@ export default function PesagensIndividuais() {
       return;
     }
 
-    toast.info(`Atualizando ${selectedItems.length} registros...`);
-    let count = 0;
-    for (const id of selectedItems) {
-      await updateMutation.mutateAsync({ id, data: dadosParaAtualizar });
-      count++;
-      // Delay a cada 3 registros para evitar rate limit
-      if (count % 3 === 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+    setProgressoEdicao({ show: true, current: 0, total: selectedItems.length, texto: "Iniciando atualização..." });
+    
+    try {
+      const batchSize = 10;
+      let atualizados = 0;
+
+      for (let i = 0; i < selectedItems.length; i += batchSize) {
+        const batch = selectedItems.slice(i, i + batchSize);
+        setProgressoEdicao({
+          show: true,
+          current: i,
+          total: selectedItems.length,
+          texto: `Atualizando registros ${i + 1} a ${Math.min(i + batchSize, selectedItems.length)} de ${selectedItems.length}...`
+        });
+
+        await Promise.all(batch.map(id => updateMutation.mutateAsync({ id, data: dadosParaAtualizar })));
+        atualizados += batch.length;
+        
+        setProgressoEdicao(prev => ({ ...prev, current: atualizados }));
       }
+
+      toast.success(`✓ ${selectedItems.length} registro(s) atualizado(s)!`);
+      setShowEditarLote(false);
+      setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
+      setSelectedItems([]);
+    } catch (error) {
+      toast.error('Erro na atualização: ' + error.message);
+    } finally {
+      setProgressoEdicao({ show: false, current: 0, total: 0, texto: "" });
     }
-    toast.success(`${selectedItems.length} registro(s) atualizado(s)!`);
-    setShowEditarLote(false);
-    setEdicaoLote({ sexo: "", raca: "", era: "", marca: "", apartacao: "", lote: "" });
-    setSelectedItems([]);
   };
 
   const handleExcluirPesagem = async (id) => {
@@ -1076,6 +1094,21 @@ export default function PesagensIndividuais() {
               </p>
             </div>
 
+            {progressoEdicao.show && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded p-3">
+                <div className="flex justify-between text-xs text-emerald-800 mb-1">
+                  <span className="font-medium">{progressoEdicao.texto}</span>
+                  <span className="font-bold">{Math.round((progressoEdicao.current / progressoEdicao.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-emerald-200 rounded-full h-2">
+                  <div className="bg-emerald-600 h-2 rounded-full transition-all" style={{ width: `${(progressoEdicao.current / progressoEdicao.total) * 100}%` }} />
+                </div>
+                <div className="text-[10px] text-emerald-600 mt-1 text-center">
+                  {progressoEdicao.current} de {progressoEdicao.total} concluídos
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <div className="space-y-1">
                 <Label className="text-xs">Sexo</Label>
@@ -1161,11 +1194,11 @@ export default function PesagensIndividuais() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs">
+              <Button variant="outline" onClick={() => setShowEditarLote(false)} size="sm" className="h-7 text-xs" disabled={progressoEdicao.show}>
                 Cancelar
               </Button>
-              <Button onClick={confirmarEdicaoLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Atualizar {selectedItems.length}
+              <Button onClick={confirmarEdicaoLote} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={progressoEdicao.show}>
+                {progressoEdicao.show ? 'Atualizando...' : `Atualizar ${selectedItems.length}`}
               </Button>
             </div>
           </div>
