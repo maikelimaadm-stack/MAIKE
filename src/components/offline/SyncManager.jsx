@@ -34,7 +34,7 @@ const notifyListeners = (event) => {
   });
 };
 
-export const syncPesagens = async (empresaId, onProgress) => {
+export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
   const allPending = await getAllItems(STORES_NAMES.PENDING_PESAGENS);
   const pending = allPending.filter(p => p.empresa_id === empresaId);
   
@@ -70,6 +70,14 @@ export const syncPesagens = async (empresaId, onProgress) => {
     
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
+      
+      // Mapear IDs offline de apartação e lote para IDs reais
+      if (data.apartacao_id && idMap[data.apartacao_id]) {
+        data.apartacao_id = idMap[data.apartacao_id];
+      }
+      if (data.lote_id && idMap[data.lote_id]) {
+        data.lote_id = idMap[data.lote_id];
+      }
       
       // Verificar se já existe no servidor (mesmo animal, mesma data, mesmo peso)
       const duplicado = existingPesagens.find(e => 
@@ -185,6 +193,7 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
     
     try {
       const { id, _isOffline, _offlineTimestamp, ...data } = lote;
+      const oldLoteId = id;
       
       // Atualizar apartacao_id se era offline
       if (data.apartacao_id && idMap[data.apartacao_id]) {
@@ -198,12 +207,14 @@ export const syncOfflineEntities = async (empresaId, onProgress) => {
       );
       
       if (duplicado) {
+        idMap[oldLoteId] = duplicado.id;
         items.push({ name: itemName, status: 'skip', message: 'Já existe' });
         await deleteItem(STORES_NAMES.LOTES, id);
         continue;
       }
       
-      await base44.entities.LoteApartacao.create(data);
+      const created = await base44.entities.LoteApartacao.create(data);
+      idMap[oldLoteId] = created.id;
       successCount++;
       items.push({ name: itemName, status: 'success', message: 'Criado' });
       
@@ -242,13 +253,13 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(entitiesResult.items || []));
 
-    // 2. Sincronizar pesagens pendentes
+    // 2. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
     notifyListeners({ type: 'progress', entity: 'pesagens' });
     const pesagensResult = await syncPesagens(empresaId, (progress) => {
       if (onProgress) {
         onProgress({ phase: 'pesagens', ...progress });
       }
-    });
+    }, entitiesResult.idMap);
     allItems.push(...(pesagensResult.items || []));
 
     // 3. Atualizar cache com dados do servidor
