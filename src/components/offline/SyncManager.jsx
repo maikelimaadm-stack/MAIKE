@@ -4,6 +4,10 @@ import { base44 } from '@/api/base44Client';
 import {
   getPendingPesagens,
   deletePendingPesagem,
+  getPendingSanidade,
+  deletePendingSanidade,
+  getPendingUpdates,
+  deletePendingUpdate,
   cachePesagens,
   cacheApartacoes,
   cacheLotes,
@@ -253,7 +257,16 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(entitiesResult.items || []));
 
-    // 2. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
+    // 2. Sincronizar updates pendentes (edições)
+    notifyListeners({ type: 'progress', entity: 'updates' });
+    const updatesResult = await syncUpdates(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'updates', ...progress });
+      }
+    });
+    allItems.push(...(updatesResult.items || []));
+
+    // 3. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
     notifyListeners({ type: 'progress', entity: 'pesagens' });
     const pesagensResult = await syncPesagens(empresaId, (progress) => {
       if (onProgress) {
@@ -262,6 +275,15 @@ export const syncAll = async (empresaId, onProgress) => {
     }, entitiesResult.idMap);
     allItems.push(...(pesagensResult.items || []));
 
+    // 4. Sincronizar sanidade pendente
+    notifyListeners({ type: 'progress', entity: 'sanidade' });
+    const sanidadeResult = await syncSanidade(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'sanidade', ...progress });
+      }
+    });
+    allItems.push(...(sanidadeResult.items || []));
+
     // 3. Atualizar cache com dados do servidor
     notifyListeners({ type: 'progress', entity: 'cache' });
     if (onProgress) {
@@ -269,7 +291,14 @@ export const syncAll = async (empresaId, onProgress) => {
     }
     await refreshCache(empresaId);
 
-    // 4. Remover duplicados automaticamente
+    // 5. Atualizar cache
+    notifyListeners({ type: 'progress', entity: 'cache' });
+    if (onProgress) {
+      onProgress({ phase: 'cache', currentItem: 'Atualizando cache...' });
+    }
+    await refreshCache(empresaId);
+
+    // 6. Remover duplicados automaticamente
     notifyListeners({ type: 'progress', entity: 'duplicados' });
     if (onProgress) {
       onProgress({ phase: 'duplicados', currentItem: 'Verificando duplicados...' });
@@ -279,7 +308,7 @@ export const syncAll = async (empresaId, onProgress) => {
       allItems.push({ name: `${duplicadosRemovidos} duplicados removidos`, status: 'success' });
     }
 
-    const totalSuccess = pesagensResult.successCount + entitiesResult.successCount;
+    const totalSuccess = pesagensResult.successCount + entitiesResult.successCount + sanidadeResult.successCount + updatesResult.successCount;
     const totalErrors = pesagensResult.errors?.length || 0;
 
     notifyListeners({ 
@@ -303,6 +332,112 @@ export const syncAll = async (empresaId, onProgress) => {
   } finally {
     syncInProgress = false;
   }
+};
+
+// Sincronizar sanidade offline
+const syncSanidade = async (empresaId, onProgress) => {
+  const pending = await getPendingSanidade(empresaId);
+  
+  if (pending.length === 0) {
+    return { successCount: 0, errors: [], total: 0, items: [] };
+  }
+
+  let existingSanidade = [];
+  try {
+    existingSanidade = await base44.entities.SanidadeAnimal.filter({ empresa_id: empresaId });
+  } catch (e) {
+    console.error('Erro ao buscar sanidade existente:', e);
+  }
+  
+  let successCount = 0;
+  const errors = [];
+  const items = [];
+
+  for (let i = 0; i < pending.length; i++) {
+    const sanidade = pending[i];
+    const offlineId = sanidade._offlineId;
+    const itemName = `${sanidade.medicamento} - ${sanidade.numero_animal}`;
+    
+    if (onProgress) {
+      onProgress({
+        current: i + 1,
+        total: pending.length,
+        currentItem: itemName
+      });
+    }
+    
+    try {
+      const { _offlineId, _offlineTimestamp, _synced, ...data } = sanidade;
+      
+      // Verificar duplicado (mesmo animal, mesma data, mesmo medicamento)
+      const duplicado = existingSanidade.find(e => 
+        e.numero_animal === data.numero_animal && 
+        e.data_aplicacao === data.data_aplicacao &&
+        e.medicamento === data.medicamento
+      );
+      
+      if (duplicado) {
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+      } else {
+        await base44.entities.SanidadeAnimal.create(data);
+        items.push({ name: itemName, status: 'success', message: 'Criado' });
+        successCount++;
+      }
+    } catch (error) {
+      console.error('Erro sync sanidade:', error);
+      errors.push({ error: error.message });
+      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
+    }
+    
+    await deletePendingSanidade(offlineId);
+  }
+
+  return { successCount, errors, total: pending.length, items };
+};
+
+// Sincronizar updates offline (edições de lotes/apartações)
+const syncUpdates = async (empresaId, onProgress) => {
+  const pending = await getPendingUpdates();
+  const filtered = pending.filter(u => u.data?.empresa_id === empresaId);
+  
+  if (filtered.length === 0) {
+    return { successCount: 0, errors: [], total: 0, items: [] };
+  }
+  
+  let successCount = 0;
+  const errors = [];
+  const items = [];
+
+  for (let i = 0; i < filtered.length; i++) {
+    const update = filtered[i];
+    const itemName = `${update.entity} - ${update.entity_id}`;
+    
+    if (onProgress) {
+      onProgress({
+        current: i + 1,
+        total: filtered.length,
+        currentItem: itemName
+      });
+    }
+    
+    try {
+      if (update.entity === 'Apartacao') {
+        await base44.entities.Apartacao.update(update.entity_id, update.data);
+      } else if (update.entity === 'LoteApartacao') {
+        await base44.entities.LoteApartacao.update(update.entity_id, update.data);
+      }
+      items.push({ name: itemName, status: 'success', message: 'Atualizado' });
+      successCount++;
+    } catch (error) {
+      console.error('Erro sync update:', error);
+      errors.push({ error: error.message });
+      items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
+    }
+    
+    await deletePendingUpdate(update._offlineId);
+  }
+
+  return { successCount, errors, total: filtered.length, items };
 };
 
 // Função para remover duplicados automaticamente

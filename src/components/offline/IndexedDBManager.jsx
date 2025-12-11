@@ -9,6 +9,8 @@ const STORES = {
   PENDING_PESAGENS: 'pending_pesagens',
   PENDING_APARTACOES: 'pending_apartacoes',
   PENDING_LOTES: 'pending_lotes',
+  PENDING_SANIDADE: 'pending_sanidade',
+  PENDING_UPDATES: 'pending_updates',
   SYNC_QUEUE: 'sync_queue',
 };
 
@@ -76,6 +78,20 @@ export const initDB = () => {
         const pendingLotesStore = database.createObjectStore(STORES.PENDING_LOTES, { keyPath: '_offlineId', autoIncrement: true });
         pendingLotesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
         pendingLotesStore.createIndex('action', 'action', { unique: false });
+      }
+
+      // Store para sanidade pendente (offline)
+      if (!database.objectStoreNames.contains(STORES.PENDING_SANIDADE)) {
+        const pendingSanidadeStore = database.createObjectStore(STORES.PENDING_SANIDADE, { keyPath: '_offlineId', autoIncrement: true });
+        pendingSanidadeStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+        pendingSanidadeStore.createIndex('data_aplicacao', 'data_aplicacao', { unique: false });
+      }
+
+      // Store para atualizações pendentes (edição de registros)
+      if (!database.objectStoreNames.contains(STORES.PENDING_UPDATES)) {
+        const pendingUpdatesStore = database.createObjectStore(STORES.PENDING_UPDATES, { keyPath: '_offlineId', autoIncrement: true });
+        pendingUpdatesStore.createIndex('entity', 'entity', { unique: false });
+        pendingUpdatesStore.createIndex('entity_id', 'entity_id', { unique: false });
       }
 
       // Store para fila de sincronização geral
@@ -283,12 +299,52 @@ export const getCachedLotes = async (empresaId) => {
   return getItemsByIndex(STORES.LOTES, 'empresa_id', empresaId);
 };
 
+// Funções para Sanidade offline
+export const saveSanidadeOffline = async (sanidade) => {
+  const item = {
+    ...sanidade,
+    _offlineTimestamp: new Date().toISOString(),
+    _synced: false,
+  };
+  return addItem(STORES.PENDING_SANIDADE, item);
+};
+
+export const getPendingSanidade = async (empresaId) => {
+  const all = await getAllItems(STORES.PENDING_SANIDADE);
+  return all.filter(s => s.empresa_id === empresaId);
+};
+
+export const deletePendingSanidade = async (offlineId) => {
+  return deleteItem(STORES.PENDING_SANIDADE, offlineId);
+};
+
+// Funções para Updates offline (edição de apartações/lotes)
+export const saveUpdateOffline = async (entity, entityId, data) => {
+  const item = {
+    entity,
+    entity_id: entityId,
+    data,
+    _offlineTimestamp: new Date().toISOString(),
+  };
+  return addItem(STORES.PENDING_UPDATES, item);
+};
+
+export const getPendingUpdates = async () => {
+  return getAllItems(STORES.PENDING_UPDATES);
+};
+
+export const deletePendingUpdate = async (offlineId) => {
+  return deleteItem(STORES.PENDING_UPDATES, offlineId);
+};
+
 // Função para obter contagem de pendentes
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes, cachedApt, cachedLotes] = await Promise.all([
+  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes] = await Promise.all([
     getAllItems(STORES.PENDING_PESAGENS),
     getAllItems(STORES.PENDING_APARTACOES),
     getAllItems(STORES.PENDING_LOTES),
+    getAllItems(STORES.PENDING_SANIDADE),
+    getAllItems(STORES.PENDING_UPDATES),
     getAllItems(STORES.APARTACOES),
     getAllItems(STORES.LOTES),
   ]);
@@ -301,7 +357,9 @@ export const getPendingCounts = async () => {
     pesagens: pesagens.length,
     apartacoes: apartacoes.length + offlineApartacoes.length,
     lotes: lotes.length + offlineLotes.length,
-    total: pesagens.length + apartacoes.length + lotes.length + offlineApartacoes.length + offlineLotes.length,
+    sanidade: sanidade.length,
+    updates: updates.length,
+    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length,
   };
 };
 
@@ -311,6 +369,8 @@ export const clearAllPending = async () => {
     clearStore(STORES.PENDING_PESAGENS),
     clearStore(STORES.PENDING_APARTACOES),
     clearStore(STORES.PENDING_LOTES),
+    clearStore(STORES.PENDING_SANIDADE),
+    clearStore(STORES.PENDING_UPDATES),
   ]);
 };
 
@@ -341,6 +401,12 @@ export default {
   deletePendingLote,
   cacheLotes,
   getCachedLotes,
+  saveSanidadeOffline,
+  getPendingSanidade,
+  deletePendingSanidade,
+  saveUpdateOffline,
+  getPendingUpdates,
+  deletePendingUpdate,
   getPendingCounts,
   clearAllPending,
   STORES_NAMES,

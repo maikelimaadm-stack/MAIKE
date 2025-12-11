@@ -4,9 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Syringe } from "lucide-react";
+import { Plus, Syringe, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { saveSanidadeOffline } from "@/components/offline/IndexedDBManager";
 
 export default function SelecionarAplicarSanidade({ open, onOpenChange, empresaId, apartacaoSelecionada, pesagensDia, dataPesagem, onGerenciar }) {
   const queryClient = useQueryClient();
@@ -58,6 +59,8 @@ export default function SelecionarAplicarSanidade({ open, onOpenChange, empresaI
     if (!confirm(`Aplicar "${config.nome_sanidade}" em ${animaisParaAplicar.length} animal(is)?`)) return;
 
     setIsSaving(true);
+    const isOnline = navigator.onLine;
+
     try {
       const registros = [];
       for (const numAnimal of animaisParaAplicar) {
@@ -81,12 +84,20 @@ export default function SelecionarAplicarSanidade({ open, onOpenChange, empresaI
         }
       }
 
-      await base44.entities.SanidadeAnimal.bulkCreate(registros);
-
       const custoTotalGeral = registros.reduce((s, r) => s + (r.custo_total || 0), 0);
       const custoPorAnimal = custoTotalGeral / animaisParaAplicar.length;
 
-      toast.success(`✓ "${config.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! Total: R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
+      if (isOnline) {
+        await base44.entities.SanidadeAnimal.bulkCreate(registros);
+        toast.success(`✓ "${config.nome_sanidade}" aplicada em ${animaisParaAplicar.length} animais! R$ ${custoTotalGeral.toFixed(2)} (R$ ${custoPorAnimal.toFixed(2)}/animal)`);
+      } else {
+        // SALVAR OFFLINE
+        for (const registro of registros) {
+          await saveSanidadeOffline(registro);
+        }
+        toast.success(`📴 "${config.nome_sanidade}" salva offline (${animaisParaAplicar.length} animais). Será sincronizada quando conectar.`);
+      }
+
       queryClient.invalidateQueries();
       onOpenChange(false);
     } catch (error) {
