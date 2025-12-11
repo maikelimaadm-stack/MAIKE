@@ -49,11 +49,11 @@ export default function RemoverDuplicados() {
   const apartacoesUnicas = [...new Set(todasPesagens.map(p => p.nome_apartacao).filter(Boolean))].sort();
   const lotesUnicos = [...new Set(todasPesagens.map(p => p.nome_lote).filter(Boolean))].sort();
 
-  // Agrupar por numero_animal e identificar duplicados
+  // Agrupar por animal + data + peso (só duplicado se TUDO igual)
   const analise = useMemo(() => {
     const grupos = {};
     pesagens.forEach(p => {
-      const key = p.numero_animal;
+      const key = `${p.numero_animal}_${p.data_pesagem}_${p.peso}`;
       if (!grupos[key]) {
         grupos[key] = [];
       }
@@ -63,7 +63,7 @@ export default function RemoverDuplicados() {
     const duplicados = [];
     const unicos = [];
 
-    Object.entries(grupos).forEach(([numero, registros]) => {
+    Object.entries(grupos).forEach(([chave, registros]) => {
       if (registros.length > 1) {
         // Ordenar por created_date (manter o mais antigo)
         registros.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
@@ -235,7 +235,7 @@ export default function RemoverDuplicados() {
                   {analise.duplicados.length} registros duplicados encontrados
                 </h3>
                 <p className="text-sm text-red-600">
-                  Será mantido o primeiro registro de cada animal (mais antigo)
+                  Duplicados = mesmo animal + mesma data + mesmo peso. Será mantido o primeiro criado.
                 </p>
               </div>
               <Button 
@@ -273,6 +273,7 @@ export default function RemoverDuplicados() {
                   <TableRow>
                     <TableHead className="text-xs">ID</TableHead>
                     <TableHead className="text-xs">Animal</TableHead>
+                    <TableHead className="text-xs">Data</TableHead>
                     <TableHead className="text-xs">Peso</TableHead>
                     <TableHead className="text-xs">Lote</TableHead>
                     <TableHead className="text-xs">Criado em</TableHead>
@@ -284,6 +285,7 @@ export default function RemoverDuplicados() {
                     <TableRow key={dup.id} className="bg-red-50/50">
                       <TableCell className="text-xs font-mono">{dup.id.slice(-8)}</TableCell>
                       <TableCell className="text-xs font-medium">{dup.numero_animal}</TableCell>
+                      <TableCell className="text-xs">{dup.data_pesagem?.split('T')[0].split('-').reverse().join('/')}</TableCell>
                       <TableCell className="text-xs">{dup.peso} kg</TableCell>
                       <TableCell className="text-xs">{dup.nome_lote}</TableCell>
                       <TableCell className="text-xs">{formatarData(dup.created_date)}</TableCell>
