@@ -13,18 +13,41 @@ export default function RemoverDuplicados() {
   const queryClient = useQueryClient();
   const [removendo, setRemovendo] = useState(false);
   const [progresso, setProgresso] = useState({ total: 0, atual: 0 });
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroApartacao, setFiltroApartacao] = useState("");
+  const [filtroLote, setFiltroLote] = useState("");
 
-  const { data: pesagens = [], isLoading, refetch } = useQuery({
+  const { data: todasPesagens = [], isLoading, refetch } = useQuery({
     queryKey: ['pesagens-duplicados', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.PesagemIndividual.filter({
-        empresa_id: empresaSelecionadaId,
-        data_pesagem: "2025-12-02"
+        empresa_id: empresaSelecionadaId
       });
       return all;
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  const pesagens = useMemo(() => {
+    let filtered = todasPesagens;
+    if (filtroDataInicio) {
+      filtered = filtered.filter(p => p.data_pesagem >= filtroDataInicio);
+    }
+    if (filtroDataFim) {
+      filtered = filtered.filter(p => p.data_pesagem <= filtroDataFim);
+    }
+    if (filtroApartacao) {
+      filtered = filtered.filter(p => p.nome_apartacao === filtroApartacao);
+    }
+    if (filtroLote) {
+      filtered = filtered.filter(p => p.nome_lote === filtroLote);
+    }
+    return filtered;
+  }, [todasPesagens, filtroDataInicio, filtroDataFim, filtroApartacao, filtroLote]);
+
+  const apartacoesUnicas = [...new Set(todasPesagens.map(p => p.nome_apartacao).filter(Boolean))].sort();
+  const lotesUnicos = [...new Set(todasPesagens.map(p => p.nome_lote).filter(Boolean))].sort();
 
   // Agrupar por numero_animal e identificar duplicados
   const analise = useMemo(() => {
@@ -109,11 +132,74 @@ export default function RemoverDuplicados() {
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold">Remover Duplicados - 02/12/2025</h1>
+          <h1 className="text-xl font-bold">Remover Duplicados</h1>
           <p className="text-sm text-slate-500">Ferramenta para limpar pesagens duplicadas</p>
         </div>
-        <Button variant="outline" onClick={() => refetch()}>Atualizar</Button>
+        <Button variant="outline" onClick={() => refetch()} size="sm" className="h-8 text-xs">Atualizar</Button>
       </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-600">Data Início</label>
+              <input
+                type="date"
+                value={filtroDataInicio}
+                onChange={(e) => setFiltroDataInicio(e.target.value)}
+                className="h-8 text-xs w-full border rounded px-2"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-600">Data Fim</label>
+              <input
+                type="date"
+                value={filtroDataFim}
+                onChange={(e) => setFiltroDataFim(e.target.value)}
+                className="h-8 text-xs w-full border rounded px-2"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-600">Apartação</label>
+              <select
+                value={filtroApartacao}
+                onChange={(e) => setFiltroApartacao(e.target.value)}
+                className="h-8 text-xs w-full border rounded px-2"
+              >
+                <option value="">Todas</option>
+                {apartacoesUnicas.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-600">Lote</label>
+              <select
+                value={filtroLote}
+                onChange={(e) => setFiltroLote(e.target.value)}
+                className="h-8 text-xs w-full border rounded px-2"
+              >
+                <option value="">Todos</option>
+                {lotesUnicos.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFiltroDataInicio("");
+                  setFiltroDataFim("");
+                  setFiltroApartacao("");
+                  setFiltroLote("");
+                }}
+                className="h-8 text-xs w-full"
+              >
+                Limpar Filtros
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Resumo */}
       <div className="grid grid-cols-3 gap-4">
