@@ -269,13 +269,30 @@ export const syncAll = async (empresaId, onProgress) => {
     }
     await refreshCache(empresaId);
 
+    // 4. Remover duplicados automaticamente
+    notifyListeners({ type: 'progress', entity: 'duplicados' });
+    if (onProgress) {
+      onProgress({ phase: 'duplicados', currentItem: 'Verificando duplicados...' });
+    }
+    const duplicadosRemovidos = await removerDuplicados(empresaId);
+    if (duplicadosRemovidos > 0) {
+      allItems.push({ name: `${duplicadosRemovidos} duplicados removidos`, status: 'success' });
+    }
+
     const totalSuccess = pesagensResult.successCount + entitiesResult.successCount;
     const totalErrors = pesagensResult.errors?.length || 0;
 
     notifyListeners({ 
       type: 'complete', 
       success: true,
-      message: totalSuccess > 0 ? `${totalSuccess} sincronizado(s)` : 'Tudo sincronizado'
+      message: totalSuccess > 0 ? `${totalSuccess} sincronizado(s)` : 'Tudo sincronizado',
+      results: {
+        pesagens: pesagensResult,
+        apartacoes: { successCount: entitiesResult.successCount },
+        lotes: { successCount: 0 },
+        duplicadosRemovidos
+      },
+      hasErrors: totalErrors > 0
     });
 
     return { success: true, totalSuccess, totalErrors, items: allItems };
@@ -285,6 +302,45 @@ export const syncAll = async (empresaId, onProgress) => {
     return { success: false, error: error.message, items: allItems };
   } finally {
     syncInProgress = false;
+  }
+};
+
+// Função para remover duplicados automaticamente
+const removerDuplicados = async (empresaId) => {
+  try {
+    const pesagens = await base44.entities.PesagemIndividual.filter({ empresa_id: empresaId });
+    
+    const grupos = {};
+    pesagens.forEach(p => {
+      const key = `${p.numero_animal}_${p.data_pesagem}_${p.peso}`;
+      if (!grupos[key]) {
+        grupos[key] = [];
+      }
+      grupos[key].push(p);
+    });
+
+    const duplicados = [];
+    Object.values(grupos).forEach(registros => {
+      if (registros.length > 1) {
+        registros.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+        duplicados.push(...registros.slice(1));
+      }
+    });
+
+    if (duplicados.length === 0) return 0;
+
+    for (const dup of duplicados) {
+      try {
+        await base44.entities.PesagemIndividual.delete(dup.id);
+      } catch (e) {
+        console.error('Erro ao remover duplicado:', e);
+      }
+    }
+
+    return duplicados.length;
+  } catch (error) {
+    console.error('Erro ao remover duplicados:', error);
+    return 0;
   }
 };
 
