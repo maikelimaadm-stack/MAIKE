@@ -42,6 +42,7 @@ import {
   deleteItem,
   clearStore,
   getAllItems,
+  saveUpdateOffline,
   STORES_NAMES } from
 "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
@@ -2519,49 +2520,49 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         if (editingApartacaoId) {
           await base44.entities.Apartacao.update(editingApartacaoId, data);
 
-          // Buscar pesagens e lotes vinculados
-          const [todasPesagens, todosLotes] = await Promise.all([
-          base44.entities.PesagemIndividual.filter({ apartacao_id: editingApartacaoId }),
-          base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId })]
-          );
+          // Buscar lotes vinculados (mais rápido)
+          const todosLotes = await base44.entities.LoteApartacao.filter({ apartacao_id: editingApartacaoId });
 
-          const totalItens = todasPesagens.length + todosLotes.length;
+          if (todosLotes.length > 0) {
+            setProgressoAtualizacao({ show: true, current: 0, total: todosLotes.length, texto: "Atualizando lotes..." });
 
-          if (totalItens > 0) {
-            setProgressoAtualizacao({ show: true, current: 0, total: totalItens, texto: "Atualizando registros..." });
-
-            // Atualizar lotes primeiro (são poucos)
-            for (const l of todosLotes) {
-              await base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() });
-              setProgressoAtualizacao((prev) => ({ ...prev, current: prev.current + 1 }));
-            }
-
-            // Atualizar pesagens em lotes de 10 para maior velocidade
-            const batchSize = 10;
-            for (let i = 0; i < todasPesagens.length; i += batchSize) {
-              const batch = todasPesagens.slice(i, i + batchSize);
-              await Promise.all(batch.map((p) =>
-              base44.entities.PesagemIndividual.update(p.id, { nome_apartacao: nomeApartacao.trim() })
+            // Atualizar lotes em paralelo (batch de 5)
+            const batchSize = 5;
+            for (let i = 0; i < todosLotes.length; i += batchSize) {
+              const batch = todosLotes.slice(i, i + batchSize);
+              await Promise.all(batch.map(l =>
+                base44.entities.LoteApartacao.update(l.id, { nome_apartacao: nomeApartacao.trim() })
               ));
-              setProgressoAtualizacao((prev) => ({
+              setProgressoAtualizacao(prev => ({
                 ...prev,
-                current: todosLotes.length + Math.min(i + batchSize, todasPesagens.length),
-                texto: `Atualizando pesagens ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
+                current: Math.min(i + batchSize, todosLotes.length),
+                texto: `Atualizando ${Math.min(i + batchSize, todosLotes.length)} de ${todosLotes.length} lotes...`
               }));
             }
 
             setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
           }
 
-          toast.success(`Apartação atualizada! ${todasPesagens.length} pesagens atualizadas.`);
+          toast.success(`Apartação atualizada! ${todosLotes.length} lotes atualizados.`);
         } else {
           await base44.entities.Apartacao.create(data);
           toast.success("Apartação criada!");
         }
       } else {
-        // OFFLINE: Salvar no cache local (IndexedDB)
+        // OFFLINE: Salvar edição para sincronizar depois
         if (editingApartacaoId) {
-          toast.error("Edição de apartação requer conexão");
+          if (dbReady) {
+            await saveUpdateOffline('Apartacao', editingApartacaoId, data);
+            await putItem(STORES_NAMES.APARTACOES, { ...apartacoes.find(a => a.id === editingApartacaoId), ...data });
+            toast.success("💾 Edição salva offline! Sincronize quando conectar.");
+          } else {
+            toast.error("IndexedDB não disponível");
+            setIsSaving(false);
+            return;
+          }
+          setNomeApartacao("");
+          setEditingApartacaoId(null);
+          onRefresh();
           setIsSaving(false);
           return;
         }
@@ -2643,39 +2644,29 @@ function GerenciarApartacoesDialog({ open, onOpenChange, empresaId, apartacoes, 
         // ONLINE: Salvar no servidor
         if (editingLoteId) {
           await base44.entities.LoteApartacao.update(editingLoteId, data);
-
-          // Buscar pesagens vinculadas
-          const todasPesagens = await base44.entities.PesagemIndividual.filter({ lote_id: editingLoteId });
-
-          if (todasPesagens.length > 0) {
-            setProgressoAtualizacao({ show: true, current: 0, total: todasPesagens.length, texto: "Atualizando pesagens..." });
-
-            // Atualizar pesagens em lotes de 10 para maior velocidade
-            const batchSize = 10;
-            for (let i = 0; i < todasPesagens.length; i += batchSize) {
-              const batch = todasPesagens.slice(i, i + batchSize);
-              await Promise.all(batch.map((p) =>
-              base44.entities.PesagemIndividual.update(p.id, { nome_lote: nomeLote.trim() })
-              ));
-              setProgressoAtualizacao((prev) => ({
-                ...prev,
-                current: Math.min(i + batchSize, todasPesagens.length),
-                texto: `Atualizando ${Math.min(i + batchSize, todasPesagens.length)} de ${todasPesagens.length}...`
-              }));
-            }
-
-            setProgressoAtualizacao({ show: false, current: 0, total: 0, texto: "" });
-          }
-
-          toast.success(`Lote atualizado! ${todasPesagens.length} pesagens atualizadas.`);
+          toast.success("Lote atualizado! Os nomes nas pesagens já vinculadas serão atualizados automaticamente.");
         } else {
           await base44.entities.LoteApartacao.create(data);
           toast.success("Lote criado!");
         }
       } else {
-        // OFFLINE: Salvar no cache local (IndexedDB)
+        // OFFLINE: Salvar edição para sincronizar depois
         if (editingLoteId) {
-          toast.error("Edição de lote requer conexão");
+          if (dbReady) {
+            await saveUpdateOffline('LoteApartacao', editingLoteId, data);
+            await putItem(STORES_NAMES.LOTES, { ...lotes.find(l => l.id === editingLoteId), ...data });
+            toast.success("💾 Edição salva offline! Sincronize quando conectar.");
+          } else {
+            toast.error("IndexedDB não disponível");
+            setIsSaving(false);
+            return;
+          }
+          setNomeLote("");
+          setQtdMaxima("500");
+          setPesoMinimo("");
+          setPesoMaximo("");
+          setEditingLoteId(null);
+          onRefresh();
           setIsSaving(false);
           return;
         }
