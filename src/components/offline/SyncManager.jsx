@@ -316,9 +316,11 @@ export const syncAll = async (empresaId, onProgress) => {
       success: true,
       message: totalSuccess > 0 ? `${totalSuccess} sincronizado(s)` : 'Tudo sincronizado',
       results: {
-        pesagens: pesagensResult,
+        pesagens: { successCount: pesagensResult.successCount },
         apartacoes: { successCount: entitiesResult.successCount },
         lotes: { successCount: 0 },
+        sanidade: { successCount: sanidadeResult.successCount },
+        updates: { successCount: updatesResult.successCount },
         duplicadosRemovidos
       },
       hasErrors: totalErrors > 0
