@@ -164,7 +164,7 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
                 </div>
                 {pendingCounts.total > 0 && syncStatus === 'idle' && (
                   <div className="text-[10px] text-slate-500">
-                    {pendingCounts.pesagens} pesagens • {pendingCounts.apartacoes} apartações • {pendingCounts.lotes} lotes
+                    {pendingCounts.pesagens} pesagens • {pendingCounts.sanidade || 0} sanidade • {pendingCounts.updates || 0} edições
                   </div>
                 )}
               </div>

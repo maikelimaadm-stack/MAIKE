@@ -68,6 +68,8 @@ export default function PesagensIndividuais() {
   const [filtroSexo, setFiltroSexo] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroPesoMin, setFiltroPesoMin] = useState("");
+  const [filtroPesoMax, setFiltroPesoMax] = useState("");
   const [filtroMarca, setFiltroMarca] = useState("");
   const [filtroObservacao, setFiltroObservacao] = useState("");
   const [filtroDataEspecifica, setFiltroDataEspecifica] = useState("");
@@ -237,6 +239,8 @@ export default function PesagensIndividuais() {
       if (filtroSexo && p.sexo !== filtroSexo) return false;
       if (filtroDataInicio && p.data_pesagem < filtroDataInicio) return false;
       if (filtroDataFim && p.data_pesagem > filtroDataFim) return false;
+      if (filtroPesoMin && parseFloat(p.peso) < parseFloat(filtroPesoMin)) return false;
+      if (filtroPesoMax && parseFloat(p.peso) > parseFloat(filtroPesoMax)) return false;
       // Filtro de marca: "sem_marca" mostra os sem marca, ou filtra por marca específica
       if (filtroMarca) {
         if (filtroMarca === "sem_marca") {
@@ -653,6 +657,8 @@ export default function PesagensIndividuais() {
     setFiltroSexo("");
     setFiltroDataInicio("");
     setFiltroDataFim("");
+    setFiltroPesoMin("");
+    setFiltroPesoMax("");
     setFiltroMarca("");
     setFiltroObservacao("");
     setFiltroDataEspecifica("");
@@ -822,6 +828,28 @@ export default function PesagensIndividuais() {
             </Select>
             <Input type="date" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
             <Input type="date" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} className="h-8 text-xs" placeholder="Data fim" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Peso Mín. (kg)</Label>
+              <Input 
+                type="number" 
+                value={filtroPesoMin}
+                onChange={(e) => setFiltroPesoMin(e.target.value)}
+                placeholder="Ex: 200"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Peso Máx. (kg)</Label>
+              <Input 
+                type="number" 
+                value={filtroPesoMax}
+                onChange={(e) => setFiltroPesoMax(e.target.value)}
+                placeholder="Ex: 500"
+                className="h-8 text-xs"
+              />
+            </div>
           </div>
           <div className="flex justify-between items-center mt-2">
             <div className="text-xs text-slate-500">
