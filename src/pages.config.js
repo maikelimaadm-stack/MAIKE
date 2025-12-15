@@ -61,6 +61,7 @@ import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
 import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
 import SimulacaoResultados from './pages/SimulacaoResultados';
 import EditorVisualSistema from './pages/EditorVisualSistema';
+import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
 import __Layout from './Layout.jsx';
 
 
@@ -128,6 +129,7 @@ export const PAGES = {
     "AplicacoesMedicamentos": AplicacoesMedicamentos,
     "SimulacaoResultados": SimulacaoResultados,
     "EditorVisualSistema": EditorVisualSistema,
+    "LancamentoPesagensMobile": LancamentoPesagensMobile,
 }
 
 export const pagesConfig = {
