@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { WifiOff, Wifi, Scale, Trash2, ChevronRight } from "lucide-react";
+import { 
+  WifiOff, Wifi, Scale, Trash2, ChevronRight, Filter, X, 
+  Download, Eye, EyeOff, RefreshCw, Settings
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -15,6 +18,7 @@ import {
   initDB,
   savePesagemOffline,
   getPendingPesagens,
+  deletePendingPesagem,
   getCachedPesagens,
   cacheApartacoes,
   getCachedApartacoes,
@@ -41,7 +45,7 @@ export default function LancamentoPesagensMobile() {
   const [pendingCount, setPendingCount] = useState(0);
   const [dbReady, setDbReady] = useState(false);
 
-  // Refs para navegação rápida
+  // Refs
   const numeroInputRef = useRef(null);
   const pesoInputRef = useRef(null);
 
@@ -52,7 +56,7 @@ export default function LancamentoPesagensMobile() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingPesagensDB, setPendingPesagensDB] = useState([]);
 
-  // Estado do formulário
+  // Formulário
   const [dataPesagem, setDataPesagem] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [numeroAnimal, setNumeroAnimal] = useState("");
   const [peso, setPeso] = useState("");
@@ -60,10 +64,18 @@ export default function LancamentoPesagensMobile() {
   const [raca, setRaca] = useState("Nelore");
   const [era, setEra] = useState("");
   const [marca, setMarca] = useState("");
+  const [observacao, setObservacao] = useState("");
   const [apartacaoSelecionada, setApartacaoSelecionada] = useState("");
   const [loteTransferencia, setLoteTransferencia] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [tipoManejo, setTipoManejo] = useState('Manejo');
+
+  // Filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtroLote, setFiltroLote] = useState("");
+  const [filtroSexo, setFiltroSexo] = useState("");
+  const [filtroMarca, setFiltroMarca] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Avisos
   const [avisoTela, setAvisoTela] = useState(null);
@@ -76,7 +88,7 @@ export default function LancamentoPesagensMobile() {
         setDbReady(true);
         await loadAllData();
       } catch (error) {
-        console.error('Erro ao inicializar IndexedDB:', error);
+        console.error('Erro:', error);
         setDbReady(false);
       }
     };
@@ -85,11 +97,11 @@ export default function LancamentoPesagensMobile() {
 
     const handleOnline = () => {
       setIsOnline(true);
-      toast.success("Conexão restaurada!");
+      toast.success("Online!");
     };
     const handleOffline = () => {
       setIsOnline(false);
-      toast.warning("Modo offline ativado");
+      toast.warning("Offline");
     };
 
     window.addEventListener('online', handleOnline);
@@ -122,7 +134,6 @@ export default function LancamentoPesagensMobile() {
 
       setIsLoading(false);
 
-      // Se online, atualizar do servidor
       if (navigator.onLine) {
         const [allPesagens, allApartacoes, allLotes] = await Promise.all([
           base44.entities.PesagemIndividual.list('-data_pesagem'),
@@ -147,18 +158,17 @@ export default function LancamentoPesagensMobile() {
         setLotesApartacao(lotesEmpresa);
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro:', error);
       setIsLoading(false);
     }
   };
 
-  // Lotes da apartação selecionada
+  // Lotes da apartação
   const lotesApartacaoAtual = useMemo(() => {
     if (!apartacaoSelecionada) return [];
     return lotesApartacao.filter((l) => l.apartacao_id === apartacaoSelecionada);
   }, [apartacaoSelecionada, lotesApartacao]);
 
-  // Verificar se lote está cheio
   const isLoteCheio = (lote) => {
     if (!lote) return false;
     if (lote.fechado) return true;
@@ -169,16 +179,14 @@ export default function LancamentoPesagensMobile() {
     return animaisNoLote >= (lote.quantidade_maxima || 999999);
   };
 
-  // Determinar lote automaticamente
   const getLoteAutomatico = (pesoNum) => {
     if (!apartacaoSelecionada || !pesoNum) return null;
-    const lote = lotesApartacaoAtual.find((l) =>
+    return lotesApartacaoAtual.find((l) =>
       pesoNum >= l.peso_minimo && pesoNum <= l.peso_maximo && !l.fechado && !isLoteCheio(l)
     );
-    return lote;
   };
 
-  // Pesagens do dia
+  // Pesagens do dia com filtros
   const pesagensDia = useMemo(() => {
     const pendentes = pendingPesagensDB
       .filter((p) => p.data_pesagem === dataPesagem)
@@ -189,14 +197,45 @@ export default function LancamentoPesagensMobile() {
       .sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0))
       .map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
 
-    return [...pendentes, ...sincronizadas];
-  }, [pesagens, dataPesagem, pendingPesagensDB]);
+    let resultado = [...pendentes, ...sincronizadas];
 
-  // Estatísticas
+    // Aplicar filtros
+    if (searchTerm.trim()) {
+      const termo = searchTerm.toLowerCase().trim();
+      resultado = resultado.filter((p) =>
+        p.numero_animal?.toLowerCase().includes(termo) ||
+        p.nome_lote?.toLowerCase().includes(termo) ||
+        p.raca?.toLowerCase().includes(termo)
+      );
+    }
+    if (filtroLote) {
+      resultado = resultado.filter(p => p.nome_lote === filtroLote);
+    }
+    if (filtroSexo) {
+      resultado = resultado.filter(p => p.sexo === filtroSexo);
+    }
+    if (filtroMarca) {
+      if (filtroMarca === "sem_marca") {
+        resultado = resultado.filter(p => !p.marca || p.marca.trim() === '');
+      } else {
+        resultado = resultado.filter(p => p.marca === filtroMarca);
+      }
+    }
+
+    return resultado;
+  }, [pesagens, dataPesagem, pendingPesagensDB, searchTerm, filtroLote, filtroSexo, filtroMarca]);
+
+  // Valores únicos para filtros
+  const lotesUnicos = [...new Set(pesagensDia.map(p => p.nome_lote).filter(Boolean))].sort();
+  const marcasExistentes = [...new Set(pesagens.map(p => p.marca).filter(Boolean))].sort();
+
+  // Stats
   const stats = useMemo(() => {
     const total = pesagensDia.length;
     const pesoMedio = total > 0 ? pesagensDia.reduce((s, p) => s + (p.peso || 0), 0) / total : 0;
-    return { total, pesoMedio };
+    const machos = pesagensDia.filter(p => p.sexo === 'M').length;
+    const femeas = pesagensDia.filter(p => p.sexo === 'F').length;
+    return { total, pesoMedio, machos, femeas };
   }, [pesagensDia]);
 
   // Salvar pesagem
@@ -218,27 +257,19 @@ export default function LancamentoPesagensMobile() {
       return;
     }
 
-    // Verificar duplicado
     const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
     if (!isSN) {
       const duplicado = pesagensDia.find((p) => p.numero_animal === numeroAnimal.trim());
       if (duplicado) {
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `⚠️ Animal ${numeroAnimal.trim()} já foi pesado hoje! Peso: ${duplicado.peso}kg`
-        });
+        toast.error(`Animal ${numeroAnimal.trim()} já pesado hoje!`);
         return;
       }
     }
 
-    // Verificar cadastro no modo Manejo
     if (tipoManejo === 'Manejo' && !isSN) {
       const animalExiste = pesagens.some((p) => p.numero_animal === numeroAnimal.trim() && p.status_animal === 'Ativo');
       if (!animalExiste) {
-        setAvisoTela({
-          tipo: 'erro',
-          mensagem: `❌ Animal ${numeroAnimal.trim()} não cadastrado! Use "Cadastro" primeiro.`
-        });
+        toast.error(`Animal ${numeroAnimal.trim()} não cadastrado!`);
         return;
       }
     }
@@ -247,7 +278,7 @@ export default function LancamentoPesagensMobile() {
 
     const pesoNum = parseFloat(peso);
 
-    // Calcular ganho se for Manejo
+    // Calcular ganho
     let dataAnterior = null, pesoAnterior = null, dias = null, ganho = null, gmd = null;
     if (!isSN && tipoManejo === 'Manejo') {
       const historicoAnimal = pesagens
@@ -299,6 +330,7 @@ export default function LancamentoPesagensMobile() {
       era: era || null,
       marca: marca || null,
       peso: pesoNum,
+      observacao: observacao || null,
       apartacao_id: apartacaoId,
       nome_apartacao: nomeApartacao,
       lote_id: loteId,
@@ -334,9 +366,9 @@ export default function LancamentoPesagensMobile() {
         toast.success('💾 Salvo offline');
       }
 
-      // Limpar formulário (manter dados cadastrais)
       setNumeroAnimal("");
       setPeso("");
+      setObservacao("");
       setLoteTransferencia("");
       setAvisoTela(null);
       numeroInputRef.current?.focus();
@@ -347,9 +379,8 @@ export default function LancamentoPesagensMobile() {
     }
   };
 
-  // Excluir pesagem
   const handleExcluir = async (pesagem) => {
-    if (!confirm(`Excluir pesagem do animal ${pesagem.numero_animal}?`)) return;
+    if (!confirm(`Excluir ${pesagem.numero_animal}?`)) return;
 
     if (pesagem._offlineId && dbReady) {
       await deletePendingPesagem(pesagem._offlineId);
@@ -362,17 +393,50 @@ export default function LancamentoPesagensMobile() {
       toast.success('Excluído!');
       await loadAllData();
     } else {
-      toast.error("Exclusão offline não disponível");
+      toast.error("Exclusão offline indisponível");
     }
   };
 
+  const exportarExcel = () => {
+    const headers = ['Nº', 'Animal', 'Data', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Lote', 'GMD'];
+    const rows = pesagensDia.map((p) => [
+      p._numero_registro || '',
+      p.numero_animal || '',
+      formatarData(p.data_pesagem),
+      p.sexo || '',
+      p.raca || '',
+      p.era || '',
+      p.marca || '',
+      p.peso || '',
+      p.nome_lote || '',
+      p.gmd ? p.gmd.toFixed(3) : ''
+    ]);
+
+    const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pesagens_mobile_${dataPesagem}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exportado!');
+  };
+
+  const limparFiltros = () => {
+    setSearchTerm("");
+    setFiltroLote("");
+    setFiltroSexo("");
+    setFiltroMarca("");
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-24">
       {/* HEADER FIXO */}
-      <div className="sticky top-0 z-50 bg-white shadow-sm border-b px-4 py-3">
-        <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-50 bg-white shadow-md border-b px-4 py-3">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h1 className="text-base font-bold text-slate-900">Lançar Pesagens</h1>
+            <h1 className="text-lg font-bold text-slate-900">Lançar Pesagens</h1>
             <p className="text-xs text-slate-500">{formatarData(dataPesagem)}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -390,13 +454,121 @@ export default function LancamentoPesagensMobile() {
             )}
           </div>
         </div>
+
+        {/* Botões de Ação */}
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="h-9 text-xs flex-1"
+          >
+            <Filter className="w-3.5 h-3.5 mr-1" />
+            {mostrarFiltros ? 'Ocultar' : 'Filtros'}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportarExcel}
+            className="h-9 text-xs flex-1"
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadAllData}
+            className="h-9 text-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
+
+      {/* FILTROS */}
+      {mostrarFiltros && (
+        <div className="bg-white border-b shadow-sm p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Filtros</Label>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={limparFiltros}
+              className="h-8 text-xs"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Limpar
+            </Button>
+          </div>
+
+          <div className="relative">
+            <Input
+              placeholder="Buscar animal, lote..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-11 text-base"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Lote</Label>
+            <Select value={filtroLote} onValueChange={setFiltroLote}>
+              <SelectTrigger className="h-11 text-base">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>Todos</SelectItem>
+                {lotesUnicos.map(l => (
+                  <SelectItem key={l} value={l} className="text-base py-3">{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Sexo</Label>
+              <Select value={filtroSexo} onValueChange={setFiltroSexo}>
+                <SelectTrigger className="h-11 text-base">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todos</SelectItem>
+                  <SelectItem value="M" className="text-base py-3">Macho</SelectItem>
+                  <SelectItem value="F" className="text-base py-3">Fêmea</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Marca</Label>
+              <Select value={filtroMarca} onValueChange={setFiltroMarca}>
+                <SelectTrigger className="h-11 text-base">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Todas</SelectItem>
+                  <SelectItem value="sem_marca">Sem Marca</SelectItem>
+                  {marcasExistentes.map(m => (
+                    <SelectItem key={m} value={m} className="text-base py-3">{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-500 text-center pt-2 border-t">
+            {pesagensDia.length} registros encontrados
+          </div>
+        </div>
+      )}
 
       {/* FORMULÁRIO */}
       <div className="p-4 space-y-3">
-        {/* Tipo de Movimentação */}
+        {/* Tipo */}
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">Tipo</Label>
+          <Label className="text-sm font-semibold">Tipo de Movimentação</Label>
           <Select value={tipoManejo} onValueChange={setTipoManejo}>
             <SelectTrigger className="h-12 text-base">
               <SelectValue />
@@ -510,7 +682,7 @@ export default function LancamentoPesagensMobile() {
                   onChange={(e) => setEra(e.target.value)}
                   className="h-12 text-base"
                   inputMode="numeric"
-                  placeholder="Ex: 14"
+                  placeholder="14"
                 />
               </div>
 
@@ -529,7 +701,7 @@ export default function LancamentoPesagensMobile() {
 
         {/* Número do Animal */}
         <div className="space-y-2">
-          <Label className="text-lg font-bold text-emerald-700">Nº Animal <span className="text-red-500">*</span></Label>
+          <Label className="text-xl font-bold text-emerald-700">Nº Animal <span className="text-red-500">*</span></Label>
           <Input
             ref={numeroInputRef}
             value={numeroAnimal}
@@ -539,10 +711,6 @@ export default function LancamentoPesagensMobile() {
               setAvisoTela(null);
 
               if (valor.trim() && valor.trim().toUpperCase() !== 'SN') {
-                const historicoAnimal = pesagens
-                  .filter((p) => p.numero_animal === valor.trim())
-                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
-
                 const pesadoHoje = pesagensDia.find((p) => p.numero_animal === valor.trim());
                 if (pesadoHoje) {
                   setAvisoTela({
@@ -551,6 +719,10 @@ export default function LancamentoPesagensMobile() {
                   });
                   return;
                 }
+
+                const historicoAnimal = pesagens
+                  .filter((p) => p.numero_animal === valor.trim())
+                  .sort((a, b) => new Date(b.data_pesagem) - new Date(a.data_pesagem));
 
                 if (historicoAnimal.length > 0) {
                   const cadastro = pesagens.find((p) => p.numero_animal === valor.trim() && p.tipo_manejo === 'Cadastro');
@@ -565,19 +737,26 @@ export default function LancamentoPesagensMobile() {
                   if (tipoManejo === 'Manejo') {
                     setAvisoTela({
                       tipo: 'info',
-                      mensagem: `✓ ${dadosCadastro.raca || '-'} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
+                      mensagem: `✓ ${dadosCadastro.raca} | Última: ${formatarData(ultimo.data_pesagem)} - ${ultimo.peso}kg`
                     });
                   }
                 } else if (tipoManejo === 'Manejo') {
                   setAvisoTela({
                     tipo: 'erro',
-                    mensagem: `❌ Não cadastrado! Use "Cadastro" primeiro.`
+                    mensagem: `❌ Não cadastrado!`
                   });
                 }
               }
             }}
-            className="h-16 text-2xl font-bold text-emerald-700 text-center"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                pesoInputRef.current?.focus();
+              }
+            }}
+            className="h-20 text-3xl font-bold text-emerald-700 text-center"
             inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="1234"
             autoFocus
           />
@@ -585,15 +764,33 @@ export default function LancamentoPesagensMobile() {
 
         {/* Peso */}
         <div className="space-y-2">
-          <Label className="text-lg font-bold text-amber-600">Peso (kg) <span className="text-red-500">*</span></Label>
+          <Label className="text-xl font-bold text-amber-600">Peso (kg) <span className="text-red-500">*</span></Label>
           <Input
             ref={pesoInputRef}
             type="number"
             value={peso}
             onChange={(e) => setPeso(e.target.value)}
-            className="h-16 text-2xl font-bold text-amber-600 text-center"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSalvar();
+              }
+            }}
+            className="h-20 text-3xl font-bold text-amber-600 text-center"
             inputMode="decimal"
+            pattern="[0-9]*"
             placeholder="320"
+          />
+        </div>
+
+        {/* Observação */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Observação</Label>
+          <Input
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            className="h-12 text-base"
+            placeholder="Opcional..."
           />
         </div>
 
@@ -603,12 +800,12 @@ export default function LancamentoPesagensMobile() {
           return (
             <div className={`p-4 rounded-lg border-2 text-center ${
               loteAuto 
-                ? 'bg-orange-100 border-orange-400 text-orange-800' 
-                : 'bg-red-100 border-red-400 text-red-800'
+                ? 'bg-orange-100 border-orange-400' 
+                : 'bg-red-100 border-red-400'
             }`}>
               <div className="flex items-center justify-center gap-2">
                 <ChevronRight className="w-6 h-6" />
-                <span className="font-bold text-lg">
+                <span className="font-bold text-base">
                   Lote: {loteAuto?.nome_lote || 'Não encontrado'}
                 </span>
               </div>
@@ -616,7 +813,7 @@ export default function LancamentoPesagensMobile() {
           );
         })()}
 
-        {/* Ganho de Peso */}
+        {/* Ganho */}
         {(() => {
           if (!numeroAnimal?.trim() || !peso || numeroAnimal.trim().toUpperCase() === 'SN') return null;
           const historicoAnimal = pesagens
@@ -630,18 +827,18 @@ export default function LancamentoPesagensMobile() {
           const gmd = dias > 0 ? ganho / dias : 0;
           return (
             <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <div className="text-xs text-emerald-600">Dias</div>
-                  <div className="text-xl font-bold text-emerald-800">{dias}</div>
+                  <div className="text-2xl font-bold text-emerald-800">{dias}</div>
                 </div>
                 <div>
                   <div className="text-xs text-emerald-600">Ganho</div>
-                  <div className="text-xl font-bold text-emerald-800">{ganho.toFixed(1)} kg</div>
+                  <div className="text-2xl font-bold text-emerald-800">{ganho.toFixed(1)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-emerald-600">GMD</div>
-                  <div className="text-xl font-bold text-emerald-800">{gmd.toFixed(3)}</div>
+                  <div className="text-2xl font-bold text-emerald-800">{gmd.toFixed(3)}</div>
                 </div>
               </div>
             </div>
@@ -650,10 +847,10 @@ export default function LancamentoPesagensMobile() {
 
         {/* Aviso */}
         {avisoTela && (
-          <div className={`p-3 rounded-lg text-sm ${
-            avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-800 border border-red-300' :
-            avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
-            'bg-blue-100 text-blue-800 border border-blue-300'
+          <div className={`p-3 rounded-lg text-sm font-medium ${
+            avisoTela.tipo === 'erro' ? 'bg-red-100 text-red-800 border-2 border-red-400' :
+            avisoTela.tipo === 'alerta' ? 'bg-amber-100 text-amber-800 border-2 border-amber-400' :
+            'bg-blue-100 text-blue-800 border-2 border-blue-400'
           }`}>
             {avisoTela.mensagem}
           </div>
@@ -663,67 +860,104 @@ export default function LancamentoPesagensMobile() {
         <Button 
           onClick={handleSalvar} 
           disabled={isSaving} 
-          className="w-full h-14 text-lg font-bold bg-emerald-600 hover:bg-emerald-700"
+          className="w-full h-16 text-xl font-bold bg-emerald-600 hover:bg-emerald-700 shadow-lg"
         >
-          {isSaving ? 'Salvando...' : 'SALVAR PESAGEM'}
+          {isSaving ? 'SALVANDO...' : 'SALVAR PESAGEM'}
         </Button>
       </div>
 
-      {/* LISTA DE PESAGENS DO DIA */}
+      {/* ESTATÍSTICAS */}
+      <div className="px-4 pb-3">
+        <Card className="bg-gradient-to-br from-slate-100 to-slate-50">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-xs text-slate-600">Total</div>
+                <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-slate-600">Peso Médio</div>
+                <div className="text-2xl font-bold text-amber-600">{stats.pesoMedio.toFixed(0)} kg</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-slate-600">Machos</div>
+                <div className="text-xl font-bold text-blue-600">{stats.machos}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-slate-600">Fêmeas</div>
+                <div className="text-xl font-bold text-pink-600">{stats.femeas}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* LISTA */}
       <div className="px-4">
         <Card>
           <CardHeader className="py-3 px-4 bg-slate-100">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between">
-              <span>Pesagens Hoje ({stats.total})</span>
-              <span className="text-emerald-700">{stats.pesoMedio.toFixed(0)} kg</span>
+            <CardTitle className="text-sm font-semibold">
+              Pesagens do Dia
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {pesagensDia.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <Scale className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Nenhuma pesagem lançada hoje</p>
+              <div className="text-center py-12 text-slate-400">
+                <Scale className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Nenhuma pesagem</p>
               </div>
             ) : (
               <div className="divide-y">
                 {pesagensDia.map((p) => (
-                  <div key={p.id || p._offlineId} className={`p-3 ${p._offlineId ? 'bg-amber-50' : ''}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="font-bold text-base text-slate-900">
-                          {p.numero_animal}
+                  <div key={p.id || p._offlineId} className={`p-4 ${p._offlineId ? 'bg-amber-50' : ''}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="font-bold text-lg text-slate-900">
+                          #{p._numero_registro} - {p.numero_animal}
                           {p._offlineId && (
                             <Badge variant="outline" className="ml-2 text-xs bg-amber-100 text-amber-700">
-                              Pendente
+                              Offline
                             </Badge>
                           )}
                         </div>
-                        <div className="text-xs text-slate-500">
-                          {p.sexo} • {p.raca} • {p.era || '-'}
+                        <div className="text-sm text-slate-600 mt-1">
+                          {p.sexo === 'M' ? 'Macho' : 'Fêmea'} • {p.raca} • Era: {p.era || '-'}
                         </div>
+                        {p.marca && (
+                          <div className="text-xs text-slate-500 mt-1">Marca: {p.marca}</div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-amber-600">{p.peso} kg</div>
+                      <div className="text-right ml-3">
+                        <div className="text-2xl font-bold text-amber-600">{p.peso} kg</div>
                         {p.gmd && (
-                          <div className={`text-xs font-semibold ${p.gmd > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <div className={`text-sm font-semibold mt-1 ${p.gmd > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             GMD: {p.gmd.toFixed(3)}
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-slate-600">
-                      <div>
-                        {p.nome_apartacao || '-'} • {p.nome_lote || 'Sem lote'}
+                    
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="text-xs text-slate-600">
+                        <div>{p.nome_apartacao || 'Sem apartação'}</div>
+                        <div className="font-medium text-slate-700">{p.nome_lote || 'Sem lote'}</div>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleExcluir(p)}
-                        className="h-8 text-xs text-red-600"
+                        className="h-9 text-xs text-red-600"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Excluir
                       </Button>
                     </div>
+
+                    {p.observacao && (
+                      <div className="mt-2 text-xs text-slate-500 italic bg-slate-50 p-2 rounded">
+                        {p.observacao}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
