@@ -353,7 +353,12 @@ export default function Layout({ children, currentPageName }) {
 
   const menuItemsFiltered = React.useMemo(() => {
     if (!menuItems) return [];
-    return filterMenuByPermissions(menuItems);
+    const filteredByPerms = filterMenuByPermissions(menuItems);
+    const removePlanos = (items) =>
+      items
+        .filter(i => i.id !== 'gt-planos')
+        .map(i => (i.submenu ? { ...i, submenu: removePlanos(i.submenu) } : i));
+    return removePlanos(filteredByPerms);
   }, [menuItems, user?.role, userPermissions?.is_admin, userPermissions?.modulos_permitidos]);
 
   const isActive = (item) => {
