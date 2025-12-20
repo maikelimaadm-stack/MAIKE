@@ -155,15 +155,15 @@ export default function LancamentosTarefas() {
             <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar (plano, tipo)" className="h-8 text-xs pl-8" />
           </div>
           <div>
-            <Label className="text-xs">Período início</label>
+            <label className="text-xs">Período início</label>
             <Input type="date" value={periodoIni} onChange={(e)=>setPeriodoIni(e.target.value)} className="h-8 text-xs" />
           </div>
           <div>
-            <Label className="text-xs">Período fim</label>
+            <label className="text-xs">Período fim</label>
             <Input type="date" value={periodoFim} onChange={(e)=>setPeriodoFim(e.target.value)} className="h-8 text-xs" />
           </div>
           <div>
-            <Label className="text-xs">Status</label>
+            <label className="text-xs">Status</label>
             <Select value={fStatus} onValueChange={setFStatus}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -173,7 +173,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Plano</label>
+            <label className="text-xs">Plano</label>
             <Select value={fPlano} onValueChange={setFPlano}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -183,7 +183,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Grupo</label>
+            <label className="text-xs">Grupo</label>
             <Select value={fGrupo} onValueChange={setFGrupo}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -193,7 +193,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Tipo</label>
+            <label className="text-xs">Tipo</label>
             <Select value={fTipo} onValueChange={setFTipo}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -203,7 +203,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Área/Pasto</label>
+            <label className="text-xs">Área/Pasto</label>
             <Select value={fArea} onValueChange={setFArea}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas"/></SelectTrigger>
               <SelectContent>
@@ -213,7 +213,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Responsável</label>
+            <label className="text-xs">Responsável</label>
             <Select value={fResp} onValueChange={setFResp}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -223,7 +223,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Urgência</label>
+            <label className="text-xs">Urgência</label>
             <Select value={fUrgencia} onValueChange={setFUrgencia}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas"/></SelectTrigger>
               <SelectContent>
@@ -233,7 +233,7 @@ export default function LancamentosTarefas() {
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Nível</label>
+            <label className="text-xs">Nível</label>
             <Select value={fNivel} onValueChange={setFNivel}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
               <SelectContent>
@@ -260,7 +260,7 @@ export default function LancamentosTarefas() {
         <Card>
           <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="text-xs">Plano de Ação *</label>
+              <label className="text-xs">Plano de Ação *</label>
               <Select value={form.plano_acao_id} onValueChange={(v)=>setForm(f=>({...f,plano_acao_id:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
                 <SelectContent>
@@ -269,7 +269,7 @@ export default function LancamentosTarefas() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Tipo de Tarefa *</label>
+              <label className="text-xs">Tipo de Tarefa *</label>
               <Select value={form.tipo_tarefa_id} onValueChange={(v)=>setForm(f=>({...f,tipo_tarefa_id:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
                 <SelectContent>
@@ -278,11 +278,11 @@ export default function LancamentosTarefas() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Grupo de Atividades</label>
+              <label className="text-xs">Grupo de Atividades</label>
               <Input value={grupos.find(g => g.id === (tipos.find(t=>t.id===form.tipo_tarefa_id)?.grupo_atividade_id))?.nome_grupo || ""} disabled className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Área/Pasto {(() => { const tt = tipos.find(t=>t.id===form.tipo_tarefa_id); return tt?.exige_area ? '*' : ''; })()}</label>
+              <label className="text-xs">Área/Pasto {(() => { const tt = tipos.find(t=>t.id===form.tipo_tarefa_id); return tt?.exige_area ? '*' : ''; })()}</label>
               <Select value={form.area_pasto_id} onValueChange={(v)=>setForm(f=>({...f,area_pasto_id:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
                 <SelectContent>
@@ -292,15 +292,15 @@ export default function LancamentosTarefas() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Data inicial *</label>
+              <label className="text-xs">Data inicial *</label>
               <Input type="date" value={form.data_inicial} onChange={(e)=>setForm(f=>({...f,data_inicial:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Data final *</label>
+              <label className="text-xs">Data final *</label>
               <Input type="date" value={form.data_final} onChange={(e)=>setForm(f=>({...f,data_final:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Responsável (Funcionário) *</label>
+              <label className="text-xs">Responsável (Funcionário) *</label>
               <Select value={form.responsavel_id} onValueChange={(v)=>setForm(f=>({...f,responsavel_id:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
                 <SelectContent>
@@ -310,7 +310,7 @@ export default function LancamentosTarefas() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Urgência *</label>
+              <label className="text-xs">Urgência *</label>
               <Select value={form.urgencia} onValueChange={(v)=>setForm(f=>({...f,urgencia:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
                 <SelectContent>
@@ -319,7 +319,7 @@ export default function LancamentosTarefas() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Nível de urgência *</label>
+              <label className="text-xs">Nível de urgência *</label>
               <Select value={form.nivel_urgencia} onValueChange={(v)=>setForm(f=>({...f,nivel_urgencia:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
                 <SelectContent>
@@ -329,15 +329,15 @@ export default function LancamentosTarefas() {
             </div>
 
             <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Descrição/Instruções</label>
+              <label className="text-xs">Descrição/Instruções</label>
               <Input value={form.descricao_instrucoes} onChange={(e)=>setForm(f=>({...f,descricao_instrucoes:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Localização adicional</label>
+              <label className="text-xs">Localização adicional</label>
               <Input value={form.localizacao_adicional} onChange={(e)=>setForm(f=>({...f,localizacao_adicional:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Status</label>
+              <label className="text-xs">Status</label>
               <Select value={form.status_tarefa} onValueChange={(v)=>setForm(f=>({...f,status_tarefa:v}))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
                 <SelectContent>
@@ -346,7 +346,7 @@ export default function LancamentosTarefas() {
               </Select>
             </div>
             <div className="space-y-1 lg:col-span-2">
-              <Label className="text-xs">Observações</label>
+              <label className="text-xs">Observações</label>
               <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
             </div>
 
