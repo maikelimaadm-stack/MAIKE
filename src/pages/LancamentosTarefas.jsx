@@ -246,7 +246,7 @@ export default function LancamentosTarefas() {
             <label className="text-xs flex items-center gap-1">
               <input type="checkbox" className="scale-90" checked={somenteAtrasadas} onChange={(e)=>setSomenteAtrasadas(e.target.checked)} />
               Somente atrasadas
-            </label>
+            </Label>
           </div>
           <div className="flex items-end gap-2 md:col-span-2 justify-end">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}><Filter className="w-3.5 h-3.5 mr-1"/>Limpar</Button>
@@ -296,7 +296,7 @@ export default function LancamentosTarefas() {
               <Input type="date" value={form.data_inicial} onChange={(e)=>setForm(f=>({...f,data_inicial:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Data final *</label>
+              <Label className="text-xs">Data final *</Label>
               <Input type="date" value={form.data_final} onChange={(e)=>setForm(f=>({...f,data_final:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="space-y-1">
@@ -353,9 +353,9 @@ export default function LancamentosTarefas() {
             {/* Seções condicionais */}
             <div className="lg:col-span-2 border-t pt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_maquina} onChange={(e)=>setForm(f=>({...f,usa_maquina:e.target.checked}))}/> Usa máquina?</label>
-                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_produto} onChange={(e)=>setForm(f=>({...f,usa_produto:e.target.checked}))}/> Usa produto?</label>
-                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_implemento} onChange={(e)=>setForm(f=>({...f,usa_implemento:e.target.checked}))}/> Usa implemento?</label>
+                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_maquina} onChange={(e)=>setForm(f=>({...f,usa_maquina:e.target.checked}))}/> Usa máquina?</Label>
+                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_produto} onChange={(e)=>setForm(f=>({...f,usa_produto:e.target.checked}))}/> Usa produto?</Label>
+                <label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_implemento} onChange={(e)=>setForm(f=>({...f,usa_implemento:e.target.checked}))}/> Usa implemento?</Label>
               </div>
 
               {form.usa_maquina && (
