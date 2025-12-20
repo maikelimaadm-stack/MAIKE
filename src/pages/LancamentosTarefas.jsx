@@ -17,7 +17,6 @@ export default function LancamentosTarefas() {
   const [periodoIni, setPeriodoIni] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [fStatus, setFStatus] = useState("");
-  const [fPlano, setFPlano] = useState("");
   const [fGrupo, setFGrupo] = useState("");
   const [fTipo, setFTipo] = useState("");
   const [fArea, setFArea] = useState("");
@@ -30,7 +29,6 @@ export default function LancamentosTarefas() {
   const [editing, setEditing] = useState(null);
 
   const emptyForm = {
-    plano_acao_id: "",
     tipo_tarefa_id: "",
     grupo_atividade_id: "",
     data_inicial: "",
@@ -53,7 +51,6 @@ export default function LancamentosTarefas() {
   const [itensProduto, setItensProduto] = useState([]);
   const [itensImplemento, setItensImplemento] = useState([]);
 
-  const { data: planos = [] } = useQuery({ queryKey: ["planos-acao"], queryFn: () => base44.entities.PlanoAcao.list(), initialData: [] });
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });
   const { data: tipos = [] } = useQuery({ queryKey: ["tipos-tarefa"], queryFn: () => base44.entities.TipoTarefa.list(), initialData: [] });
   const { data: areas = [] } = useQuery({ queryKey: ["areas-pasto"], queryFn: () => base44.entities.AreaPastagem.list(), initialData: [] });
@@ -65,11 +62,10 @@ export default function LancamentosTarefas() {
 
   const filtered = useMemo(() => {
     return lancs.filter(l =>
-      (!search || (l.nome_plano||'').toLowerCase().includes(search.toLowerCase()) || (l.nome_tipo_tarefa||'').toLowerCase().includes(search.toLowerCase())) &&
+      (!search || (l.nome_tipo_tarefa||'').toLowerCase().includes(search.toLowerCase()) || (l.grupo_atividade_nome||'').toLowerCase().includes(search.toLowerCase()) || (l.responsavel_nome||'').toLowerCase().includes(search.toLowerCase())) &&
       (!periodoIni || (l.data_inicial && l.data_inicial >= periodoIni)) &&
       (!periodoFim || (l.data_final && l.data_final <= periodoFim)) &&
       (!fStatus || l.status_tarefa === fStatus) &&
-      (!fPlano || l.plano_acao_id === fPlano) &&
       (!fGrupo || l.grupo_atividade_id === fGrupo) &&
       (!fTipo || l.tipo_tarefa_id === fTipo) &&
       (!fArea || l.area_pasto_id === fArea) &&
@@ -78,7 +74,7 @@ export default function LancamentosTarefas() {
       (!fNivel || l.nivel_urgencia === fNivel) &&
       (!somenteAtrasadas || !!l.atrasada)
     );
-  }, [lancs, search, periodoIni, periodoFim, fStatus, fPlano, fGrupo, fTipo, fArea, fResp, fUrgencia, fNivel, somenteAtrasadas]);
+  }, [lancs, search, periodoIni, periodoFim, fStatus, fGrupo, fTipo, fArea, fResp, fUrgencia, fNivel, somenteAtrasadas]);
 
   const createMutation = useMutation({
     mutationFn: async (payload) => base44.entities.LancamentoTarefa.create(payload),
@@ -104,7 +100,6 @@ export default function LancamentosTarefas() {
   });
 
   const onSubmit = () => {
-    if (!form.plano_acao_id) { toast.error("Selecione o plano"); return; }
     if (!form.tipo_tarefa_id) { toast.error("Selecione o tipo de tarefa"); return; }
     if (!form.data_inicial || !form.data_final) { toast.error("Informe as datas"); return; }
     if (form.data_final < form.data_inicial) { toast.error("Data final não pode ser menor que a inicial"); return; }
@@ -112,7 +107,6 @@ export default function LancamentosTarefas() {
     const tipo = tipos.find(t => t.id === form.tipo_tarefa_id);
     if (tipo?.exige_area && !form.area_pasto_id) { toast.error("Este tipo exige área/pasto"); return; }
 
-    const plano = planos.find(p => p.id === form.plano_acao_id);
     const grupo = grupos.find(g => g.id === tipo?.grupo_atividade_id);
     const area = areas.find(a => a.id === form.area_pasto_id);
     const resp = pessoas.find(p => p.id === form.responsavel_id && (p.tipos||[]).includes("Funcionario"));
@@ -120,7 +114,6 @@ export default function LancamentosTarefas() {
 
     const payload = {
       ...form,
-      nome_plano: plano?.nome_plano || "",
       nome_tipo_tarefa: tipo?.nome_tipo || "",
       grupo_atividade_id: tipo?.grupo_atividade_id || "",
       grupo_atividade_nome: grupo?.nome_grupo || "",
@@ -142,7 +135,7 @@ export default function LancamentosTarefas() {
   };
 
   const limparFiltros = () => {
-    setSearch(""); setPeriodoIni(""); setPeriodoFim(""); setFStatus(""); setFPlano(""); setFGrupo(""); setFTipo(""); setFArea(""); setFResp(""); setFUrgencia(""); setFNivel(""); setSomenteAtrasadas(false);
+    setSearch(""); setPeriodoIni(""); setPeriodoFim(""); setFStatus(""); setFGrupo(""); setFTipo(""); setFArea(""); setFResp(""); setFUrgencia(""); setFNivel(""); setSomenteAtrasadas(false);
   };
 
   return (
@@ -152,7 +145,7 @@ export default function LancamentosTarefas() {
         <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
           <div className="md:col-span-2 relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar (plano, tipo)" className="h-8 text-xs pl-8" />
+            <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar (tipo, grupo, responsável)" className="h-8 text-xs pl-8" />
           </div>
           <div>
             <label className="text-xs">Período início</label>
@@ -169,16 +162,6 @@ export default function LancamentosTarefas() {
               <SelectContent>
                 <SelectItem value={null}>Todos</SelectItem>
                 {["Planejada","Em andamento","Concluída","Cancelada","Atrasada"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Plano</label>
-            <Select value={fPlano} onValueChange={setFPlano}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {planos.map(p => <SelectItem key={p.id} value={p.id}>{p.nome_plano}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -259,15 +242,6 @@ export default function LancamentosTarefas() {
       {showForm && (
         <Card>
           <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs">Plano de Ação *</label>
-              <Select value={form.plano_acao_id} onValueChange={(v)=>setForm(f=>({...f,plano_acao_id:v}))}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
-                <SelectContent>
-                  {planos.map(p => <SelectItem key={p.id} value={p.id}>{p.nome_plano}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1">
               <label className="text-xs">Tipo de Tarefa *</label>
               <Select value={form.tipo_tarefa_id} onValueChange={(v)=>setForm(f=>({...f,tipo_tarefa_id:v}))}>
@@ -465,7 +439,6 @@ export default function LancamentosTarefas() {
                 <TableRow>
                   <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Urgência/Nível</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Plano</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>
@@ -486,7 +459,6 @@ export default function LancamentosTarefas() {
                     <TableRow key={l.id} className="hover:bg-gray-50">
                       <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.nome_plano}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>

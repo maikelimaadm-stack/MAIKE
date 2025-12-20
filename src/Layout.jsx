@@ -100,7 +100,6 @@ const DEFAULT_MENU = [
     submenu: [
       { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
       { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
-      { id: "gt-planos", title: "Planos de Ação", url: "PlanosAcao" },
       { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
     ],
   },
