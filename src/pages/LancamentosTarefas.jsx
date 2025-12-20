@@ -44,12 +44,14 @@ export default function LancamentosTarefas() {
     observacoes: "",
     usa_maquina: false,
     usa_produto: false,
-    usa_implemento: false
+    usa_implemento: false,
+    fotos: []
   };
   const [form, setForm] = useState(emptyForm);
   const [itensMaquina, setItensMaquina] = useState([]);
   const [itensProduto, setItensProduto] = useState([]);
   const [itensImplemento, setItensImplemento] = useState([]);
+const [uploadingFotos, setUploadingFotos] = useState(false);
 
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });
   const { data: tipos = [] } = useQuery({ queryKey: ["tipos-tarefa"], queryFn: () => base44.entities.TipoTarefa.list(), initialData: [] });
@@ -324,6 +326,54 @@ export default function LancamentosTarefas() {
               <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
             </div>
 
+            <div className="space-y-1 lg:col-span-2">
+              <label className="text-xs">Fotos</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="h-8 text-xs"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (!files.length) return;
+                  setUploadingFotos(true);
+                  try {
+                    const urls = [];
+                    for (const file of files) {
+                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                      urls.push(file_url);
+                    }
+                    setForm(f => ({ ...f, fotos: [ ...(f.fotos || []), ...urls ] }));
+                  } finally {
+                    setUploadingFotos(false);
+                    e.target.value = '';
+                  }
+                }}
+              />
+              {uploadingFotos && (
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Enviando...
+                </div>
+              )}
+              {form.fotos && form.fotos.length > 0 && (
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-2">
+                  {form.fotos.map((url, idx) => (
+                    <div key={idx} className="relative">
+                      <img src={url} alt={`foto-${idx}`} className="h-16 w-full object-cover rounded border" />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-6 text-[10px] absolute top-1 right-1"
+                        onClick={() => setForm(f => ({ ...f, fotos: (f.fotos || []).filter((_, i) => i !== idx) }))}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Seções condicionais */}
             <div className="lg:col-span-2 border-t pt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -442,6 +492,8 @@ export default function LancamentosTarefas() {
                   <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black">Área (ha)</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black">Cap. (UA)</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Responsável</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>
@@ -462,6 +514,8 @@ export default function LancamentosTarefas() {
                       <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.tamanho_hectares) ?? '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.capacidade_maxima) ?? '-'}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.responsavel_nome}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.data_inicial}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>
