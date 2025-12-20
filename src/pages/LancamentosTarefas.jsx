@@ -353,9 +353,9 @@ export default function LancamentosTarefas() {
             {/* Seções condicionais */}
             <div className="lg:col-span-2 border-t pt-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_maquina} onChange={(e)=>setForm(f=>({...f,usa_maquina:e.target.checked}))}/> Usa máquina?</Label>
-                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_produto} onChange={(e)=>setForm(f=>({...f,usa_produto:e.target.checked}))}/> Usa produto?</Label>
-                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_implemento} onChange={(e)=>setForm(f=>({...f,usa_implemento:e.target.checked}))}/> Usa implemento?</Label>
+                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_maquina} onChange={(e)=>setForm(f=>({...f,usa_maquina:e.target.checked}))}/> Usa máquina?</label>
+                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_produto} onChange={(e)=>setForm(f=>({...f,usa_produto:e.target.checked}))}/> Usa produto?</label>
+                <Label className="text-xs flex items-center gap-1"><input type="checkbox" className="scale-90" checked={form.usa_implemento} onChange={(e)=>setForm(f=>({...f,usa_implemento:e.target.checked}))}/> Usa implemento?</label>
               </div>
 
               {form.usa_maquina && (

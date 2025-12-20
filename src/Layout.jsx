@@ -103,7 +103,7 @@ const DEFAULT_MENU = [
       { id: "gt-planos", title: "Planos de Ação", url: "PlanosAcao" },
       { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
     ],
-  }
+  },
   {
     id: "financeiro",
     title: "Financeiro",
