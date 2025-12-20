@@ -246,7 +246,7 @@ export default function LancamentosTarefas() {
             <Label className="text-xs flex items-center gap-1">
               <input type="checkbox" className="scale-90" checked={somenteAtrasadas} onChange={(e)=>setSomenteAtrasadas(e.target.checked)} />
               Somente atrasadas
-                           </label>
+                           </Label>
           </div>
           <div className="flex items-end gap-2 md:col-span-2 justify-end">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}><Filter className="w-3.5 h-3.5 mr-1"/>Limpar</Button>
