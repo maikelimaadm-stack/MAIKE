@@ -62,6 +62,10 @@ import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
 import SimulacaoResultados from './pages/SimulacaoResultados';
 import EditorVisualSistema from './pages/EditorVisualSistema';
 import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
+import GruposAtividades from './pages/GruposAtividades';
+import TiposTarefa from './pages/TiposTarefa';
+import PlanosAcao from './pages/PlanosAcao';
+import LancamentosTarefas from './pages/LancamentosTarefas';
 import __Layout from './Layout.jsx';
 
 
@@ -130,6 +134,10 @@ export const PAGES = {
     "SimulacaoResultados": SimulacaoResultados,
     "EditorVisualSistema": EditorVisualSistema,
     "LancamentoPesagensMobile": LancamentoPesagensMobile,
+    "GruposAtividades": GruposAtividades,
+    "TiposTarefa": TiposTarefa,
+    "PlanosAcao": PlanosAcao,
+    "LancamentosTarefas": LancamentosTarefas,
 }
 
 export const pagesConfig = {
