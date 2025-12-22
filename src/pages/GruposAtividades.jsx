@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Columns } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GruposAtividades() {
@@ -15,6 +17,15 @@ export default function GruposAtividades() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" });
+
+  // Visibilidade de colunas (persistida)
+  const [colunas, setColunas] = useState({ nome: true, ativo: true, criado: true, atualizado: true, acoes: true });
+  useEffect(() => {
+    try { const saved = localStorage.getItem('grupos_atividades_colunas'); if (saved) setColunas(c => ({ ...c, ...JSON.parse(saved) })); } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('grupos_atividades_colunas', JSON.stringify(colunas)); } catch {}
+  }, [colunas]);
 
   const { data: grupos = [], isLoading, refetch } = useQuery({
     queryKey: ["grupos-atividades"],
@@ -49,16 +60,31 @@ export default function GruposAtividades() {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative">
+      <Card>
+        <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div className="md:col-span-2 relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar grupo..." className="h-8 text-xs pl-8" />
           </div>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setSearch(""); refetch(); }}><RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar</Button>
-        </div>
-        <Button onClick={() => { setShowForm(true); setEditing(null); setForm({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" }); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"><Plus className="w-3.5 h-3.5 mr-1"/>Novo</Button>
-      </div>
+          <div className="md:col-span-4 flex items-end gap-2 justify-end">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSearch("")}>Limpar</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}><RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs"><Columns className="w-3.5 h-3.5 mr-1"/>Colunas</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuCheckboxItem checked={colunas.nome} onCheckedChange={(v)=>setColunas(c=>({...c,nome:!!v}))}>Nome</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => { setShowForm(true); setEditing(null); setForm({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" }); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"><Plus className="w-3.5 h-3.5 mr-1"/>Novo</Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {showForm && (
         <Card>
