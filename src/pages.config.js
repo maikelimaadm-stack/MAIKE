@@ -35,6 +35,7 @@ import Home from './pages/Home';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
 import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
+import LancamentosTarefas from './pages/LancamentosTarefas';
 import LivroCaixa from './pages/LivroCaixa';
 import LivrosFiscais from './pages/LivrosFiscais';
 import LocaisEstoque from './pages/LocaisEstoque';
@@ -66,7 +67,6 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import LancamentosTarefas from './pages/LancamentosTarefas';
 import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
 import TipoTarefaForm from './pages/TipoTarefaForm';
 import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
@@ -111,6 +111,7 @@ export const PAGES = {
     "LancamentoFinanceiro": LancamentoFinanceiro,
     "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
     "LancamentoPesagensMobile": LancamentoPesagensMobile,
+    "LancamentosTarefas": LancamentosTarefas,
     "LivroCaixa": LivroCaixa,
     "LivrosFiscais": LivrosFiscais,
     "LocaisEstoque": LocaisEstoque,
@@ -142,7 +143,6 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "LancamentosTarefas": LancamentosTarefas,
     "GrupoAtividadeForm": GrupoAtividadeForm,
     "TipoTarefaForm": TipoTarefaForm,
     "LancamentoTarefaForm": LancamentoTarefaForm,
