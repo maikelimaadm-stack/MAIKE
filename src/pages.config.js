@@ -1,143 +1,145 @@
-import Dashboard from './pages/Dashboard';
-import Relatorios from './pages/Relatorios';
-import Usuarios from './pages/Usuarios';
-import Fornecedores from './pages/Fornecedores';
-import Produtos from './pages/Produtos';
-import RelatorioPesagens from './pages/RelatorioPesagens';
-import RelatorioFornecedores from './pages/RelatorioFornecedores';
-import RelatorioProdutos from './pages/RelatorioProdutos';
-import UnidadesMedida from './pages/UnidadesMedida';
-import Categorias from './pages/Categorias';
-import LocaisEstoque from './pages/LocaisEstoque';
-import Empresa from './pages/Empresa';
-import CustosSafra from './pages/CustosSafra';
-import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
-import RelatorioEstoque from './pages/RelatorioEstoque';
-import GerenciarSafras from './pages/GerenciarSafras';
-import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
-import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
-import CentrosCusto from './pages/CentrosCusto';
-import Home from './pages/Home';
-import PlanoContas from './pages/PlanoContas';
-import GruposFinanceiros from './pages/GruposFinanceiros';
-import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
-import LivrosFiscais from './pages/LivrosFiscais';
-import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
-import Pesagens from './pages/Pesagens';
-import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
-import PopularCidades from './pages/PopularCidades';
-import GerenciarCidades from './pages/GerenciarCidades';
-import CaixaBancos from './pages/CaixaBancos';
-import FluxoCaixa from './pages/FluxoCaixa';
-import LivroCaixa from './pages/LivroCaixa';
+import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
+import AreasPastagem from './pages/AreasPastagem';
 import AtivosFixos from './pages/AtivosFixos';
 import Backup from './pages/Backup';
-import AreasPastagem from './pages/AreasPastagem';
 import CadastroLotes from './pages/CadastroLotes';
-import MapaGeral from './pages/MapaGeral';
-import MapaCadastro from './pages/MapaCadastro';
-import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuaria';
-import DashboardSuplementacao from './pages/DashboardSuplementacao';
-import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
-import ConfiguracaoFatoresConsumo from './pages/ConfiguracaoFatoresConsumo';
-import CategoriasManejo from './pages/CategoriasManejo';
 import CadastroMaquinas from './pages/CadastroMaquinas';
-import OperacoesAgricolas from './pages/OperacoesAgricolas';
+import CadastroSetores from './pages/CadastroSetores';
+import CaixaBancos from './pages/CaixaBancos';
+import Categorias from './pages/Categorias';
+import CategoriasManejo from './pages/CategoriasManejo';
+import CentrosCusto from './pages/CentrosCusto';
+import ConfiguracaoFatoresConsumo from './pages/ConfiguracaoFatoresConsumo';
+import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import ControleAreas from './pages/ControleAreas';
+import ControlePecuaria from './pages/ControlePecuaria';
+import CotacoesPecuaria from './pages/CotacoesPecuaria';
+import CustosSafra from './pages/CustosSafra';
+import Dashboard from './pages/Dashboard';
+import DashboardSuplementacao from './pages/DashboardSuplementacao';
+import EditorVisualSistema from './pages/EditorVisualSistema';
+import Empresa from './pages/Empresa';
+import FichaControleCombustivel from './pages/FichaControleCombustivel';
 import FichaOperador from './pages/FichaOperador';
 import FichaOperadorImpressao from './pages/FichaOperadorImpressao';
-import ControlePecuaria from './pages/ControlePecuaria';
-import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
-import CadastroSetores from './pages/CadastroSetores';
-import PesagensIndividuais from './pages/PesagensIndividuais';
-import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
-import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
-import FichaControleCombustivel from './pages/FichaControleCombustivel';
-import RemoverDuplicados from './pages/RemoverDuplicados';
 import FichasPersonalizadas from './pages/FichasPersonalizadas';
-import VisualizarFicha from './pages/VisualizarFicha';
-import CotacoesPecuaria from './pages/CotacoesPecuaria';
-import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
-import AplicacoesMedicamentos from './pages/AplicacoesMedicamentos';
-import SimulacaoResultados from './pages/SimulacaoResultados';
-import EditorVisualSistema from './pages/EditorVisualSistema';
-import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
+import FluxoCaixa from './pages/FluxoCaixa';
+import FormasPagamento from './pages/FormasPagamento';
+import Fornecedores from './pages/Fornecedores';
+import GerenciarCidades from './pages/GerenciarCidades';
+import GerenciarSafras from './pages/GerenciarSafras';
 import GruposAtividades from './pages/GruposAtividades';
-import TiposTarefa from './pages/TiposTarefa';
-import PlanosAcao from './pages/PlanosAcao';
+import GruposFinanceiros from './pages/GruposFinanceiros';
+import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuaria';
+import Home from './pages/Home';
+import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
+import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
+import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
 import LancamentosTarefas from './pages/LancamentosTarefas';
+import LivroCaixa from './pages/LivroCaixa';
+import LivrosFiscais from './pages/LivrosFiscais';
+import LocaisEstoque from './pages/LocaisEstoque';
+import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
+import MapaCadastro from './pages/MapaCadastro';
+import MapaGeral from './pages/MapaGeral';
+import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
+import OperacoesAgricolas from './pages/OperacoesAgricolas';
+import Pesagens from './pages/Pesagens';
+import PesagensIndividuais from './pages/PesagensIndividuais';
+import PlanoContas from './pages/PlanoContas';
+import PlanosAcao from './pages/PlanosAcao';
+import PopularCidades from './pages/PopularCidades';
+import Produtos from './pages/Produtos';
+import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
+import RelatorioEstoque from './pages/RelatorioEstoque';
+import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
+import RelatorioFornecedores from './pages/RelatorioFornecedores';
+import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
+import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
+import RelatorioPesagens from './pages/RelatorioPesagens';
+import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
+import RelatorioProdutos from './pages/RelatorioProdutos';
+import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
+import Relatorios from './pages/Relatorios';
+import RemoverDuplicados from './pages/RemoverDuplicados';
+import SimulacaoResultados from './pages/SimulacaoResultados';
+import TiposTarefa from './pages/TiposTarefa';
+import UnidadesMedida from './pages/UnidadesMedida';
+import Usuarios from './pages/Usuarios';
+import VisualizarFicha from './pages/VisualizarFicha';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Dashboard": Dashboard,
-    "Relatorios": Relatorios,
-    "Usuarios": Usuarios,
-    "Fornecedores": Fornecedores,
-    "Produtos": Produtos,
-    "RelatorioPesagens": RelatorioPesagens,
-    "RelatorioFornecedores": RelatorioFornecedores,
-    "RelatorioProdutos": RelatorioProdutos,
-    "UnidadesMedida": UnidadesMedida,
-    "Categorias": Categorias,
-    "LocaisEstoque": LocaisEstoque,
-    "Empresa": Empresa,
-    "CustosSafra": CustosSafra,
-    "RelatorioCustosSafra": RelatorioCustosSafra,
-    "RelatorioEstoque": RelatorioEstoque,
-    "GerenciarSafras": GerenciarSafras,
-    "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
-    "MovimentacoesEstoque": MovimentacoesEstoque,
-    "CentrosCusto": CentrosCusto,
-    "Home": Home,
-    "PlanoContas": PlanoContas,
-    "GruposFinanceiros": GruposFinanceiros,
-    "RelatorioFinanceiro": RelatorioFinanceiro,
-    "LivrosFiscais": LivrosFiscais,
-    "ConfiguracoesGerais": ConfiguracoesGerais,
-    "Pesagens": Pesagens,
-    "LancamentoFinanceiro": LancamentoFinanceiro,
-    "PopularCidades": PopularCidades,
-    "GerenciarCidades": GerenciarCidades,
-    "CaixaBancos": CaixaBancos,
-    "FluxoCaixa": FluxoCaixa,
-    "LivroCaixa": LivroCaixa,
+    "AplicacoesMedicamentos": AplicacoesMedicamentos,
+    "AreasPastagem": AreasPastagem,
     "AtivosFixos": AtivosFixos,
     "Backup": Backup,
-    "AreasPastagem": AreasPastagem,
     "CadastroLotes": CadastroLotes,
-    "MapaGeral": MapaGeral,
-    "MapaCadastro": MapaCadastro,
-    "HistoricoMovimentacoesPecuaria": HistoricoMovimentacoesPecuaria,
-    "DashboardSuplementacao": DashboardSuplementacao,
-    "RelatorioSuplementacao": RelatorioSuplementacao,
-    "ConfiguracaoFatoresConsumo": ConfiguracaoFatoresConsumo,
-    "CategoriasManejo": CategoriasManejo,
     "CadastroMaquinas": CadastroMaquinas,
-    "OperacoesAgricolas": OperacoesAgricolas,
+    "CadastroSetores": CadastroSetores,
+    "CaixaBancos": CaixaBancos,
+    "Categorias": Categorias,
+    "CategoriasManejo": CategoriasManejo,
+    "CentrosCusto": CentrosCusto,
+    "ConfiguracaoFatoresConsumo": ConfiguracaoFatoresConsumo,
+    "ConfiguracoesGerais": ConfiguracoesGerais,
     "ControleAreas": ControleAreas,
+    "ControlePecuaria": ControlePecuaria,
+    "CotacoesPecuaria": CotacoesPecuaria,
+    "CustosSafra": CustosSafra,
+    "Dashboard": Dashboard,
+    "DashboardSuplementacao": DashboardSuplementacao,
+    "EditorVisualSistema": EditorVisualSistema,
+    "Empresa": Empresa,
+    "FichaControleCombustivel": FichaControleCombustivel,
     "FichaOperador": FichaOperador,
     "FichaOperadorImpressao": FichaOperadorImpressao,
-    "ControlePecuaria": ControlePecuaria,
-    "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
-    "CadastroSetores": CadastroSetores,
-    "PesagensIndividuais": PesagensIndividuais,
-    "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
-    "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
-    "FichaControleCombustivel": FichaControleCombustivel,
-    "RemoverDuplicados": RemoverDuplicados,
     "FichasPersonalizadas": FichasPersonalizadas,
-    "VisualizarFicha": VisualizarFicha,
-    "CotacoesPecuaria": CotacoesPecuaria,
-    "LotesAnimaisCotacao": LotesAnimaisCotacao,
-    "AplicacoesMedicamentos": AplicacoesMedicamentos,
-    "SimulacaoResultados": SimulacaoResultados,
-    "EditorVisualSistema": EditorVisualSistema,
-    "LancamentoPesagensMobile": LancamentoPesagensMobile,
+    "FluxoCaixa": FluxoCaixa,
+    "FormasPagamento": FormasPagamento,
+    "Fornecedores": Fornecedores,
+    "GerenciarCidades": GerenciarCidades,
+    "GerenciarSafras": GerenciarSafras,
     "GruposAtividades": GruposAtividades,
-    "TiposTarefa": TiposTarefa,
-    "PlanosAcao": PlanosAcao,
+    "GruposFinanceiros": GruposFinanceiros,
+    "HistoricoMovimentacoesPecuaria": HistoricoMovimentacoesPecuaria,
+    "Home": Home,
+    "LancamentoFinanceiro": LancamentoFinanceiro,
+    "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
+    "LancamentoPesagensMobile": LancamentoPesagensMobile,
     "LancamentosTarefas": LancamentosTarefas,
+    "LivroCaixa": LivroCaixa,
+    "LivrosFiscais": LivrosFiscais,
+    "LocaisEstoque": LocaisEstoque,
+    "LotesAnimaisCotacao": LotesAnimaisCotacao,
+    "MapaCadastro": MapaCadastro,
+    "MapaGeral": MapaGeral,
+    "MovimentacoesEstoque": MovimentacoesEstoque,
+    "OperacoesAgricolas": OperacoesAgricolas,
+    "Pesagens": Pesagens,
+    "PesagensIndividuais": PesagensIndividuais,
+    "PlanoContas": PlanoContas,
+    "PlanosAcao": PlanosAcao,
+    "PopularCidades": PopularCidades,
+    "Produtos": Produtos,
+    "RelatorioCustosSafra": RelatorioCustosSafra,
+    "RelatorioEstoque": RelatorioEstoque,
+    "RelatorioFinanceiro": RelatorioFinanceiro,
+    "RelatorioFornecedores": RelatorioFornecedores,
+    "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
+    "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
+    "RelatorioPesagens": RelatorioPesagens,
+    "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
+    "RelatorioProdutos": RelatorioProdutos,
+    "RelatorioSuplementacao": RelatorioSuplementacao,
+    "Relatorios": Relatorios,
+    "RemoverDuplicados": RemoverDuplicados,
+    "SimulacaoResultados": SimulacaoResultados,
+    "TiposTarefa": TiposTarefa,
+    "UnidadesMedida": UnidadesMedida,
+    "Usuarios": Usuarios,
+    "VisualizarFicha": VisualizarFicha,
 }
 
 export const pagesConfig = {

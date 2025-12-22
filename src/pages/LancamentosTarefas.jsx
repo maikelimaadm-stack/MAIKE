@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, CheckSquare, AlertTriangle, Copy } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, CheckSquare, AlertTriangle, Copy, Columns } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LancamentosTarefas() {
@@ -24,6 +25,21 @@ export default function LancamentosTarefas() {
   const [fUrgencia, setFUrgencia] = useState("");
   const [fNivel, setFNivel] = useState("");
   const [somenteAtrasadas, setSomenteAtrasadas] = useState(false);
+
+  const [colunas, setColunas] = useState({
+    status: true,
+    urgencia: true,
+    grupo: true,
+    tipo: true,
+    area: true,
+    areaHa: true,
+    capUa: true,
+    responsavel: true,
+    dataIni: true,
+    dataFim: true,
+    atrasada: true,
+    acoes: true,
+  });
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -234,9 +250,36 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                            </label>
           </div>
           <div className="flex items-end gap-2 md:col-span-2 justify-end">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}><Filter className="w-3.5 h-3.5 mr-1"/>Limpar</Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}><RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar</Button>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{ setShowForm(true); setEditing(null); setForm(emptyForm); setItensMaquina([]); setItensProduto([]); setItensImplemento([]); }}><Plus className="w-3.5 h-3.5 mr-1"/>Novo Lançamento</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
+              <Filter className="w-3.5 h-3.5 mr-1"/>Limpar
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">
+                  <Columns className="w-3.5 h-3.5 mr-1" /> Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuCheckboxItem checked={colunas.status} onCheckedChange={(v)=>setColunas(c=>({...c,status:!!v}))}>Status</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.urgencia} onCheckedChange={(v)=>setColunas(c=>({...c,urgencia:!!v}))}>Urgência/Nível</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.grupo} onCheckedChange={(v)=>setColunas(c=>({...c,grupo:!!v}))}>Grupo</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.tipo} onCheckedChange={(v)=>setColunas(c=>({...c,tipo:!!v}))}>Tipo</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.area} onCheckedChange={(v)=>setColunas(c=>({...c,area:!!v}))}>Área</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.areaHa} onCheckedChange={(v)=>setColunas(c=>({...c,areaHa:!!v}))}>Área (ha)</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.capUa} onCheckedChange={(v)=>setColunas(c=>({...c,capUa:!!v}))}>Cap. (UA)</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.responsavel} onCheckedChange={(v)=>setColunas(c=>({...c,responsavel:!!v}))}>Responsável</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.dataIni} onCheckedChange={(v)=>setColunas(c=>({...c,dataIni:!!v}))}>Data inicial</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.dataFim} onCheckedChange={(v)=>setColunas(c=>({...c,dataFim:!!v}))}>Data final</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.atrasada} onCheckedChange={(v)=>setColunas(c=>({...c,atrasada:!!v}))}>Atrasada?</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{ setShowForm(true); setEditing(null); setForm(emptyForm); setItensMaquina([]); setItensProduto([]); setItensImplemento([]); }}>
+              <Plus className="w-3.5 h-3.5 mr-1"/>Novo Lançamento
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -487,46 +530,48 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Urgência/Nível</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Área (ha)</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Cap. (UA)</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Responsável</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Atrasada?</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>
+                  {colunas.status && <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>}
+                  {colunas.urgencia && <TableHead className="text-xs font-bold py-1 border border-black">Urgência/Nível</TableHead>}
+                  {colunas.grupo && <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>}
+                  {colunas.tipo && <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>}
+                  {colunas.area && <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>}
+                  {colunas.areaHa && <TableHead className="text-xs font-bold py-1 border border-black">Área (ha)</TableHead>}
+                  {colunas.capUa && <TableHead className="text-xs font-bold py-1 border border-black">Cap. (UA)</TableHead>}
+                  {colunas.responsavel && <TableHead className="text-xs font-bold py-1 border border-black">Responsável</TableHead>}
+                  {colunas.dataIni && <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>}
+                  {colunas.dataFim && <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>}
+                  {colunas.atrasada && <TableHead className="text-xs font-bold py-1 border border-black">Atrasada?</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={11} className="text-xs py-1 border border-gray-300 text-center">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Carregando...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-xs py-1 border border-gray-300 text-center">Nenhum registro</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Nenhum registro</TableCell></TableRow>
                 ) : (
                   filtered.map(l => (
                     <TableRow key={l.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.tamanho_hectares) ?? '-'}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.capacidade_maxima) ?? '-'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.responsavel_nome}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.data_inicial}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        <div className="flex gap-1 flex-wrap">
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditing(l); setForm({ ...l }); setShowForm(true); }}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>duplicar(l)}><Copy className="w-3.5 h-3.5 mr-1"/>Duplicar</Button>
-                          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir lançamento?')) deleteMutation.mutate(l.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                        </div>
-                      </TableCell>
+                      {colunas.status && <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>}
+                      {colunas.urgencia && <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
+                      {colunas.grupo && <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>}
+                      {colunas.tipo && <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>}
+                      {colunas.area && <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>}
+                      {colunas.areaHa && <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.tamanho_hectares) ?? '-'}</TableCell>}
+                      {colunas.capUa && <TableCell className="text-xs py-1 border border-gray-300">{(areas.find(a => a.id === l.area_pasto_id)?.capacidade_maxima) ?? '-'}</TableCell>}
+                      {colunas.responsavel && <TableCell className="text-xs py-1 border border-gray-300">{l.responsavel_nome}</TableCell>}
+                      {colunas.dataIni && <TableCell className="text-xs py-1 border border-gray-300">{l.data_inicial}</TableCell>}
+                      {colunas.dataFim && <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>}
+                      {colunas.atrasada && <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
+                      {colunas.acoes && (
+                        <TableCell className="text-xs py-1 border border-gray-300">
+                          <div className="flex gap-1 flex-wrap">
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditing(l); setForm({ ...l }); setShowForm(true); }}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>duplicar(l)}><Copy className="w-3.5 h-3.5 mr-1"/>Duplicar</Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir lançamento?')) deleteMutation.mutate(l.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
