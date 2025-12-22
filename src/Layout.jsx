@@ -93,16 +93,6 @@ const DEFAULT_MENU = [
             { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" },
     ],
   },
-  {
-    id: "gestao-tarefas",
-    title: "Gestão de Tarefas",
-    icon: "FolderOpen",
-    submenu: [
-      { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
-      { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
-      { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
-    ],
-  },
 
   {
     id: "financeiro",
@@ -212,7 +202,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2025-12-22-gestao-tarefas-v2'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2025-12-22-gestao-tarefas-removed-v3'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
