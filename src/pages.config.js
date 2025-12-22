@@ -28,12 +28,16 @@ import FormasPagamento from './pages/FormasPagamento';
 import Fornecedores from './pages/Fornecedores';
 import GerenciarCidades from './pages/GerenciarCidades';
 import GerenciarSafras from './pages/GerenciarSafras';
+import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
+import GruposAtividades from './pages/GruposAtividades';
 import GruposFinanceiros from './pages/GruposFinanceiros';
 import HistoricoMovimentacoesPecuaria from './pages/HistoricoMovimentacoesPecuaria';
 import Home from './pages/Home';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
 import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
+import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
+import LancamentosTarefas from './pages/LancamentosTarefas';
 import LivroCaixa from './pages/LivroCaixa';
 import LivrosFiscais from './pages/LivrosFiscais';
 import LocaisEstoque from './pages/LocaisEstoque';
@@ -60,15 +64,11 @@ import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
 import Relatorios from './pages/Relatorios';
 import RemoverDuplicados from './pages/RemoverDuplicados';
 import SimulacaoResultados from './pages/SimulacaoResultados';
+import TipoTarefaForm from './pages/TipoTarefaForm';
+import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import GruposAtividades from './pages/GruposAtividades';
-import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
-import TiposTarefa from './pages/TiposTarefa';
-import TipoTarefaForm from './pages/TipoTarefaForm';
-import LancamentosTarefas from './pages/LancamentosTarefas';
-import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
 import __Layout from './Layout.jsx';
 
 
@@ -103,12 +103,16 @@ export const PAGES = {
     "Fornecedores": Fornecedores,
     "GerenciarCidades": GerenciarCidades,
     "GerenciarSafras": GerenciarSafras,
+    "GrupoAtividadeForm": GrupoAtividadeForm,
+    "GruposAtividades": GruposAtividades,
     "GruposFinanceiros": GruposFinanceiros,
     "HistoricoMovimentacoesPecuaria": HistoricoMovimentacoesPecuaria,
     "Home": Home,
     "LancamentoFinanceiro": LancamentoFinanceiro,
     "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
     "LancamentoPesagensMobile": LancamentoPesagensMobile,
+    "LancamentoTarefaForm": LancamentoTarefaForm,
+    "LancamentosTarefas": LancamentosTarefas,
     "LivroCaixa": LivroCaixa,
     "LivrosFiscais": LivrosFiscais,
     "LocaisEstoque": LocaisEstoque,
@@ -135,15 +139,11 @@ export const PAGES = {
     "Relatorios": Relatorios,
     "RemoverDuplicados": RemoverDuplicados,
     "SimulacaoResultados": SimulacaoResultados,
+    "TipoTarefaForm": TipoTarefaForm,
+    "TiposTarefa": TiposTarefa,
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "GruposAtividades": GruposAtividades,
-    "GrupoAtividadeForm": GrupoAtividadeForm,
-    "TiposTarefa": TiposTarefa,
-    "TipoTarefaForm": TipoTarefaForm,
-    "LancamentosTarefas": LancamentosTarefas,
-    "LancamentoTarefaForm": LancamentoTarefaForm,
 }
 
 export const pagesConfig = {

@@ -16,7 +16,7 @@ export default function TiposTarefa() {
   const [filtroGrupo, setFiltroGrupo] = useState("");
   const [filtroAtivo, setFiltroAtivo] = useState("");
   const [colunas, setColunas] = useState({ tipo: true, grupo: true, ativo: true, criado: true, atualizado: true, acoes: true });
-  useEffect(() => { try { const s = localStorage.getItem('tipos_tarefa_colunas'); if (s) setColunas(c=>({...c, ...JSON.parse(s)})); } catch {} }, []);
+  useEffect(() => { try { const s = localStorage.getItem('tipos_tarefa_colunas'); if (s) { const saved = JSON.parse(s); setColunas(c=>({...c, ...saved, acoes: true})); } } catch {} }, []);
   useEffect(() => { try { localStorage.setItem('tipos_tarefa_colunas', JSON.stringify(colunas)); } catch {} }, [colunas]);
   const [selected, setSelected] = useState([]);
 
@@ -120,7 +120,7 @@ export default function TiposTarefa() {
                   {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
                   {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
                   {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-40">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -140,23 +140,17 @@ export default function TiposTarefa() {
                       {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.created_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.updated_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300 w-8">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5"/></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                              <DropdownMenuItem asChild className="text-xs">
-                                <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>
-                                  <Edit2 className="w-3.5 h-3.5 mr-1"/> Editar
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-xs text-red-600" onClick={()=>excluir(t.id)}>
-                                <Trash2 className="w-3.5 h-3.5 mr-1"/> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <TableCell className="text-xs py-1 border border-gray-300 w-40">
+                          <div className="flex flex-wrap gap-1">
+                            <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>
+                              <Button variant="outline" size="sm" className="h-8 text-xs">
+                                <Edit2 className="w-3.5 h-3.5 mr-1"/> Editar
+                              </Button>
+                            </Link>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>excluir(t.id)}>
+                              <Trash2 className="w-3.5 h-3.5 mr-1"/> Excluir
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>

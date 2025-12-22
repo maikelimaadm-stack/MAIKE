@@ -201,7 +201,7 @@ export default function LancamentosTarefas() {
                   {colunas.dataIni && <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>}
                   {colunas.dataFim && <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>}
                   {colunas.atrasada && <TableHead className="text-xs font-bold py-1 border border-black">Atrasada?</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-10"></TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-48">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -225,28 +225,20 @@ export default function LancamentosTarefas() {
                       {colunas.dataFim && <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>}
                       {colunas.atrasada && <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
                       {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300 w-10">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-8 text-xs px-2">
-                                <MoreVertical className="w-3.5 h-3.5 mr-1" /> Ações
+                        <TableCell className="text-xs py-1 border border-gray-300 w-[260px]">
+                          <div className="flex flex-wrap gap-1">
+                            <Link to={createPageUrl(`LancamentoTarefaForm?id=${l.id}`)}>
+                              <Button variant="outline" size="sm" className="h-8 text-xs">
+                                <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link to={createPageUrl(`LancamentoTarefaForm?id=${l.id}`)}>
-                                  <Edit2 className="w-3.5 h-3.5 mr-1"/> Editar
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={()=>duplicar(l)}>
-                                <Copy className="w-3.5 h-3.5 mr-1"/> Duplicar
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600" onClick={()=>excluir(l.id)}>
-                                <Trash2 className="w-3.5 h-3.5 mr-1"/> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            </Link>
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>duplicar(l)}>
+                              <Copy className="w-3.5 h-3.5 mr-1" /> Duplicar
+                            </Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>excluir(l.id)}>
+                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
