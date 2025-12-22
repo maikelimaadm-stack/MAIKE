@@ -57,10 +57,6 @@ export default function LancamentosTarefas() {
 
   // Seleção de linhas (padrão das listas)
   const [selecionados, setSelecionados] = useState([]);
-  const allIds = useMemo(() => filtered.map(l => l.id), [filtered]);
-  const todosMarcados = selecionados.length > 0 && selecionados.length === allIds.length;
-  const alternarTodos = (checked) => setSelecionados(checked ? allIds : []);
-  const alternarUm = (id, checked) => setSelecionados(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -114,6 +110,12 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
       (!somenteAtrasadas || !!l.atrasada)
     );
   }, [lancs, search, periodoIni, periodoFim, fStatus, fGrupo, fTipo, fArea, fResp, fUrgencia, fNivel, somenteAtrasadas]);
+
+  // Dependentes do 'filtered'
+  const allIds = useMemo(() => filtered.map(l => l.id), [filtered]);
+  const todosMarcados = selecionados.length > 0 && selecionados.length === allIds.length;
+  const alternarTodos = (checked) => setSelecionados(checked ? allIds : []);
+  const alternarUm = (id, checked) => setSelecionados(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
 
   const createMutation = useMutation({
     mutationFn: async (payload) => base44.entities.LancamentoTarefa.create(payload),
