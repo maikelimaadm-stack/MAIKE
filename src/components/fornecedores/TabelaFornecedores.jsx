@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const COLUNAS_DISPONIVEIS = [
