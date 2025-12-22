@@ -97,7 +97,7 @@ export default function LancamentoTarefaForm() {
       </div>
 
       <Card>
-        <CardContent className="p-0 grid grid-cols-5 lg:grid-cols-1 gap-3">
+        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs">Tipo de Tarefa *</label>
             <Select value={form.tipo_tarefa_id} onValueChange={(v) => setForm((f) => ({ ...f, tipo_tarefa_id: v }))}>
