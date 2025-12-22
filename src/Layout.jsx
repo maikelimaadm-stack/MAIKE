@@ -93,6 +93,16 @@ const DEFAULT_MENU = [
             { id: "maq-ficha-combustivel", title: "Ficha Controle Combustível", url: "FichaControleCombustivel" },
     ],
   },
+  {
+    id: "gestao-tarefas",
+    title: "Gestão de Tarefas",
+    icon: "FolderOpen",
+    submenu: [
+      { id: "gt-grupos", title: "Grupos de Atividades", url: "GruposAtividades" },
+      { id: "gt-tipos", title: "Tipos de Tarefa", url: "TiposTarefa" },
+      { id: "gt-lancamentos", title: "Lançamentos", url: "LancamentosTarefas" },
+    ],
+  },
 
   {
     id: "financeiro",
