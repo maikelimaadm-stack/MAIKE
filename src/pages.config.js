@@ -67,6 +67,8 @@ import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
 import LancamentosTarefas from './pages/LancamentosTarefas';
+import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
+import TipoTarefaForm from './pages/TipoTarefaForm';
 import __Layout from './Layout.jsx';
 
 
@@ -140,6 +142,8 @@ export const PAGES = {
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
     "LancamentosTarefas": LancamentosTarefas,
+    "GrupoAtividadeForm": GrupoAtividadeForm,
+    "TipoTarefaForm": TipoTarefaForm,
 }
 
 export const pagesConfig = {

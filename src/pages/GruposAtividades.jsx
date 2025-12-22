@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Search, Settings, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 export default function GruposAtividades() {
   const queryClient = useQueryClient();
@@ -100,9 +102,9 @@ export default function GruposAtividades() {
               <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => { setShowForm(true); setEditing(null); setForm({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" }); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-            Novo
-          </Button>
+          <Link to={createPageUrl("GrupoAtividadeForm")}>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Novo</Button>
+          </Link>
         </div>
       </div>
       <Card>
@@ -219,7 +221,9 @@ export default function GruposAtividades() {
                                                       </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="start">
-                                                      <DropdownMenuItem className="text-xs" onClick={()=>{setEditing(g); setForm({ nome_grupo: g.nome_grupo||'', ativo: !!g.ativo, descricao: g.descricao||'', cor_icone: g.cor_icone||'', observacoes: g.observacoes||'' }); setShowForm(true);}}>Editar</DropdownMenuItem>
+                                                      <DropdownMenuItem asChild className="text-xs">
+                                <Link to={createPageUrl(`GrupoAtividadeForm?id=${g.id}`)}>Editar</Link>
+                              </DropdownMenuItem>
                                                       <DropdownMenuSeparator />
                                                       <DropdownMenuItem className="text-xs text-red-600" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}>Excluir</DropdownMenuItem>
                                                     </DropdownMenuContent>

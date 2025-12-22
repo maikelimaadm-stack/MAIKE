@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, Columns, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 export default function TiposTarefa() {
   const queryClient = useQueryClient();
@@ -101,9 +103,9 @@ export default function TiposTarefa() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{setShowForm(true); setEditing(null); setForm({ nome_tipo: "", grupo_atividade_id: "", ativo: true, descricao: "", exige_area: false, pode_ter_produto: false, pode_ter_maquina: false, pode_ter_implemento: false });}}>
-            Novo
-          </Button>
+          <Link to={createPageUrl("TipoTarefaForm")}>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Novo</Button>
+            </Link>
         </div>
       </div>
       {/* Filtros */}
@@ -153,7 +155,7 @@ export default function TiposTarefa() {
         </CardContent>
       </Card>
 
-      {showForm && (
+      {false && (
         <Card>
           <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -283,7 +285,9 @@ export default function TiposTarefa() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
-                              <DropdownMenuItem className="text-xs" onClick={()=>{setEditing(t); setForm({ nome_tipo: t.nome_tipo||'', grupo_atividade_id: t.grupo_atividade_id||'', ativo: !!t.ativo, descricao: t.descricao||'', exige_area: !!t.exige_area, pode_ter_produto: !!t.pode_ter_produto, pode_ter_maquina: !!t.pode_ter_maquina, pode_ter_implemento: !!t.pode_ter_implemento }); setShowForm(true);}}>Editar</DropdownMenuItem>
+                              <DropdownMenuItem asChild className="text-xs">
+                              <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>Editar</Link>
+                            </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-xs text-red-600" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(t.id); }}>Excluir</DropdownMenuItem>
                             </DropdownMenuContent>
