@@ -37,19 +37,14 @@ export default function LancamentosTarefas() {
   const { data: lancs = [], isLoading, refetch } = useQuery({ queryKey: ["lancamentos-tarefa"], queryFn: () => base44.entities.LancamentoTarefa.list("-updated_date"), initialData: [] });
 
   const filtered = useMemo(() => {
-    return lancs.filter(l =>
-      (!search || (l.nome_tipo_tarefa||'').toLowerCase().includes(search.toLowerCase()) || (l.grupo_atividade_nome||'').toLowerCase().includes(search.toLowerCase()) || (l.responsavel_nome||'').toLowerCase().includes(search.toLowerCase())) &&
-      (!periodoIni || (l.data_inicial && l.data_inicial >= periodoIni)) &&
-      (!periodoFim || (l.data_final && l.data_final <= periodoFim)) &&
-      (!fStatus || l.status_tarefa === fStatus) &&
-      (!fGrupo || l.grupo_atividade_id === fGrupo) &&
-      (!fTipo || l.tipo_tarefa_id === fTipo) &&
-      (!fArea || l.area_pasto_id === fArea) &&
-      (!fResp || l.responsavel_id === fResp) &&
-      (!fUrgencia || l.urgencia === fUrgencia) &&
-      (!fNivel || l.nivel_urgencia === fNivel)
+    const termo = (search || '').toLowerCase();
+    return lancs.filter(l => !termo ||
+      (l.nome_tipo_tarefa || '').toLowerCase().includes(termo) ||
+      (l.grupo_atividade_nome || '').toLowerCase().includes(termo) ||
+      (l.responsavel_nome || '').toLowerCase().includes(termo) ||
+      (l.status_tarefa || '').toLowerCase().includes(termo)
     );
-  }, [lancs, search, periodoIni, periodoFim, fStatus, fGrupo, fTipo, fArea, fResp, fUrgencia, fNivel]);
+  }, [lancs, search]);
 
   const allIds = filtered.map(l => l.id);
   const todosMarcados = selecionados.length > 0 && selecionados.length === allIds.length;
@@ -71,11 +66,10 @@ export default function LancamentosTarefas() {
               <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={createPageUrl("LancamentoTarefaForm")}>
-                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Lançar Tarefa
-                </Button>
-              </Link>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input placeholder="Buscar..." value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 text-xs">
@@ -88,120 +82,37 @@ export default function LancamentosTarefas() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Link to={createPageUrl("LancamentoTarefaForm")}>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Lançar Tarefa
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
-          <div className="md:col-span-2 relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar (tipo, grupo, responsável)" className="h-8 text-xs pl-8" />
-          </div>
-          <div>
-            <label className="text-xs">Período início</label>
-            <Input type="date" value={periodoIni} onChange={(e)=>setPeriodoIni(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <div>
-            <label className="text-xs">Período fim</label>
-            <Input type="date" value={periodoFim} onChange={(e)=>setPeriodoFim(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <div>
-            <label className="text-xs">Status</label>
-            <Select value={fStatus} onValueChange={setFStatus}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {["Planejada","Em andamento","Concluída","Cancelada","Atrasada"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Grupo</label>
-            <Select value={fGrupo} onValueChange={setFGrupo}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {grupos.map(g => <SelectItem key={g.id} value={g.id}>{g.nome_grupo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Tipo</label>
-            <Select value={fTipo} onValueChange={setFTipo}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {tipos.map(t => <SelectItem key={t.id} value={t.id}>{t.nome_tipo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Área/Pasto</label>
-            <Select value={fArea} onValueChange={setFArea}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todas</SelectItem>
-                {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Responsável</label>
-            <Select value={fResp} onValueChange={setFResp}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {pessoas.filter(p => (p.tipos||[]).includes("Funcionario")).map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Urgência</label>
-            <Select value={fUrgencia} onValueChange={setFUrgencia}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todas</SelectItem>
-                {["Não urgente","Urgente"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs">Nível</label>
-            <Select value={fNivel} onValueChange={setFNivel}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Todos</SelectItem>
-                {["Baixo","Médio","Alto","Crítico"].map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end gap-2 md:col-span-2 justify-end">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
-          </div>
-        </CardContent>
-      </Card>
+
 
       <Card>
         <CardContent className="p-0">
           <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
+                <TableRow className="bg-slate-50 border-b">
+                  <TableHead className="w-8 text-xs border-r border-slate-200">
                     <Checkbox checked={todosMarcados} onCheckedChange={(v)=>alternarTodos(!!v)} />
                   </TableHead>
-                  {colunas.status && <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>}
-                  {colunas.urgencia && <TableHead className="text-xs font-bold py-1 border border-black">Urgência/Nível</TableHead>}
-                  {colunas.grupo && <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>}
-                  {colunas.tipo && <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>}
-                  {colunas.area && <TableHead className="text-xs font-bold py-1 border border-black">Área</TableHead>}
-                  {colunas.responsavel && <TableHead className="text-xs font-bold py-1 border border-black">Responsável</TableHead>}
-                  {colunas.dataIni && <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>}
-                  {colunas.dataFim && <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>}
-                  {colunas.atrasada && <TableHead className="text-xs font-bold py-1 border border-black">Atrasada?</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-48">Ações</TableHead>}
+                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  {colunas.status && <TableHead className="text-xs border-r border-slate-200">Status</TableHead>}
+                  {colunas.urgencia && <TableHead className="text-xs border-r border-slate-200">Urgência/Nível</TableHead>}
+                  {colunas.grupo && <TableHead className="text-xs border-r border-slate-200">Grupo</TableHead>}
+                  {colunas.tipo && <TableHead className="text-xs border-r border-slate-200">Tipo</TableHead>}
+                  {colunas.area && <TableHead className="text-xs border-r border-slate-200">Área</TableHead>}
+                  {colunas.responsavel && <TableHead className="text-xs border-r border-slate-200">Responsável</TableHead>}
+                  {colunas.dataIni && <TableHead className="text-xs border-r border-slate-200">Data inicial</TableHead>}
+                  {colunas.dataFim && <TableHead className="text-xs border-r border-slate-200">Data final</TableHead>}
+                  {colunas.atrasada && <TableHead className="text-xs border-r border-slate-200">Atrasada?</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
