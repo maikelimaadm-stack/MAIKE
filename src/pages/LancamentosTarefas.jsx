@@ -117,41 +117,42 @@ export default function LancamentosTarefas() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border-r border-slate-200 text-center">Carregando...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Nenhum registro</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border-r border-slate-200 text-center">Nenhum registro</TableCell></TableRow>
                 ) : (
                   filtered.map(l => (
-                    <TableRow key={l.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                                        <TableRow key={l.id} className="hover:bg-slate-50 transition-colors border-b">
+                      <TableCell className="border-r border-slate-200">
                         <Checkbox checked={selecionados.includes(l.id)} onCheckedChange={(v)=>alternarUm(l.id, !!v)} />
                       </TableCell>
-                      {colunas.status && <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>}
-                      {colunas.urgencia && <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
-                      {colunas.grupo && <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>}
-                      {colunas.tipo && <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>}
-                      {colunas.area && <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>}
-                      {colunas.responsavel && <TableCell className="text-xs py-1 border border-gray-300">{l.responsavel_nome}</TableCell>}
-                      {colunas.dataIni && <TableCell className="text-xs py-1 border border-gray-300">{l.data_inicial}</TableCell>}
-                      {colunas.dataFim && <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>}
-                      {colunas.atrasada && <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
-                      {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300 w-[260px]">
-                          <div className="flex flex-wrap gap-1">
-                            <Link to={createPageUrl(`LancamentoTarefaForm?id=${l.id}`)}>
-                              <Button variant="outline" size="sm" className="h-8 text-xs">
-                                <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
-                              </Button>
-                            </Link>
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>duplicar(l)}>
-                              <Copy className="w-3.5 h-3.5 mr-1" /> Duplicar
+                      <TableCell className="text-center border-r border-slate-200">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                             </Button>
-                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>excluir(l.id)}>
-                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem asChild className="text-xs">
+                              <Link to={createPageUrl(`LancamentoTarefaForm?id=${l.id}`)}>Editar</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => duplicar(l)} className="text-xs">Duplicar</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => excluir(l.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      {colunas.status && <TableCell className="text-xs py-1 border-r border-slate-200">{l.status_tarefa}</TableCell>}
+                      {colunas.urgencia && <TableCell className="text-xs py-1 border-r border-slate-200">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
+                      {colunas.grupo && <TableCell className="text-xs py-1 border-r border-slate-200">{l.grupo_atividade_nome}</TableCell>}
+                      {colunas.tipo && <TableCell className="text-xs py-1 border-r border-slate-200">{l.nome_tipo_tarefa}</TableCell>}
+                      {colunas.area && <TableCell className="text-xs py-1 border-r border-slate-200">{l.area_pasto_nome || '-'}</TableCell>}
+                      {colunas.responsavel && <TableCell className="text-xs py-1 border-r border-slate-200">{l.responsavel_nome}</TableCell>}
+                      {colunas.dataIni && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_inicial}</TableCell>}
+                      {colunas.dataFim && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_final}</TableCell>}
+                      {colunas.atrasada && <TableCell className="text-xs py-1 border-r border-slate-200">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
+                      
                     </TableRow>
                   ))
                 )}
