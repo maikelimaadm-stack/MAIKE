@@ -63,6 +63,12 @@ import SimulacaoResultados from './pages/SimulacaoResultados';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import GruposAtividades from './pages/GruposAtividades';
+import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
+import TiposTarefa from './pages/TiposTarefa';
+import TipoTarefaForm from './pages/TipoTarefaForm';
+import LancamentosTarefas from './pages/LancamentosTarefas';
+import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
 import __Layout from './Layout.jsx';
 
 
@@ -132,6 +138,12 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "GruposAtividades": GruposAtividades,
+    "GrupoAtividadeForm": GrupoAtividadeForm,
+    "TiposTarefa": TiposTarefa,
+    "TipoTarefaForm": TipoTarefaForm,
+    "LancamentosTarefas": LancamentosTarefas,
+    "LancamentoTarefaForm": LancamentoTarefaForm,
 }
 
 export const pagesConfig = {
