@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Columns } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Columns, Layers } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GruposAtividades() {
@@ -26,6 +27,25 @@ export default function GruposAtividades() {
   useEffect(() => {
     try { localStorage.setItem('grupos_atividades_colunas', JSON.stringify(colunas)); } catch {}
   }, [colunas]);
+
+  // Seleção de linhas
+  const [selectedItems, setSelectedItems] = useState([]);
+  const toggleSelectAll = (checked) => {
+    setSelectedItems(checked ? filtered.map(g => g.id) : []);
+  };
+  const toggleOne = (id, checked) => {
+    setSelectedItems(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
+  };
+  const handleDeleteSelected = async () => {
+    if (selectedItems.length === 0) return;
+    if (!confirm(`Excluir ${selectedItems.length} registro(s)?`)) return;
+    for (const id of selectedItems) {
+      await base44.entities.GrupoAtividade.delete(id);
+    }
+    toast.success('Registros excluídos!');
+    setSelectedItems([]);
+    queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
+  };
 
   const { data: grupos = [], isLoading, refetch } = useQuery({
     queryKey: ["grupos-atividades"],
@@ -81,6 +101,22 @@ export default function GruposAtividades() {
                 <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {selectedItems.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Layers className="w-3.5 h-3.5"/> Ações ({selectedItems.length})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs text-red-600" onClick={handleDeleteSelected}>Excluir Selecionados</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Button onClick={() => { setShowForm(true); setEditing(null); setForm({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" }); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"><Plus className="w-3.5 h-3.5 mr-1"/>Novo</Button>
           </div>
         </CardContent>
@@ -129,11 +165,17 @@ export default function GruposAtividades() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Nome</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
+                    <Checkbox 
+                      checked={selectedItems.length === filtered.length && filtered.length > 0}
+                      onCheckedChange={(v)=>toggleSelectAll(!!v)}
+                    />
+                  </TableHead>
+                  {colunas.nome && <TableHead className="text-xs font-bold py-1 border border-black">Nome</TableHead>}
+                  {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
+                  {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
+                  {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -144,16 +186,24 @@ export default function GruposAtividades() {
                 ) : (
                   filtered.map(g => (
                     <TableRow key={g.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{g.nome_grupo}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{g.ativo ? 'Sim' : 'Não'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.created_date).toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.updated_date).toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        <div className="flex gap-1">
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(g); setForm({ nome_grupo: g.nome_grupo||'', ativo: !!g.ativo, descricao: g.descricao||'', cor_icone: g.cor_icone||'', observacoes: g.observacoes||'' }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                        </div>
+                      <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                        <Checkbox 
+                          checked={selectedItems.includes(g.id)}
+                          onCheckedChange={(v)=>toggleOne(g.id, !!v)}
+                        />
                       </TableCell>
+                      {colunas.nome && <TableCell className="text-xs py-1 border border-gray-300">{g.nome_grupo}</TableCell>}
+                      {colunas.ativo && <TableCell className="text-xs py-1 border border-gray-300">{g.ativo ? 'Sim' : 'Não'}</TableCell>}
+                      {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.created_date).toLocaleString('pt-BR')}</TableCell>}
+                      {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.updated_date).toLocaleString('pt-BR')}</TableCell>}
+                      {colunas.acoes && (
+                        <TableCell className="text-xs py-1 border border-gray-300">
+                          <div className="flex gap-1">
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(g); setForm({ nome_grupo: g.nome_grupo||'', ativo: !!g.ativo, descricao: g.descricao||'', cor_icone: g.cor_icone||'', observacoes: g.observacoes||'' }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
