@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, CheckSquare, AlertTriangle, Copy, Columns, MoreVertical, Settings, Upload, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 export default function LancamentosTarefas() {
   const queryClient = useQueryClient();
@@ -190,22 +192,20 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
               <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
-                <RefreshCw className="w-3.5 h-3.5 mr-1"/> Atualizar
-              </Button>
+              
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Exportar (em breve)')}>
-                <Download className="w-3.5 h-3.5 mr-1"/> Exportar
+                Exportar
               </Button>
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Modelo (em breve)')}>
-                <FileText className="w-3.5 h-3.5 mr-1"/> Modelo
+                Modelo
               </Button>
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Importar (em breve)')}>
-                <Upload className="w-3.5 h-3.5 mr-1"/> Importar
+                Importar
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs">
-                    <Columns className="w-3.5 h-3.5 mr-1" /> Colunas
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -223,9 +223,11 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                   <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{ setShowForm(true); setEditing(null); setForm(emptyForm); setItensMaquina([]); setItensProduto([]); setItensImplemento([]); }}>
-                <Plus className="w-3.5 h-3.5 mr-1"/> Lançar Tarefa
-              </Button>
+              <Link to={createPageUrl("LancamentoTarefaForm")}>
+                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                  Lançar Tarefa
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -324,13 +326,13 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
           </div>
           <div className="flex items-end gap-2 md:col-span-2 justify-end">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
-              <Filter className="w-3.5 h-3.5 mr-1"/> Limpar Filtros
+              Limpar Filtros
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {showForm && (
+      {false && (
         <Card>
           <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -590,7 +592,7 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                   {colunas.dataIni && <TableHead className="text-xs font-bold py-1 border border-black">Data inicial</TableHead>}
                   {colunas.dataFim && <TableHead className="text-xs font-bold py-1 border border-black">Data final</TableHead>}
                   {colunas.atrasada && <TableHead className="text-xs font-bold py-1 border border-black">Atrasada?</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-10"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -624,15 +626,15 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={()=>{ setEditing(l); setForm({ ...l }); setShowForm(true); }}>
-                                <Pencil className="w-3.5 h-3.5 mr-2"/> Editar
+                              <DropdownMenuItem asChild>
+                                <Link to={createPageUrl(`LancamentoTarefaForm?id=${l.id}`)}>Editar</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={()=>duplicar(l)}>
-                                <Copy className="w-3.5 h-3.5 mr-2"/> Duplicar
+                                Duplicar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-red-600" onClick={()=>{ if(confirm('Excluir lançamento?')) deleteMutation.mutate(l.id); }}>
-                                <Trash2 className="w-3.5 h-3.5 mr-2"/> Excluir
+                                Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

@@ -69,6 +69,7 @@ import VisualizarFicha from './pages/VisualizarFicha';
 import LancamentosTarefas from './pages/LancamentosTarefas';
 import GrupoAtividadeForm from './pages/GrupoAtividadeForm';
 import TipoTarefaForm from './pages/TipoTarefaForm';
+import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
 import __Layout from './Layout.jsx';
 
 
@@ -144,6 +145,7 @@ export const PAGES = {
     "LancamentosTarefas": LancamentosTarefas,
     "GrupoAtividadeForm": GrupoAtividadeForm,
     "TipoTarefaForm": TipoTarefaForm,
+    "LancamentoTarefaForm": LancamentoTarefaForm,
 }
 
 export const pagesConfig = {
