@@ -41,7 +41,7 @@ export default function LancamentoTarefaForm() {
     const load = async () => {
       if (!isEdit) return;
       const all = await base44.entities.LancamentoTarefa.list();
-      const item = all.find(x => x.id === id);
+      const item = all.find((x) => x.id === id);
       if (item) setForm({ ...emptyForm, ...item });
     };
     load();
@@ -53,7 +53,7 @@ export default function LancamentoTarefaForm() {
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["lancamentos-tarefa"] });
       window.location.href = createPageUrl("LancamentosTarefas");
-    },
+    }
   });
 
   const updateMutation = useMutation({
@@ -61,25 +61,25 @@ export default function LancamentoTarefaForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lancamentos-tarefa"] });
       window.location.href = createPageUrl("LancamentosTarefas");
-    },
+    }
   });
 
   const handleSave = () => {
     if (!form.tipo_tarefa_id) return;
     if (!form.data_inicial || !form.data_final) return;
-    const tipo = tipos.find(t => t.id === form.tipo_tarefa_id);
-    const grupo = grupos.find(g => g.id === tipo?.grupo_atividade_id);
-    const area = areas.find(a => a.id === form.area_pasto_id);
-    const resp = pessoas.find(p => p.id === form.responsavel_id && (p.tipos||[]).includes("Funcionario"));
+    const tipo = tipos.find((t) => t.id === form.tipo_tarefa_id);
+    const grupo = grupos.find((g) => g.id === tipo?.grupo_atividade_id);
+    const area = areas.find((a) => a.id === form.area_pasto_id);
+    const resp = pessoas.find((p) => p.id === form.responsavel_id && (p.tipos || []).includes("Funcionario"));
     const payload = {
       ...form,
       nome_tipo_tarefa: tipo?.nome_tipo || "",
       grupo_atividade_id: tipo?.grupo_atividade_id || "",
       grupo_atividade_nome: grupo?.nome_grupo || "",
       area_pasto_nome: area?.nome || "",
-      responsavel_nome: resp?.nome || "",
+      responsavel_nome: resp?.nome || ""
     };
-    if (isEdit) updateMutation.mutate({ id, data: payload }); else createMutation.mutate(payload);
+    if (isEdit) updateMutation.mutate({ id, data: payload });else createMutation.mutate(payload);
   };
 
   return (
@@ -87,103 +87,103 @@ export default function LancamentoTarefaForm() {
       <div className="flex items-center justify-between bg-white rounded px-3 py-2 border-b">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Lançar"} Tarefa</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { window.location.href = createPageUrl("LancamentosTarefas"); }}>
-            <X className="w-3.5 h-3.5 mr-1"/> Cancelar
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {window.location.href = createPageUrl("LancamentosTarefas");}}>
+            <X className="w-3.5 h-3.5 mr-1" /> Cancelar
           </Button>
           <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
-            <Save className="w-3.5 h-3.5 mr-1"/> Salvar
+            <Save className="w-3.5 h-3.5 mr-1" /> Salvar
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CardContent className="gap- gap- gap- gap- lg:grid-cols- lg:grid-cols- lg:grid-cols- p- p- p- p- p- grid-cols- grid-cols- grid-cols- grid-cols- grid-cols- grid-cols- grid-cols- grid-cols- grid-cols- gap- gap- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- lg:grid-cols- gap- lg:grid-cols- lg:grid-cols- lg:grid-cols- grid-cols- grid-cols- gap- gap- grid-cols- p-3 grid grid-cols-5 lg:grid-cols-8 gap-3">
           <div className="space-y-1">
             <label className="text-xs">Tipo de Tarefa *</label>
-            <Select value={form.tipo_tarefa_id} onValueChange={(v)=>setForm(f=>({...f,tipo_tarefa_id:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
+            <Select value={form.tipo_tarefa_id} onValueChange={(v) => setForm((f) => ({ ...f, tipo_tarefa_id: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                {tipos.map(t => <SelectItem key={t.id} value={t.id}>{t.nome_tipo}</SelectItem>)}
+                {tipos.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome_tipo}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
             <label className="text-xs">Grupo de Atividades</label>
-            <Input value={grupos.find(g => g.id === (tipos.find(t=>t.id===form.tipo_tarefa_id)?.grupo_atividade_id))?.nome_grupo || ""} disabled className="h-8 text-xs" />
+            <Input value={grupos.find((g) => g.id === tipos.find((t) => t.id === form.tipo_tarefa_id)?.grupo_atividade_id)?.nome_grupo || ""} disabled className="h-8 text-xs" />
           </div>
 
           <div className="space-y-1">
             <label className="text-xs">Área/Pasto</label>
-            <Select value={form.area_pasto_id} onValueChange={(v)=>setForm(f=>({...f,area_pasto_id:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
+            <Select value={form.area_pasto_id} onValueChange={(v) => setForm((f) => ({ ...f, area_pasto_id: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+                {areas.map((a) => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs">Data inicial *</label>
-            <Input type="date" value={form.data_inicial} onChange={(e)=>setForm(f=>({...f,data_inicial:e.target.value}))} className="h-8 text-xs" />
+            <Input type="date" value={form.data_inicial} onChange={(e) => setForm((f) => ({ ...f, data_inicial: e.target.value }))} className="h-8 text-xs" />
           </div>
           <div className="space-y-1">
             <label className="text-xs">Data final *</label>
-            <Input type="date" value={form.data_final} onChange={(e)=>setForm(f=>({...f,data_final:e.target.value}))} className="h-8 text-xs" />
+            <Input type="date" value={form.data_final} onChange={(e) => setForm((f) => ({ ...f, data_final: e.target.value }))} className="h-8 text-xs" />
           </div>
 
           <div className="space-y-1">
             <label className="text-xs">Responsável (Funcionário) *</label>
-            <Select value={form.responsavel_id} onValueChange={(v)=>setForm(f=>({...f,responsavel_id:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
+            <Select value={form.responsavel_id} onValueChange={(v) => setForm((f) => ({ ...f, responsavel_id: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                {pessoas.filter(p => (p.tipos||[]).includes("Funcionario")).map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                {pessoas.filter((p) => (p.tipos || []).includes("Funcionario")).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs">Urgência *</label>
-            <Select value={form.urgencia} onValueChange={(v)=>setForm(f=>({...f,urgencia:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
+            <Select value={form.urgencia} onValueChange={(v) => setForm((f) => ({ ...f, urgencia: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["Não urgente","Urgente"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                {["Não urgente", "Urgente"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
             <label className="text-xs">Nível de urgência *</label>
-            <Select value={form.nivel_urgencia} onValueChange={(v)=>setForm(f=>({...f,nivel_urgencia:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
+            <Select value={form.nivel_urgencia} onValueChange={(v) => setForm((f) => ({ ...f, nivel_urgencia: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["Baixo","Médio","Alto","Crítico"].map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                {["Baixo", "Médio", "Alto", "Crítico"].map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Descrição/Instruções</label>
-            <Input value={form.descricao_instrucoes} onChange={(e)=>setForm(f=>({...f,descricao_instrucoes:e.target.value}))} className="h-8 text-xs" />
+            <Input value={form.descricao_instrucoes} onChange={(e) => setForm((f) => ({ ...f, descricao_instrucoes: e.target.value }))} className="h-8 text-xs" />
           </div>
           <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Localização adicional</label>
-            <Input value={form.localizacao_adicional} onChange={(e)=>setForm(f=>({...f,localizacao_adicional:e.target.value}))} className="h-8 text-xs" />
+            <Input value={form.localizacao_adicional} onChange={(e) => setForm((f) => ({ ...f, localizacao_adicional: e.target.value }))} className="h-8 text-xs" />
           </div>
           <div className="space-y-1">
             <label className="text-xs">Status</label>
-            <Select value={form.status_tarefa} onValueChange={(v)=>setForm(f=>({...f,status_tarefa:v}))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
+            <Select value={form.status_tarefa} onValueChange={(v) => setForm((f) => ({ ...f, status_tarefa: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["Planejada","Em andamento","Concluída","Cancelada","Atrasada"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {["Planejada", "Em andamento", "Concluída", "Cancelada", "Atrasada"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Observações</label>
-            <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
+            <Input value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} className="h-8 text-xs" />
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>);
+
 }
