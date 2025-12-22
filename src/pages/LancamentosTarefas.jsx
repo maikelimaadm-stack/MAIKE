@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +40,19 @@ export default function LancamentosTarefas() {
     atrasada: true,
     acoes: true,
   });
+
+  // Persistência das preferências de colunas (igual padrão do Financeiro)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('lanc_tarefas_colunas');
+      if (saved) setColunas(prev => ({ ...prev, ...JSON.parse(saved) }));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('lanc_tarefas_colunas', JSON.stringify(colunas));
+    } catch {}
+  }, [colunas]);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
