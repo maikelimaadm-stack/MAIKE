@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Settings, MoreVertical, Trash2, Edit2, Copy } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Search, Settings, MoreVertical } from "lucide-react";
 import { Link } from "react-router-dom";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createPageUrl } from "@/utils";
 
 export default function LancamentosTarefas() {
@@ -46,7 +48,32 @@ export default function LancamentosTarefas() {
     );
   }, [lancs, search]);
 
-  const allIds = filtered.map(l => l.id);
+  const handleSort = (field) => {
+    if (sortField === field) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDirection('asc'); }
+  };
+  const getValueForSort = (l, field) => {
+    switch (field) {
+      case 'status': return (l.status_tarefa || '').toLowerCase();
+      case 'urgencia': return `${l.urgencia || ''} ${l.nivel_urgencia || ''}`.toLowerCase();
+      case 'grupo': return (l.grupo_atividade_nome || '').toLowerCase();
+      case 'tipo': return (l.nome_tipo_tarefa || '').toLowerCase();
+      case 'area': return (l.area_pasto_nome || '').toLowerCase();
+      case 'responsavel': return (l.responsavel_nome || '').toLowerCase();
+      case 'dataIni': return l.data_inicial || '';
+      case 'dataFim': return l.data_final || '';
+      case 'atrasada': return l.atrasada ? 1 : 0;
+      default: return '';
+    }
+  };
+  const lancamentosOrdenados = [...filtered].sort((a,b) => {
+    const av = getValueForSort(a, sortField);
+    const bv = getValueForSort(b, sortField);
+    if (av < bv) return sortDirection === 'asc' ? -1 : 1;
+    if (av > bv) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+  const allIds = lancamentosOrdenados.map(l => l.id);
   const todosMarcados = selecionados.length > 0 && selecionados.length === allIds.length;
   const alternarTodos = (checked) => setSelecionados(checked ? allIds : []);
   const alternarUm = (id, checked) => setSelecionados(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
@@ -66,25 +93,9 @@ export default function LancamentosTarefas() {
               <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input placeholder="Buscar..." value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs">
-                    <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {Object.keys(colunas).map(key => (
-                    <DropdownMenuCheckboxItem key={key} checked={colunas[key]} onCheckedChange={(v)=>setColunas(c=>({...c,[key]:!!v}))}>{key}</DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Link to={createPageUrl("LancamentoTarefaForm")}>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Lançar Tarefa
+                  Lançar Tarefa
                 </Button>
               </Link>
             </div>
@@ -104,15 +115,15 @@ export default function LancamentosTarefas() {
                     <Checkbox checked={todosMarcados} onCheckedChange={(v)=>alternarTodos(!!v)} />
                   </TableHead>
                   <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
-                  {colunas.status && <TableHead className="text-xs border-r border-slate-200">Status</TableHead>}
-                  {colunas.urgencia && <TableHead className="text-xs border-r border-slate-200">Urgência/Nível</TableHead>}
-                  {colunas.grupo && <TableHead className="text-xs border-r border-slate-200">Grupo</TableHead>}
-                  {colunas.tipo && <TableHead className="text-xs border-r border-slate-200">Tipo</TableHead>}
-                  {colunas.area && <TableHead className="text-xs border-r border-slate-200">Área</TableHead>}
-                  {colunas.responsavel && <TableHead className="text-xs border-r border-slate-200">Responsável</TableHead>}
-                  {colunas.dataIni && <TableHead className="text-xs border-r border-slate-200">Data inicial</TableHead>}
-                  {colunas.dataFim && <TableHead className="text-xs border-r border-slate-200">Data final</TableHead>}
-                  {colunas.atrasada && <TableHead className="text-xs border-r border-slate-200">Atrasada?</TableHead>}
+                  {colunasOrdem.filter(id => colunas[id]).map((id) => (
+                    <TableHead
+                      key={id}
+                      className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort(id)}
+                    >
+                      {COLUNAS_DISPONIVEIS.find(c => c.id === id)?.label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -121,8 +132,8 @@ export default function LancamentosTarefas() {
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={100} className="text-xs py-1 border-r border-slate-200 text-center">Nenhum registro</TableCell></TableRow>
                 ) : (
-                  filtered.map(l => (
-                                        <TableRow key={l.id} className="hover:bg-slate-50 transition-colors border-b">
+                  lancamentosOrdenados.map(l => (
+                    <TableRow key={l.id} className="hover:bg-slate-50 transition-colors border-b">
                       <TableCell className="border-r border-slate-200">
                         <Checkbox checked={selecionados.includes(l.id)} onCheckedChange={(v)=>alternarUm(l.id, !!v)} />
                       </TableCell>
@@ -143,15 +154,19 @@ export default function LancamentosTarefas() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                      {colunas.status && <TableCell className="text-xs py-1 border-r border-slate-200">{l.status_tarefa}</TableCell>}
-                      {colunas.urgencia && <TableCell className="text-xs py-1 border-r border-slate-200">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
-                      {colunas.grupo && <TableCell className="text-xs py-1 border-r border-slate-200">{l.grupo_atividade_nome}</TableCell>}
-                      {colunas.tipo && <TableCell className="text-xs py-1 border-r border-slate-200">{l.nome_tipo_tarefa}</TableCell>}
-                      {colunas.area && <TableCell className="text-xs py-1 border-r border-slate-200">{l.area_pasto_nome || '-'}</TableCell>}
-                      {colunas.responsavel && <TableCell className="text-xs py-1 border-r border-slate-200">{l.responsavel_nome}</TableCell>}
-                      {colunas.dataIni && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_inicial}</TableCell>}
-                      {colunas.dataFim && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_final}</TableCell>}
-                      {colunas.atrasada && <TableCell className="text-xs py-1 border-r border-slate-200">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
+                      {colunasOrdem.filter(id => colunas[id]).map((id) => (
+                        <React.Fragment key={id}>
+                          {id === 'status' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.status_tarefa}</TableCell>}
+                          {id === 'urgencia' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
+                          {id === 'grupo' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.grupo_atividade_nome}</TableCell>}
+                          {id === 'tipo' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.nome_tipo_tarefa}</TableCell>}
+                          {id === 'area' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.area_pasto_nome || '-'}</TableCell>}
+                          {id === 'responsavel' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.responsavel_nome}</TableCell>}
+                          {id === 'dataIni' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_inicial}</TableCell>}
+                          {id === 'dataFim' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_final}</TableCell>}
+                          {id === 'atrasada' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
+                        </React.Fragment>
+                      ))}
                       
                     </TableRow>
                   ))
@@ -161,6 +176,64 @@ export default function LancamentosTarefas() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showConfigColunas} onOpenChange={setShowConfigColunas}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_DISPONIVEIS.map((col) => (
+                  <label key={col.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={!!colunas[col.id]}
+                      onChange={() => setColunas(prev => ({...prev, [col.id]: !prev[col.id]}))}
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={(result)=>{
+                if(!result.destination) return;
+                const items = Array.from(colunasOrdem);
+                const [reordered] = items.splice(result.source.index,1);
+                items.splice(result.destination.index,0,reordered);
+                setColunasOrdem(items);
+                try { localStorage.setItem('lanc_tarefas_colunas_ordem', JSON.stringify(items)); } catch {}
+              }}>
+                <Droppable droppableId="colunas">
+                  {(provided)=> (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasOrdem.map((id, idx) => {
+                        const col = COLUNAS_DISPONIVEIS.find(c => c.id === id);
+                        if (!col) return null;
+                        return (
+                          <Draggable key={id} draggableId={id} index={idx}>
+                            {(prov, snapshot)=> (
+                              <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps} className={`flex items-center gap-2 p-2 border rounded text-xs ${snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'} ${!colunas[id] ? 'opacity-50' : ''}`}>
+                                <span className="flex-1">{col.label}</span>
+                                {colunas[id] && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Visível</span>}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
