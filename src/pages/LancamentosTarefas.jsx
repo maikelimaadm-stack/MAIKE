@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, CheckSquare, AlertTriangle, Copy, Columns } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, CheckSquare, AlertTriangle, Copy, Columns, MoreVertical, Settings, Upload, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LancamentosTarefas() {
@@ -53,6 +54,13 @@ export default function LancamentosTarefas() {
       localStorage.setItem('lanc_tarefas_colunas', JSON.stringify(colunas));
     } catch {}
   }, [colunas]);
+
+  // Seleção de linhas (padrão das listas)
+  const [selecionados, setSelecionados] = useState([]);
+  const allIds = useMemo(() => filtered.map(l => l.id), [filtered]);
+  const todosMarcados = selecionados.length > 0 && selecionados.length === allIds.length;
+  const alternarTodos = (checked) => setSelecionados(checked ? allIds : []);
+  const alternarUm = (id, checked) => setSelecionados(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -171,6 +179,56 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
 
   return (
     <div className="p-4 space-y-3">
+      {/* Cabeçalho padrão */}
+      <div className="mb-2">
+        <Card>
+          <CardContent className="p-3 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Lançamentos de Tarefas</div>
+              <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
+                <RefreshCw className="w-3.5 h-3.5 mr-1"/> Atualizar
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Exportar (em breve)')}>
+                <Download className="w-3.5 h-3.5 mr-1"/> Exportar
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Modelo (em breve)')}>
+                <FileText className="w-3.5 h-3.5 mr-1"/> Modelo
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast.info('Importar (em breve)')}>
+                <Upload className="w-3.5 h-3.5 mr-1"/> Importar
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs">
+                    <Columns className="w-3.5 h-3.5 mr-1" /> Colunas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuCheckboxItem checked={colunas.status} onCheckedChange={(v)=>setColunas(c=>({...c,status:!!v}))}>Status</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.urgencia} onCheckedChange={(v)=>setColunas(c=>({...c,urgencia:!!v}))}>Urgência/Nível</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.grupo} onCheckedChange={(v)=>setColunas(c=>({...c,grupo:!!v}))}>Grupo</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.tipo} onCheckedChange={(v)=>setColunas(c=>({...c,tipo:!!v}))}>Tipo</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.area} onCheckedChange={(v)=>setColunas(c=>({...c,area:!!v}))}>Área</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.areaHa} onCheckedChange={(v)=>setColunas(c=>({...c,areaHa:!!v}))}>Área (ha)</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.capUa} onCheckedChange={(v)=>setColunas(c=>({...c,capUa:!!v}))}>Cap. (UA)</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.responsavel} onCheckedChange={(v)=>setColunas(c=>({...c,responsavel:!!v}))}>Responsável</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.dataIni} onCheckedChange={(v)=>setColunas(c=>({...c,dataIni:!!v}))}>Data inicial</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.dataFim} onCheckedChange={(v)=>setColunas(c=>({...c,dataFim:!!v}))}>Data final</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.atrasada} onCheckedChange={(v)=>setColunas(c=>({...c,atrasada:!!v}))}>Atrasada?</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{ setShowForm(true); setEditing(null); setForm(emptyForm); setItensMaquina([]); setItensProduto([]); setItensImplemento([]); }}>
+                <Plus className="w-3.5 h-3.5 mr-1"/> Lançar Tarefa
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filtros */}
       <Card>
         <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-2">
@@ -264,34 +322,7 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
           </div>
           <div className="flex items-end gap-2 md:col-span-2 justify-end">
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>
-              <Filter className="w-3.5 h-3.5 mr-1"/>Limpar
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
-              <RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs">
-                  <Columns className="w-3.5 h-3.5 mr-1" /> Colunas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuCheckboxItem checked={colunas.status} onCheckedChange={(v)=>setColunas(c=>({...c,status:!!v}))}>Status</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.urgencia} onCheckedChange={(v)=>setColunas(c=>({...c,urgencia:!!v}))}>Urgência/Nível</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.grupo} onCheckedChange={(v)=>setColunas(c=>({...c,grupo:!!v}))}>Grupo</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.tipo} onCheckedChange={(v)=>setColunas(c=>({...c,tipo:!!v}))}>Tipo</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.area} onCheckedChange={(v)=>setColunas(c=>({...c,area:!!v}))}>Área</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.areaHa} onCheckedChange={(v)=>setColunas(c=>({...c,areaHa:!!v}))}>Área (ha)</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.capUa} onCheckedChange={(v)=>setColunas(c=>({...c,capUa:!!v}))}>Cap. (UA)</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.responsavel} onCheckedChange={(v)=>setColunas(c=>({...c,responsavel:!!v}))}>Responsável</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.dataIni} onCheckedChange={(v)=>setColunas(c=>({...c,dataIni:!!v}))}>Data inicial</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.dataFim} onCheckedChange={(v)=>setColunas(c=>({...c,dataFim:!!v}))}>Data final</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.atrasada} onCheckedChange={(v)=>setColunas(c=>({...c,atrasada:!!v}))}>Atrasada?</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{ setShowForm(true); setEditing(null); setForm(emptyForm); setItensMaquina([]); setItensProduto([]); setItensImplemento([]); }}>
-              <Plus className="w-3.5 h-3.5 mr-1"/>Novo Lançamento
+              <Filter className="w-3.5 h-3.5 mr-1"/> Limpar Filtros
             </Button>
           </div>
         </CardContent>
@@ -543,6 +574,9 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
+                    <Checkbox checked={todosMarcados} onCheckedChange={(v)=>alternarTodos(!!v)} />
+                  </TableHead>
                   {colunas.status && <TableHead className="text-xs font-bold py-1 border border-black">Status</TableHead>}
                   {colunas.urgencia && <TableHead className="text-xs font-bold py-1 border border-black">Urgência/Nível</TableHead>}
                   {colunas.grupo && <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>}
@@ -565,6 +599,9 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                 ) : (
                   filtered.map(l => (
                     <TableRow key={l.id} className="hover:bg-gray-50">
+                      <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                        <Checkbox checked={selecionados.includes(l.id)} onCheckedChange={(v)=>alternarUm(l.id, !!v)} />
+                      </TableCell>
                       {colunas.status && <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>}
                       {colunas.urgencia && <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
                       {colunas.grupo && <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>}
@@ -577,12 +614,26 @@ const [uploadingFotos, setUploadingFotos] = useState(false);
                       {colunas.dataFim && <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>}
                       {colunas.atrasada && <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
                       {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300">
-                          <div className="flex gap-1 flex-wrap">
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditing(l); setForm({ ...l }); setShowForm(true); }}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>duplicar(l)}><Copy className="w-3.5 h-3.5 mr-1"/>Duplicar</Button>
-                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir lançamento?')) deleteMutation.mutate(l.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                          </div>
+                        <TableCell className="text-xs py-1 border border-gray-300 w-10">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 text-xs px-2">
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={()=>{ setEditing(l); setForm({ ...l }); setShowForm(true); }}>
+                                <Pencil className="w-3.5 h-3.5 mr-2"/> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={()=>duplicar(l)}>
+                                <Copy className="w-3.5 h-3.5 mr-2"/> Duplicar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600" onClick={()=>{ if(confirm('Excluir lançamento?')) deleteMutation.mutate(l.id); }}>
+                                <Trash2 className="w-3.5 h-3.5 mr-2"/> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
