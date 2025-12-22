@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Filter, Columns } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +29,19 @@ export default function TiposTarefa() {
   useEffect(() => {
     try { localStorage.setItem('tipos_tarefa_colunas', JSON.stringify(colunas)); } catch {}
   }, [colunas]);
+
+  // Seleção de linhas
+  const [selectedItems, setSelectedItems] = useState([]);
+  const toggleSelectAll = (checked) => setSelectedItems(checked ? filtered.map(t => t.id) : []);
+  const toggleOne = (id, checked) => setSelectedItems(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
+  const handleDeleteSelected = async () => {
+    if (selectedItems.length === 0) return;
+    if (!confirm(`Excluir ${selectedItems.length} registro(s)?`)) return;
+    for (const id of selectedItems) { await base44.entities.TipoTarefa.delete(id); }
+    toast.success('Registros excluídos!');
+    setSelectedItems([]);
+    queryClient.invalidateQueries({ queryKey: ['tipos-tarefa'] });
+  };
 
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });
   const { data: tipos = [], isLoading, refetch } = useQuery({ queryKey: ["tipos-tarefa"], queryFn: () => base44.entities.TipoTarefa.list("-updated_date"), initialData: [] });
@@ -109,6 +123,22 @@ export default function TiposTarefa() {
                 <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {selectedItems.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Columns className="w-3.5 h-3.5"/> Ações ({selectedItems.length})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs text-red-600" onClick={handleDeleteSelected}>Excluir Selecionados</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{setShowForm(true); setEditing(null); setForm({ nome_tipo: "", grupo_atividade_id: "", ativo: true, descricao: "", exige_area: false, pode_ter_produto: false, pode_ter_maquina: false, pode_ter_implemento: false });}}><Plus className="w-3.5 h-3.5 mr-1"/>Novo</Button>
           </div>
         </CardContent>
@@ -202,12 +232,18 @@ export default function TiposTarefa() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
+                    <Checkbox 
+                      checked={selectedItems.length === filtered.length && filtered.length > 0}
+                      onCheckedChange={(v)=>toggleSelectAll(!!v)}
+                    />
+                  </TableHead>
+                  {colunas.tipo && <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>}
+                  {colunas.grupo && <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>}
+                  {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
+                  {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
+                  {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -218,17 +254,25 @@ export default function TiposTarefa() {
                 ) : (
                   filtered.map(t => (
                     <TableRow key={t.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{t.grupo_atividade_nome || grupos.find(g=>g.id===t.grupo_atividade_id)?.nome_grupo || '-'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{t.ativo ? 'Sim' : 'Não'}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.created_date).toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.updated_date).toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">
-                        <div className="flex gap-1">
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(t); setForm({ nome_tipo: t.nome_tipo||'', grupo_atividade_id: t.grupo_atividade_id||'', ativo: !!t.ativo, descricao: t.descricao||'', exige_area: !!t.exige_area, pode_ter_produto: !!t.pode_ter_produto, pode_ter_maquina: !!t.pode_ter_maquina, pode_ter_implemento: !!t.pode_ter_implemento }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(t.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                        </div>
+                      <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                        <Checkbox 
+                          checked={selectedItems.includes(t.id)}
+                          onCheckedChange={(v)=>toggleOne(t.id, !!v)}
+                        />
                       </TableCell>
+                      {colunas.tipo && <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>}
+                      {colunas.grupo && <TableCell className="text-xs py-1 border border-gray-300">{t.grupo_atividade_nome || grupos.find(g=>g.id===t.grupo_atividade_id)?.nome_grupo || '-'}</TableCell>}
+                      {colunas.ativo && <TableCell className="text-xs py-1 border border-gray-300">{t.ativo ? 'Sim' : 'Não'}</TableCell>}
+                      {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.created_date).toLocaleString('pt-BR')}</TableCell>}
+                      {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.updated_date).toLocaleString('pt-BR')}</TableCell>}
+                      {colunas.acoes && (
+                        <TableCell className="text-xs py-1 border border-gray-300">
+                          <div className="flex gap-1">
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(t); setForm({ nome_tipo: t.nome_tipo||'', grupo_atividade_id: t.grupo_atividade_id||'', ativo: !!t.ativo, descricao: t.descricao||'', exige_area: !!t.exige_area, pode_ter_produto: !!t.pode_ter_produto, pode_ter_maquina: !!t.pode_ter_maquina, pode_ter_implemento: !!t.pode_ter_implemento }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(t.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
