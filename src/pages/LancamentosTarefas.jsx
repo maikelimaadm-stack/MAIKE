@@ -27,8 +27,28 @@ export default function LancamentosTarefas() {
   const [fNivel, setFNivel] = useState("");
 
   const [colunas, setColunas] = useState({
-    status: true, urgencia: true, grupo: true, tipo: true, area: true, responsavel: true, dataIni: true, dataFim: true, atrasada: true, acoes: true,
+    status: true, urgencia: true, grupo: true, tipo: true, area: true, responsavel: true, dataIni: true, dataFim: true, atrasada: true,
   });
+  const COLUNAS_DISPONIVEIS = [
+    { id: 'status', label: 'Status' },
+    { id: 'urgencia', label: 'Urgência/Nível' },
+    { id: 'grupo', label: 'Grupo' },
+    { id: 'tipo', label: 'Tipo' },
+    { id: 'area', label: 'Área' },
+    { id: 'responsavel', label: 'Responsável' },
+    { id: 'dataIni', label: 'Data inicial' },
+    { id: 'dataFim', label: 'Data final' },
+    { id: 'atrasada', label: 'Atrasada?' }
+  ];
+  const [colunasOrdem, setColunasOrdem] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lanc_tarefas_colunas_ordem');
+      return saved ? JSON.parse(saved) : COLUNAS_DISPONIVEIS.map(c => c.id);
+    } catch { return COLUNAS_DISPONIVEIS.map(c => c.id); }
+  });
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [sortField, setSortField] = useState('dataIni');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const [selecionados, setSelecionados] = useState([]);
 

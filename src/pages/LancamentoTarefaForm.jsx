@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Save, X } from "lucide-react";
+
 
 export default function LancamentoTarefaForm() {
   const queryClient = useQueryClient();
@@ -184,6 +184,15 @@ export default function LancamentoTarefaForm() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end gap-2 pt-3">
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { window.location.href = createPageUrl("LancamentosTarefas"); }}>
+          Cancelar
+        </Button>
+        <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
+          Salvar
+        </Button>
+      </div>
     </div>);
 
 }
