@@ -187,11 +187,11 @@ export default function GruposAtividades() {
                       onCheckedChange={(v)=>toggleSelectAll(!!v)}
                     />
                   </TableHead>
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                   {colunas.nome && <TableHead className="text-xs font-bold py-1 border border-black">Nome</TableHead>}
                   {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
                   {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
                   {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,12 +208,11 @@ export default function GruposAtividades() {
                           onCheckedChange={(v)=>toggleOne(g.id, !!v)}
                         />
                       </TableCell>
-                      {colunas.acoes && (
                       {colunas.nome && <TableCell className="text-xs py-1 border border-gray-300">{g.nome_grupo}</TableCell>}
                       {colunas.ativo && <TableCell className="text-xs py-1 border border-gray-300">{g.ativo ? 'Sim' : 'Não'}</TableCell>}
                       {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.created_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.updated_date).toLocaleString('pt-BR')}</TableCell>}
-                      
+                      {colunas.acoes && (
                                                 <TableCell className="text-xs py-1 border border-gray-300 w-8">
                                                   <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -223,8 +222,8 @@ export default function GruposAtividades() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="start">
                                                       <DropdownMenuItem asChild className="text-xs">
-                                <Link to={createPageUrl(`GrupoAtividadeForm?id=${g.id}`)}>Editar</Link>
-                              </DropdownMenuItem>
+                                                        <Link to={createPageUrl(`GrupoAtividadeForm?id=${g.id}`)}>Editar</Link>
+                                                      </DropdownMenuItem>
                                                       <DropdownMenuSeparator />
                                                       <DropdownMenuItem className="text-xs text-red-600" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}>Excluir</DropdownMenuItem>
                                                     </DropdownMenuContent>
