@@ -45,7 +45,6 @@ import OperacoesAgricolas from './pages/OperacoesAgricolas';
 import Pesagens from './pages/Pesagens';
 import PesagensIndividuais from './pages/PesagensIndividuais';
 import PlanoContas from './pages/PlanoContas';
-import PlanosAcao from './pages/PlanosAcao';
 import PopularCidades from './pages/PopularCidades';
 import Produtos from './pages/Produtos';
 import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
@@ -121,7 +120,6 @@ export const PAGES = {
     "Pesagens": Pesagens,
     "PesagensIndividuais": PesagensIndividuais,
     "PlanoContas": PlanoContas,
-    "PlanosAcao": PlanosAcao,
     "PopularCidades": PopularCidades,
     "Produtos": Produtos,
     "RelatorioCustosSafra": RelatorioCustosSafra,
