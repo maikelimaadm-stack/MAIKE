@@ -87,8 +87,8 @@ export default function TiposTarefa() {
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs">
-                <Columns className="w-3.5 h-3.5 mr-1"/>Colunas
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <Settings className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -100,11 +100,9 @@ export default function TiposTarefa() {
               <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
-            <RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar
-          </Button>
+          
           <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{setShowForm(true); setEditing(null); setForm({ nome_tipo: "", grupo_atividade_id: "", ativo: true, descricao: "", exige_area: false, pode_ter_produto: false, pode_ter_maquina: false, pode_ter_implemento: false });}}>
-            <Plus className="w-3.5 h-3.5 mr-1"/>Novo
+            Novo
           </Button>
         </div>
       </div>
@@ -230,8 +228,8 @@ export default function TiposTarefa() {
             </div>
 
             <div className="flex items-center gap-2 lg:col-span-2 justify-end">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setShowForm(false); setEditing(null);}}><X className="w-3.5 h-3.5 mr-1"/>Cancelar</Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={onSubmit}><Save className="w-3.5 h-3.5 mr-1"/>Salvar</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setShowForm(false); setEditing(null);}}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={onSubmit}>Salvar</Button>
             </div>
           </CardContent>
         </Card>
@@ -254,7 +252,7 @@ export default function TiposTarefa() {
                   {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
                   {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
                   {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -277,11 +275,19 @@ export default function TiposTarefa() {
                       {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.created_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(t.updated_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300">
-                          <div className="flex gap-1">
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(t); setForm({ nome_tipo: t.nome_tipo||'', grupo_atividade_id: t.grupo_atividade_id||'', ativo: !!t.ativo, descricao: t.descricao||'', exige_area: !!t.exige_area, pode_ter_produto: !!t.pode_ter_produto, pode_ter_maquina: !!t.pode_ter_maquina, pode_ter_implemento: !!t.pode_ter_implemento }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(t.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                          </div>
+                        <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem className="text-xs" onClick={()=>{setEditing(t); setForm({ nome_tipo: t.nome_tipo||'', grupo_atividade_id: t.grupo_atividade_id||'', ativo: !!t.ativo, descricao: t.descricao||'', exige_area: !!t.exige_area, pode_ter_produto: !!t.pode_ter_produto, pode_ter_maquina: !!t.pode_ter_maquina, pode_ter_implemento: !!t.pode_ter_implemento }); setShowForm(true);}}>Editar</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-xs text-red-600" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(t.id); }}>Excluir</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Plus, Save, X, Pencil, Trash2, RefreshCw, Search, Columns, Layers } from "lucide-react";
+import { Search, Settings, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GruposAtividades() {
@@ -88,8 +88,8 @@ export default function GruposAtividades() {
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs">
-                <Columns className="w-3.5 h-3.5 mr-1"/>Colunas
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <Settings className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -100,11 +100,8 @@ export default function GruposAtividades() {
               <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={refetch}>
-            <RefreshCw className="w-3.5 h-3.5 mr-1"/>Atualizar
-          </Button>
           <Button onClick={() => { setShowForm(true); setEditing(null); setForm({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" }); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="w-3.5 h-3.5 mr-1"/>Novo
+            Novo
           </Button>
         </div>
       </div>
@@ -122,8 +119,8 @@ export default function GruposAtividades() {
               {selectedItems.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                      <Layers className="w-3.5 h-3.5"/> Ações ({selectedItems.length})
+                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                      Ações ({selectedItems.length})
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -169,8 +166,8 @@ export default function GruposAtividades() {
               <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
             </div>
             <div className="flex items-center gap-2 lg:col-span-2 justify-end">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setShowForm(false); setEditing(null);}}><X className="w-3.5 h-3.5 mr-1"/>Cancelar</Button>
-              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={onSubmit}><Save className="w-3.5 h-3.5 mr-1"/>Salvar</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setShowForm(false); setEditing(null);}}>Cancelar</Button>
+              <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={onSubmit}>Salvar</Button>
             </div>
           </CardContent>
         </Card>
@@ -192,7 +189,7 @@ export default function GruposAtividades() {
                   {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
                   {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
                   {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black">Ações</TableHead>}
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -214,13 +211,21 @@ export default function GruposAtividades() {
                       {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.created_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.updated_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.acoes && (
-                        <TableCell className="text-xs py-1 border border-gray-300">
-                          <div className="flex gap-1">
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setEditing(g); setForm({ nome_grupo: g.nome_grupo||'', ativo: !!g.ativo, descricao: g.descricao||'', cor_icone: g.cor_icone||'', observacoes: g.observacoes||'' }); setShowForm(true);}}><Pencil className="w-3.5 h-3.5 mr-1"/>Editar</Button>
-                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}><Trash2 className="w-3.5 h-3.5 mr-1"/>Excluir</Button>
-                          </div>
-                        </TableCell>
-                      )}
+                                                <TableCell className="text-xs py-1 border border-gray-300 w-8">
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="start">
+                                                      <DropdownMenuItem className="text-xs" onClick={()=>{setEditing(g); setForm({ nome_grupo: g.nome_grupo||'', ativo: !!g.ativo, descricao: g.descricao||'', cor_icone: g.cor_icone||'', observacoes: g.observacoes||'' }); setShowForm(true);}}>Editar</DropdownMenuItem>
+                                                      <DropdownMenuSeparator />
+                                                      <DropdownMenuItem className="text-xs text-red-600" onClick={()=>{ if(confirm('Excluir?')) deleteMutation.mutate(g.id); }}>Excluir</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
+                                                </TableCell>
+                                              )}
                     </TableRow>
                   ))
                 )}
