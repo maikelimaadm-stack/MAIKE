@@ -187,11 +187,11 @@ export default function GruposAtividades() {
                       onCheckedChange={(v)=>toggleSelectAll(!!v)}
                     />
                   </TableHead>
+                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                   {colunas.nome && <TableHead className="text-xs font-bold py-1 border border-black">Nome</TableHead>}
                   {colunas.ativo && <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>}
                   {colunas.criado && <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>}
                   {colunas.atualizado && <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>}
-                  {colunas.acoes && <TableHead className="text-xs font-bold py-1 border border-black w-8"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
