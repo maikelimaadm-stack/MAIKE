@@ -208,11 +208,12 @@ export default function GruposAtividades() {
                           onCheckedChange={(v)=>toggleOne(g.id, !!v)}
                         />
                       </TableCell>
+                      {colunas.acoes && (
                       {colunas.nome && <TableCell className="text-xs py-1 border border-gray-300">{g.nome_grupo}</TableCell>}
                       {colunas.ativo && <TableCell className="text-xs py-1 border border-gray-300">{g.ativo ? 'Sim' : 'Não'}</TableCell>}
                       {colunas.criado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.created_date).toLocaleString('pt-BR')}</TableCell>}
                       {colunas.atualizado && <TableCell className="text-xs py-1 border border-gray-300">{new Date(g.updated_date).toLocaleString('pt-BR')}</TableCell>}
-                      {colunas.acoes && (
+                      
                                                 <TableCell className="text-xs py-1 border border-gray-300 w-8">
                                                   <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
