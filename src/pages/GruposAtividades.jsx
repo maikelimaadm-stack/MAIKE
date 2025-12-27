@@ -59,7 +59,7 @@ export default function GruposAtividades() {
               <div className="flex gap-2">
                 {selected.length > 0 && (
                   <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={excluirSelecionados}>
-                    <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir Selecionados
+                    Excluir Selecionados
                   </Button>
                 )}
               </div>
