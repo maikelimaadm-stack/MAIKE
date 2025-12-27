@@ -79,7 +79,7 @@ export default function TiposTarefa() {
                   <TableHead className="text-xs font-bold py-1 border border-black w-8">
                     <Checkbox
                       checked={selected.length === filtered.length && filtered.length > 0}
-                      onCheckedChange={(v) => toggleAll(!!v)}}
+                      onCheckedChange={(v) => toggleAll(!!v)}}}
                     />
                   </TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
@@ -109,7 +109,7 @@ export default function TiposTarefa() {
                       <TableCell className="text-xs py-1 border border-gray-300 w-8">
                         <Checkbox
                           checked={selected.includes(t.id)}
-                          onCheckedChange={(v) => toggleOne(t.id, !!v)}}
+                          onCheckedChange={(v) => toggleOne(t.id, !!v)}}}
                         />
                       </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>
