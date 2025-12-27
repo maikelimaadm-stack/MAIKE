@@ -125,7 +125,7 @@ export default function LancamentosTarefas() {
         <CardContent className="p-0">
           <div className="p-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-xs text-slate-500">{filtered.length} de {lancs.length} registros</div>
+              <div className="text-sm font-semibold text-slate-900">Lançamentos ({filtered.length})</div>
               <div className="flex items-center gap-2">
                 <div className="relative w-64">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />

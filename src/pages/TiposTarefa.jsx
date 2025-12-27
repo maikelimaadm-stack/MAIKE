@@ -70,7 +70,6 @@ export default function TiposTarefa() {
             </div>
 
             <div className="overflow-auto">
-          <div className="overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
