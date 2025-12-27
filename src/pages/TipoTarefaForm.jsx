@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 
@@ -15,7 +14,6 @@ export default function TipoTarefaForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
-  const navigate = useNavigate();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ nome_tipo: "", grupo_atividade_id: "", ativo: true, descricao: "", exige_area: false, pode_ter_produto: false, pode_ter_maquina: false, pode_ter_implemento: false });
@@ -44,14 +42,6 @@ export default function TipoTarefaForm() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between bg-white rounded px-3 py-2 border-b">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Novo"} Tipo de Tarefa</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>navigate(createPageUrl("TiposTarefa"))}>
-            <X className="w-3.5 h-3.5 mr-1"/> Cancelar
-          </Button>
-          <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={salvar}>
-            <Save className="w-3.5 h-3.5 mr-1"/> Salvar
-          </Button>
-        </div>
       </div>
 
       <Card>
