@@ -131,9 +131,9 @@ export default function LancamentosTarefas() {
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
                 </div>
-                <Button variant="outline" size="sm" className="bg-background pl-2 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-8" onClick={() => setShowConfigColunas(true)}>
-                  <Settings className="w-3.5 h-3.5 mr-1" /> 
-                </Button>              </div>
+          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="h-8 w-8">
+            <Settings className="w-4 h-4" />
+          </Button>
             </div>
           </div>
 
