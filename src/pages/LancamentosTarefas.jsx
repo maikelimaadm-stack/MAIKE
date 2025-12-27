@@ -134,11 +134,10 @@ export default function LancamentosTarefas() {
                 <Button variant="outline" size="sm" className="h-8 w-8" onClick={() => setShowConfigColunas(true)}>
                   <Settings className="w-4 h-4" /> 
                 </Button>
+              </div>
             </div>
           </div>
-        </div>
 
-        </div>
           <div className="overflow-auto">
             <Table>
               <TableHeader>
@@ -205,7 +204,6 @@ export default function LancamentosTarefas() {
                 }
               </TableBody>
             </Table>
-          </div>
           </div>
         </CardContent>
       </Card>
