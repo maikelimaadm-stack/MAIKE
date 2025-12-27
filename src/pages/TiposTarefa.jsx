@@ -16,12 +16,12 @@ export default function TiposTarefa() {
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
     queryFn: () => base44.entities.GrupoAtividade.list(),
-    initialData: [] as any[],
+    initialData: [],
   });
   const { data: tipos = [], isLoading, refetch } = useQuery({
     queryKey: ["tipos-tarefa"],
     queryFn: () => base44.entities.TipoTarefa.list("-updated_date"),
-    initialData: [] as any[],
+    initialData: [],
   });
 
   const filtered = useMemo(() => tipos, [tipos]);
@@ -79,7 +79,7 @@ export default function TiposTarefa() {
                   <TableHead className="text-xs font-bold py-1 border border-black w-8">
                     <Checkbox
                       checked={selected.length === filtered.length && filtered.length > 0}
-                      onCheckedChange={(v) => toggleAll(!!v)
+                      onCheckedChange={(v) => toggleAll(!!v)}}
                     />
                   </TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
@@ -104,17 +104,17 @@ export default function TiposTarefa() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((t: any) => (
+                  filtered.map((t) => (
                     <TableRow key={t.id} className="hover:bg-gray-50">
                       <TableCell className="text-xs py-1 border border-gray-300 w-8">
                         <Checkbox
                           checked={selected.includes(t.id)}
-                          onCheckedChange={(v) => toggleOne(t.id, !!v)
+                          onCheckedChange={(v) => toggleOne(t.id, !!v)}}
                         />
                       </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
-                        {t.grupo_atividade_nome || grupos.find((g: any) => g.id === t.grupo_atividade_id)?.nome_grupo || "-"}
+                        {t.grupo_atividade_nome || grupos.find((g) => g.id === t.grupo_atividade_id)?.nome_grupo || "-"}
                       </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{t.ativo ? "Sim" : "Não"}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
