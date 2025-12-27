@@ -131,11 +131,12 @@ export default function LancamentosTarefas() {
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
                 </div>
-                <Button variant="outline" size="sm" className="="h-8 w-8"" onClick={() => setShowConfigColunas(true)}>
+                <Button variant="outline" size="sm" className="h-8 w-8" onClick={() => setShowConfigColunas(true)}>
                   <Settings className="w-4 h-4" /> 
                 </Button>
             </div>
           </div>
+        </div>
 
           <div className="overflow-auto">
             <Table>
