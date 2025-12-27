@@ -113,6 +113,9 @@ export default function LancamentosTarefas() {
               <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
+                Colunas
+              </Button>
               <Link to={createPageUrl("LancamentoTarefaForm")}>
                 <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                   Lançar Tarefa
@@ -131,14 +134,14 @@ export default function LancamentosTarefas() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs border-r border-slate-200">
+                  <TableHead className="text-xs font-bold py-1 border border-black w-8">
                     <Checkbox checked={todosMarcados} onCheckedChange={(v)=>alternarTodos(!!v)} />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
                   {colunasOrdem.filter(id => colunas[id]).map((id) => (
                     <TableHead
                       key={id}
-                      className="text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100"
+                      className="text-xs font-bold py-1 border border-black cursor-pointer hover:bg-slate-100"
                       onClick={() => handleSort(id)}
                     >
                       {COLUNAS_DISPONIVEIS.find(c => c.id === id)?.label}
@@ -148,16 +151,16 @@ export default function LancamentosTarefas() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border-r border-slate-200 text-center">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Carregando...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border-r border-slate-200 text-center">Nenhum registro</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={100} className="text-xs py-1 border border-gray-300 text-center">Nenhum registro</TableCell></TableRow>
                 ) : (
                   lancamentosOrdenados.map(l => (
                     <TableRow key={l.id} className="hover:bg-slate-50 transition-colors border-b">
-                      <TableCell className="border-r border-slate-200">
+                      <TableCell className="text-xs py-1 border border-gray-300">
                         <Checkbox checked={selecionados.includes(l.id)} onCheckedChange={(v)=>alternarUm(l.id, !!v)} />
                       </TableCell>
-                      <TableCell className="text-center border-r border-slate-200">
+                      <TableCell className="text-center text-xs py-1 border border-gray-300">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -176,15 +179,15 @@ export default function LancamentosTarefas() {
                       </TableCell>
                       {colunasOrdem.filter(id => colunas[id]).map((id) => (
                         <React.Fragment key={id}>
-                          {id === 'status' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.status_tarefa}</TableCell>}
-                          {id === 'urgencia' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
-                          {id === 'grupo' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.grupo_atividade_nome}</TableCell>}
-                          {id === 'tipo' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.nome_tipo_tarefa}</TableCell>}
-                          {id === 'area' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.area_pasto_nome || '-'}</TableCell>}
-                          {id === 'responsavel' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.responsavel_nome}</TableCell>}
-                          {id === 'dataIni' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_inicial}</TableCell>}
-                          {id === 'dataFim' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.data_final}</TableCell>}
-                          {id === 'atrasada' && <TableCell className="text-xs py-1 border-r border-slate-200">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
+                          {id === 'status' && <TableCell className="text-xs py-1 border border-gray-300">{l.status_tarefa}</TableCell>}
+                          {id === 'urgencia' && <TableCell className="text-xs py-1 border border-gray-300">{l.urgencia} / {l.nivel_urgencia}</TableCell>}
+                          {id === 'grupo' && <TableCell className="text-xs py-1 border border-gray-300">{l.grupo_atividade_nome}</TableCell>}
+                          {id === 'tipo' && <TableCell className="text-xs py-1 border border-gray-300">{l.nome_tipo_tarefa}</TableCell>}
+                          {id === 'area' && <TableCell className="text-xs py-1 border border-gray-300">{l.area_pasto_nome || '-'}</TableCell>}
+                          {id === 'responsavel' && <TableCell className="text-xs py-1 border border-gray-300">{l.responsavel_nome}</TableCell>}
+                          {id === 'dataIni' && <TableCell className="text-xs py-1 border border-gray-300">{l.data_inicial}</TableCell>}
+                          {id === 'dataFim' && <TableCell className="text-xs py-1 border border-gray-300">{l.data_final}</TableCell>}
+                          {id === 'atrasada' && <TableCell className="text-xs py-1 border border-gray-300">{l.atrasada ? 'Sim' : 'Não'}</TableCell>}
                         </React.Fragment>
                       ))}
                       

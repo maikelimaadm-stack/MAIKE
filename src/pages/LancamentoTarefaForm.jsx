@@ -86,14 +86,6 @@ export default function LancamentoTarefaForm() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between bg-white rounded px-3 py-2 border-b">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Lançar"} Tarefa</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => {window.location.href = createPageUrl("LancamentosTarefas");}}>
-            <X className="w-3.5 h-3.5 mr-1" /> Cancelar
-          </Button>
-          <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
-            <Save className="w-3.5 h-3.5 mr-1" /> Salvar
-          </Button>
-        </div>
       </div>
 
       <Card>
