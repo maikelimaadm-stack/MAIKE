@@ -45,7 +45,7 @@ export default function GruposAtividades() {
         <div className="flex gap-2">
           <Link to={createPageUrl("GrupoAtividadeForm")}>
             <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Novo
+              Novo
             </Button>
           </Link>
         </div>
