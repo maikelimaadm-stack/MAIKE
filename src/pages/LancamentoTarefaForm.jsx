@@ -85,7 +85,7 @@ export default function LancamentoTarefaForm() {
   };
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 md:p-6 space-y-2">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Lançar"} Tarefa</h1>
       </div>

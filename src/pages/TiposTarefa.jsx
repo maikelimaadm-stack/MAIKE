@@ -87,7 +87,7 @@ export default function TiposTarefa() {
                   <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black w-40">Ações</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -123,22 +123,21 @@ export default function TiposTarefa() {
                       <TableCell className="text-xs py-1 border border-gray-300">
                         {new Date(t.updated_date).toLocaleString("pt-BR")}
                       </TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 w-40">
-                        <div className="flex flex-wrap gap-1">
-                          <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>
-                            <Button variant="outline" size="sm" className="h-8 text-xs">
-                              <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                      <TableCell className="text-center text-xs py-1 border border-gray-300 w-12">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                             </Button>
-                          </Link>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => excluir(t.id)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
-                          </Button>
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem asChild className="text-xs">
+                              <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>Editar</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => excluir(t.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
