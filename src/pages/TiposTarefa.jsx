@@ -82,12 +82,12 @@ export default function TiposTarefa() {
                       onCheckedChange={(v) => toggleAll(!!v)}
                     />
                   </TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Grupo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -112,6 +112,22 @@ export default function TiposTarefa() {
                           onCheckedChange={(v) => toggleOne(t.id, !!v)}
                         />
                       </TableCell>
+                      <TableCell className="text-center text-xs py-1 border border-gray-300 w-12">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem asChild className="text-xs">
+                              <Link to={createPageUrl(`TipoTarefaForm?id=${t.id}`)}>Editar</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => excluir(t.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{t.nome_tipo}</TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">
                         {t.grupo_atividade_nome || grupos.find((g) => g.id === t.grupo_atividade_id)?.nome_grupo || "-"}
@@ -123,7 +139,6 @@ export default function TiposTarefa() {
                       <TableCell className="text-xs py-1 border border-gray-300">
                         {new Date(t.updated_date).toLocaleString("pt-BR")}
                       </TableCell>
-                      <TableCell className="text-center text-xs py-1 border border-gray-300 w-12">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6">
