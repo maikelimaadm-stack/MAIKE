@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
-import { Save, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 
 export default function GrupoAtividadeForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
+  const navigate = useNavigate();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" });
@@ -78,6 +80,11 @@ export default function GrupoAtividadeForm() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end gap-2 pt-3">
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>navigate(createPageUrl("GruposAtividades"))}>Cancelar</Button>
+        <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={salvar}>Salvar</Button>
+      </div>
     </div>
   );
 }
