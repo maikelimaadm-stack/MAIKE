@@ -148,7 +148,7 @@ export default function LancamentosTarefas() {
           <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
+                <TableRow>
                   <TableHead className="text-xs font-bold py-1 border border-black w-8">
                     <Checkbox checked={todosMarcados} onCheckedChange={(v)=>alternarTodos(!!v)} />
                   </TableHead>

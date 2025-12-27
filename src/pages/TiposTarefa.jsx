@@ -55,61 +55,60 @@ export default function TiposTarefa() {
         </div>
 
         <Card>
-        <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-center">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
+          <CardContent className="p-0">
+            <div className="p-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-center">
+                <div className="md:col-span-2 relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
+                </div>
+                <div className="flex items-center">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 text-xs">
+                        <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuCheckboxItem checked={colunas.tipo} onCheckedChange={(v)=>setColunas(c=>({...c,tipo:!!v}))}>Tipo</DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={colunas.grupo} onCheckedChange={(v)=>setColunas(c=>({...c,grupo:!!v}))}>Grupo</DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div>
+                  <label className="text-xs">Grupo</label>
+                  <select value={filtroGrupo} onChange={(e)=>setFiltroGrupo(e.target.value)} className="h-8 text-xs w-full border rounded px-2">
+                    <option value="">Todos</option>
+                    {grupos.map(g => <option key={g.id} value={g.id}>{g.nome_grupo}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs">Ativo</label>
+                  <select value={filtroAtivo} onChange={(e)=>setFiltroAtivo(e.target.value)} className="h-8 text-xs w-full border rounded px-2">
+                    <option value="">Todos</option>
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <div className="text-xs text-slate-500">{filtered.length} de {tipos.length} registros</div>
+                <div className="flex gap-2">
+                  {selected.length > 0 && (
+                    <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={excluirSelecionados}>
+                      <Trash2 className="w-3.5 h-3.5 mr-1"/> Excluir Selecionados
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setSearch(""); setFiltroGrupo(""); setFiltroAtivo("");}}>Limpar Filtros</Button>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs">
-                    <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuCheckboxItem checked={colunas.tipo} onCheckedChange={(v)=>setColunas(c=>({...c,tipo:!!v}))}>Tipo</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={colunas.grupo} onCheckedChange={(v)=>setColunas(c=>({...c,grupo:!!v}))}>Grupo</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div>
-              <label className="text-xs">Grupo</label>
-              <select value={filtroGrupo} onChange={(e)=>setFiltroGrupo(e.target.value)} className="h-8 text-xs w-full border rounded px-2">
-                <option value="">Todos</option>
-                {grupos.map(g => <option key={g.id} value={g.id}>{g.nome_grupo}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs">Ativo</label>
-              <select value={filtroAtivo} onChange={(e)=>setFiltroAtivo(e.target.value)} className="h-8 text-xs w-full border rounded px-2">
-                <option value="">Todos</option>
-                <option value="true">Sim</option>
-                <option value="false">Não</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-between items-center mt-2">
-            <div className="text-xs text-slate-500">{filtered.length} de {tipos.length} registros</div>
-            <div className="flex gap-2">
-              {selected.length > 0 && (
-                <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={excluirSelecionados}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1"/> Excluir Selecionados
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{setSearch(""); setFiltroGrupo(""); setFiltroAtivo("");}}>Limpar Filtros</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardContent className="p-0">
+            <div className="overflow-auto">
           <div className="overflow-auto">
             <Table>
               <TableHeader>
