@@ -42,7 +42,7 @@ export default function TipoTarefaForm() {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between bg-white rounded px-3 py-2 border-b">
+      <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Novo"} Tipo de Tarefa</h1>
       </div>
 
