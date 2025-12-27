@@ -62,10 +62,6 @@ export default function GrupoAtividadeForm() {
             <Label className="text-xs">Descrição</Label>
             <Input value={form.descricao} onChange={(e)=>setForm(f=>({...f,descricao:e.target.value}))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Cor/Ícone</Label>
-            <Input value={form.cor_icone} onChange={(e)=>setForm(f=>({...f,cor_icone:e.target.value}))} className="h-8 text-xs" placeholder="ex: indigo-600 ou icon-name" />
-          </div>
           <div className="space-y-1 lg:col-span-6">
             <Label className="text-xs">Observações</Label>
             <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
