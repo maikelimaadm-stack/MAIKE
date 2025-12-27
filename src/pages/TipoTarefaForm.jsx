@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
+
 import { useQuery } from "@tanstack/react-query";
 
 
@@ -15,6 +16,7 @@ export default function TipoTarefaForm() {
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  
 
   const [form, setForm] = useState({ nome_tipo: "", grupo_atividade_id: "", ativo: true, descricao: "", exige_area: false, pode_ter_produto: false, pode_ter_maquina: false, pode_ter_implemento: false });
   const { data: grupos = [] } = useQuery({ queryKey: ["grupos-atividades"], queryFn: () => base44.entities.GrupoAtividade.list(), initialData: [] });

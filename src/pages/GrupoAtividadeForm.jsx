@@ -9,11 +9,13 @@ import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
 
 
+
 export default function GrupoAtividadeForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  
 
   const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" });
 
