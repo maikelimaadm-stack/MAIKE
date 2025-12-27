@@ -50,38 +50,14 @@ export default function GruposAtividades() {
       <Card>
         <CardContent className="p-0">
           <div className="p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1" />
-              <div className="flex items-center gap-2">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
-                      <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuCheckboxItem checked={colunas.nome} onCheckedChange={(v)=>setColunas(c=>({...c,nome:!!v}))}>Nome</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <div className="flex justify-between items-center mt-2">
-              <div className="text-xs text-slate-500">{filtered.length} de {grupos.length} registros</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-slate-900">Grupos ({filtered.length})</div>
               <div className="flex gap-2">
                 {selected.length > 0 && (
                   <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={excluirSelecionados}>
                     <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir Selecionados
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>setSearch("")}>Limpar Filtros</Button>
               </div>
             </div>
           </div>
