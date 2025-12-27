@@ -132,9 +132,8 @@ export default function LancamentosTarefas() {
                   <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
                 </div>
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-                  <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-                </Button>
-              </div>
+                  <Settings className="w-3.5 h-3.5 mr-1" /> 
+                </Button>              </div>
             </div>
           </div>
 
