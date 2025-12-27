@@ -17,7 +17,7 @@ export default function GrupoAtividadeForm() {
   const navigate = useNavigate();
   
 
-  const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" });
+  const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", observacoes: "" });
 
   useEffect(() => {
     const load = async () => {

@@ -130,21 +130,6 @@ export default function GruposAtividades() {
                       <TableCell className="text-xs py-1 border border-gray-300">
                         {new Date(g.updated_date).toLocaleString("pt-BR")}
                       </TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem asChild className="text-xs">
-                              <Link to={createPageUrl(`GrupoAtividadeForm?id=${g.id}`)}>Editar</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => excluir(g.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
