@@ -47,12 +47,12 @@ export default function TipoTarefaForm() {
       </div>
 
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-1">
+        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <div className="space-y-1 lg:col-span-2">
             <Label className="text-xs">Tipo de Tarefa *</Label>
             <Input value={form.nome_tipo} onChange={(e)=>setForm(f=>({...f,nome_tipo:e.target.value}))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <Label className="text-xs">Grupo *</Label>
             <Select value={form.grupo_atividade_id} onValueChange={(v)=>setForm(f=>({...f,grupo_atividade_id:v}))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione"/></SelectTrigger>
@@ -61,7 +61,7 @@ export default function TipoTarefaForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <Label className="text-xs">Ativo</Label>
             <Select value={String(form.ativo)} onValueChange={(v)=>setForm(f=>({...f,ativo:v==="true"}))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -71,7 +71,7 @@ export default function TipoTarefaForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-6">
             <Label className="text-xs">Descrição</Label>
             <Input value={form.descricao} onChange={(e)=>setForm(f=>({...f,descricao:e.target.value}))} className="h-8 text-xs" />
           </div>

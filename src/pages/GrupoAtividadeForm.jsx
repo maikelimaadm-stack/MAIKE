@@ -43,12 +43,12 @@ export default function GrupoAtividadeForm() {
       </div>
 
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-1">
+        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <div className="space-y-1 lg:col-span-3">
             <Label className="text-xs">Nome do grupo *</Label>
             <Input value={form.nome_grupo} onChange={(e)=>setForm(f=>({...f,nome_grupo:e.target.value}))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <Label className="text-xs">Ativo</Label>
             <Select value={String(form.ativo)} onValueChange={(v)=>setForm(f=>({...f,ativo:v==="true"}))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -58,7 +58,7 @@ export default function GrupoAtividadeForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-6">
             <Label className="text-xs">Descrição</Label>
             <Input value={form.descricao} onChange={(e)=>setForm(f=>({...f,descricao:e.target.value}))} className="h-8 text-xs" />
           </div>
@@ -66,7 +66,7 @@ export default function GrupoAtividadeForm() {
             <Label className="text-xs">Cor/Ícone</Label>
             <Input value={form.cor_icone} onChange={(e)=>setForm(f=>({...f,cor_icone:e.target.value}))} className="h-8 text-xs" placeholder="ex: indigo-600 ou icon-name" />
           </div>
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-6">
             <Label className="text-xs">Observações</Label>
             <Input value={form.observacoes} onChange={(e)=>setForm(f=>({...f,observacoes:e.target.value}))} className="h-8 text-xs" />
           </div>
