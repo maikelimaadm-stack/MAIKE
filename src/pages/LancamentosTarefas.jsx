@@ -205,6 +205,7 @@ export default function LancamentosTarefas() {
               </TableBody>
             </Table>
           </div>
+          </div>
         </CardContent>
       </Card>
 
