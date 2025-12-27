@@ -138,6 +138,7 @@ export default function LancamentosTarefas() {
           </div>
         </div>
 
+        </div>
           <div className="overflow-auto">
             <Table>
               <TableHeader>
