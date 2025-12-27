@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
 import { Save, X } from "lucide-react";
 
 export default function GrupoAtividadeForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({ nome_grupo: "", ativo: true, descricao: "", cor_icone: "", observacoes: "" });
 
@@ -29,7 +31,7 @@ export default function GrupoAtividadeForm() {
   const salvar = async () => {
     if (!form.nome_grupo?.trim()) return;
     if (isEdit) await base44.entities.GrupoAtividade.update(id, form); else await base44.entities.GrupoAtividade.create(form);
-    window.location.href = createPageUrl("GruposAtividades");
+    navigate(createPageUrl("GruposAtividades"));
   };
 
   return (
@@ -37,7 +39,7 @@ export default function GrupoAtividadeForm() {
       <div className="flex items-center justify-between bg-white rounded px-3 py-2 border-b">
         <h1 className="text-lg font-bold text-slate-900">{isEdit ? "Editar" : "Novo"} Grupo</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>window.location.href=createPageUrl("GruposAtividades")}>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={()=>navigate(createPageUrl("GruposAtividades"))}>
             <X className="w-3.5 h-3.5 mr-1"/> Cancelar
           </Button>
           <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={salvar}>

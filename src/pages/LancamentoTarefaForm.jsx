@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 
@@ -13,6 +14,7 @@ export default function LancamentoTarefaForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const isEdit = Boolean(id);
+  const navigate = useNavigate();
 
   const emptyForm = {
     tipo_tarefa_id: "",
@@ -52,7 +54,7 @@ export default function LancamentoTarefaForm() {
     mutationFn: async (payload) => base44.entities.LancamentoTarefa.create(payload),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["lancamentos-tarefa"] });
-      window.location.href = createPageUrl("LancamentosTarefas");
+      navigate(createPageUrl("LancamentosTarefas"));
     }
   });
 
@@ -60,7 +62,7 @@ export default function LancamentoTarefaForm() {
     mutationFn: ({ id, data }) => base44.entities.LancamentoTarefa.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lancamentos-tarefa"] });
-      window.location.href = createPageUrl("LancamentosTarefas");
+      navigate(createPageUrl("LancamentosTarefas"));
     }
   });
 
@@ -178,7 +180,7 @@ export default function LancamentoTarefaForm() {
       </Card>
 
       <div className="flex justify-end gap-2 pt-3">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { window.location.href = createPageUrl("LancamentosTarefas"); }}>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { navigate(createPageUrl("LancamentosTarefas")); }}>
           Cancelar
         </Button>
         <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
