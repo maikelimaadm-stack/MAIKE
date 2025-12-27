@@ -91,8 +91,8 @@ export default function LancamentoTarefaForm() {
       </div>
 
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-1">
+        <CardContent className="p-3 grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Tipo de Tarefa *</label>
             <Select value={form.tipo_tarefa_id} onValueChange={(v) => setForm((f) => ({ ...f, tipo_tarefa_id: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -101,12 +101,12 @@ export default function LancamentoTarefaForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Grupo de Atividades</label>
             <Input value={grupos.find((g) => g.id === tipos.find((t) => t.id === form.tipo_tarefa_id)?.grupo_atividade_id)?.nome_grupo || ""} disabled className="h-8 text-xs" />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Área/Pasto</label>
             <Select value={form.area_pasto_id} onValueChange={(v) => setForm((f) => ({ ...f, area_pasto_id: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -116,16 +116,16 @@ export default function LancamentoTarefaForm() {
             </Select>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <label className="text-xs">Data inicial *</label>
             <Input type="date" value={form.data_inicial} onChange={(e) => setForm((f) => ({ ...f, data_inicial: e.target.value }))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <label className="text-xs">Data final *</label>
             <Input type="date" value={form.data_final} onChange={(e) => setForm((f) => ({ ...f, data_final: e.target.value }))} className="h-8 text-xs" />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs">Responsável (Funcionário) *</label>
             <Select value={form.responsavel_id} onValueChange={(v) => setForm((f) => ({ ...f, responsavel_id: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -135,7 +135,7 @@ export default function LancamentoTarefaForm() {
             </Select>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <label className="text-xs">Urgência *</label>
             <Select value={form.urgencia} onValueChange={(v) => setForm((f) => ({ ...f, urgencia: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -144,7 +144,7 @@ export default function LancamentoTarefaForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <label className="text-xs">Nível de urgência *</label>
             <Select value={form.nivel_urgencia} onValueChange={(v) => setForm((f) => ({ ...f, nivel_urgencia: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -154,15 +154,15 @@ export default function LancamentoTarefaForm() {
             </Select>
           </div>
 
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-4">
             <label className="text-xs">Descrição/Instruções</label>
             <Input value={form.descricao_instrucoes} onChange={(e) => setForm((f) => ({ ...f, descricao_instrucoes: e.target.value }))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-6">
             <label className="text-xs">Localização adicional</label>
             <Input value={form.localizacao_adicional} onChange={(e) => setForm((f) => ({ ...f, localizacao_adicional: e.target.value }))} className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-1">
             <label className="text-xs">Status</label>
             <Select value={form.status_tarefa} onValueChange={(v) => setForm((f) => ({ ...f, status_tarefa: v }))}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -172,7 +172,7 @@ export default function LancamentoTarefaForm() {
             </Select>
           </div>
 
-          <div className="space-y-1 lg:col-span-2">
+          <div className="space-y-1 lg:col-span-5">
             <label className="text-xs">Observações</label>
             <Input value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} className="h-8 text-xs" />
           </div>
