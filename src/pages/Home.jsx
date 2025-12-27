@@ -15,14 +15,14 @@ const CORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
 
 export default function Home() {
   const [showConfigGraficos, setShowConfigGraficos] = useState(false);
-  
+
   const [graficosVisiveis, setGraficosVisiveis] = useState(() => {
     const saved = localStorage.getItem('graficos_dashboard');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         const validGraphIds = ['movimentacoes_mes', 'estoque_categoria'];
-        const filtered = parsed.filter(id => validGraphIds.includes(id));
+        const filtered = parsed.filter((id) => validGraphIds.includes(id));
         if (filtered.length !== parsed.length) {
           localStorage.setItem('graficos_dashboard', JSON.stringify(filtered));
         }
@@ -43,59 +43,59 @@ export default function Home() {
     queryKey: ['produtos_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Produto.list();
-      return all.filter(p => p && p.empresa_id === empresaSelecionadaId);
+      return all.filter((p) => p && p.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ['movimentacoes_dashboard', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list('-data_movimentacao');
-      return all.filter(m => m && m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
+      return all.filter((m) => m && m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ['pontos-supl-dash', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter(p => p.empresa_id === empresaSelecionadaId);
+      return all.filter((p) => p.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: eventosSuplementacao = [] } = useQuery({
     queryKey: ['eventos-supl-dash', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.SuplementacaoEvento.list();
-      return all.filter(e => e.empresa_id === empresaSelecionadaId);
+      return all.filter((e) => e.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const dadosSuplementacao = useMemo(() => {
-    const pontosAtivos = pontosSuplementacao.filter(p => p.status === 'Ativo').length;
-    const eventosUltimos30 = eventosSuplementacao.filter(e => {
+    const pontosAtivos = pontosSuplementacao.filter((p) => p.status === 'Ativo').length;
+    const eventosUltimos30 = eventosSuplementacao.filter((e) => {
       const diasAtras = Math.floor((new Date() - new Date(e.data_lancamento)) / (1000 * 60 * 60 * 24));
       return diasAtras <= 30;
     });
     const totalFornecido = eventosUltimos30.reduce((sum, e) => sum + e.quantidade_total_kg, 0);
 
-    const pontosComAlerta = pontosSuplementacao.filter(p => {
+    const pontosComAlerta = pontosSuplementacao.filter((p) => {
       if (p.status !== 'Ativo') return false;
-      const eventosP = eventosSuplementacao.filter(e => e.ponto_suplementacao_id === p.id);
+      const eventosP = eventosSuplementacao.filter((e) => e.ponto_suplementacao_id === p.id);
       if (eventosP.length === 0) return true;
-      
-      const ultimoEvento = eventosP.sort((a, b) => 
-        new Date(b.data_lancamento) - new Date(a.data_lancamento)
+
+      const ultimoEvento = eventosP.sort((a, b) =>
+      new Date(b.data_lancamento) - new Date(a.data_lancamento)
       )[0];
-      
+
       const diasSemLancamento = Math.floor(
         (new Date() - new Date(ultimoEvento.data_lancamento)) / (1000 * 60 * 60 * 24)
       );
-      
+
       return diasSemLancamento > (p.alerta_sem_lancamento_dias || 10);
     });
 
@@ -108,24 +108,24 @@ export default function Home() {
       const mes = subMonths(new Date(), i);
       const inicioMes = new Date(mes.getFullYear(), mes.getMonth(), 1);
       const fimMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
-      
-      const entradas = movimentacoes.filter(m => 
-        m.tipo_movimentacao === 'Entrada' && 
-        new Date(m.data_movimentacao) >= inicioMes && 
-        new Date(m.data_movimentacao) <= fimMes
+
+      const entradas = movimentacoes.filter((m) =>
+      m.tipo_movimentacao === 'Entrada' &&
+      new Date(m.data_movimentacao) >= inicioMes &&
+      new Date(m.data_movimentacao) <= fimMes
       ).length;
-      
-      const saidas = movimentacoes.filter(m => 
-        m.tipo_movimentacao === 'Saída' && 
-        new Date(m.data_movimentacao) >= inicioMes && 
-        new Date(m.data_movimentacao) <= fimMes
+
+      const saidas = movimentacoes.filter((m) =>
+      m.tipo_movimentacao === 'Saída' &&
+      new Date(m.data_movimentacao) >= inicioMes &&
+      new Date(m.data_movimentacao) <= fimMes
       ).length;
-      
+
       movimentacoesMes.push({ mes: format(mes, 'MMM/yy'), entradas, saidas });
     }
 
     const categorias = {};
-    produtos.forEach(p => {
+    produtos.forEach((p) => {
       const cat = p.categoria || 'Sem categoria';
       if (!categorias[cat]) categorias[cat] = 0;
       categorias[cat] += p.estoque_atual || 0;
@@ -136,8 +136,8 @@ export default function Home() {
   }, [movimentacoes, produtos]);
 
   const toggleGrafico = (graficoId) => {
-    setGraficosVisiveis(prev => {
-      const novos = prev.includes(graficoId) ? prev.filter(id => id !== graficoId) : [...prev, graficoId];
+    setGraficosVisiveis((prev) => {
+      const novos = prev.includes(graficoId) ? prev.filter((id) => id !== graficoId) : [...prev, graficoId];
       localStorage.setItem('graficos_dashboard', JSON.stringify(novos));
       return novos;
     });
@@ -157,8 +157,8 @@ export default function Home() {
         </div>
       </div>
 
-      {dadosSuplementacao.pontosAtivos > 0 && (
-        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+      {dadosSuplementacao.pontosAtivos > 0 &&
+      <Card className="shadow-sm border-l-4 border-l-emerald-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-slate-900">Suplementação (30 dias)</CardTitle>
@@ -200,13 +200,13 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
-      )}
+      }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {graficosVisiveis.includes('movimentacoes_mes') && (
-          <Card className="shadow-sm">
+        {graficosVisiveis.includes('movimentacoes_mes') &&
+        <Card className="shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-900">Movimentações (6 Meses)</CardTitle>
+              <CardTitle className="text-slate-900 mx-1 text-sm font-semibold tracking-tight">Movimentações (6 Meses)</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 pb-2">
               <ResponsiveContainer width="100%" height={220}>
@@ -222,10 +222,10 @@ export default function Home() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        )}
+        }
 
-        {graficosVisiveis.includes('estoque_categoria') && (
-          <Card className="shadow-sm">
+        {graficosVisiveis.includes('estoque_categoria') &&
+        <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-slate-900">Estoque por Categoria</CardTitle>
             </CardHeader>
@@ -233,25 +233,25 @@ export default function Home() {
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
-                    data={dadosGraficos.estoquePorCategoria}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={70}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {dadosGraficos.estoquePorCategoria.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />
-                    ))}
+                  data={dadosGraficos.estoquePorCategoria}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={70}
+                  fill="#8884d8"
+                  dataKey="value">
+
+                    {dadosGraficos.estoquePorCategoria.map((entry, index) =>
+                  <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />
+                  )}
                   </Pie>
                   <Tooltip contentStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        )}
+        }
       </div>
 
       <Dialog open={showConfigGraficos} onOpenChange={setShowConfigGraficos}>
@@ -275,6 +275,6 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
