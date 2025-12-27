@@ -126,19 +126,16 @@ export default function LancamentosTarefas() {
 
       <Card>
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
-            </div>
-          </div>
-          <div className="flex justify-between items-center mt-2">
+          <div className="flex items-center justify-between gap-2">
             <div className="text-xs text-slate-500">{filtered.length} de {lancs.length} registros</div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
+              </div>
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                 <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
               </Button>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={limparFiltros}>Limpar Filtros</Button>
             </div>
           </div>
         </CardContent>
