@@ -105,46 +105,39 @@ export default function LancamentosTarefas() {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="mb-2">
-        <Card>
-          <CardContent className="p-3 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Lançamentos de Tarefas</div>
-              <div className="text-xs text-slate-500">Gestão e controle de tarefas</div>
-            </div>
-            <div className="flex items-center gap-2">
-
-              <Link to={createPageUrl("LancamentoTarefaForm")}>
-                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                  Lançar Tarefa
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-1">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">Lançamentos de Tarefas</h1>
+          <p className="text-xs text-slate-600">Gestão e controle de tarefas</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to={createPageUrl("LancamentoTarefaForm")}>
+            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">Lançar Tarefa</Button>
+          </Link>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-slate-500">{filtered.length} de {lancs.length} registros</div>
-            <div className="flex items-center gap-2">
-              <div className="relative w-64">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
-              </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
-                <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
 
 
 
       <Card>
         <CardContent className="p-0">
+          <div className="p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs text-slate-500">{filtered.length} de {lancs.length} registros</div>
+              <div className="flex items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar..." className="h-8 text-xs pl-8" />
+                </div>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
+                  <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="overflow-auto">
             <Table>
               <TableHeader>
