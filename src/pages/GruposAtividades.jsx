@@ -11,20 +11,20 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 export default function GruposAtividades() {
-  const [selected, setSelected] = useState<string[]>([] as any);
+  const [selected, setSelected] = useState([]);
 
   const { data: grupos = [], isLoading, refetch } = useQuery({
     queryKey: ["grupos-atividades"],
     queryFn: () => base44.entities.GrupoAtividade.list("-updated_date"),
-    initialData: [] as any[],
+    initialData: [],
   });
 
   const filtered = useMemo(() => grupos, [grupos]);
 
-  const toggleAll = (v: boolean) => setSelected(v ? filtered.map((g: any) => g.id) : []);
-  const toggleOne = (id: string, v: boolean) => setSelected((prev) => (v ? [...prev, id] : prev.filter((x) => x !== id)));
+  const toggleAll = (v) => setSelected(v ? filtered.map((g) => g.id) : []);
+  const toggleOne = (id, v) => setSelected((prev) => (v ? [...prev, id] : prev.filter((x) => x !== id)));
 
-  const excluir = async (id: string) => {
+  const excluir = async (id) => {
     if (!confirm("Excluir?")) return;
     await base44.entities.GrupoAtividade.delete(id);
     await refetch();
@@ -74,7 +74,7 @@ export default function GruposAtividades() {
                   <TableHead className="text-xs font-bold py-1 border border-black w-8">
                     <Checkbox
                       checked={selected.length === filtered.length && filtered.length > 0}
-                      onCheckedChange={(v: any) => toggleAll(!!v)}
+                      onCheckedChange={(v) => toggleAll(!!v)
                     />
                   </TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Nome</TableHead>
@@ -103,7 +103,7 @@ export default function GruposAtividades() {
                       <TableCell className="text-xs py-1 border border-gray-300 w-8">
                         <Checkbox
                           checked={selected.includes(g.id)}
-                          onCheckedChange={(v: any) => toggleOne(g.id, !!v)}
+                          onCheckedChange={(v) => toggleOne(g.id, !!v)
                         />
                       </TableCell>
                       <TableCell className="text-xs py-1 border border-gray-300">{g.nome_grupo}</TableCell>
