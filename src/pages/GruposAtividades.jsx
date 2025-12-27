@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -80,7 +81,7 @@ export default function GruposAtividades() {
                   <TableHead className="text-xs font-bold py-1 border border-black">Ativo</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Criado em</TableHead>
                   <TableHead className="text-xs font-bold py-1 border border-black">Atualizado em</TableHead>
-                  <TableHead className="text-xs font-bold py-1 border border-black w-40">Ações</TableHead>
+                  <TableHead className="text-xs font-bold py-1 border border-black text-center w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
