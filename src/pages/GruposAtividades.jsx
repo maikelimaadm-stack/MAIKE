@@ -39,20 +39,6 @@ export default function GruposAtividades() {
           <p className="text-xs text-slate-600">Cadastro e organização dos grupos de tarefas</p>
         </div>
         <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs">
-                <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuCheckboxItem checked={colunas.nome} onCheckedChange={(v)=>setColunas(c=>({...c,nome:!!v}))}>Nome</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Link to={createPageUrl("GrupoAtividadeForm")}> 
             <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-3.5 h-3.5 mr-1" /> Novo
@@ -68,6 +54,22 @@ export default function GruposAtividades() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <Input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar grupo..." className="h-8 text-xs pl-8" />
             </div>
+          </div>
+          <div className="mt-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">
+                  <Settings className="w-3.5 h-3.5 mr-1" /> Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuCheckboxItem checked={colunas.nome} onCheckedChange={(v)=>setColunas(c=>({...c,nome:!!v}))}>Nome</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.ativo} onCheckedChange={(v)=>setColunas(c=>({...c,ativo:!!v}))}>Ativo</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.criado} onCheckedChange={(v)=>setColunas(c=>({...c,criado:!!v}))}>Criado em</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.atualizado} onCheckedChange={(v)=>setColunas(c=>({...c,atualizado:!!v}))}>Atualizado em</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={colunas.acoes} onCheckedChange={(v)=>setColunas(c=>({...c,acoes:!!v}))}>Ações</DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex justify-between items-center mt-2">
             <div className="text-xs text-slate-500">{filtered.length} de {grupos.length} registros</div>
