@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowRightLeft, Search, Settings, Edit, Ban, MoreVertical, Loader2, GripVertical, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowRightLeft, Search, Settings, Edit, Ban, MoreVertical, Loader2, GripVertical, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -387,6 +387,76 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
     }
   };
 
+  const escapeHtml = (str) => String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const getTextForCell = (id, mov) => {
+    switch (id) {
+      case 'numero': return mov.numero_movimentacao || '-';
+      case 'data': return formatarData(mov.data_movimentacao);
+      case 'tipo': return mov.tipo_movimentacao || '-';
+      case 'tipo_detalhado': return mov.tipo_detalhado || '-';
+      case 'tipo_documento': return mov.tipo_documento || '-';
+      case 'numero_documento': return mov.numero_documento || '-';
+      case 'serie_documento': return mov.serie_documento || '-';
+      case 'chave_documento': return mov.chave_documento || '-';
+      case 'data_documento': return formatarDataSimples(mov.data_documento);
+      case 'cfop': return mov.cfop || '-';
+      case 'natureza_operacao': return mov.natureza_operacao || '-';
+      case 'produto': return mov.produto_nome || '-';
+      case 'produto_codigo': return mov.produto_codigo || '-';
+      case 'produto_categoria': return mov.produto_categoria || '-';
+      case 'quantidade': return formatarNumero(mov.quantidade);
+      case 'unidade': return mov.unidade_medida || '-';
+      case 'valor_unitario': return formatarMoeda(mov.valor_unitario);
+      case 'valor_total': return formatarMoeda(mov.valor_total);
+      case 'custo_medio_antes': return formatarMoeda(mov.custo_medio_antes);
+      case 'custo_medio_depois': return formatarMoeda(mov.custo_medio_depois);
+      case 'saldo_antes': return formatarNumero(mov.saldo_antes);
+      case 'saldo_depois': return formatarNumero(mov.saldo_depois);
+      case 'fornecedor': return mov.fornecedor_nome || mov.cliente_nome || '-';
+      case 'local_estoque': {
+        const localPrincipal = mov.tipo_movimentacao === 'Entrada' 
+          ? (mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-')
+          : (mov.local_estoque_origem || mov.local_origem || mov.local_estoque || '-');
+        return localPrincipal;
+      }
+      case 'local_origem': return mov.local_estoque_origem || mov.local_origem || '-';
+      case 'local_destino': return mov.local_estoque_destino || mov.local_destino || '-';
+      case 'centro_custo': return mov.centro_custo_nome || '-';
+      case 'motivo': return mov.tipo_movimentacao === 'Ajuste' ? (mov.motivo_movimentacao || '-') : '-';
+      case 'observacoes': return mov.observacoes || '-';
+      case 'responsavel': return mov.usuario_responsavel || '-';
+      case 'status': return mov.status || '-';
+      default: return '-';
+    }
+  };
+
+  const handleExportExcel = (onlySelected = false) => {
+    const rows = onlySelected 
+      ? sortedMovimentacoes.filter(m => selectedItems.includes(m.id))
+      : sortedMovimentacoes;
+    if (!rows || rows.length === 0) {
+      alert('Não há dados para exportar.');
+      return;
+    }
+    const visibleCols = colunasOrdenadas; // já ordenadas e visíveis
+    const thead = '<tr>' + visibleCols.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') + '</tr>';
+    const tbody = rows.map(mov => {
+      const tds = visibleCols.map(c => `<td>${escapeHtml(getTextForCell(c.id, mov))}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table>${thead}${tbody}</table></body></html>`;
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = onlySelected ? 'movimentacoes_selecionadas.xls' : 'movimentacoes_filtradas.xls';
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    a.remove();
+  };
+
   return (
     <>
       <Card className="shadow-sm border-slate-300">
@@ -429,6 +499,22 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowConfigColunas(true)}>
                 Colunas
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                    <Download className="w-3.5 h-3.5" />
+                    Exportar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-xs" onClick={() => handleExportExcel(false)}>
+                    Excel - linhas filtradas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs" onClick={() => handleExportExcel(true)} disabled={selectedItems.length === 0}>
+                    Excel - selecionadas
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
