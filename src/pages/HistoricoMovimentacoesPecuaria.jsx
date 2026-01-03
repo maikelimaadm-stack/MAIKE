@@ -503,7 +503,7 @@ export default function HistoricoMovimentacoesPecuaria() {
     const headers = ['Data', 'Tipo', 'Motivo', 'Quantidade', 'Categoria', 'Marca', 'Sexo', 'Peso Médio', 'Peso Total', 'Área', 'Fornecedor/Comprador', 'Valor Unitário', 'Valor Total', 'NF', 'GTA', 'Causa Morte', 'Transferência Origem', 'Transferência Destino', 'Observações'];
     csvRows.push(headers.join(';'));
 
-    movimentacoes.forEach(m => {
+    filteredMovimentacoes.forEach(m => {
       const areaExibir = m.tipo === 'Entrada' ? m.area_destino_nome : m.area_origem_nome;
       const row = [
         formatarDataSimples(m.data_movimentacao),
