@@ -1873,7 +1873,7 @@ export default function LancamentoPesagensIndividuais() {
           <div className="mt-3 p-3 border-t bg-purple-50 rounded">
               <h3 className="text-xs font-semibold text-purple-700 mb-3 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
-                Dados do Abate
+                Documentação / Abate
               </h3>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
