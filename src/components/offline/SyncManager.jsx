@@ -291,7 +291,12 @@ export const syncAll = async (empresaId, onProgress) => {
     }
     await refreshCache(empresaId);
 
-
+    // 5. Atualizar cache
+    notifyListeners({ type: 'progress', entity: 'cache' });
+    if (onProgress) {
+      onProgress({ phase: 'cache', currentItem: 'Atualizando cache...' });
+    }
+    await refreshCache(empresaId);
 
     // 6. Remover duplicados automaticamente
     notifyListeners({ type: 'progress', entity: 'duplicados' });
@@ -480,11 +485,15 @@ export const refreshCache = async (empresaId) => {
   if (!navigator.onLine) return;
 
   try {
-    const [pesagensEmpresa, apartacoesEmpresa, lotesEmpresa] = await Promise.all([
-      base44.entities.PesagemIndividual.filter({ empresa_id: empresaId }, '-data_pesagem', 2000),
-      base44.entities.Apartacao.filter({ empresa_id: empresaId }),
-      base44.entities.LoteApartacao.filter({ empresa_id: empresaId }),
+    const [pesagens, apartacoes, lotes] = await Promise.all([
+      base44.entities.PesagemIndividual.list('-data_pesagem'),
+      base44.entities.Apartacao.list(),
+      base44.entities.LoteApartacao.list(),
     ]);
+
+    const pesagensEmpresa = pesagens.filter(p => p.empresa_id === empresaId);
+    const apartacoesEmpresa = apartacoes.filter(a => a.empresa_id === empresaId);
+    const lotesEmpresa = lotes.filter(l => l.empresa_id === empresaId);
 
     // LIMPAR completamente os caches antes de recarregar (evita dados offline residuais)
     await Promise.all([

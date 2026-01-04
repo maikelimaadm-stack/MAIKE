@@ -408,7 +408,6 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
       try {
         await initDB();
         setDbReady(true);
-        await migrateLocalStoragePendings();
         await loadAllData();
       } catch (error) {
         console.error('Erro ao inicializar IndexedDB:', error);
@@ -446,29 +445,6 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
     };
   }, [empresaSelecionadaId]);
 
-  const migrateLocalStoragePendings = async () => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
-      if (Array.isArray(stored) && stored.length && dbReady) {
-        const batchSize = 200; // evitar travar a UI
-        const batch = stored.slice(0, batchSize);
-        for (const item of batch) {
-          await savePesagemOffline(item);
-        }
-        const remaining = stored.slice(batch.length);
-        if (remaining.length > 0) {
-          localStorage.setItem('pending_pesagens_individuais', JSON.stringify(remaining));
-          toast.success(`${batch.length} lançamentos migrados; ${remaining.length} restante(s) serão migrados aos poucos.`);
-        } else {
-          localStorage.removeItem('pending_pesagens_individuais');
-          toast.success(`${batch.length} lançamento(s) offline preparados para sincronização`);
-        }
-      }
-    } catch (e) {
-      console.error('Erro ao migrar pendentes do localStorage:', e);
-    }
-  };
-
   const loadAllData = async () => {
     setIsLoading(true);
 
@@ -502,49 +478,45 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
       await updatePendingCount();
       setIsLoading(false);
 
-      // Se online, atualizar do servidor e salvar no IndexedDB (em duas etapas para evitar travamentos)
+      // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
-        // 1) Dados principais primeiro (libera a UI rápido)
-        const [allPesagens, allApartacoes, allLotes, allEmbarques, allDocs] = await Promise.all([
-          base44.entities.PesagemIndividual.filter({ empresa_id: empresaSelecionadaId }, '-data_pesagem', 2000),
-          base44.entities.Apartacao.filter({ empresa_id: empresaSelecionadaId }),
-          base44.entities.LoteApartacao.filter({ empresa_id: empresaSelecionadaId }),
-          base44.entities.Embarque.filter({ empresa_id: empresaSelecionadaId }, '-updated_date', 500),
-          base44.entities.DocumentoEmbarque.filter({ empresa_id: empresaSelecionadaId }, '-updated_date', 2000)
-        ]);
+        const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigs, allItens, allEmbarques, allDocs] = await Promise.all([
+        base44.entities.PesagemIndividual.list('-data_pesagem'),
+        base44.entities.Apartacao.list(),
+        base44.entities.LoteApartacao.list(),
+        base44.entities.SanidadeAnimal.list('-data_aplicacao'),
+        base44.entities.ConfiguracaoSanidade.list(),
+        base44.entities.ItemSanidade.list(),
+        base44.entities.Embarque.list('-updated_date'),
+        base44.entities.DocumentoEmbarque.list('-updated_date')]
+        );
+
+        const pesagensEmpresa = allPesagens.filter((p) => p.empresa_id === empresaSelecionadaId);
+        const apartacoesEmpresa = allApartacoes.filter((a) => a.empresa_id === empresaSelecionadaId);
+        const lotesEmpresa = allLotes.filter((l) => l.empresa_id === empresaSelecionadaId);
+        const sanidadesEmpresa = allSanidades.filter((s) => s.empresa_id === empresaSelecionadaId);
+        const configsEmpresa = allConfigs.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo);
+        const itensEmpresa = allItens;
 
         // Salvar no IndexedDB (persistente)
         if (dbReady) {
           await Promise.all([
-            cachePesagens(allPesagens),
-            cacheApartacoes(allApartacoes),
-            cacheLotes(allLotes),
-            bulkPut('embarques', allEmbarques.filter(e=>e.empresa_id===empresaSelecionadaId)),
-            bulkPut('documentos_embarque', allDocs.filter(d=>d.empresa_id===empresaSelecionadaId))
-          ]);
+          cachePesagens(pesagensEmpresa),
+          cacheApartacoes(apartacoesEmpresa),
+          cacheLotes(lotesEmpresa),
+          bulkPut('embarques', allEmbarques.filter(e=>e.empresa_id===empresaSelecionadaId)),
+          bulkPut('documentos_embarque', allDocs.filter(d=>d.empresa_id===empresaSelecionadaId))]
+          );
         }
 
-        setPesagens(allPesagens);
-        setApartacoes(allApartacoes);
-        setLotesApartacao(allLotes);
+        setPesagens(pesagensEmpresa);
+        setApartacoes(apartacoesEmpresa);
+        setLotesApartacao(lotesEmpresa);
+        setSanidadesAplicadas(sanidadesEmpresa);
+        setConfiguracoesSanidade(configsEmpresa);
+        setItensSanidade(itensEmpresa);
         setEmbarques(allEmbarques.filter(e=>e.empresa_id===empresaSelecionadaId));
         setDocumentosEmbarque(allDocs.filter(d=>d.empresa_id===empresaSelecionadaId));
-
-        // 2) Buscar sanidades/configs/itens em segundo plano (não bloqueia a UI)
-        (async () => {
-          try {
-            const [allSanidades, allConfigs, allItens] = await Promise.all([
-              base44.entities.SanidadeAnimal.filter({ empresa_id: empresaSelecionadaId }, '-data_aplicacao', 2000),
-              base44.entities.ConfiguracaoSanidade.filter({ empresa_id: empresaSelecionadaId }),
-              base44.entities.ItemSanidade.list()
-            ]);
-            setSanidadesAplicadas(allSanidades);
-            setConfiguracoesSanidade(allConfigs.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo));
-            setItensSanidade(allItens);
-          } catch (e) {
-            console.error('Erro ao carregar sanidades/configs:', e);
-          }
-        })();
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);

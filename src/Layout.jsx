@@ -39,7 +39,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { initDB, clearStore, clearAllPending, STORES_NAMES } from "@/components/offline/IndexedDBManager";
 
 const iconsMap = {
   Home, Scale, TrendingUp, ArrowRightLeft, DollarSign, BookOpen, FolderOpen, 
@@ -204,30 +203,6 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('menu_oculto') === 'true';
   });
 
-  // Forçar limpeza de cache automática (uma vez) para recuperar app travado
-  React.useEffect(() => {
-    const run = async () => {
-      if (sessionStorage.getItem('__reset_performed__') === '1') return;
-      sessionStorage.setItem('__reset_performed__', '1');
-      try {
-        await initDB().catch(() => {});
-        const stores = Object.values(STORES_NAMES || {});
-        for (const s of stores) { try { await clearStore(s); } catch (_) {} }
-        try { await clearAllPending(); } catch (_) {}
-        const keys = [
-          'custom_menu','menu_version','empresa_selecionada_id','menu_oculto',
-          'offline_pesagens_individuais','offline_apartacoes','offline_lotes_apartacao',
-          'pending_pesagens_individuais','embarque_sel','documento_sel','sanidade_em_uso',
-          'colunas_visiveis_lancamento_pesagens','colunas_ordem_lancamento_pesagens'
-        ];
-        keys.forEach(k => localStorage.removeItem(k));
-      } finally {
-        window.location.reload();
-      }
-    };
-    run();
-  }, []);
-
   // Prevenir tradução automática do navegador
   React.useEffect(() => {
     document.documentElement.setAttribute('translate', 'no');
@@ -348,29 +323,6 @@ export default function Layout({ children, currentPageName }) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleHardReset = async () => {
-    const ok = window.confirm('Limpar todo o cache local (menus, dados offline) e recarregar?');
-    if (!ok) return;
-    try {
-      await initDB().catch(()=>{});
-      const stores = Object.values(STORES_NAMES || {});
-      for (const s of stores) {
-        try { await clearStore(s); } catch (_) {}
-      }
-      try { await clearAllPending(); } catch (_) {}
-      const keys = [
-        'custom_menu','menu_version','empresa_selecionada_id','menu_oculto',
-        'offline_pesagens_individuais','offline_apartacoes','offline_lotes_apartacao',
-        'pending_pesagens_individuais','embarque_sel','documento_sel','sanidade_em_uso',
-        'colunas_visiveis_lancamento_pesagens','colunas_ordem_lancamento_pesagens'
-      ];
-      keys.forEach(k => localStorage.removeItem(k));
-      sessionStorage && sessionStorage.clear && sessionStorage.clear();
-    } finally {
-      window.location.reload();
-    }
-  };
-
   const handleLogout = () => {
     base44.auth.logout();
   };
@@ -485,9 +437,6 @@ export default function Layout({ children, currentPageName }) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleHardReset}>
-                Limpar Cache
-              </Button>
               {empresas.length > 0 && (
                 <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
                   <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
