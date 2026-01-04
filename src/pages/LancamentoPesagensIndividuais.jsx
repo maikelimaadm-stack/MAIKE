@@ -803,21 +803,16 @@ export default function LancamentoPesagensIndividuais() {
   const resumoDocsAbate = useMemo(() => {
     return documentosDoEmbarqueSel.map((d) => {
       const pesDoc = todasPesagensAbate.filter((p) => p.documento_embarque_id === d.id);
-      const embM = pesDoc.filter((p) => p.sexo === 'M').length;
-      const embF = pesDoc.filter((p) => p.sexo === 'F').length;
-      const prevM = d.qtd_prev_machos || 0;
-      const prevF = d.qtd_prev_femeas || 0;
-      const numero = d.numero_nfe || d.numero_gta || '-';
+      const pesoTotal = pesDoc.reduce((s, p) => s + (p.peso || 0), 0);
+      const pesoMedio = pesDoc.length ? pesoTotal / pesDoc.length : 0;
       return {
         id: d.id,
-        tipo: d.tipo_documento,
-        numero,
-        prevM,
-        prevF,
-        embM,
-        embF,
-        faltamM: Math.max(prevM - embM, 0),
-        faltamF: Math.max(prevF - embF, 0)
+        gta: d.numero_gta || '-',
+        nfe: d.numero_nfe || '-',
+        prevM: d.qtd_prev_machos || 0,
+        prevF: d.qtd_prev_femeas || 0,
+        pesoTotal,
+        pesoMedio,
       };
     });
   }, [documentosDoEmbarqueSel, todasPesagensAbate]);
