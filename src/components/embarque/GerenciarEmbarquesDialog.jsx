@@ -239,6 +239,7 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
 
               <Table>
                 <TableHeader>
+                  {/* Cabeçalho conforme padrão de tabelas: text-xs, font-bold, py-1, border */}
                   <TableRow>
                     <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
                     <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
