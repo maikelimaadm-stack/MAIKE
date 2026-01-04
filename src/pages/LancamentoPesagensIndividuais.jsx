@@ -2042,6 +2042,32 @@ export default function LancamentoPesagensIndividuais() {
                 </SelectContent>
               </Select>
             </div>
+            {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Embarque (Abate)</Label>
+                <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{setEmbarqueSelecionadoDoc(v);setDocumentoSelecionado('');}}>
+                  <SelectTrigger className="h-9 text-sm w-56"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {embarques.map((e)=> (
+                      <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Documento (GTA/NF-e)</Label>
+                <Select value={documentoSelecionado} onValueChange={setDocumentoSelecionado} disabled={!embarqueSelecionadoDoc}>
+                  <SelectTrigger className="h-9 text-sm w-56"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {documentosEmbarque.filter(d=>d.embarque_id===embarqueSelecionadoDoc).map((d)=> (
+                      <SelectItem key={d.id} value={d.id}>{d.tipo_documento} • {d.numero_gta || d.numero_nfe || '-'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {peso && apartacaoSelecionada && !loteTransferencia &&
             (() => {
               const loteAuto = getLoteAutomatico(parseFloat(peso));
