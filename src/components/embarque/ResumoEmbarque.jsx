@@ -11,14 +11,18 @@ export default function ResumoEmbarque({ embarques, documentos, embarqueSelecion
       const embarcadosDoc = allPesagens.filter(p => p.documento_embarque_id === d.id);
       const machos = embarcadosDoc.filter(p => p.sexo === 'M').length;
       const femeas = embarcadosDoc.filter(p => p.sexo === 'F').length;
+      const pesoTotal = embarcadosDoc.reduce((s, p) => s + (p.peso || 0), 0);
+      const pesoMedio = embarcadosDoc.length ? pesoTotal / embarcadosDoc.length : 0;
       return {
         id: d.id,
-        doc: d.tipo_documento,
-        numero: d.numero_gta || d.numero_nfe || '-',
+        gta: d.numero_gta || '-',
+        nfe: d.numero_nfe || '-',
         prevM: d.qtd_prev_machos || 0,
         prevF: d.qtd_prev_femeas || 0,
-        embM: machos,
-        embF: femeas
+        embM: machos, // mantido para o rodapé
+        embF: femeas, // mantido para o rodapé
+        pesoTotal,
+        pesoMedio
       };
     });
   }, [docs, allPesagens]);
@@ -46,21 +50,21 @@ export default function ResumoEmbarque({ embarques, documentos, embarqueSelecion
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px]">Doc</TableHead>
-                    <TableHead className="text-[10px]">Nº</TableHead>
-                    <TableHead className="text-[10px] text-center">Prev M/F</TableHead>
-                    <TableHead className="text-[10px] text-center">Emb M/F</TableHead>
-                    <TableHead className="text-[10px] text-center">Faltam</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Total</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Médio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {linhas.map(l => (
                     <TableRow key={l.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs">{l.doc}</TableCell>
-                      <TableCell className="text-xs">{l.numero}</TableCell>
-                      <TableCell className="text-xs text-center">{l.prevM}/{l.prevF}</TableCell>
-                      <TableCell className="text-xs text-center">{l.embM}/{l.embF}</TableCell>
-                      <TableCell className="text-xs text-center">{Math.max(0, l.prevM - l.embM)}/{Math.max(0, l.prevF - l.embF)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300">{l.gta}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300">{l.nfe}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-center">{l.prevM}/{l.prevF}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{l.pesoTotal.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{l.pesoMedio.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
