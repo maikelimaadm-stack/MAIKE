@@ -258,6 +258,12 @@ export default function LancamentoPesagensIndividuais() {
   const [valorTotalAbate, setValorTotalAbate] = useState("");
   const [numeroGTAAbate, setNumeroGTAAbate] = useState("");
   const [observacoesAbate, setObservacoesAbate] = useState("");
+  // Embarque/Documentação (para Saída Abate)
+  const [embarques, setEmbarques] = useState([]);
+  const [documentosEmbarque, setDocumentosEmbarque] = useState([]);
+  const [embarqueSelecionadoDoc, setEmbarqueSelecionadoDoc] = useState("");
+  const [documentoSelecionado, setDocumentoSelecionado] = useState("");
+  const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
