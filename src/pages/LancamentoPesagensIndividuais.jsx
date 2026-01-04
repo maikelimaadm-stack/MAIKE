@@ -495,7 +495,9 @@ export default function LancamentoPesagensIndividuais() {
           await Promise.all([
           cachePesagens(pesagensEmpresa),
           cacheApartacoes(apartacoesEmpresa),
-          cacheLotes(lotesEmpresa)]
+          cacheLotes(lotesEmpresa),
+          bulkPut('embarques', allEmbarques.filter(e=>e.empresa_id===empresaSelecionadaId)),
+          bulkPut('documentos_embarque', allDocs.filter(d=>d.empresa_id===empresaSelecionadaId))]
           );
         }
 
