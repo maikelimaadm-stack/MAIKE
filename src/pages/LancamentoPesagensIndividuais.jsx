@@ -408,6 +408,7 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
       try {
         await initDB();
         setDbReady(true);
+        await migrateLocalStoragePendings();
         await loadAllData();
       } catch (error) {
         console.error('Erro ao inicializar IndexedDB:', error);
@@ -444,6 +445,21 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
       unsubscribe();
     };
   }, [empresaSelecionadaId]);
+
+  const migrateLocalStoragePendings = async () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
+      if (Array.isArray(stored) && stored.length && dbReady) {
+        for (const item of stored) {
+          await savePesagemOffline(item);
+        }
+        localStorage.removeItem('pending_pesagens_individuais');
+        toast.success(`${stored.length} lançamento(s) offline preparados para sincronização`);
+      }
+    } catch (e) {
+      console.error('Erro ao migrar pendentes do localStorage:', e);
+    }
+  };
 
   const loadAllData = async () => {
     setIsLoading(true);
