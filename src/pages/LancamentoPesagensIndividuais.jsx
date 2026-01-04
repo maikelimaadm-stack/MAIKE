@@ -761,6 +761,35 @@ export default function LancamentoPesagensIndividuais() {
     return { total, machos, femeas, pesoMedio };
   }, [pesagensDia]);
 
+  // Estatísticas do documento/embarque selecionados (Abate)
+  const pesagensDocSelecionado = useMemo(() => {
+    if (!documentoSelecionado) return [];
+    return [...pendingPesagensDB, ...pesagens].filter((p) => p.documento_embarque_id === documentoSelecionado);
+  }, [documentoSelecionado, pesagens, pendingPesagensDB]);
+
+  const resumoDoc = useMemo(() => {
+    const total = pesagensDocSelecionado.length;
+    const machos = pesagensDocSelecionado.filter((p) => p.sexo === 'M').length;
+    const femeas = pesagensDocSelecionado.filter((p) => p.sexo === 'F').length;
+    const pesoTotal = pesagensDocSelecionado.reduce((s, p) => s + (p.peso || 0), 0);
+    const pesoMedio = total > 0 ? pesoTotal / total : 0;
+    return { total, machos, femeas, pesoTotal, pesoMedio };
+  }, [pesagensDocSelecionado]);
+
+  const pesagensEmbarqueSelecionado = useMemo(() => {
+    if (!embarqueSelecionadoDoc) return [];
+    return [...pendingPesagensDB, ...pesagens].filter((p) => p.embarque_id === embarqueSelecionadoDoc);
+  }, [embarqueSelecionadoDoc, pesagens, pendingPesagensDB]);
+
+  const resumoEmbarque = useMemo(() => {
+    const total = pesagensEmbarqueSelecionado.length;
+    const machos = pesagensEmbarqueSelecionado.filter((p) => p.sexo === 'M').length;
+    const femeas = pesagensEmbarqueSelecionado.filter((p) => p.sexo === 'F').length;
+    const pesoTotal = pesagensEmbarqueSelecionado.reduce((s, p) => s + (p.peso || 0), 0);
+    const pesoMedio = total > 0 ? pesoTotal / total : 0;
+    return { total, machos, femeas, pesoTotal, pesoMedio };
+  }, [pesagensEmbarqueSelecionado]);
+
   // Buscar sanidades aplicadas para cada animal do dia
   const sanidadesPorAnimal = useMemo(() => {
     const map = {};
@@ -1007,7 +1036,7 @@ export default function LancamentoPesagensIndividuais() {
       embarque_nome: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedEmb?.nome || null) : null,
       documento_embarque_id: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (documentoSelecionado || null) : null,
       documento_tipo: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.tipo_documento || null) : null,
-      documento_numero: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.numero_gta || selectedDoc?.numero_nfe || null) : null,
+      documento_numero: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc ? (selectedDoc.tipo_documento === 'GTA+NF-e' ? `GTA: ${selectedDoc.numero_gta || '-'} | NF-e: ${selectedDoc.numero_nfe || '-'}` : (selectedDoc.numero_gta || selectedDoc.numero_nfe || null)) : null) : null,
       motorista_nome: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.motorista_nome || null) : null,
       placa_carreta: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.placa_carreta || null) : null,
       // Cadastro e Saída não têm ganho de peso
@@ -1919,13 +1948,34 @@ export default function LancamentoPesagensIndividuais() {
                   <Select value={documentoSelecionado} onValueChange={setDocumentoSelecionado} disabled={!embarqueSelecionadoDoc}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {documentosEmbarque.filter(d=>d.embarque_id===embarqueSelecionadoDoc).map(d=>
-                        <SelectItem key={d.id} value={d.id}>{d.tipo_documento} • {d.numero_gta || d.numero_nfe || '-'}</SelectItem>
-                      )}
+                      {documentosEmbarque.filter(d=>d.embarque_id===embarqueSelecionadoDoc).map(d=> {
+                        const label = d.tipo_documento === 'GTA+NF-e'
+                          ? `${d.tipo_documento} • GTA: ${d.numero_gta || '-'} • NF-e: ${d.numero_nfe || '-'}`
+                          : `${d.tipo_documento} • ${d.numero_gta || d.numero_nfe || '-'}`;
+                        return (
+                          <SelectItem key={d.id} value={d.id}>{label}</SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+              {documentoSelecionado && (
+                <div className="grid grid-cols-4 gap-3 mb-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Peso Total (Documento)</Label>
+                    <div className="h-8 flex items-center text-xs font-semibold text-amber-500">
+                      {resumoDoc.pesoTotal.toFixed(2)} kg
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Média Peso (Documento)</Label>
+                    <div className="h-8 flex items-center text-xs font-semibold text-amber-500">
+                      {resumoDoc.pesoMedio.toFixed(2)} kg
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Frigorífico</Label>
@@ -2348,6 +2398,21 @@ export default function LancamentoPesagensIndividuais() {
                 <span className="text-slate-500">Peso Médio</span>
                 <span className="font-bold text-lg">{estatisticas.pesoMedio.toFixed(2)}</span>
               </div>
+            {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
+              <div className="flex items-center gap-1 ml-4">
+                <span className="text-slate-500">{documentoSelecionado ? 'Doc Selecionado' : 'Embarque Selecionado'}</span>
+                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.total : resumoEmbarque.total}</span>
+                <span className="text-slate-400">/</span>
+                <span className="text-slate-500">M</span>
+                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.machos : resumoEmbarque.machos}</span>
+                <span className="text-slate-400">/</span>
+                <span className="text-slate-500">F</span>
+                <span className="font-bold text-lg text-amber-500">{documentoSelecionado ? resumoDoc.femeas : resumoEmbarque.femeas}</span>
+                <span className="text-slate-400">•</span>
+                <span className="text-slate-500">Média</span>
+                <span className="font-bold text-lg text-amber-500">{(documentoSelecionado ? resumoDoc.pesoMedio : resumoEmbarque.pesoMedio).toFixed(2)}</span>
+              </div>
+            )}
             </div>
             <Button variant="outline" size="sm" onClick={exportarExcel} className="h-7 text-xs">
               Exportar
