@@ -43,7 +43,8 @@ import {
   clearStore,
   getAllItems,
   saveUpdateOffline,
-  STORES_NAMES } from
+  STORES_NAMES,
+  bulkPut } from
 "../components/offline/IndexedDBManager";
 import { syncAll, addSyncListener } from "../components/offline/SyncManager";
 import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
