@@ -450,11 +450,19 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
     try {
       const stored = JSON.parse(localStorage.getItem('pending_pesagens_individuais') || '[]');
       if (Array.isArray(stored) && stored.length && dbReady) {
-        for (const item of stored) {
+        const batchSize = 200; // evitar travar a UI
+        const batch = stored.slice(0, batchSize);
+        for (const item of batch) {
           await savePesagemOffline(item);
         }
-        localStorage.removeItem('pending_pesagens_individuais');
-        toast.success(`${stored.length} lançamento(s) offline preparados para sincronização`);
+        const remaining = stored.slice(batch.length);
+        if (remaining.length > 0) {
+          localStorage.setItem('pending_pesagens_individuais', JSON.stringify(remaining));
+          toast.success(`${batch.length} lançamentos migrados; ${remaining.length} restante(s) serão migrados aos poucos.`);
+        } else {
+          localStorage.removeItem('pending_pesagens_individuais');
+          toast.success(`${batch.length} lançamento(s) offline preparados para sincronização`);
+        }
       }
     } catch (e) {
       console.error('Erro ao migrar pendentes do localStorage:', e);
