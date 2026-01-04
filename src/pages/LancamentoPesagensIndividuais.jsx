@@ -1208,7 +1208,7 @@ export default function LancamentoPesagensIndividuais() {
       setPeso("");
       setObservacao("");
       setLoteTransferencia("");
-      setMotivoSaida("");
+      // NÃO limpar motivoSaida para não obrigar nova seleção a cada lançamento
       setValorPagoCabeca("");
       setOrigemAnimal("");
       setDocumentacao("");
@@ -1231,8 +1231,7 @@ export default function LancamentoPesagensIndividuais() {
       setObservacoesAbate("");
       setEmbarqueSelecionadoDoc("");
       setDocumentoSelecionado("");
-      setMostrarDadosVenda(false);
-      setMostrarDadosAbate(false);
+      // NÃO esconder as seções de Venda/Abate após salvar
       setAvisoTela(null);
       numeroInputRef.current?.focus();
     } catch (error) {
