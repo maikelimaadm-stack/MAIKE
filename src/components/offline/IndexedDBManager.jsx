@@ -1,6 +1,6 @@
 // IndexedDB Manager para persistência offline
 const DB_NAME = 'pesagens_offline_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   PESAGENS: 'pesagens_individuais',
