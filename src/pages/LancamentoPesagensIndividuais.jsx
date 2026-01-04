@@ -2614,6 +2614,8 @@ export default function LancamentoPesagensIndividuais() {
         empresaId={empresaSelecionadaId}
         embarques={embarques}
         documentos={documentosEmbarque}
+        pesagens={pesagens}
+        pendingPesagens={pendingPesagensDB}
         onRefresh={loadAllData}
         dbReady={dbReady}
       />

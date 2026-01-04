@@ -11,7 +11,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { putItem } from "../offline/IndexedDBManager";
 
-export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId, embarques, documentos, onRefresh, dbReady }) {
+export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId, embarques, documentos, onRefresh, dbReady, pesagens = [], pendingPesagens = [] }) {
   const [tab, setTab] = useState("embarques");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -35,6 +35,28 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
   const [docPrevF, setDocPrevF] = useState("");
 
   const documentosDoEmbarque = useMemo(() => documentos.filter(d => d.embarque_id === embSelecionado), [documentos, embSelecionado]);
+
+  // Pesos por documento (inclui pendentes offline)
+  const allPesagens = useMemo(() => [
+    ...(pendingPesagens || []),
+    ...(pesagens || [])
+  ], [pendingPesagens, pesagens]);
+
+  const sumByDoc = useMemo(() => {
+    const m = {};
+    allPesagens.forEach(p => {
+      const id = p.documento_embarque_id;
+      if (!id) return;
+      const peso = p.peso || 0;
+      if (!m[id]) m[id] = { totalPeso: 0, count: 0 };
+      m[id].totalPeso += peso;
+      m[id].count += 1;
+    });
+    Object.keys(m).forEach(id => {
+      m[id].media = m[id].count ? m[id].totalPeso / m[id].count : 0;
+    });
+    return m;
+  }, [allPesagens]);
 
   const salvarEmbarque = async () => {
     if (!embNome.trim()) { toast.error("Nome obrigatório"); return; }
@@ -218,21 +240,24 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Documento</TableHead>
-                    <TableHead className="text-xs">Nº</TableHead>
-                    <TableHead className="text-xs">Motorista/Placa</TableHead>
-                    <TableHead className="text-xs text-center">Prev M/F</TableHead>
-                    <TableHead className="text-xs w-16">Ações</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Total</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Médio</TableHead>
+                    <TableHead className="text-xs font-bold py-1 border border-black w-16">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {/* Linhas com hover e células com bordas seguindo o padrão */}
                   {documentosDoEmbarque.map(d => (
-                    <TableRow key={d.id}>
-                      <TableCell className="text-xs">{d.tipo_documento}</TableCell>
-                      <TableCell className="text-xs">{d.numero_gta || d.numero_nfe || '-'}</TableCell>
-                      <TableCell className="text-xs">{d.motorista_nome || '-'} / {d.placa_carreta || '-'}</TableCell>
-                      <TableCell className="text-xs text-center">{d.qtd_prev_machos || 0} / {d.qtd_prev_femeas || 0}</TableCell>
-                      <TableCell className="text-xs">
+                    <TableRow key={d.id} className="hover:bg-gray-50">
+                      <TableCell className="text-xs py-1 border border-gray-300">{d.numero_gta || '-'}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300">{d.numero_nfe || '-'}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-center">{d.qtd_prev_machos || 0} / {d.qtd_prev_femeas || 0}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{(sumByDoc[d.id]?.totalPeso || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{(sumByDoc[d.id]?.media || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 border border-gray-300">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5" /></Button>
