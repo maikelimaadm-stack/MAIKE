@@ -2003,28 +2003,25 @@ export default function LancamentoPesagensIndividuais() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Doc</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Nº</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
                         <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Emb M/F</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Faltam</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Total</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Médio</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {resumoDocsAbate.map((r) => (
                         <TableRow key={r.id} className="hover:bg-gray-50">
-                          <TableCell className="text-xs py-1 border border-gray-300">{r.tipo}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300">{r.numero}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300">{r.gta}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300">{r.nfe}</TableCell>
                           <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.prevM}/{r.prevF}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.embM}/{r.embF}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.faltamM}/{r.faltamF}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{r.pesoTotal.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{r.pesoMedio.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="text-xs text-slate-600 px-2 py-1">
-                    Previsto: {totaisDocsAbate.prevM}/{totaisDocsAbate.prevF} • Embarcado: {totaisDocsAbate.embM}/{totaisDocsAbate.embF} • Falta: {totaisDocsAbate.faltamM}/{totaisDocsAbate.faltamF}
-                  </div>
                 </div>
               )}
               <div className="grid grid-cols-4 gap-3">
