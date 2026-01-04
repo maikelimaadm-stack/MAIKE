@@ -146,10 +146,15 @@ export default function RelatorioPesagensIndividuais() {
   
   const [colunasDetalhesOrdem, setColunasDetalhesOrdem] = useState(() => {
     const saved = localStorage.getItem('colunas_detalhes_ordem_apartacao');
+    const base = COLUNAS_DETALHES_APARTACAO.map(c => c.id);
     if (saved) {
-      try { return JSON.parse(saved); } catch { }
+      try {
+        const arr = JSON.parse(saved) || [];
+        // Garante que novas colunas sejam adicionadas ao fim
+        return [...arr, ...base.filter(id => !arr.includes(id))];
+      } catch { }
     }
-    return COLUNAS_DETALHES_APARTACAO.map(c => c.id);
+    return base;
   });
 
   // Colunas do painel principal (Resumo por Lote) no relatório Apartação
@@ -176,22 +181,33 @@ export default function RelatorioPesagensIndividuais() {
   });
   const [colunasPainelOrdem, setColunasPainelOrdem] = useState(() => {
     const saved = localStorage.getItem('colunas_painel_ordem_apartacao');
+    const base = COLUNAS_PAINEL_APARTACAO.map(c => c.id);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const arr = JSON.parse(saved) || [];
+        return [...arr, ...base.filter(id => !arr.includes(id))];
+      } catch {}
     }
-    return COLUNAS_PAINEL_APARTACAO.map(c => c.id);
+    return base;
   });
-  const colunasPainelOrdenadas = useMemo(() =>
-    colunasPainelOrdem
+  const colunasPainelOrdenadas = useMemo(() => {
+    const ordemCompletada = [...colunasPainelOrdem, ...colunasPainelVisiveis.filter(id => !colunasPainelOrdem.includes(id))];
+    return ordemCompletada
       .map(id => COLUNAS_PAINEL_APARTACAO.find(c => c.id === id))
-      .filter(c => c && colunasPainelVisiveis.includes(c.id))
-  , [colunasPainelOrdem, colunasPainelVisiveis]);
+      .filter(c => c && colunasPainelVisiveis.includes(c.id));
+  }, [colunasPainelOrdem, colunasPainelVisiveis]);
   const toggleColunaPainel = (colunaId) => {
-    const novas = colunasPainelVisiveis.includes(colunaId)
-      ? colunasPainelVisiveis.filter(id => id !== colunaId)
-      : [...colunasPainelVisiveis, colunaId];
+    const habilitando = !colunasPainelVisiveis.includes(colunaId);
+    const novas = habilitando
+      ? [...colunasPainelVisiveis, colunaId]
+      : colunasPainelVisiveis.filter(id => id !== colunaId);
     setColunasPainelVisiveis(novas);
     localStorage.setItem('colunas_painel_apartacao', JSON.stringify(novas));
+    if (habilitando && !colunasPainelOrdem.includes(colunaId)) {
+      const novaOrdem = [...colunasPainelOrdem, colunaId];
+      setColunasPainelOrdem(novaOrdem);
+      localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(novaOrdem));
+    }
   };
   const handleDragEndPainel = (result) => {
     if (!result.destination) return;
@@ -201,6 +217,16 @@ export default function RelatorioPesagensIndividuais() {
     setColunasPainelOrdem(items);
     localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(items));
   };
+
+  // Garante que novas colunas do painel entrem na ordem salva
+  React.useEffect(() => {
+    const base = COLUNAS_PAINEL_APARTACAO.map(c => c.id);
+    const nova = [...colunasPainelOrdem, ...base.filter(id => !colunasPainelOrdem.includes(id))];
+    if (nova.length !== colunasPainelOrdem.length) {
+      setColunasPainelOrdem(nova);
+      localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(nova));
+    }
+  }, []);
 
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [apartacoesSelecionadas, setApartacoesSelecionadas] = useState([]);
@@ -334,11 +360,17 @@ export default function RelatorioPesagensIndividuais() {
 
   // Toggle para colunas de detalhes da apartação
   const toggleColunaDetalhe = (colunaId) => {
-    const novas = colunasDetalhesVisiveis.includes(colunaId) 
-      ? colunasDetalhesVisiveis.filter(id => id !== colunaId) 
-      : [...colunasDetalhesVisiveis, colunaId];
+    const habilitando = !colunasDetalhesVisiveis.includes(colunaId);
+    const novas = habilitando 
+      ? [...colunasDetalhesVisiveis, colunaId] 
+      : colunasDetalhesVisiveis.filter(id => id !== colunaId);
     setColunasDetalhesVisiveis(novas);
     localStorage.setItem('colunas_detalhes_apartacao', JSON.stringify(novas));
+    if (habilitando && !colunasDetalhesOrdem.includes(colunaId)) {
+      const novaOrdem = [...colunasDetalhesOrdem, colunaId];
+      setColunasDetalhesOrdem(novaOrdem);
+      localStorage.setItem('colunas_detalhes_ordem_apartacao', JSON.stringify(novaOrdem));
+    }
   };
 
   // Drag and drop para reordenar colunas de detalhes
@@ -352,9 +384,12 @@ export default function RelatorioPesagensIndividuais() {
   };
 
   // Colunas de detalhes ordenadas
-  const colunasDetalhesOrdenadas = colunasDetalhesOrdem
-    .map(id => COLUNAS_DETALHES_APARTACAO.find(c => c.id === id))
-    .filter(c => c && colunasDetalhesVisiveis.includes(c.id));
+  const colunasDetalhesOrdenadas = useMemo(() => {
+    const ordemCompletada = [...colunasDetalhesOrdem, ...colunasDetalhesVisiveis.filter(id => !colunasDetalhesOrdem.includes(id))];
+    return ordemCompletada
+      .map(id => COLUNAS_DETALHES_APARTACAO.find(c => c.id === id))
+      .filter(c => c && colunasDetalhesVisiveis.includes(c.id));
+  }, [colunasDetalhesOrdem, colunasDetalhesVisiveis]);
 
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
@@ -371,9 +406,11 @@ export default function RelatorioPesagensIndividuais() {
     setApartacoesSelecionadas([]);
     setSexosSelecionados([]);
     setRacasSelecionadas([]);
+    setErasSelecionadas([]);
+    setMarcasSelecionadas([]);
     setAgrupamentosAtivos([]);
     setOrdenacao('data_desc');
-    setTipoRelatorio('analitico');
+    // Mantém o tipo de relatório atual
   };
 
   // Estatísticas gerais
@@ -750,16 +787,11 @@ export default function RelatorioPesagensIndividuais() {
                                 <Table>
                                   <TableHeader>
                                     <TableRow className="bg-gray-50">
-                                      <TableHead className="text-xs font-bold py-2">Lote</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Faixa Exigida</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Menor</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Maior</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
-                                      <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
+                                      {colunasPainelOrdenadas.map(col => (
+                                        <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','peso_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
+                                          {col.label}
+                                        </TableHead>
+                                      ))}
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -850,20 +882,32 @@ export default function RelatorioPesagensIndividuais() {
 
                                 return (
                                   <TableRow key={lote} className="hover:bg-gray-50">
-                                    <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
-                                    <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">
-                                      {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">
-                                      {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                    <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                    {colunasPainelOrdenadas.map(col => {
+                                      switch (col.id) {
+                                        case 'lote':
+                                          return <TableCell key="lote" className="text-xs font-semibold py-2">{lote}</TableCell>;
+                                        case 'qtd':
+                                          return <TableCell key="qtd" className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>;
+                                        case 'faixa':
+                                          return <TableCell key="faixa" className="text-xs text-center py-2 font-mono">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
+                                        case 'menor':
+                                          return <TableCell key="menor" className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>;
+                                        case 'maior':
+                                          return <TableCell key="maior" className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>;
+                                        case 'peso_medio':
+                                          return <TableCell key="peso_medio" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>;
+                                        case 'peso_total':
+                                          return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>;
+                                        case 'gmd_medio':
+                                          return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
+                                        case 'machos':
+                                          return <TableCell key="machos" className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>;
+                                        case 'femeas':
+                                          return <TableCell key="femeas" className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>;
+                                        default:
+                                          return null;
+                                      }
+                                    })}
                                   </TableRow>
                                 );
                               })}
