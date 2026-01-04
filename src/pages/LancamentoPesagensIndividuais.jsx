@@ -50,6 +50,8 @@ import OfflineSyncIndicator from "../components/offline/OfflineSyncIndicator";
 import SyncProgressDialog from "../components/offline/SyncProgressDialog";
 import ComboboxComNovo from "../components/pecuaria/ComboboxComNovo";
 import GerenciarSanidades from "../components/sanidade/GerenciarSanidades";
+import GerenciarEmbarquesDialog from "../components/embarque/GerenciarEmbarquesDialog";
+import ResumoEmbarque from "../components/embarque/ResumoEmbarque";
 
 // ========== COMPONENTE RESUMO DE LOTES ==========
 function ResumoLotes({ apartacaoSelecionada, apartacoes, lotesApartacaoAtual, pesagens, pesagensDia, pendingPesagensDB, dataPesagem }) {
@@ -440,15 +442,19 @@ export default function LancamentoPesagensIndividuais() {
     try {
       // Tentar carregar do IndexedDB primeiro
       if (dbReady) {
-        const [cachedPesagensDB, cachedApartacoesDB, cachedLotesDB] = await Promise.all([
+        const [cachedPesagensDB, cachedApartacoesDB, cachedLotesDB, cachedEmbarquesDB, cachedDocsDB] = await Promise.all([
         getCachedPesagens(empresaSelecionadaId),
         getCachedApartacoes(empresaSelecionadaId),
-        getCachedLotes(empresaSelecionadaId)]
+        getCachedLotes(empresaSelecionadaId),
+        getAllItems('embarques'),
+        getAllItems('documentos_embarque')]
         );
 
         setPesagens(cachedPesagensDB);
         setApartacoes(cachedApartacoesDB);
         setLotesApartacao(cachedLotesDB);
+        setEmbarques((cachedEmbarquesDB||[]).filter(e=>e.empresa_id===empresaSelecionadaId));
+        setDocumentosEmbarque((cachedDocsDB||[]).filter(d=>d.empresa_id===empresaSelecionadaId));
       } else {
         // Fallback para localStorage
         const cachedPesagens = JSON.parse(localStorage.getItem('offline_pesagens_individuais') || '[]');
@@ -834,6 +840,12 @@ export default function LancamentoPesagensIndividuais() {
       toast.error("⚠️ Campo obrigatório: Motivo da Saída");
       return;
     }
+    if (tipoManejo === 'Saída' && motivoSaida === 'Abate') {
+      if (!embarqueSelecionadoDoc || !documentoSelecionado) {
+        toast.error("Selecione o Embarque e o Documento (GTA/NF-e)");
+        return;
+      }
+    }
 
     // Verificar duplicado (inclui pesagens pendentes offline) - exceto SN
     const isSN = numeroAnimal.trim().toUpperCase() === 'SN';
@@ -984,6 +996,14 @@ export default function LancamentoPesagensIndividuais() {
       quantidade_arrobas: quantidadeArrobas ? parseFloat(quantidadeArrobas.toFixed(2)) : null,
       // Dados de Saída (Abate)
       frigorifico: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? frigorifico : null,
+      // Embarque/documentação
+      embarque_id: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (embarqueSelecionadoDoc || null) : null,
+      embarque_nome: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedEmb?.nome || null) : null,
+      documento_embarque_id: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (documentoSelecionado || null) : null,
+      documento_tipo: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.tipo_documento || null) : null,
+      documento_numero: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.numero_gta || selectedDoc?.numero_nfe || null) : null,
+      motorista_nome: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.motorista_nome || null) : null,
+      placa_carreta: tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (selectedDoc?.placa_carreta || null) : null,
       // Cadastro e Saída não têm ganho de peso
       data_anterior: tipoManejo === 'Manejo' ? dataAnterior : null,
       peso_anterior: tipoManejo === 'Manejo' ? pesoAnterior : null,
@@ -1125,6 +1145,8 @@ export default function LancamentoPesagensIndividuais() {
       setValorTotalAbate("");
       setNumeroGTAAbate("");
       setObservacoesAbate("");
+      setEmbarqueSelecionadoDoc("");
+      setDocumentoSelecionado("");
       setMostrarDadosVenda(false);
       setMostrarDadosAbate(false);
       setAvisoTela(null);
@@ -1875,6 +1897,29 @@ export default function LancamentoPesagensIndividuais() {
                 <Truck className="w-4 h-4" />
                 Documentação / Abate
               </h3>
+              {/* Seleção de Embarque/Documento para o abate */}
+              <div className="grid grid-cols-4 gap-3 mb-2">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">Embarque</Label>
+                  <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{setEmbarqueSelecionadoDoc(v);setDocumentoSelecionado('');}}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {embarques.map(e=> <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">Documento (GTA/NF-e)</Label>
+                  <Select value={documentoSelecionado} onValueChange={setDocumentoSelecionado} disabled={!embarqueSelecionadoDoc}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {documentosEmbarque.filter(d=>d.embarque_id===embarqueSelecionadoDoc).map(d=>
+                        <SelectItem key={d.id} value={d.id}>{d.tipo_documento} • {d.numero_gta || d.numero_nfe || '-'}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Frigorífico</Label>
@@ -2278,8 +2323,17 @@ export default function LancamentoPesagensIndividuais() {
           </div>
         </div>
 
-        {/* RESUMO DE LOTES */}
-        <ResumoLotes
+        {/* RESUMO: Lotes ou Documentação */}
+        {tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (
+          <ResumoEmbarque
+            embarques={embarques}
+            documentos={documentosEmbarque}
+            embarqueSelecionado={embarqueSelecionadoDoc}
+            pesagens={pesagens}
+            pendingPesagens={pendingPesagensDB}
+          />
+        ) : (
+          <ResumoLotes
           apartacaoSelecionada={apartacaoSelecionada}
           apartacoes={apartacoes}
           lotesApartacaoAtual={lotesApartacaoAtual}
@@ -2287,7 +2341,7 @@ export default function LancamentoPesagensIndividuais() {
           pesagensDia={pesagensDia}
           pendingPesagensDB={pendingPesagensDB}
           dataPesagem={dataPesagem} />
-
+        )}
       </div>
 
       {/* RESUMO DE SANIDADES APLICADAS */}
@@ -2456,6 +2510,16 @@ export default function LancamentoPesagensIndividuais() {
       <OfflineSyncIndicator
         empresaId={empresaSelecionadaId}
         onSyncComplete={loadAllData} />
+
+      <GerenciarEmbarquesDialog
+        open={dialogEmbarqueOpen}
+        onOpenChange={setDialogEmbarqueOpen}
+        empresaId={empresaSelecionadaId}
+        embarques={embarques}
+        documentos={documentosEmbarque}
+        onRefresh={loadAllData}
+        dbReady={dbReady}
+      />
 
 
       {/* DIALOG GERENCIAR SANIDADES (CONFIGURAÇÕES) */}

@@ -1,11 +1,13 @@
 // IndexedDB Manager para persistência offline
 const DB_NAME = 'pesagens_offline_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORES = {
   PESAGENS: 'pesagens_individuais',
   APARTACOES: 'apartacoes',
   LOTES: 'lotes_apartacao',
+  EMBARQUES: 'embarques',
+  DOCUMENTOS_EMBARQUE: 'documentos_embarque',
   PENDING_PESAGENS: 'pending_pesagens',
   PENDING_APARTACOES: 'pending_apartacoes',
   PENDING_LOTES: 'pending_lotes',
@@ -57,6 +59,19 @@ export const initDB = () => {
         const lotesStore = database.createObjectStore(STORES.LOTES, { keyPath: 'id' });
         lotesStore.createIndex('empresa_id', 'empresa_id', { unique: false });
         lotesStore.createIndex('apartacao_id', 'apartacao_id', { unique: false });
+      }
+
+      // Store para embarques sincronizados
+      if (!database.objectStoreNames.contains(STORES.EMBARQUES)) {
+        const embStore = database.createObjectStore(STORES.EMBARQUES, { keyPath: 'id' });
+        embStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+      }
+
+      // Store para documentos de embarque sincronizados
+      if (!database.objectStoreNames.contains(STORES.DOCUMENTOS_EMBARQUE)) {
+        const docStore = database.createObjectStore(STORES.DOCUMENTOS_EMBARQUE, { keyPath: 'id' });
+        docStore.createIndex('empresa_id', 'empresa_id', { unique: false });
+        docStore.createIndex('embarque_id', 'embarque_id', { unique: false });
       }
 
       // Store para pesagens pendentes (offline)
