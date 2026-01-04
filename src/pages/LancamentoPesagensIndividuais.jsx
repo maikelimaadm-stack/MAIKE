@@ -497,20 +497,20 @@ const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
       // Se online, atualizar do servidor e salvar no IndexedDB
       if (navigator.onLine) {
         const [allPesagens, allApartacoes, allLotes, allSanidades, allConfigs, allItens, allEmbarques, allDocs] = await Promise.all([
-        base44.entities.PesagemIndividual.list('-data_pesagem'),
-        base44.entities.Apartacao.list(),
-        base44.entities.LoteApartacao.list(),
-        base44.entities.SanidadeAnimal.list('-data_aplicacao'),
-        base44.entities.ConfiguracaoSanidade.list(),
+        base44.entities.PesagemIndividual.filter({ empresa_id: empresaSelecionadaId }, '-data_pesagem', 2000),
+        base44.entities.Apartacao.filter({ empresa_id: empresaSelecionadaId }),
+        base44.entities.LoteApartacao.filter({ empresa_id: empresaSelecionadaId }),
+        base44.entities.SanidadeAnimal.filter({ empresa_id: empresaSelecionadaId }, '-data_aplicacao', 2000),
+        base44.entities.ConfiguracaoSanidade.filter({ empresa_id: empresaSelecionadaId }),
         base44.entities.ItemSanidade.list(),
-        base44.entities.Embarque.list('-updated_date'),
-        base44.entities.DocumentoEmbarque.list('-updated_date')]
+        base44.entities.Embarque.filter({ empresa_id: empresaSelecionadaId }, '-updated_date', 500),
+        base44.entities.DocumentoEmbarque.filter({ empresa_id: empresaSelecionadaId }, '-updated_date', 2000)]
         );
 
-        const pesagensEmpresa = allPesagens.filter((p) => p.empresa_id === empresaSelecionadaId);
-        const apartacoesEmpresa = allApartacoes.filter((a) => a.empresa_id === empresaSelecionadaId);
-        const lotesEmpresa = allLotes.filter((l) => l.empresa_id === empresaSelecionadaId);
-        const sanidadesEmpresa = allSanidades.filter((s) => s.empresa_id === empresaSelecionadaId);
+        const pesagensEmpresa = allPesagens;
+        const apartacoesEmpresa = allApartacoes;
+        const lotesEmpresa = allLotes;
+        const sanidadesEmpresa = allSanidades;
         const configsEmpresa = allConfigs.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo);
         const itensEmpresa = allItens;
 
