@@ -204,6 +204,30 @@ export default function Layout({ children, currentPageName }) {
     return localStorage.getItem('menu_oculto') === 'true';
   });
 
+  // Forçar limpeza de cache automática (uma vez) para recuperar app travado
+  React.useEffect(() => {
+    const run = async () => {
+      if (sessionStorage.getItem('__reset_performed__') === '1') return;
+      sessionStorage.setItem('__reset_performed__', '1');
+      try {
+        await initDB().catch(() => {});
+        const stores = Object.values(STORES_NAMES || {});
+        for (const s of stores) { try { await clearStore(s); } catch (_) {} }
+        try { await clearAllPending(); } catch (_) {}
+        const keys = [
+          'custom_menu','menu_version','empresa_selecionada_id','menu_oculto',
+          'offline_pesagens_individuais','offline_apartacoes','offline_lotes_apartacao',
+          'pending_pesagens_individuais','embarque_sel','documento_sel','sanidade_em_uso',
+          'colunas_visiveis_lancamento_pesagens','colunas_ordem_lancamento_pesagens'
+        ];
+        keys.forEach(k => localStorage.removeItem(k));
+      } finally {
+        window.location.reload();
+      }
+    };
+    run();
+  }, []);
+
   // Prevenir tradução automática do navegador
   React.useEffect(() => {
     document.documentElement.setAttribute('translate', 'no');
