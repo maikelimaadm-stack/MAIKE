@@ -790,6 +790,49 @@ export default function LancamentoPesagensIndividuais() {
     return { total, machos, femeas, pesoTotal, pesoMedio };
   }, [pesagensEmbarqueSelecionado]);
 
+  // Resumo por Documento do Embarque selecionado (para tabela Doc/Nº/Prev/Emb/Faltam)
+  const documentosDoEmbarqueSel = useMemo(() => {
+    if (!embarqueSelecionadoDoc) return [];
+    return documentosEmbarque.filter((d) => d.embarque_id === embarqueSelecionadoDoc);
+  }, [documentosEmbarque, embarqueSelecionadoDoc]);
+
+  const todasPesagensAbate = useMemo(() => {
+    return [...pendingPesagensDB, ...pesagens];
+  }, [pendingPesagensDB, pesagens]);
+
+  const resumoDocsAbate = useMemo(() => {
+    return documentosDoEmbarqueSel.map((d) => {
+      const pesDoc = todasPesagensAbate.filter((p) => p.documento_embarque_id === d.id);
+      const embM = pesDoc.filter((p) => p.sexo === 'M').length;
+      const embF = pesDoc.filter((p) => p.sexo === 'F').length;
+      const prevM = d.qtd_prev_machos || 0;
+      const prevF = d.qtd_prev_femeas || 0;
+      const numero = d.numero_nfe || d.numero_gta || '-';
+      return {
+        id: d.id,
+        tipo: d.tipo_documento,
+        numero,
+        prevM,
+        prevF,
+        embM,
+        embF,
+        faltamM: Math.max(prevM - embM, 0),
+        faltamF: Math.max(prevF - embF, 0)
+      };
+    });
+  }, [documentosDoEmbarqueSel, todasPesagensAbate]);
+
+  const totaisDocsAbate = useMemo(() => {
+    return resumoDocsAbate.reduce((acc, r) => ({
+      prevM: acc.prevM + r.prevM,
+      prevF: acc.prevF + r.prevF,
+      embM: acc.embM + r.embM,
+      embF: acc.embF + r.embF,
+      faltamM: acc.faltamM + r.faltamM,
+      faltamF: acc.faltamF + r.faltamF,
+    }), { prevM: 0, prevF: 0, embM: 0, embF: 0, faltamM: 0, faltamF: 0 });
+  }, [resumoDocsAbate]);
+
   // Buscar sanidades aplicadas para cada animal do dia
   const sanidadesPorAnimal = useMemo(() => {
     const map = {};
@@ -1960,19 +2003,32 @@ export default function LancamentoPesagensIndividuais() {
                   </Select>
                 </div>
               </div>
-              {documentoSelecionado && (
-                <div className="grid grid-cols-4 gap-3 mb-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Peso Total (Documento)</Label>
-                    <div className="h-8 flex items-center text-xs font-semibold text-amber-500">
-                      {resumoDoc.pesoTotal.toFixed(2)} kg
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Média Peso (Documento)</Label>
-                    <div className="h-8 flex items-center text-xs font-semibold text-amber-500">
-                      {resumoDoc.pesoMedio.toFixed(2)} kg
-                    </div>
+              {embarqueSelecionadoDoc && resumoDocsAbate.length > 0 && (
+                <div className="mb-2">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Doc</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Nº</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Emb M/F</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Faltam</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {resumoDocsAbate.map((r) => (
+                        <TableRow key={r.id} className="hover:bg-gray-50">
+                          <TableCell className="text-xs py-1 border border-gray-300">{r.tipo}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300">{r.numero}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.prevM}/{r.prevF}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.embM}/{r.embF}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.faltamM}/{r.faltamF}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="text-xs text-slate-600 px-2 py-1">
+                    Previsto: {totaisDocsAbate.prevM}/{totaisDocsAbate.prevF} • Embarcado: {totaisDocsAbate.embM}/{totaisDocsAbate.embF} • Falta: {totaisDocsAbate.faltamM}/{totaisDocsAbate.faltamF}
                   </div>
                 </div>
               )}
