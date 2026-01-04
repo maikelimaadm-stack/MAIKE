@@ -264,9 +264,11 @@ export default function LancamentoPesagensIndividuais() {
   // Embarque/Documentação (para Saída Abate)
   const [embarques, setEmbarques] = useState([]);
   const [documentosEmbarque, setDocumentosEmbarque] = useState([]);
-  const [embarqueSelecionadoDoc, setEmbarqueSelecionadoDoc] = useState("");
-  const [documentoSelecionado, setDocumentoSelecionado] = useState("");
-  const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
+  const [embarqueSelecionadoDoc, setEmbarqueSelecionadoDoc] = useState(() => localStorage.getItem('embarque_sel') || "");
+  const [documentoSelecionado, setDocumentoSelecionado] = useState(() => localStorage.getItem('documento_sel') || "");
+  useEffect(() => { if (embarqueSelecionadoDoc) localStorage.setItem('embarque_sel', embarqueSelecionadoDoc); }, [embarqueSelecionadoDoc]);
+useEffect(() => { if (documentoSelecionado) localStorage.setItem('documento_sel', documentoSelecionado); }, [documentoSelecionado]);
+const [dialogEmbarqueOpen, setDialogEmbarqueOpen] = useState(false);
 
   // Sanidade
   const [mostrarSanidade, setMostrarSanidade] = useState(false);
@@ -1984,7 +1986,7 @@ export default function LancamentoPesagensIndividuais() {
               <div className="grid grid-cols-4 gap-3 mb-2">
                 <div className="space-y-1 col-span-2">
                   <Label className="text-xs">Embarque</Label>
-                  <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{setEmbarqueSelecionadoDoc(v);setDocumentoSelecionado('');}}>
+                  <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{ setEmbarqueSelecionadoDoc(v); setDocumentoSelecionado(''); localStorage.setItem('embarque_sel', v); localStorage.removeItem('documento_sel'); }}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       {embarques.map(e=> <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
@@ -2153,7 +2155,7 @@ export default function LancamentoPesagensIndividuais() {
             {tipoManejo === 'Saída' && motivoSaida === 'Abate' && (
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Embarque (Abate)</Label>
-                <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{setEmbarqueSelecionadoDoc(v);setDocumentoSelecionado('');}}>
+                <Select value={embarqueSelecionadoDoc} onValueChange={(v)=>{ setEmbarqueSelecionadoDoc(v); setDocumentoSelecionado(''); localStorage.setItem('embarque_sel', v); localStorage.removeItem('documento_sel'); }}>
                   <SelectTrigger className="h-8 text-xs w-56"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {embarques.map((e)=> (
