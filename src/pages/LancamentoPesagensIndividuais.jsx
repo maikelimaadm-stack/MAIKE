@@ -2325,7 +2325,7 @@ export default function LancamentoPesagensIndividuais() {
 
         {/* RESUMO: Lotes ou Documentação */}
         {tipoManejo === 'Saída' && motivoSaida === 'Abate' ? (
-          <ResumoEmbarque
+        <ResumoEnbarque
             embarques={embarques}
             documentos={documentosEmbarque}
             embarqueSelecionado={embarqueSelecionadoDoc}
