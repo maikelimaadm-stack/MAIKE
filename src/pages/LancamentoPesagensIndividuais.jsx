@@ -1229,8 +1229,8 @@ export default function LancamentoPesagensIndividuais() {
       setValorTotalAbate("");
       setNumeroGTAAbate("");
       setObservacoesAbate("");
-      setEmbarqueSelecionadoDoc("");
-      setDocumentoSelecionado("");
+      // manter seleção de embarque entre lançamentos
+      // manter seleção de documento entre lançamentos
       // NÃO esconder as seções de Venda/Abate após salvar
       setAvisoTela(null);
       numeroInputRef.current?.focus();
