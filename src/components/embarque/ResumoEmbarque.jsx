@@ -50,21 +50,21 @@ export default function ResumoEmbarque({ embarques, documentos, embarqueSelecion
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Total</TableHead>
-                    <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Médio</TableHead>
+                    <TableHead className="text-[10px]">GTA</TableHead>
+                    <TableHead className="text-[10px]">NF-e</TableHead>
+                    <TableHead className="text-[10px] text-center">Prev M/F</TableHead>
+                    <TableHead className="text-[10px] text-right">Peso Total</TableHead>
+                    <TableHead className="text-[10px] text-right">Peso Médio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {linhas.map(l => (
                     <TableRow key={l.id} className="hover:bg-gray-50">
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.gta}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300">{l.nfe}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-center">{l.prevM}/{l.prevF}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{l.pesoTotal.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{l.pesoMedio.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1">{l.gta}</TableCell>
+                      <TableCell className="text-xs py-1">{l.nfe}</TableCell>
+                      <TableCell className="text-xs py-1 text-center">{l.prevM}/{l.prevF}</TableCell>
+                      <TableCell className="text-xs py-1 text-right font-mono">{l.pesoTotal.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-1 text-right font-mono">{l.pesoMedio.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

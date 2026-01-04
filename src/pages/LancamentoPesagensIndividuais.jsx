@@ -315,6 +315,12 @@ export default function LancamentoPesagensIndividuais() {
   { id: 'valor_arroba', label: 'Valor @', default: true },
   { id: 'quantidade_arrobas', label: 'Qtd @', default: true },
   { id: 'frigorifico', label: 'Frigorífico', default: true },
+  { id: 'embarque_nome', label: 'Embarque', default: true },
+  { id: 'documento_tipo', label: 'Doc', default: true },
+  { id: 'documento_numero', label: 'Nº Doc', default: true },
+  { id: 'motorista_nome', label: 'Motorista', default: true },
+  { id: 'placa_carreta', label: 'Placa', default: true },
+  { id: 'doc_qtd', label: 'Qtd Doc (Dia)', default: true },
   { id: 'data_anterior', label: 'Data Anterior', default: false },
   { id: 'peso_anterior', label: 'Peso Anterior', default: false },
   { id: 'dias', label: 'Dias', default: false },
@@ -611,31 +617,28 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== PESAGENS DO DIA + PENDENTES + FILTRO + ORDENAÇÃO ==========
   const pesagensDia = useMemo(() => {
-    const pendentes = pendingPesagensDB.
-    filter((p) => p.data_pesagem === dataPesagem).
-    map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
+    const pendentes = pendingPesagensDB
+      .filter((p) => p.data_pesagem === dataPesagem)
+      .map((p, idx) => ({ ...p, _numero_registro: `P${idx + 1}` }));
 
-    // Ordenar por created_date para atribuir número sequencial fixo
-    const sincronizadas = pesagens.
-    filter((p) => p.data_pesagem === dataPesagem).
-    sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0)).
-    map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
+    const sincronizadas = pesagens
+      .filter((p) => p.data_pesagem === dataPesagem)
+      .sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0))
+      .map((p, idx) => ({ ...p, _numero_registro: idx + 1 }));
 
     let resultado = [...pendentes, ...sincronizadas];
 
-    // Aplicar filtro de pesquisa
     if (searchTerm.trim()) {
       const termo = searchTerm.toLowerCase().trim();
       resultado = resultado.filter((p) =>
-      p.numero_animal?.toLowerCase().includes(termo) ||
-      p.nome_lote?.toLowerCase().includes(termo) ||
-      p.nome_apartacao?.toLowerCase().includes(termo) ||
-      p.raca?.toLowerCase().includes(termo) ||
-      p.marca?.toLowerCase().includes(termo)
+        p.numero_animal?.toLowerCase().includes(termo) ||
+        p.nome_lote?.toLowerCase().includes(termo) ||
+        p.nome_apartacao?.toLowerCase().includes(termo) ||
+        p.raca?.toLowerCase().includes(termo) ||
+        p.marca?.toLowerCase().includes(termo)
       );
     }
 
-    // Aplicar ordenação
     resultado.sort((a, b) => {
       let valA, valB;
       switch (sortColumn) {
@@ -668,7 +671,6 @@ export default function LancamentoPesagensIndividuais() {
           valB = b.nome_lote || '';
           break;
         case 'numero_registro':
-          // Pendentes (P1, P2) ficam no topo, depois por número
           const numA = typeof a._numero_registro === 'string' ? -1000 + parseInt(a._numero_registro.replace('P', '')) : a._numero_registro;
           const numB = typeof b._numero_registro === 'string' ? -1000 + parseInt(b._numero_registro.replace('P', '')) : b._numero_registro;
           valA = numA;
@@ -689,6 +691,15 @@ export default function LancamentoPesagensIndividuais() {
 
     return resultado;
   }, [pesagens, dataPesagem, pendingPesagensDB, empresaSelecionadaId, searchTerm, sortColumn, sortDirection]);
+
+  const docCountsDia = useMemo(() => {
+    const map = {};
+    pesagensDia.forEach((p) => {
+      const id = p.documento_embarque_id;
+      if (id) map[id] = (map[id] || 0) + 1;
+    });
+    return map;
+  }, [pesagensDia]);
 
   // Função para alternar ordenação
   const handleSort = (column) => {
@@ -2003,21 +2014,21 @@ export default function LancamentoPesagensIndividuais() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs font-bold py-1 border border-black">GTA</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">NF-e</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-center">Prev M/F</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Total</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Peso Médio</TableHead>
+                        <TableHead className="text-[10px]">GTA</TableHead>
+                        <TableHead className="text-[10px]">NF-e</TableHead>
+                        <TableHead className="text-[10px] text-center">Prev M/F</TableHead>
+                        <TableHead className="text-[10px] text-right">Peso Total</TableHead>
+                        <TableHead className="text-[10px] text-right">Peso Médio</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {resumoDocsAbate.map((r) => (
                         <TableRow key={r.id} className="hover:bg-gray-50">
-                          <TableCell className="text-xs py-1 border border-gray-300">{r.gta}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300">{r.nfe}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-center">{r.prevM}/{r.prevF}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{r.pesoTotal.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{r.pesoMedio.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs py-1">{r.gta}</TableCell>
+                          <TableCell className="text-xs py-1">{r.nfe}</TableCell>
+                          <TableCell className="text-xs py-1 text-center">{r.prevM}/{r.prevF}</TableCell>
+                          <TableCell className="text-xs py-1 text-right font-mono">{r.pesoTotal.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs py-1 text-right font-mono">{r.pesoMedio.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2322,6 +2333,24 @@ export default function LancamentoPesagensIndividuais() {
                         }
                         if (coluna.id === 'frigorifico') {
                           return <TableCell key={coluna.id} className="text-xs">{p.frigorifico || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'embarque_nome') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.embarque_nome || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'documento_tipo') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.documento_tipo || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'documento_numero') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.documento_numero || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'motorista_nome') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.motorista_nome || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'placa_carreta') {
+                          return <TableCell key={coluna.id} className="text-xs">{p.placa_carreta || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'doc_qtd') {
+                          return <TableCell key={coluna.id} className="text-xs text-center">{p.documento_embarque_id ? (docCountsDia[p.documento_embarque_id] || 0) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'numero_animal') {
                           return (
