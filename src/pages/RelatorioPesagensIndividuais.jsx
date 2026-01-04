@@ -57,13 +57,32 @@ const COLUNAS_DISPONIVEIS = [
 const COLUNAS_DETALHES_APARTACAO = [
   { id: 'numero_animal', label: 'Animal', default: true },
   { id: 'data_pesagem', label: 'Data', default: true },
+  { id: 'tipo_manejo', label: 'Tipo', default: false },
+  { id: 'motivo_saida', label: 'Motivo', default: false },
   { id: 'sexo', label: 'Sexo', default: true },
   { id: 'raca', label: 'Raça', default: false },
+  { id: 'era', label: 'Era', default: false },
+  { id: 'marca', label: 'Marca', default: false },
+  { id: 'nome_apartacao', label: 'Apartação', default: false },
+  { id: 'nome_lote', label: 'Lote', default: false },
   { id: 'peso', label: 'Peso (kg)', default: true },
   { id: 'peso_anterior', label: 'Peso Ant.', default: false },
   { id: 'dias', label: 'Dias', default: true },
   { id: 'ganho', label: 'Ganho', default: true },
   { id: 'gmd', label: 'GMD', default: true },
+  { id: 'frigorifico', label: 'Frigorífico', default: false },
+  { id: 'embarque_nome', label: 'Embarque', default: false },
+  { id: 'documento_tipo', label: 'Doc', default: false },
+  { id: 'documento_numero', label: 'Nº Doc', default: false },
+  { id: 'motorista_nome', label: 'Motorista', default: false },
+  { id: 'placa_carreta', label: 'Placa', default: false },
+  { id: 'comprador', label: 'Comprador', default: false },
+  { id: 'destino_venda', label: 'Destino', default: false },
+  { id: 'valor_arroba', label: 'Valor @', default: false },
+  { id: 'valor_venda_total', label: 'Valor Venda (R$)', default: false },
+  { id: 'quantidade_arrobas', label: 'Qtd @', default: false },
+  { id: 'origem_animal', label: 'Origem', default: false },
+  { id: 'valor_pago_cabeca', label: 'Vlr Cabeça (R$)', default: false },
   { id: 'observacao', label: 'Obs', default: false },
 ];
 
@@ -962,21 +981,42 @@ export default function RelatorioPesagensIndividuais() {
               const fmtDecimal = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
               // Renderizar célula de detalhe
-              const renderCelulaDetalhe = (animal, colunaId) => {
-                switch (colunaId) {
-                  case 'numero_animal': return <TableCell className="text-xs font-medium py-1 border border-gray-200">{animal.numero_animal}</TableCell>;
-                  case 'data_pesagem': return <TableCell className="text-xs py-1 border border-gray-200">{formatarData(animal.data_pesagem)}</TableCell>;
-                  case 'sexo': return <TableCell className="text-xs py-1 border border-gray-200">{animal.sexo || '-'}</TableCell>;
-                  case 'raca': return <TableCell className="text-xs py-1 border border-gray-200">{animal.raca || '-'}</TableCell>;
-                  case 'peso': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.peso?.toLocaleString('pt-BR')} kg</TableCell>;
-                  case 'peso_anterior': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.peso_anterior?.toLocaleString('pt-BR') || '-'}</TableCell>;
-                  case 'dias': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.dias || '-'}</TableCell>;
-                  case 'ganho': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.ganho?.toLocaleString('pt-BR') || '-'}</TableCell>;
-                  case 'gmd': return <TableCell className={`text-xs text-right font-mono py-1 border border-gray-200 ${animal.gmd && animal.gmd > 0 ? 'text-emerald-600' : animal.gmd && animal.gmd < 0 ? 'text-red-600' : ''}`}>{animal.gmd?.toFixed(3) || '-'}</TableCell>;
-                  case 'observacao': return <TableCell className="text-xs py-1 border border-gray-200 max-w-[80px] truncate">{animal.observacao || '-'}</TableCell>;
-                  default: return <TableCell className="text-xs py-1 border border-gray-200">-</TableCell>;
-                }
-              };
+                const renderCelulaDetalhe = (animal, colunaId) => {
+                  const fmtNum = (n, casas = 0) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) : '-');
+                  const fmtMoney = (n) => (typeof n === 'number' ? `R$ ${n.toFixed(2)}` : '-');
+                  switch (colunaId) {
+                    case 'numero_animal': return <TableCell className="text-xs font-medium py-1 border border-gray-200">{animal.numero_animal}</TableCell>;
+                    case 'data_pesagem': return <TableCell className="text-xs py-1 border border-gray-200">{formatarData(animal.data_pesagem)}</TableCell>;
+                    case 'tipo_manejo': return <TableCell className="text-xs py-1 border border-gray-200">{animal.tipo_manejo || '-'}</TableCell>;
+                    case 'motivo_saida': return <TableCell className="text-xs py-1 border border-gray-200">{animal.motivo_saida || '-'}</TableCell>;
+                    case 'sexo': return <TableCell className="text-xs py-1 border border-gray-200">{animal.sexo || '-'}</TableCell>;
+                    case 'raca': return <TableCell className="text-xs py-1 border border-gray-200">{animal.raca || '-'}</TableCell>;
+                    case 'era': return <TableCell className="text-xs py-1 border border-gray-200">{animal.era || '-'}</TableCell>;
+                    case 'marca': return <TableCell className="text-xs py-1 border border-gray-200">{animal.marca || '-'}</TableCell>;
+                    case 'nome_apartacao': return <TableCell className="text-xs py-1 border border-gray-200">{animal.nome_apartacao || '-'}</TableCell>;
+                    case 'nome_lote': return <TableCell className="text-xs py-1 border border-gray-200">{animal.nome_lote || '-'}</TableCell>;
+                    case 'peso': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{fmtNum(animal.peso)}</TableCell>;
+                    case 'peso_anterior': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.peso_anterior != null ? fmtNum(animal.peso_anterior) : '-'}</TableCell>;
+                    case 'dias': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.dias ?? '-'}</TableCell>;
+                    case 'ganho': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.ganho != null ? fmtNum(animal.ganho, 2) : '-'}</TableCell>;
+                    case 'gmd': return <TableCell className={`text-xs text-right font-mono py-1 border border-gray-200 ${animal.gmd && animal.gmd > 0 ? 'text-emerald-600' : animal.gmd && animal.gmd < 0 ? 'text-red-600' : ''}`}>{animal.gmd != null ? fmtNum(animal.gmd, 3) : '-'}</TableCell>;
+                    case 'frigorifico': return <TableCell className="text-xs py-1 border border-gray-200">{animal.frigorifico || '-'}</TableCell>;
+                    case 'embarque_nome': return <TableCell className="text-xs py-1 border border-gray-200">{animal.embarque_nome || '-'}</TableCell>;
+                    case 'documento_tipo': return <TableCell className="text-xs py-1 border border-gray-200">{animal.documento_tipo || '-'}</TableCell>;
+                    case 'documento_numero': return <TableCell className="text-xs py-1 border border-gray-200">{animal.documento_numero || '-'}</TableCell>;
+                    case 'motorista_nome': return <TableCell className="text-xs py-1 border border-gray-200">{animal.motorista_nome || '-'}</TableCell>;
+                    case 'placa_carreta': return <TableCell className="text-xs py-1 border border-gray-200">{animal.placa_carreta || '-'}</TableCell>;
+                    case 'comprador': return <TableCell className="text-xs py-1 border border-gray-200">{animal.comprador || '-'}</TableCell>;
+                    case 'destino_venda': return <TableCell className="text-xs py-1 border border-gray-200">{animal.destino_venda || '-'}</TableCell>;
+                    case 'valor_arroba': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_arroba != null ? fmtMoney(animal.valor_arroba) : '-'}</TableCell>;
+                    case 'valor_venda_total': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_venda_total != null ? fmtMoney(animal.valor_venda_total) : '-'}</TableCell>;
+                    case 'quantidade_arrobas': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.quantidade_arrobas != null ? `${animal.quantidade_arrobas.toFixed(2)} @` : '-'}</TableCell>;
+                    case 'origem_animal': return <TableCell className="text-xs py-1 border border-gray-200">{animal.origem_animal || '-'}</TableCell>;
+                    case 'valor_pago_cabeca': return <TableCell className="text-xs text-right font-mono py-1 border border-gray-200">{animal.valor_pago_cabeca != null ? fmtMoney(animal.valor_pago_cabeca) : '-'}</TableCell>;
+                    case 'observacao': return <TableCell className="text-xs py-1 border border-gray-200 max-w-[120px] truncate">{animal.observacao || '-'}</TableCell>;
+                    default: return <TableCell className="text-xs py-1 border border-gray-200">-</TableCell>;
+                  }
+                };
 
               return (
                 <div className="space-y-4">
