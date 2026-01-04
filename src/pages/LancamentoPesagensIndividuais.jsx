@@ -964,6 +964,9 @@ export default function LancamentoPesagensIndividuais() {
       quantidadeArrobas = pesoNum / 30;
     }
 
+    const selectedDoc = documentosEmbarque.find(d => d.id === documentoSelecionado);
+    const selectedEmb = embarques.find(e => e.id === embarqueSelecionadoDoc);
+
     const data = {
     empresa_id: empresaSelecionadaId,
     tipo_manejo: tipoManejo,
