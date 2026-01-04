@@ -1406,17 +1406,27 @@ export default function LancamentoPesagensIndividuais() {
 
                 {/* Ícone para Abate */}
                 {motivoSaida === 'Abate' &&
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setMostrarDadosAbate(!mostrarDadosAbate)}
-                className="h-8 w-8"
-                title={mostrarDadosAbate ? 'Ocultar Dados de Abate' : 'Mostrar Dados de Abate'}>
-
-                    {mostrarDadosAbate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-              }
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setMostrarDadosAbate(!mostrarDadosAbate)}
+                      className="h-8 w-8"
+                      title={mostrarDadosAbate ? 'Ocultar Dados de Abate' : 'Mostrar Dados de Abate'}>
+                      {mostrarDadosAbate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setDialogEmbarqueOpen(true)}
+                      className="h-8 w-8"
+                      title="Gerenciar Documentação de Embarque">
+                      <FolderOpen className="w-4 h-4" />
+                    </Button>
+                  </>
+                  }
               </>
             }
 
