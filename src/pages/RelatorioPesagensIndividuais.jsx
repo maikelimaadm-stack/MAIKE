@@ -133,10 +133,62 @@ export default function RelatorioPesagensIndividuais() {
     return COLUNAS_DETALHES_APARTACAO.map(c => c.id);
   });
 
+  // Colunas do painel principal (Resumo por Lote) no relatório Apartação
+  const COLUNAS_PAINEL_APARTACAO = [
+    { id: 'lote', label: 'Lote' },
+    { id: 'qtd', label: 'Qtd' },
+    { id: 'faixa', label: 'Faixa Exigida' },
+    { id: 'menor', label: 'Menor' },
+    { id: 'maior', label: 'Maior' },
+    { id: 'peso_medio', label: 'Peso Médio' },
+    { id: 'peso_total', label: 'Peso Total' },
+    { id: 'gmd_medio', label: 'GMD Médio' },
+    { id: 'machos', label: 'Machos' },
+    { id: 'femeas', label: 'Fêmeas' },
+  ];
+
+  const [showConfigColunasPainel, setShowConfigColunasPainel] = useState(false);
+  const [colunasPainelVisiveis, setColunasPainelVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_painel_apartacao');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return COLUNAS_PAINEL_APARTACAO.map(c => c.id);
+  });
+  const [colunasPainelOrdem, setColunasPainelOrdem] = useState(() => {
+    const saved = localStorage.getItem('colunas_painel_ordem_apartacao');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return COLUNAS_PAINEL_APARTACAO.map(c => c.id);
+  });
+  const colunasPainelOrdenadas = useMemo(() =>
+    colunasPainelOrdem
+      .map(id => COLUNAS_PAINEL_APARTACAO.find(c => c.id === id))
+      .filter(c => c && colunasPainelVisiveis.includes(c.id))
+  , [colunasPainelOrdem, colunasPainelVisiveis]);
+  const toggleColunaPainel = (colunaId) => {
+    const novas = colunasPainelVisiveis.includes(colunaId)
+      ? colunasPainelVisiveis.filter(id => id !== colunaId)
+      : [...colunasPainelVisiveis, colunaId];
+    setColunasPainelVisiveis(novas);
+    localStorage.setItem('colunas_painel_apartacao', JSON.stringify(novas));
+  };
+  const handleDragEndPainel = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(colunasPainelOrdem);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColunasPainelOrdem(items);
+    localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(items));
+  };
+
   const [lotesSelecionados, setLotesSelecionados] = useState([]);
   const [apartacoesSelecionadas, setApartacoesSelecionadas] = useState([]);
   const [sexosSelecionados, setSexosSelecionados] = useState([]);
   const [racasSelecionadas, setRacasSelecionadas] = useState([]);
+  const [erasSelecionadas, setErasSelecionadas] = useState([]);
+  const [marcasSelecionadas, setMarcasSelecionadas] = useState([]);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
@@ -172,6 +224,8 @@ export default function RelatorioPesagensIndividuais() {
   const apartacoesUnicas = [...new Set(pesagens.map(p => p.nome_apartacao))].filter(Boolean).sort();
   const sexosUnicos = [...new Set(pesagens.map(p => p.sexo))].filter(Boolean).sort();
   const racasUnicas = [...new Set(pesagens.map(p => p.raca))].filter(Boolean).sort();
+  const erasUnicas = [...new Set(pesagens.map(p => p.era))].filter(Boolean).sort();
+  const marcasUnicas = [...new Set(pesagens.map(p => p.marca))].filter(Boolean).sort();
 
   const formatarData = (dataString) => {
     if (!dataString) return '--/--/----';
@@ -202,6 +256,8 @@ export default function RelatorioPesagensIndividuais() {
       if (apartacoesSelecionadas.length > 0 && !apartacoesSelecionadas.includes(p.nome_apartacao)) return false;
       if (sexosSelecionados.length > 0 && !sexosSelecionados.includes(p.sexo)) return false;
       if (racasSelecionadas.length > 0 && !racasSelecionadas.includes(p.raca)) return false;
+      if (erasSelecionadas.length > 0 && !erasSelecionadas.includes(p.era)) return false;
+      if (marcasSelecionadas.length > 0 && !marcasSelecionadas.includes(p.marca)) return false;
       return true;
     });
 
@@ -476,6 +532,40 @@ export default function RelatorioPesagensIndividuais() {
                     <div key={r} className="flex items-center space-x-2">
                       <Checkbox checked={racasSelecionadas.includes(r)} onCheckedChange={() => toggleFiltro(racasSelecionadas, setRacasSelecionadas, r)} />
                       <label className="text-sm cursor-pointer">{r}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Era {erasSelecionadas.length > 0 && `(${erasSelecionadas.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Era</h4>
+                  {erasUnicas.map(e => (
+                    <div key={e} className="flex items-center space-x-2">
+                      <Checkbox checked={erasSelecionadas.includes(e)} onCheckedChange={() => toggleFiltro(erasSelecionadas, setErasSelecionadas, e)} />
+                      <label className="text-sm cursor-pointer">{e}</label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">Marcas {marcasSelecionadas.length > 0 && `(${marcasSelecionadas.length})`}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-96 overflow-auto">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm mb-2">Marcas</h4>
+                  {marcasUnicas.map(m => (
+                    <div key={m} className="flex items-center space-x-2">
+                      <Checkbox checked={marcasSelecionadas.includes(m)} onCheckedChange={() => toggleFiltro(marcasSelecionadas, setMarcasSelecionadas, m)} />
+                      <label className="text-sm cursor-pointer">{m}</label>
                     </div>
                   ))}
                 </div>
@@ -909,9 +999,18 @@ export default function RelatorioPesagensIndividuais() {
                         className="h-8 text-xs gap-1"
                       >
                         <Settings className="w-3.5 h-3.5" />
-                        Configurar Colunas
+                        Colunas Detalhes
                       </Button>
                     )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowConfigColunasPainel(true)}
+                      className="h-8 text-xs gap-1"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Colunas Painel
+                    </Button>
                   </div>
 
                   {Object.entries(porApartacao).sort((a, b) => a[0].localeCompare(b[0])).map(([apartacao, lotes]) => {
@@ -935,16 +1034,11 @@ export default function RelatorioPesagensIndividuais() {
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-gray-100">
-                              <TableHead className="text-xs font-bold py-2">Lote</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Qtd</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Faixa Exigida</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Menor</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Maior</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Peso Médio</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Peso Total</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">GMD Médio</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Machos</TableHead>
-                              <TableHead className="text-xs font-bold text-center py-2">Fêmeas</TableHead>
+                              {colunasPainelOrdenadas.map(col => (
+                                <TableHead key={col.id} className={`text-xs font-bold py-2 ${['qtd','faixa','menor','maior','peso_medio','peso_total','gmd_medio','machos','femeas'].includes(col.id) ? 'text-center' : ''}`}>
+                                  {col.label}
+                                </TableHead>
+                              ))}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -965,20 +1059,32 @@ export default function RelatorioPesagensIndividuais() {
                               return (
                                 <React.Fragment key={lote}>
                                   <TableRow className="hover:bg-gray-50">
-                                    <TableCell className="text-xs font-semibold py-2">{lote}</TableCell>
-                                    <TableCell className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">
-                                      {faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>
-                                    <TableCell className="text-xs text-center py-2 font-mono font-semibold">
-                                      {gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>
-                                    <TableCell className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>
+                                    {colunasPainelOrdenadas.map(col => {
+                                      switch (col.id) {
+                                        case 'lote':
+                                          return <TableCell key="lote" className="text-xs font-semibold py-2">{lote}</TableCell>;
+                                        case 'qtd':
+                                          return <TableCell key="qtd" className="text-xs text-center font-bold py-2">{fmtInteiro(qtd)}</TableCell>;
+                                        case 'faixa':
+                                          return <TableCell key="faixa" className="text-xs text-center py-2 font-mono">{faixaCadastrada ? `${fmtInteiro(faixaCadastrada.min)}-${fmtInteiro(faixaCadastrada.max)} kg` : '-'}</TableCell>;
+                                        case 'menor':
+                                          return <TableCell key="menor" className="text-xs text-center py-2 font-mono">{fmtInteiro(menorPeso)} kg</TableCell>;
+                                        case 'maior':
+                                          return <TableCell key="maior" className="text-xs text-center py-2 font-mono">{fmtInteiro(maiorPeso)} kg</TableCell>;
+                                        case 'peso_medio':
+                                          return <TableCell key="peso_medio" className="text-xs text-center py-2 font-mono font-semibold">{fmtDecimal(pesoMedioLote)} kg</TableCell>;
+                                        case 'peso_total':
+                                          return <TableCell key="peso_total" className="text-xs text-center py-2 font-mono">{fmtDecimal(pesoTotalLote)} kg</TableCell>;
+                                        case 'gmd_medio':
+                                          return <TableCell key="gmd_medio" className="text-xs text-center py-2 font-mono font-semibold">{gmdMedioLote > 0 ? fmtDecimal(gmdMedioLote, 3) : '-'}</TableCell>;
+                                        case 'machos':
+                                          return <TableCell key="machos" className="text-xs text-center py-2">{machos > 0 ? fmtInteiro(machos) : '-'}</TableCell>;
+                                        case 'femeas':
+                                          return <TableCell key="femeas" className="text-xs text-center py-2">{femeas > 0 ? fmtInteiro(femeas) : '-'}</TableCell>;
+                                        default:
+                                          return null;
+                                      }
+                                    })}
                                   </TableRow>
                                   
                                   {/* Detalhes dos animais do lote */}
@@ -1393,6 +1499,73 @@ export default function RelatorioPesagensIndividuais() {
 
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button variant="outline" onClick={() => setShowConfigColunasDetalhes(false)} size="sm" className="h-7 text-xs">Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Configuração de Colunas do Painel (Apartação/Lote) */}
+      <Dialog open={showConfigColunasPainel} onOpenChange={setShowConfigColunasPainel}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Configurar Colunas do Painel (Apartação/Lote)</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 flex-1 overflow-auto">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLUNAS_PAINEL_APARTACAO.map((coluna) => (
+                  <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={colunasPainelVisiveis.includes(coluna.id)}
+                      onChange={() => toggleColunaPainel(coluna.id)}
+                      className="rounded"
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <p className="text-xs text-slate-600 font-semibold mb-2">Ordem (arraste para reordenar)</p>
+              <DragDropContext onDragEnd={handleDragEndPainel}>
+                <Droppable droppableId="colunas-painel">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
+                      {colunasPainelOrdem.map((colunaId, index) => {
+                        const coluna = COLUNAS_PAINEL_APARTACAO.find(c => c.id === colunaId);
+                        if (!coluna) return null;
+                        return (
+                          <Draggable key={colunaId} draggableId={colunaId} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center gap-2 p-2 border rounded text-xs ${snapshot.isDragging ? 'bg-emerald-50 border-emerald-300' : 'bg-white'} ${!colunasPainelVisiveis.includes(colunaId) ? 'opacity-50' : ''}`}
+                              >
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <span className="flex-1">{coluna.label}</span>
+                                {colunasPainelVisiveis.includes(colunaId) && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Visível</span>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setShowConfigColunasPainel(false)} size="sm" className="h-7 text-xs">Fechar</Button>
           </div>
         </DialogContent>
       </Dialog>
