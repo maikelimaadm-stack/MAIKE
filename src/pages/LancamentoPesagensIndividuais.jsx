@@ -498,6 +498,8 @@ export default function LancamentoPesagensIndividuais() {
         setSanidadesAplicadas(sanidadesEmpresa);
         setConfiguracoesSanidade(configsEmpresa);
         setItensSanidade(itensEmpresa);
+        setEmbarques(allEmbarques.filter(e=>e.empresa_id===empresaSelecionadaId));
+        setDocumentosEmbarque(allDocs.filter(d=>d.empresa_id===empresaSelecionadaId));
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
