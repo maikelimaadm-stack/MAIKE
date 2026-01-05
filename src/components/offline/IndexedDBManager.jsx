@@ -1,6 +1,6 @@
 // IndexedDB Manager para persistência offline
 const DB_NAME = 'pesagens_offline_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const STORES = {
   PESAGENS: 'pesagens_individuais',
@@ -73,6 +73,8 @@ export const initDB = () => {
         docStore.createIndex('empresa_id', 'empresa_id', { unique: false });
         docStore.createIndex('embarque_id', 'embarque_id', { unique: false });
       }
+
+      // (Sem novas stores, usaremos flags _isOffline nas stores existentes para embarques/docs pendentes)
 
       // Store para pesagens pendentes (offline)
       if (!database.objectStoreNames.contains(STORES.PENDING_PESAGENS)) {
@@ -354,7 +356,7 @@ export const deletePendingUpdate = async (offlineId) => {
 
 // Função para obter contagem de pendentes
 export const getPendingCounts = async () => {
-  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes] = await Promise.all([
+  const [pesagens, apartacoes, lotes, sanidade, updates, cachedApt, cachedLotes, cachedEmb, cachedDocs] = await Promise.all([
     getAllItems(STORES.PENDING_PESAGENS),
     getAllItems(STORES.PENDING_APARTACOES),
     getAllItems(STORES.PENDING_LOTES),
@@ -362,19 +364,25 @@ export const getPendingCounts = async () => {
     getAllItems(STORES.PENDING_UPDATES),
     getAllItems(STORES.APARTACOES),
     getAllItems(STORES.LOTES),
+    getAllItems(STORES.EMBARQUES),
+    getAllItems(STORES.DOCUMENTOS_EMBARQUE),
   ]);
 
-  // Contar também apartações e lotes offline no cache
+  // Contar também entidades offline no cache
   const offlineApartacoes = cachedApt.filter(a => a._isOffline);
   const offlineLotes = cachedLotes.filter(l => l._isOffline);
+  const offlineEmb = cachedEmb.filter(e => e._isOffline);
+  const offlineDocs = cachedDocs.filter(d => d._isOffline);
 
   return {
     pesagens: pesagens.length,
     apartacoes: apartacoes.length + offlineApartacoes.length,
     lotes: lotes.length + offlineLotes.length,
+    embarques: offlineEmb.length,
+    documentos: offlineDocs.length,
     sanidade: sanidade.length,
     updates: updates.length,
-    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length,
+    total: pesagens.length + apartacoes.length + lotes.length + sanidade.length + updates.length + offlineApartacoes.length + offlineLotes.length + offlineEmb.length + offlineDocs.length,
   };
 };
 

@@ -81,7 +81,8 @@ export default function OfflineSyncIndicator({ empresaId, onSyncComplete }) {
           message: event.error || 'Erro desconhecido',
           status: 'error'
         }]);
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        // não voltar imediatamente para idle para permitir abrir o log
+        setTimeout(() => setSyncStatus('idle'), 5000);
       }
     });
 

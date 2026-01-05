@@ -69,7 +69,7 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
       } else if (dbReady) {
         const offline = { ...data, id: embEditingId || `offline_emb_${Date.now()}`, _isOffline: true };
         await putItem('embarques', offline);
-        toast.success("Embarque salvo offline");
+        toast.success("Embarque salvo offline. Sincronize quando estiver online.");
       }
       setEmbEditingId(null); setEmbNome(""); setEmbData(""); setEmbFrigorifico(""); setEmbStatus("Planejado");
       onRefresh?.();
@@ -99,7 +99,7 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
       } else if (dbReady) {
         const offline = { ...data, id: docEditingId || `offline_doc_${Date.now()}`, _isOffline: true };
         await putItem('documentos_embarque', offline);
-        toast.success("Documento salvo offline");
+        toast.success("Documento salvo offline. Sincronize quando estiver online.");
       }
       setDocEditingId(null); setDocTipo("GTA"); setDocNumeroGTA(""); setDocNumeroNfe(""); setDocMotorista(""); setDocPlaca(""); setDocPrevM(""); setDocPrevF("");
       onRefresh?.();

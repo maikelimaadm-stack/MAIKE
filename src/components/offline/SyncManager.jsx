@@ -635,6 +635,7 @@ if (typeof window !== 'undefined') {
 export default {
   syncPesagens,
   syncOfflineEntities,
+  syncEmbarquesDocumentos,
   syncAll,
   refreshCache,
   isSyncing,
