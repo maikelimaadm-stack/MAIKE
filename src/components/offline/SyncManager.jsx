@@ -16,6 +16,7 @@ import {
   deleteItem,
   clearStore,
   STORES_NAMES,
+  bulkPut,
 } from './IndexedDBManager';
 
 let syncInProgress = false;
@@ -75,13 +76,11 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
       
-      // Mapear IDs offline de apartação e lote para IDs reais
-      if (data.apartacao_id && idMap[data.apartacao_id]) {
-        data.apartacao_id = idMap[data.apartacao_id];
-      }
-      if (data.lote_id && idMap[data.lote_id]) {
-        data.lote_id = idMap[data.lote_id];
-      }
+      // Mapear IDs offline de apartação/lote/embarque/documento para IDs reais
+      if (data.apartacao_id && idMap[data.apartacao_id]) data.apartacao_id = idMap[data.apartacao_id];
+      if (data.lote_id && idMap[data.lote_id]) data.lote_id = idMap[data.lote_id];
+      if (data.embarque_id && idMap[data.embarque_id]) data.embarque_id = idMap[data.embarque_id];
+      if (data.documento_embarque_id && idMap[data.documento_embarque_id]) data.documento_embarque_id = idMap[data.documento_embarque_id];
       
       // Verificar se já existe no servidor (mesmo animal, mesma data, mesmo peso)
       const duplicado = existingPesagens.find(e => 
@@ -105,20 +104,104 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
       }
       
       successCount++;
+      // Remover da fila apenas em sucesso
+      await deletePendingPesagem(offlineId);
     } catch (error) {
       console.error('Erro sync pesagem:', error);
       errors.push({ error: error.message });
       items.push({ name: itemName, status: 'error', message: error.message?.substring(0, 30) });
     }
     
-    // SEMPRE remover após processar
-    await deletePendingPesagem(offlineId);
+    // Em caso de erro, manter na fila para tentar novamente depois
   }
 
   return { successCount, errors, total: pending.length, items };
 };
 
-// Sincronizar apartações e lotes offline para o servidor
+// Sincronizar Embarques e Documentos de Embarque criados offline
+export const syncEmbarquesDocumentos = async (empresaId, onProgress) => {
+  let successCount = 0;
+  const items = [];
+  const idMap = {};
+
+  // Buscar existentes no servidor
+  let existingEmbarques = [];
+  let existingDocs = [];
+  try {
+    existingEmbarques = await base44.entities.Embarque.filter({ empresa_id: empresaId });
+    existingDocs = await base44.entities.DocumentoEmbarque.filter({ empresa_id: empresaId });
+  } catch (e) {
+    console.error('Erro ao buscar embarques/docs existentes:', e);
+  }
+
+  // Buscar offline no cache
+  const cachedEmbarques = await getAllItems(STORES_NAMES.EMBARQUES);
+  const offlineEmbarques = cachedEmbarques.filter(e => e.empresa_id === empresaId && e._isOffline && (e.id?.startsWith('offline_')));
+
+  const cachedDocs = await getAllItems(STORES_NAMES.DOCUMENTOS_EMBARQUE);
+  const offlineDocs = cachedDocs.filter(d => d.empresa_id === empresaId && d._isOffline && (d.id?.startsWith('offline_')));
+
+  let current = 0;
+  const total = offlineEmbarques.length + offlineDocs.length;
+
+  // Embarques
+  for (const emb of offlineEmbarques) {
+    current++;
+    const itemName = `Embarque: ${emb.nome || emb.id}`;
+    onProgress?.({ current, total, currentItem: itemName });
+    try {
+      const { id, _isOffline, _offlineTimestamp, ...data } = emb;
+      // Duplicado por nome+data+frigorifico
+      const dup = existingEmbarques.find(e => (e.nome || '').toLowerCase() === (data.nome || '').toLowerCase() && (e.data || null) === (data.data || null) && (e.frigorifico || '') === (data.frigorifico || ''));
+      if (dup) {
+        idMap[id] = dup.id;
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        await deleteItem(STORES_NAMES.EMBARQUES, id);
+        continue;
+      }
+      const created = await base44.entities.Embarque.create(data);
+      idMap[id] = created.id;
+      items.push({ name: itemName, status: 'success', message: 'Criado' });
+      successCount++;
+      await deleteItem(STORES_NAMES.EMBARQUES, id);
+    } catch (e) {
+      console.error('Erro sync embarque:', e);
+      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
+    }
+  }
+
+  // Documentos
+  for (const doc of offlineDocs) {
+    current++;
+    const itemName = `Documento: ${doc.tipo_documento || ''}-${doc.numero_gta || doc.numero_nfe || ''}`;
+    onProgress?.({ current, total, currentItem: itemName });
+    try {
+      const { id, _isOffline, _offlineTimestamp, ...data } = doc;
+      // Mapear embarque se era offline
+      if (data.embarque_id && idMap[data.embarque_id]) data.embarque_id = idMap[data.embarque_id];
+      // Duplicado por embarque+tipo+números
+      const dup = existingDocs.find(d => d.embarque_id === data.embarque_id && (d.tipo_documento || '') === (data.tipo_documento || '') && (d.numero_gta || '') === (data.numero_gta || '') && (d.numero_nfe || '') === (data.numero_nfe || ''));
+      if (dup) {
+        idMap[id] = dup.id;
+        items.push({ name: itemName, status: 'skip', message: 'Já existe' });
+        await deleteItem(STORES_NAMES.DOCUMENTOS_EMBARQUE, id);
+        continue;
+      }
+      const created = await base44.entities.DocumentoEmbarque.create(data);
+      idMap[id] = created.id;
+      items.push({ name: itemName, status: 'success', message: 'Criado' });
+      successCount++;
+      await deleteItem(STORES_NAMES.DOCUMENTOS_EMBARQUE, id);
+    } catch (e) {
+      console.error('Erro sync documento:', e);
+      items.push({ name: itemName, status: 'error', message: e.message?.substring(0, 30) });
+    }
+  }
+
+  return { successCount, idMap, items };
+};
+
+ // Sincronizar apartações e lotes offline para o servidor
 export const syncOfflineEntities = async (empresaId, onProgress) => {
   let successCount = 0;
   const idMap = {};
@@ -257,7 +340,16 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(entitiesResult.items || []));
 
-    // 2. Sincronizar updates pendentes (edições)
+    // 2. Sincronizar Embarques e Documentos
+    notifyListeners({ type: 'progress', entity: 'embarques_docs' });
+    const embDocsResult = await syncEmbarquesDocumentos(empresaId, (progress) => {
+      if (onProgress) {
+        onProgress({ phase: 'embarques_docs', ...progress });
+      }
+    });
+    allItems.push(...(embDocsResult.items || []));
+
+    // 3. Sincronizar updates pendentes (edições)
     notifyListeners({ type: 'progress', entity: 'updates' });
     const updatesResult = await syncUpdates(empresaId, (progress) => {
       if (onProgress) {
@@ -266,16 +358,17 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(updatesResult.items || []));
 
-    // 3. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
+    // 4. Sincronizar pesagens pendentes (com mapeamento de IDs offline)
     notifyListeners({ type: 'progress', entity: 'pesagens' });
+    const mergedIdMap = { ...(entitiesResult.idMap || {}), ...(embDocsResult.idMap || {}) };
     const pesagensResult = await syncPesagens(empresaId, (progress) => {
       if (onProgress) {
         onProgress({ phase: 'pesagens', ...progress });
       }
-    }, entitiesResult.idMap);
+    }, mergedIdMap);
     allItems.push(...(pesagensResult.items || []));
 
-    // 4. Sincronizar sanidade pendente
+    // 5. Sincronizar sanidade pendente
     notifyListeners({ type: 'progress', entity: 'sanidade' });
     const sanidadeResult = await syncSanidade(empresaId, (progress) => {
       if (onProgress) {
@@ -284,21 +377,14 @@ export const syncAll = async (empresaId, onProgress) => {
     });
     allItems.push(...(sanidadeResult.items || []));
 
-    // 3. Atualizar cache com dados do servidor
-    notifyListeners({ type: 'progress', entity: 'cache' });
-    if (onProgress) {
-      onProgress({ phase: 'cache', currentItem: 'Atualizando cache local...' });
-    }
-    await refreshCache(empresaId);
-
-    // 5. Atualizar cache
+    // 6. Atualizar cache com dados do servidor
     notifyListeners({ type: 'progress', entity: 'cache' });
     if (onProgress) {
       onProgress({ phase: 'cache', currentItem: 'Atualizando cache...' });
     }
     await refreshCache(empresaId);
 
-    // 6. Remover duplicados automaticamente
+    // 7. Remover duplicados automaticamente
     notifyListeners({ type: 'progress', entity: 'duplicados' });
     if (onProgress) {
       onProgress({ phase: 'duplicados', currentItem: 'Verificando duplicados...' });
@@ -308,8 +394,8 @@ export const syncAll = async (empresaId, onProgress) => {
       allItems.push({ name: `${duplicadosRemovidos} duplicados removidos`, status: 'success' });
     }
 
-    const totalSuccess = pesagensResult.successCount + entitiesResult.successCount + sanidadeResult.successCount + updatesResult.successCount;
-    const totalErrors = pesagensResult.errors?.length || 0;
+    const totalSuccess = (pesagensResult.successCount || 0) + (entitiesResult.successCount || 0) + (sanidadeResult.successCount || 0) + (updatesResult.successCount || 0) + (embDocsResult.successCount || 0);
+    const totalErrors = (pesagensResult.errors?.length || 0);
 
     notifyListeners({ 
       type: 'complete', 
@@ -318,7 +404,7 @@ export const syncAll = async (empresaId, onProgress) => {
       results: {
         pesagens: { successCount: pesagensResult.successCount },
         apartacoes: { successCount: entitiesResult.successCount },
-        lotes: { successCount: 0 },
+        embarques_docs: { successCount: embDocsResult.successCount },
         sanidade: { successCount: sanidadeResult.successCount },
         updates: { successCount: updatesResult.successCount },
         duplicadosRemovidos
@@ -485,21 +571,27 @@ export const refreshCache = async (empresaId) => {
   if (!navigator.onLine) return;
 
   try {
-    const [pesagens, apartacoes, lotes] = await Promise.all([
+    const [pesagens, apartacoes, lotes, embarques, documentos] = await Promise.all([
       base44.entities.PesagemIndividual.list('-data_pesagem'),
       base44.entities.Apartacao.list(),
       base44.entities.LoteApartacao.list(),
+      base44.entities.Embarque.list('-updated_date'),
+      base44.entities.DocumentoEmbarque.list('-updated_date'),
     ]);
 
     const pesagensEmpresa = pesagens.filter(p => p.empresa_id === empresaId);
     const apartacoesEmpresa = apartacoes.filter(a => a.empresa_id === empresaId);
     const lotesEmpresa = lotes.filter(l => l.empresa_id === empresaId);
+    const embarquesEmpresa = embarques.filter(e => e.empresa_id === empresaId);
+    const documentosEmpresa = documentos.filter(d => d.empresa_id === empresaId);
 
     // LIMPAR completamente os caches antes de recarregar (evita dados offline residuais)
     await Promise.all([
       clearStore(STORES_NAMES.PESAGENS),
       clearStore(STORES_NAMES.APARTACOES),
       clearStore(STORES_NAMES.LOTES),
+      clearStore(STORES_NAMES.EMBARQUES),
+      clearStore(STORES_NAMES.DOCUMENTOS_EMBARQUE),
     ]);
 
     // Recarregar com dados do servidor
@@ -507,9 +599,11 @@ export const refreshCache = async (empresaId) => {
       cachePesagens(pesagensEmpresa),
       cacheApartacoes(apartacoesEmpresa),
       cacheLotes(lotesEmpresa),
+      bulkPut(STORES_NAMES.EMBARQUES, embarquesEmpresa),
+      bulkPut(STORES_NAMES.DOCUMENTOS_EMBARQUE, documentosEmpresa),
     ]);
 
-    return { pesagens: pesagensEmpresa, apartacoes: apartacoesEmpresa, lotes: lotesEmpresa };
+    return { pesagens: pesagensEmpresa, apartacoes: apartacoesEmpresa, lotes: lotesEmpresa, embarques: embarquesEmpresa, documentos: documentosEmpresa };
   } catch (error) {
     console.error('Erro refresh cache:', error);
     throw error;
