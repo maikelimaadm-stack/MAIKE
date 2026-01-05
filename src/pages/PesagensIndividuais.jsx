@@ -128,7 +128,7 @@ export default function PesagensIndividuais() {
     { id: 'acoes', label: 'Ações', default: true, fixo: true },
     { id: 'data_pesagem', label: 'Data', default: true },
     { id: 'tipo_manejo', label: 'Tipo', default: true },
-    { id: 'motivo_saida', label: 'Motivo Saída', default: true },
+    { id: 'motivo_saida', label: 'Tipo de Saída', default: true },
     { id: 'numero_animal', label: 'Animal', default: true },
     { id: 'sexo', label: 'Sexo', default: true },
     { id: 'raca', label: 'Raça', default: true },
@@ -144,6 +144,12 @@ export default function PesagensIndividuais() {
     { id: 'valor_arroba', label: 'Valor @', default: false },
     { id: 'quantidade_arrobas', label: 'Qtd @', default: false },
     { id: 'frigorifico', label: 'Frigorífico', default: false },
+    { id: 'embarque_nome', label: 'Embarque', default: false },
+    { id: 'documento_tipo', label: 'Doc', default: false },
+    { id: 'documento_numero', label: 'Nº Doc', default: false },
+    { id: 'motorista_nome', label: 'Motorista', default: false },
+    { id: 'placa_carreta', label: 'Placa', default: false },
+    { id: 'doc_qtd', label: 'Qtd Doc (Dia)', default: false },
     { id: 'dias', label: 'Dias', default: false },
     { id: 'ganho', label: 'Ganho', default: false },
     { id: 'gmd', label: 'GMD', default: true },
@@ -283,6 +289,17 @@ export default function PesagensIndividuais() {
 
     return filtered;
   }, [pesagens, searchTerm, filtroLote, filtroApartacao, filtroDataEspecifica, filtroSexo, filtroDataInicio, filtroDataFim, filtroMarca, filtroObservacao, sortConfig]);
+
+  // Contagem por documento (para coluna Doc Qtd)
+  const docCounts = useMemo(() => {
+    const map = {};
+    pesagensFiltradas.forEach(p => {
+      if (p.documento_embarque_id) {
+        map[p.documento_embarque_id] = (map[p.documento_embarque_id] || 0) + 1;
+      }
+    });
+    return map;
+  }, [pesagensFiltradas]);
 
   // Paginação
   const totalPages = Math.ceil(pesagensFiltradas.length / itemsPerPage);
@@ -1035,6 +1052,24 @@ export default function PesagensIndividuais() {
                         }
                         if (coluna.id === 'frigorifico') {
                           return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.frigorifico || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'embarque_nome') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.embarque_nome || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'documento_tipo') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.documento_tipo || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'documento_numero') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.documento_numero || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'motorista_nome') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.motorista_nome || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'placa_carreta') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 uppercase">{p.placa_carreta || '-'}</TableCell>;
+                        }
+                        if (coluna.id === 'doc_qtd') {
+                          return <TableCell key={coluna.id} className="text-xs py-2 px-3 text-center">{p.documento_embarque_id ? (docCounts[p.documento_embarque_id] || 0) : '-'}</TableCell>;
                         }
                         if (coluna.id === 'raca') {
                           return <TableCell key={coluna.id} className="text-xs py-2 px-3">{p.raca || '-'}</TableCell>;

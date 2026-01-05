@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Edit2, MoreVertical, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { putItem } from "../offline/IndexedDBManager";
+import { putItem, deleteItem } from "../offline/IndexedDBManager";
 
 export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId, embarques, documentos, onRefresh, dbReady, pesagens = [], pendingPesagens = [] }) {
   const [tab, setTab] = useState("embarques");
@@ -106,6 +106,37 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
     } catch (e) { toast.error(e.message); } finally { setIsSaving(false); }
   };
 
+  const handleDeleteDocumento = async (doc) => {
+    if (!confirm('Excluir este documento?')) return;
+    const used = (sumByDoc[doc.id]?.count || 0) > 0;
+    if (used) { toast.error('Não é possível excluir: existem pesagens vinculadas.'); return; }
+    try {
+      if (String(doc.id).startsWith('offline_')) {
+        if (dbReady) await deleteItem('documentos_embarque', doc.id);
+      } else {
+        await base44.entities.DocumentoEmbarque.delete(doc.id);
+      }
+      toast.success('Documento excluído');
+      onRefresh?.();
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const handleDeleteEmbarque = async (emb) => {
+    if (!confirm('Excluir este embarque?')) return;
+    const docsCount = documentos.filter(d => d.embarque_id === emb.id).length;
+    const hasPesagens = (pesagens || []).some(p => p.embarque_id === emb.id) || (pendingPesagens || []).some(p => p.embarque_id === emb.id);
+    if (docsCount > 0 || hasPesagens) { toast.error('Não é possível excluir: possui documentos/pesagens vinculados.'); return; }
+    try {
+      if (String(emb.id).startsWith('offline_')) {
+        if (dbReady) await deleteItem('embarques', emb.id);
+      } else {
+        await base44.entities.Embarque.delete(emb.id);
+      }
+      toast.success('Embarque excluído');
+      onRefresh?.();
+    } catch (e) { toast.error(e.message); }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -175,7 +206,8 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
                             <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={()=>{setEmbEditingId(e.id);setEmbNome(e.nome||'');setEmbData(e.data||'');setEmbFrigorifico(e.frigorifico||'');setEmbStatus(e.status||'Planejado');}}>Editar</DropdownMenuItem>
+                            <DropdownMenuItem onClick={()=>{setEmbEditingId(e.id);setEmbNome(e.nome||'');setEmbData(e.data||'');setEmbFrigorifico(e.frigorifico||'');setEmbStatus(e.status||'Planejado');}} className="text-xs">Editar</DropdownMenuItem>
+                            <DropdownMenuItem onClick={()=>handleDeleteEmbarque(e)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -264,7 +296,8 @@ export default function GerenciarEmbarquesDialog({ open, onOpenChange, empresaId
                             <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={()=>{setDocEditingId(d.id);setEmbSelecionado(d.embarque_id);setDocTipo(d.tipo_documento||'GTA');setDocNumeroGTA(d.numero_gta||'');setDocNumeroNfe(d.numero_nfe||'');setDocMotorista(d.motorista_nome||'');setDocPlaca(d.placa_carreta||'');setDocPrevM(String(d.qtd_prev_machos||''));setDocPrevF(String(d.qtd_prev_femeas||''));}}>Editar</DropdownMenuItem>
+                            <DropdownMenuItem onClick={()=>{setDocEditingId(d.id);setEmbSelecionado(d.embarque_id);setDocTipo(d.tipo_documento||'GTA');setDocNumeroGTA(d.numero_gta||'');setDocNumeroNfe(d.numero_nfe||'');setDocMotorista(d.motorista_nome||'');setDocPlaca(d.placa_carreta||'');setDocPrevM(String(d.qtd_prev_machos||''));setDocPrevF(String(d.qtd_prev_femeas||''));}} className="text-xs">Editar</DropdownMenuItem>
+                            <DropdownMenuItem onClick={()=>handleDeleteDocumento(d)} className="text-xs text-red-600">Excluir</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
