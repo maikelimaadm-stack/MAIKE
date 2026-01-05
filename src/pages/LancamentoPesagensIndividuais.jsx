@@ -1355,25 +1355,93 @@ export default function LancamentoPesagensIndividuais() {
 
   // ========== EXPORTAR EXCEL ==========
   const exportarExcel = () => {
-    const headers = ['Nº', 'Identificação', 'Data', 'Sexo', 'Raça', 'Era', 'Marca', 'Peso', 'Apartação', 'Lote', 'Data Anterior', 'Peso Anterior', 'Dias', 'Ganho', 'GMD', 'Observação'];
-    const rows = pesagensDia.map((p) => [
-    p._numero_registro || '',
-    p.numero_animal || '',
-    formatarData(p.data_pesagem),
-    p.sexo || '',
-    p.raca || '',
-    p.era || '',
-    p.marca || '',
-    p.peso ? String(p.peso).replace('.', ',') : '',
-    p.nome_apartacao || '',
-    p.nome_lote || '',
-    formatarData(p.data_anterior),
-    p.peso_anterior ? String(p.peso_anterior).replace('.', ',') : '',
-    p.dias || '',
-    p.ganho ? p.ganho.toFixed(2).replace('.', ',') : '',
-    p.gmd ? p.gmd.toFixed(3).replace('.', ',') : '',
-    p.observacao || '']
-    );
+    // Usa as colunas visíveis e na ordem atual da tabela (exceto Ações)
+    const visibleCols = colunasOrdenadas.filter(c => c.id !== 'acoes');
+    const headers = visibleCols.map(c => c.label);
+
+    const val = (v) => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number') return String(v).replace('.', ',');
+      const s = String(v);
+      return s.replaceAll(';', ',');
+    };
+    const money = (n) => (n !== null && n !== undefined) ? `R$ ${Number(n).toFixed(2).replace('.', ',')}` : '';
+    const date = (d) => formatarData(d);
+
+    const rows = pesagensDia.map((p) => visibleCols.map((col) => {
+      switch (col.id) {
+        case 'numero_registro':
+          return val(p._numero_registro || '');
+        case 'tipo_manejo':
+          return val(p.tipo_manejo || '');
+        case 'motivo_saida':
+          return val(p.motivo_saida || '');
+        case 'numero_animal':
+          return val(p.numero_animal || '');
+        case 'peso':
+          return p.peso != null ? val(Number(p.peso)) : '';
+        case 'sanidade': {
+          const sanis = (sanidadesPorAnimal[p.numero_animal] || []).map(s => s.nome).join(' + ');
+          return val(sanis);
+        }
+        case 'data_pesagem':
+          return val(date(p.data_pesagem));
+        case 'sexo':
+          return val(p.sexo || '');
+        case 'raca':
+          return val(p.raca || '');
+        case 'era':
+          return val(p.era || '');
+        case 'marca':
+          return val(p.marca || '');
+        case 'nome_apartacao':
+          return val(p.nome_apartacao || '');
+        case 'nome_lote':
+          return val(p.nome_lote || '');
+        case 'valor_pago_cabeca':
+          return money(p.valor_pago_cabeca);
+        case 'origem_animal':
+          return val(p.origem_animal || '');
+        case 'comprador':
+          return val(p.comprador || '');
+        case 'destino_venda':
+          return val(p.destino_venda || '');
+        case 'valor_venda_total':
+          return money(p.valor_venda_total);
+        case 'valor_arroba':
+          return money(p.valor_arroba);
+        case 'quantidade_arrobas':
+          return p.quantidade_arrobas != null ? val(p.quantidade_arrobas.toFixed(2)) : '';
+        case 'frigorifico':
+          return val(p.frigorifico || '');
+        case 'embarque_nome':
+          return val(p.embarque_nome || '');
+        case 'documento_tipo':
+          return val(p.documento_tipo || '');
+        case 'documento_numero':
+          return val(p.documento_numero || '');
+        case 'motorista_nome':
+          return val(p.motorista_nome || '');
+        case 'placa_carreta':
+          return val(p.placa_carreta || '');
+        case 'doc_qtd':
+          return p.documento_embarque_id ? val(docCountsDia[p.documento_embarque_id] || 0) : '';
+        case 'data_anterior':
+          return val(date(p.data_anterior));
+        case 'peso_anterior':
+          return p.peso_anterior != null ? val(Number(p.peso_anterior)) : '';
+        case 'dias':
+          return p.dias != null ? val(p.dias) : '';
+        case 'ganho':
+          return p.ganho != null ? val(Number(p.ganho).toFixed(2)) : '';
+        case 'gmd':
+          return p.gmd != null ? val(Number(p.gmd).toFixed(3)) : '';
+        case 'observacao':
+          return val(p.observacao || '');
+        default:
+          return '';
+      }
+    }));
 
     const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
