@@ -513,8 +513,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
     const produtosProcessados = (formData.produtos_selecionados || []).map((p) => {
       const qtd = parseNumero(p.quantidade);
-      const totalGross = parseNumero(p.valor_total);
-      const desconto = parseNumero(p.desconto_item || "0");
+      const totalGross = parseMoedaInput(p.valor_total);
+      const desconto = parseMoedaInput(p.desconto_item || "0");
       const valorLiquido = totalGross - desconto;
       const valorUnitario = qtd > 0 ? valorLiquido / qtd : 0;
 
@@ -527,6 +527,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
          valor_unitario: (typeof p.preco_unitario === 'number' ? p.preco_unitario : parseMoedaInput(p.preco_unitario || '0')) || valorUnitario,
          desconto: desconto,
          valor_total: valorLiquido,
+         documento_origem_id: p.documento_origem_id || undefined,
+         custo_unitario_origem: typeof p.custo_unitario_origem === 'number' ? p.custo_unitario_origem : undefined,
+         quantidade_baixada_na_nota: typeof p.quantidade_origem === 'number' ? p.quantidade_origem : undefined,
          observacao_item: p.observacao_item || undefined
        };
     });
