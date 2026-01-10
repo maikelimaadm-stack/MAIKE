@@ -1003,11 +1003,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                  const isVenda = det.includes('venda');
                                  const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
                                  precoBase = isVenda
-                                   ? ((prod.preco_venda || 0) > 0 ? prod.preco_venda : (layerCost ?? prod.preco_custo || 0))
-                                   : (layerCost ?? prod.preco_custo || 0);
+                                   ? ((prod.preco_venda || 0) > 0 ? prod.preco_venda : ((layerCost ?? prod.preco_custo) || 0))
+                                   : ((layerCost ?? prod.preco_custo) || 0);
                                } else if (formData.tipo_movimentacao === 'Transferência') {
                                  const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
-                                 precoBase = layerCost ?? prod.preco_custo || 0;
+                                 precoBase = (layerCost ?? prod.preco_custo) || 0;
                                } else if (formData.tipo_movimentacao === 'Ajuste') {
                                  precoBase = 0; // pode ser 0 em ajuste
                                }
@@ -1188,7 +1188,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       }}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' })>Limpar</Button>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' })}>Limpar</Button>
                       {editingIndex !== null && (
                         <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' }); }}>Cancelar Edição</Button>
                       )}
