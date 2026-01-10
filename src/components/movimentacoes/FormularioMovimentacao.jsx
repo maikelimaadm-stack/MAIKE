@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical, Link2, Package, MapPin, Truck } from "lucide-react";
+import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical, Link2, Package, MapPin, Truck, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
+import ItemProdutoForm from "../movimentacoes/ItemProdutoForm.jsx";
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 
 const formatarNumero = (num) => {
@@ -879,6 +880,99 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               }
 
               <div className="pt-4 border-t">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <Label className="text-xs font-semibold">Produtos</Label>
+                    {formData.tipo_movimentacao === 'Saída' && formData.local_estoque_origem_id && (
+                      <p className="text-[10px] text-blue-600">Origem: {locais.find(l => l.id === formData.local_estoque_origem_id)?.nome}</p>
+                    )}
+                    {formData.tipo_movimentacao === 'Entrada' && formData.local_estoque_destino_id && (
+                      <p className="text-[10px] text-blue-600">Destino: {locais.find(l => l.id === formData.local_estoque_destino_id)?.nome}</p>
+                    )}
+                  </div>
+                  <Button type="button" onClick={() => setShowItemForm(true)} variant="outline" size="sm" className="h-8 text-xs" disabled={!canAddProduto}>
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar Produto
+                  </Button>
+                </div>
+
+                {!canAddProduto && (
+                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                    {formData.tipo_movimentacao === 'Saída' && '⚠️ Selecione o Local de Origem para visualizar e liberar produtos.'}
+                    {formData.tipo_movimentacao === 'Entrada' && '⚠️ Selecione o Local de Destino para lançar produtos.'}
+                    {formData.tipo_movimentacao === 'Transferência' && '⚠️ Selecione Origem e Destino para transferir produtos.'}
+                    {formData.tipo_movimentacao === 'Ajuste' && '⚠️ Selecione o Local do Ajuste para lançar produtos.'}
+                  </div>
+                )}
+
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {formData.produtos_selecionados.map((p, idx) => (
+                      <div key={idx} className="border rounded-lg bg-white p-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">{p.produto_nome}</div>
+                            <div className="text-xs text-slate-600">Qtd: <span className="font-mono">{p.quantidade}</span> • {p.unidade}</div>
+                            <div className="text-xs text-slate-600">Valor: <span className="font-semibold">{formatarMoeda(parseNumero(p.valor_total))}</span></div>
+                            {p.vinculo_tipo && (
+                              <div className="text-[11px] text-blue-700 mt-1">Vínculo: {p.vinculo_tipo} • {p.vinculo_nome || '-'}</div>
+                            )}
+                            {p.observacao_item && (
+                              <div className="text-[11px] text-slate-600 mt-1">Obs: {p.observacao_item}</div>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingIndex(idx); setShowItemForm(true); }}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+                            </Button>
+                            <Button type="button" variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleRemoverProduto(idx)}>
+                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="font-semibold text-slate-800 mb-1">Resumo</div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Total Produtos:</span>
+                        <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <ItemProdutoForm
+                  open={showItemForm}
+                  onClose={() => { setShowItemForm(false); setEditingIndex(null); }}
+                  onConfirm={(novo) => {
+                    setShowItemForm(false);
+                    if (editingIndex !== null) {
+                      setFormData(prev => ({
+                        ...prev,
+                        produtos_selecionados: prev.produtos_selecionados.map((x, i) => i === editingIndex ? novo : x)
+                      }));
+                      setEditingIndex(null);
+                    } else {
+                      setFormData(prev => ({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
+                    }
+                  }}
+                  produtos={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
+                  tipoMovimentacao={formData.tipo_movimentacao}
+                  tipoDetalhado={formData.tipo_detalhado}
+                  localOrigemId={formData.local_estoque_origem_id}
+                  localDestinoId={formData.local_estoque_destino_id}
+                  estoquePorLocal={estoquePorLocal}
+                  lotes={lotes}
+                  areas={areas}
+                  maquinas={maquinas}
+                  initialItem={editingIndex !== null ? formData.produtos_selecionados[editingIndex] : null}
+                />
+              </div>
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <Label className="text-xs font-semibold">Produtos</Label>
