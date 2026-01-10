@@ -96,6 +96,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [showDialogLocal, setShowDialogLocal] = useState(false);
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogProduto, setShowDialogProduto] = useState(false);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();

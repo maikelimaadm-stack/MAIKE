@@ -168,8 +168,12 @@ export default function MovimentacoesEstoque() {
 
     const proximoNumero = await getNextSystemNumber();
 
+    const tipoVinc = produto.vinculo_tipo;
+    const vincId = produto.vinculo_id;
+    const vincNome = produto.vinculo_nome;
+
     const movimentacao = {
-      empresa_id: empresaSelecionadaId,
+       empresa_id: empresaSelecionadaId,
       numero_movimentacao: String(proximoNumero),
       tipo_movimentacao: dadosComuns.tipo_movimentacao,
       tipo_detalhado: dadosComuns.tipo_detalhado,
@@ -200,6 +204,14 @@ export default function MovimentacoesEstoque() {
       centro_custo_nome: dadosComuns.centro_custo_id ? centros.find(c => c.id === dadosComuns.centro_custo_id)?.nome : undefined,
       motivo_movimentacao: dadosComuns.motivo_movimentacao,
       observacoes: dadosComuns.observacoes || undefined,
+      // vínculo por item
+      tipo_vinculo: tipoVinc || dadosComuns.tipo_vinculo,
+      lote_vinculado_id: tipoVinc === 'lote' ? vincId : undefined,
+      lote_vinculado_nome: tipoVinc === 'lote' ? vincNome : undefined,
+      area_vinculada_id: tipoVinc === 'area' ? vincId : undefined,
+      area_vinculada_nome: tipoVinc === 'area' ? vincNome : undefined,
+      maquina_vinculada_id: tipoVinc === 'maquina' ? vincId : undefined,
+      maquina_vinculada_nome: tipoVinc === 'maquina' ? vincNome : undefined,
       saldo_antes: estoqueAtual,
       saldo_depois: novoEstoque,
       custo_medio_antes: custoMedioAtual,
@@ -271,6 +283,10 @@ export default function MovimentacoesEstoque() {
         const centro = centros.find(c => c.id === dadosComuns.centro_custo_id);
         const fornecedor = fornecedores.find(f => f.id === dadosComuns.fornecedor_id);
 
+        const tipoVinc = produto.vinculo_tipo;
+        const vincId = produto.vinculo_id;
+        const vincNome = produto.vinculo_nome;
+
         await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
           tipo_movimentacao: dadosComuns.tipo_movimentacao,
           tipo_detalhado: dadosComuns.tipo_detalhado,
@@ -299,6 +315,14 @@ export default function MovimentacoesEstoque() {
           centro_custo_nome: centro?.nome,
           motivo_movimentacao: dadosComuns.motivo_movimentacao || undefined,
           observacoes: dadosComuns.observacoes || undefined,
+          // vínculo por item
+          tipo_vinculo: tipoVinc || dadosComuns.tipo_vinculo,
+          lote_vinculado_id: tipoVinc === 'lote' ? vincId : undefined,
+          lote_vinculado_nome: tipoVinc === 'lote' ? vincNome : undefined,
+          area_vinculada_id: tipoVinc === 'area' ? vincId : undefined,
+          area_vinculada_nome: tipoVinc === 'area' ? vincNome : undefined,
+          maquina_vinculada_id: tipoVinc === 'maquina' ? vincId : undefined,
+          maquina_vinculada_nome: tipoVinc === 'maquina' ? vincNome : undefined,
           saldo_antes: estoqueAtual,
           saldo_depois: novoEstoque,
         });
