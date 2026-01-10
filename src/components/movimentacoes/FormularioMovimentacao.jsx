@@ -451,7 +451,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       maquina_vinculada_nome: maquinaVinculada?.nome || maquinaVinculada?.identificacao
     };
 
-    onSubmit({ id: initialData?.id, ...dadosComuns, produtos: produtosProcessados });
+    onSubmit({ ...dadosComuns, produtos: produtosProcessados });
   };
 
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
@@ -843,12 +843,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 }
 
                 {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border">
+                <div className="bg-white rounded border min-h-[420px]">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8 text-xs"></TableHead>
-                          <TableHead className="min-w-[360px] md:min-w-[540px] text-xs">Produto *</TableHead>
+                          <TableHead className="min-w-[360px] md:min-w-[420px] text-xs">Produto *</TableHead>
                           {formData.tipo_movimentacao === 'Saída' &&
                         <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
                         }

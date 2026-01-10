@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import FormularioLancamentoProdutos from "../components/movimentacoes/FormularioLancamentoProdutos";
+import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
 
 export default function LancamentoProdutosEstoque() {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -76,7 +76,7 @@ export default function LancamentoProdutosEstoque() {
           {loadingProdutos ? (
             <div className="text-xs text-slate-500">Carregando...</div>
           ) : (
-            <FormularioLancamentoProdutos
+            <FormularioMovimentacao
               initialData={initialData}
               produtos={produtos}
               fornecedores={fornecedores}

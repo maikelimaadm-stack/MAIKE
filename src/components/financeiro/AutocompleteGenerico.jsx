@@ -86,7 +86,7 @@ export default function AutocompleteGenerico({
       </div>
 
       {open && itensFiltrados.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg min-h-64 md:min-h-80 max-h-[70vh] overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {itensFiltrados.map((item) => (
             <div
               key={item.id}
@@ -111,7 +111,7 @@ export default function AutocompleteGenerico({
       )}
 
       {open && searchTerm && itensFiltrados.length === 0 && (
-        <div className="absolute left-0 right-0 z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg min-h-48 max-h-[50vh] overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg">
           <div className="px-3 py-6 text-center text-xs text-slate-500">
             Nenhum item encontrado
           </div>
