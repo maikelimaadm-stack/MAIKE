@@ -907,49 +907,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 )}
 
-                {formData.produtos_selecionados.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {formData.produtos_selecionados.map((p, idx) => (
-                      <div key={idx} className="border rounded-lg bg-white p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-sm font-semibold text-slate-900">{p.produto_nome}</div>
-                            <div className="text-xs text-slate-600">Qtd: <span className="font-mono">{p.quantidade}</span> • {p.unidade}</div>
-                            <div className="text-xs text-slate-600">Valor: <span className="font-semibold">{formatarMoeda(parseNumero(p.valor_total))}</span></div>
-                            {p.vinculo_tipo && (
-                              <div className="text-[11px] text-blue-700 mt-1">Vínculo: {p.vinculo_tipo} • {p.vinculo_nome || '-'}</div>
-                            )}
-                            {p.observacao_item && (
-                              <div className="text-[11px] text-slate-600 mt-1">Obs: {p.observacao_item}</div>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingIndex(idx); setShowItemForm(true); }}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
-                            </Button>
-                            <Button type="button" variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleRemoverProduto(idx)}>
-                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-
-
-
-                <ItemProdutoForm
-                  open={showItemForm}
-                  onClose={() => { setShowItemForm(false); setEditingIndex(null); }}
-                  onConfirm={(novo) => {
-                    setShowItemForm(false);
-                    if (editingIndex !== null) {
-                      setFormData(prev => ({
-                        ...prev,
-                        produtos_selecionados: prev.produtos_selecionados.map((x, i) => i === editingIndex ? novo : x)
-                      }));
+));
                       setEditingIndex(null);
                     } else {
                       setFormData(prev => ({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
