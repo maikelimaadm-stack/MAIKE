@@ -123,7 +123,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     preco: '',
     preco_unitario: 0,
     valor_total: '',
-    desconto_item: '0,00',
+    desconto_item: 'R$ 0,00',
+    valor_liquido_item: 'R$ 0,00',
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
@@ -475,7 +476,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
          produto_codigo: p.produto_codigo || '',
          unidade_medida: p.unidade,
          quantidade: qtd,
-         valor_unitario: (typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0')) || valorUnitario,
+         valor_unitario: (typeof p.preco_unitario === 'number' ? p.preco_unitario : parseMoedaInput(p.preco_unitario || '0')) || valorUnitario,
          desconto: desconto,
          valor_total: valorLiquido,
          observacao_item: p.observacao_item || undefined
@@ -959,17 +960,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               const qtd = parseNumero(prev?.quantidade||'0');
                               const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : (qtd > 0 ? (qtd * (precoBase || 0)) : 0);
                               return {
-                                                                ...(prev||{}),
-                                                                produto_id: v || '',
-                                                                produto_nome: prod?.nome_produto || '',
-                                                                produto_codigo: prod?.codigo_interno || prod?.codigo_barras || '',
-                                                                unidade: prod?.unidade_medida || '',
-                                                                preco_custo: prod?.preco_custo || 0,
-                                                                preco_venda: prod?.preco_venda || 0,
-                                                                preco: formatarMoedaInput(precoBase || 0),
-                                                                                                  preco_unitario: precoBase || 0,
-                                                                                                  valor_total: formatarNumero(total)
-                                                              };
+                                                                                               ...(prev||{}),
+                                                                                               produto_id: v || '',
+                                                                                               produto_nome: prod?.nome_produto || '',
+                                                                                               produto_codigo: prod?.codigo_interno || prod?.codigo_barras || '',
+                                                                                               unidade: prod?.unidade_medida || '',
+                                                                                               preco_custo: prod?.preco_custo || 0,
+                                                                                               preco_venda: prod?.preco_venda || 0,
+                                                                                               preco: formatarMoedaInput(precoBase || 0),
+                                                                                               preco_unitario: precoBase || 0,
+                                                                                               valor_total: formatarMoedaInput(total),
+                                                                                               desconto_item: prev?.desconto_item || 'R$ 0,00',
+                                                                                               valor_liquido_item: formatarMoedaInput((total) - parseMoedaInput(prev?.desconto_item || '0'))
+                                                                                             };
                             });
                           }}
                           placeholder="Selecione o produto"
@@ -1029,7 +1032,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                          const isEditable = (formData.tipo_movimentacao === 'Entrada') || (formData.tipo_movimentacao === 'Saída' && det.includes('venda'));
                                                          const unit = isEditable ? (parseNumero(currentItem?.preco || '0') || (precoBase || 0)) : (precoBase || 0);
                                                          const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * unit);
-                                                                                        setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarMoedaInput(total) }));
+                                                                                        setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarMoedaInput(total), valor_liquido_item: formatarMoedaInput(total - parseMoedaInput(prev?.desconto_item || '0')) }));
                                                        }
                                                      }}
                           className="h-8 text-xs"
@@ -1047,7 +1050,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                                                     setCurrentItem(prev=>({ ...(prev||{}), preco: formatarMoedaInput(unit), preco_unitario: unit }));
                                                                                     const qtdNum = parseNumero(currentItem?.quantidade||'0');
                                                                                     const total = qtdNum * unit;
-                                                                                    setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarMoedaInput(total) }));
+                                                                                    setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarMoedaInput(total), valor_liquido_item: formatarMoedaInput(total - parseMoedaInput(prev?.desconto_item || '0')) }));
                                                      }}
                           className="h-8 text-xs"
                           placeholder="0,00"
@@ -1058,7 +1061,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       <div className="space-y-2">
                         <Label className="text-xs">Valor Total</Label>
-                        <Input value={currentItem?.valor_total || ''} readOnly className="h-8 text-xs" />
+                        <Input value={currentItem?.valor_total || ''} readOnly className="h-9 text-sm text-right font-mono" />
                       </div>
 
                       <div className="space-y-2">
@@ -1178,7 +1181,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                       produto_codigo: p.produto_codigo || '',
                                       unidade: p.unidade || '',
                                       quantidade: p.quantidade || '',
-                                      preco: formatarNumero(precoUnit || 0),
+                                      preco: formatarMoedaInput(precoUnit || 0),
                                       preco_unitario: typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0'),
                                       valor_total: p.valor_total || '',
                                       observacao_item: p.observacao_item || '',
