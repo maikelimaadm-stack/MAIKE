@@ -736,11 +736,11 @@ export default function MovimentacaoEstoqueFormV2({
           {exibeDocumento && (
             <div className="bg-slate-50 border rounded p-2 space-y-2">
               <Label className="text-xs font-semibold">Dados do Documento</Label>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo</Label>
                   <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-8 text-xs w-full">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -752,29 +752,29 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número</Label>
-                  <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs" />
+                  <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs w-full" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Série</Label>
-                  <Input value={serieDocumento} onChange={(e) => setSerieDocumento(e.target.value)} className="h-8 text-xs" />
+                  <Input value={serieDocumento} onChange={(e) => setSerieDocumento(e.target.value)} className="h-8 text-xs w-full" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Data</Label>
-                  <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs w-[130px]" />
+                  <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs w-full max-w-[140px]" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">CFOP</Label>
-                  <Input value={cfop} onChange={(e) => setCfop(e.target.value)} className="h-8 text-xs" maxLength={4} />
+                  <Input value={cfop} onChange={(e) => setCfop(e.target.value)} className="h-8 text-xs w-full" maxLength={4} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Natureza</Label>
-                  <Input value={naturezaOperacao} onChange={(e) => setNaturezaOperacao(e.target.value)} className="h-8 text-xs" />
+                  <Input value={naturezaOperacao} onChange={(e) => setNaturezaOperacao(e.target.value)} className="h-8 text-xs w-full" />
                 </div>
               </div>
               {tipoDocumento === 'nfe' && (
                 <div className="space-y-1">
                   <Label className="text-xs">Chave NF-e</Label>
-                  <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value)} className="h-8 text-xs" maxLength={44} />
+                  <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value)} className="h-8 text-xs w-full" maxLength={44} />
                 </div>
               )}
             </div>
