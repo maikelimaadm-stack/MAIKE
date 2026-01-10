@@ -105,6 +105,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     unidade: '',
     quantidade: '',
     preco: '',
+    preco_unitario: 0,
     valor_total: '',
     desconto_item: '0,00',
     observacao_item: ''
@@ -539,7 +540,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-sm border-slate-300 bg-white max-w-6xl mx-auto">
+        <Card className="shadow-sm border-slate-300 bg-white max-w-[1600px] w-full mx-auto">
           <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
             <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
@@ -942,16 +943,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               const qtd = parseNumero(prev?.quantidade||'0');
                               const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : (qtd > 0 ? (qtd * (precoBase || 0)) : 0);
                               return {
-                                ...(prev||{}),
-                                produto_id: v || '',
-                                produto_nome: prod?.nome_produto || '',
-                                produto_codigo: prod?.codigo_interno || '',
-                                unidade: prod?.unidade_medida || '',
-                                preco_custo: prod?.preco_custo || 0,
-                                preco_venda: prod?.preco_venda || 0,
-                                preco: formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && det.includes('venda')) ? formatarNumero(precoBase || 0) : formatarNumero(precoBase || 0),
-                                valor_total: formatarNumero(total)
-                              };
+                                                                ...(prev||{}),
+                                                                produto_id: v || '',
+                                                                produto_nome: prod?.nome_produto || '',
+                                                                produto_codigo: prod?.codigo_interno || prod?.codigo_barras || '',
+                                                                unidade: prod?.unidade_medida || '',
+                                                                preco_custo: prod?.preco_custo || 0,
+                                                                preco_venda: prod?.preco_venda || 0,
+                                                                preco: formatarNumero(precoBase || 0),
+                                                                preco_unitario: precoBase || 0,
+                                                                valor_total: formatarNumero(total)
+                                                              };
                             });
                           }}
                           placeholder="Selecione o produto"
@@ -966,7 +968,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               : null;
                             return (
                               <div className="mt-1 text-xs text-slate-600">
-                                <span className="font-medium">Código:</span> {currentItem.produto_codigo || '-'}
+                                                               <span className="font-medium">Código:</span> {currentItem.produto_codigo || '-'}
                                 {' '}|{' '}
                                 <span className="font-medium">UN:</span> {currentItem.unidade || '-'}
                                 {saldo !== null && (
@@ -1022,12 +1024,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         <Input
                           value={currentItem?.preco || ''}
                           onChange={(e)=>{
-                            const val = e.target.value;
-                            setCurrentItem(prev=>({ ...(prev||{}), preco: val }));
-                            const qtdNum = parseNumero(currentItem?.quantidade||'0');
-                            const total = qtdNum * parseNumero(val||'0');
-                            setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
-                          }}
+                                                       const val = e.target.value;
+                                                       const unit = parseNumero(val || '0');
+                                                       setCurrentItem(prev=>({ ...(prev||{}), preco: val, preco_unitario: unit }));
+                                                       const qtdNum = parseNumero(currentItem?.quantidade||'0');
+                                                       const total = qtdNum * unit;
+                                                       setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
+                                                     }}
                           className="h-8 text-xs"
                           placeholder="0,00"
                           readOnly={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda')))}
@@ -1083,14 +1086,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         } else {
                           setFormData(prev=>({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
                         }
-                        setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' });
+                        setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' });
                         setEditingIndex(null);
                       }}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
                       {editingIndex !== null && (
-                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
+                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
                       )}
                     </div>
                   </CardContent>
@@ -1146,6 +1149,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                       unidade: p.unidade || '',
                                       quantidade: p.quantidade || '',
                                       preco: formatarNumero(precoUnit || 0),
+                                      preco_unitario: typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0'),
                                       valor_total: p.valor_total || '',
                                       observacao_item: p.observacao_item || '',
                                       desconto_item: p.desconto_item || '0,00'
