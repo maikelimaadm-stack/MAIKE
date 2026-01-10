@@ -1068,20 +1068,22 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         <Label className="text-xs">Desconto</Label>
                         <Input
                           value={currentItem?.desconto_item || ''}
-                          onChange={(e)=> setCurrentItem(prev=>({ ...(prev||{}), desconto_item: e.target.value }))}
-                          className="h-8 text-xs"
-                          placeholder="0,00"
+                          onChange={(e)=> {
+                            const val = e.target.value;
+                            const d = parseMoedaInput(val || '0');
+                            setCurrentItem(prev=>{
+                              const totalN = parseMoedaInput(prev?.valor_total || '0');
+                              return { ...(prev||{}), desconto_item: formatarMoedaInput(d), valor_liquido_item: formatarMoedaInput(Math.max(0, totalN - d)) };
+                            });
+                          }}
+                          className="h-9 text-sm text-right font-mono"
+                          placeholder="R$ 0,00"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Desconto</Label>
-                        <Input
-                          value={currentItem?.desconto_item || ''}
-                          onChange={(e)=> setCurrentItem(prev=>({ ...(prev||{}), desconto_item: e.target.value }))}
-                          className="h-8 text-xs"
-                          placeholder="0,00"
-                        />
+                        <Label className="text-xs">Valor Líquido</Label>
+                        <Input value={currentItem?.valor_liquido_item || 'R$ 0,00'} readOnly className="h-9 text-sm text-right font-mono" />
                       </div>
 
                       <div className="md:col-span-3 space-y-2">
