@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRightLeft, Save, X, Plus, Trash2, MoreVertical, Link2, Package, MapPin, Truck, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
@@ -125,9 +126,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     valor_total: '',
     desconto_item: 'R$ 0,00',
     valor_liquido_item: 'R$ 0,00',
+    documento_origem_id: '',
+    custo_unitario_origem: 0,
+    quantidade_origem: 0,
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
+  const [costOrigin, setCostOrigin] = useState('fifo');
   
   
 
