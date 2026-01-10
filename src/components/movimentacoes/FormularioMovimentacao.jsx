@@ -848,7 +848,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8 text-xs"></TableHead>
-                          <TableHead className="min-w-[360px] md:min-w-[420px] text-xs">Produto *</TableHead>
+                          <TableHead className="min-w-[360px] md:min-w-[540px] text-xs">Produto *</TableHead>
                           {formData.tipo_movimentacao === 'Saída' &&
                         <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
                         }
