@@ -1153,7 +1153,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         </Card>
       </motion.div>
 
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['locais_mov'] });const local = locais.find((l) => l.id === id);if (local && !formData.local_estoque) handleChange('local_estoque', local.nome);setShowDialogLocal(false);}} />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['locais_mov'] }); if (formData.tipo_movimentacao === 'Entrada') { handleChange('local_estoque_destino_id', id); } else { handleChange('local_estoque_origem_id', id); } setShowDialogLocal(false);}} />
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['centros_mov'] });handleChange('centro_custo_id', id);setShowDialogCentro(false);}} />
       <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['produtos'] });setShowDialogProduto(false);}} />
     </>);
