@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import MovimentacaoEstoqueFormV2 from "../components/movimentacoes/MovimentacaoEstoqueFormV2";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeMovimentacao from "../components/movimentacoes/ImportarNFeMovimentacao";
-import { parseMoedaBR } from "@/components/movimentacoes/utils/movimentacaoUtils.js";
+
 
 const getNextSystemNumber = async () => {
   try {
@@ -58,6 +58,18 @@ const parseNumero = (str) => {
   if (!str && str !== 0) return 0;
   if (typeof str === 'number') return str;
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+};
+
+const parseMoedaBR = (str) => {
+  if (!str && str !== 0) return 0;
+  if (typeof str === 'number') return str;
+  const cleaned = String(str)
+    .replace(/\s/g, '')
+    .replace(/R\$/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
 };
 
 // Criar lote de estoque (para entradas)
