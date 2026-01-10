@@ -451,7 +451,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       maquina_vinculada_nome: maquinaVinculada?.nome || maquinaVinculada?.identificacao
     };
 
-    onSubmit({ ...dadosComuns, produtos: produtosProcessados });
+    onSubmit({ id: initialData?.id, ...dadosComuns, produtos: produtosProcessados });
   };
 
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
