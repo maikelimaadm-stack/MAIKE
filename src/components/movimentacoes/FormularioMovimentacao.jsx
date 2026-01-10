@@ -893,7 +893,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <p className="text-[10px] text-blue-600">Destino: {locais.find(l => l.id === formData.local_estoque_destino_id)?.nome}</p>
                     )}
                   </div>
-                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-8 text-xs" disabled={!canAddProduto}>
+
 
                 </div>
 
