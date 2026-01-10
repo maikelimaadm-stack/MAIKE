@@ -907,7 +907,55 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 )}
 
-));
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {formData.produtos_selecionados.map((p, idx) => (
+                      <div key={idx} className="border rounded-lg bg-white p-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">{p.produto_nome}</div>
+                            <div className="text-xs text-slate-600">Qtd: <span className="font-mono">{p.quantidade}</span> • {p.unidade}</div>
+                            <div className="text-xs text-slate-600">Valor: <span className="font-semibold">{formatarMoeda(parseNumero(p.valor_total))}</span></div>
+                            {p.observacao_item && (
+                              <div className="text-[11px] text-slate-600 mt-1">Obs: {p.observacao_item}</div>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingIndex(idx); setShowItemForm(true); }}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+                            </Button>
+                            <Button type="button" variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleRemoverProduto(idx)}>
+                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {formData.produtos_selecionados.length > 0 && (
+                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="font-semibold text-slate-800 mb-1">Resumo</div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Total Produtos:</span>
+                        <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <ItemProdutoForm
+                  open={showItemForm}
+                  onClose={() => { setShowItemForm(false); setEditingIndex(null); }}
+                  onConfirm={(novo) => {
+                    setShowItemForm(false);
+                    if (editingIndex !== null) {
+                      setFormData(prev => ({
+                        ...prev,
+                        produtos_selecionados: prev.produtos_selecionados.map((x, i) => i === editingIndex ? novo : x)
+                      }));
                       setEditingIndex(null);
                     } else {
                       setFormData(prev => ({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
@@ -924,10 +972,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   maquinas={maquinas}
                   initialItem={editingIndex !== null ? formData.produtos_selecionados[editingIndex] : null}
                 />
-
-
-
-
+              </div>
 
                 <div className="space-y-1">
                 <Label className="text-xs">Observações</Label>
