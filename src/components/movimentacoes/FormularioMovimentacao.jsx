@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
-import ItemProdutoForm from "../movimentacoes/ItemProdutoForm.jsx";
+
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 
 const formatarNumero = (num) => {
@@ -96,8 +96,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [showDialogLocal, setShowDialogLocal] = useState(false);
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogProduto, setShowDialogProduto] = useState(false);
-  const [showItemForm, setShowItemForm] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
+  
+  
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
@@ -525,7 +525,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="shadow-sm border-slate-300 bg-white">
+        <Card className="shadow-sm border-slate-300 bg-white max-w-5xl mx-auto">
           <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
             <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
@@ -893,7 +893,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <p className="text-[10px] text-blue-600">Destino: {locais.find(l => l.id === formData.local_estoque_destino_id)?.nome}</p>
                     )}
                   </div>
-                  <Button type="button" onClick={() => setShowItemForm(true)} variant="outline" size="sm" className="h-8 text-xs" disabled={!canAddProduto}>
+                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-8 text-xs" disabled={!canAddProduto}>
                     <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar Produto
                   </Button>
                 </div>
@@ -908,30 +908,57 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 )}
 
                 {formData.produtos_selecionados.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {formData.produtos_selecionados.map((p, idx) => (
-                      <div key={idx} className="border rounded-lg bg-white p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-sm font-semibold text-slate-900">{p.produto_nome}</div>
-                            <div className="text-xs text-slate-600">Qtd: <span className="font-mono">{p.quantidade}</span> • {p.unidade}</div>
-                            <div className="text-xs text-slate-600">Valor: <span className="font-semibold">{formatarMoeda(parseNumero(p.valor_total))}</span></div>
-                            {p.observacao_item && (
-                              <div className="text-[11px] text-slate-600 mt-1">Obs: {p.observacao_item}</div>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditingIndex(idx); setShowItemForm(true); }}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
-                            </Button>
-                            <Button type="button" variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleRemoverProduto(idx)}>
-                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Unid.</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor Total</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Desconto</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black w-12 text-center">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {formData.produtos_selecionados.map((p, idx) => (
+                        <TableRow key={idx} className="hover:bg-gray-50">
+                          <TableCell className="text-xs py-1 border border-gray-300">
+                            <AutocompleteGenerico
+                              items={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
+                              value={p.produto_id}
+                              onChange={(v) => handleAtualizarProduto(idx, 'produto_id', v)}
+                              placeholder="Selecione o produto"
+                              displayField="nome_produto"
+                              searchFields={["nome_produto","codigo_interno","codigo_barras"]}
+                              className="w-full"
+                            />
+                          </TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300">{p.unidade || '-'}</TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
+                            <Input value={p.quantidade || ''} onChange={(e)=>handleAtualizarProduto(idx,'quantidade', e.target.value)} className="h-8 text-xs text-right" />
+                          </TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
+                            <Input value={p.valor_total || ''} onChange={(e)=>handleAtualizarProduto(idx,'valor_total', e.target.value)} className="h-8 text-xs text-right" />
+                          </TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
+                            <Input value={p.desconto_item || ''} onChange={(e)=>handleAtualizarProduto(idx,'desconto_item', e.target.value)} className="h-8 text-xs text-right" />
+                          </TableCell>
+                          <TableCell className="text-xs py-1 border border-gray-300 text-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverProduto(idx)}>Remover</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
 
                 {formData.produtos_selecionados.length > 0 && (
@@ -946,32 +973,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 )}
 
-                <ItemProdutoForm
-                  open={showItemForm}
-                  onClose={() => { setShowItemForm(false); setEditingIndex(null); }}
-                  onConfirm={(novo) => {
-                    setShowItemForm(false);
-                    if (editingIndex !== null) {
-                      setFormData(prev => ({
-                        ...prev,
-                        produtos_selecionados: prev.produtos_selecionados.map((x, i) => i === editingIndex ? novo : x)
-                      }));
-                      setEditingIndex(null);
-                    } else {
-                      setFormData(prev => ({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
-                    }
-                  }}
-                  produtos={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
-                  tipoMovimentacao={formData.tipo_movimentacao}
-                  tipoDetalhado={formData.tipo_detalhado}
-                  localOrigemId={formData.local_estoque_origem_id}
-                  localDestinoId={formData.local_estoque_destino_id}
-                  estoquePorLocal={estoquePorLocal}
-                  lotes={lotes}
-                  areas={areas}
-                  maquinas={maquinas}
-                  initialItem={editingIndex !== null ? formData.produtos_selecionados[editingIndex] : null}
-                />
+
               </div>
 
                 <div className="space-y-1">
