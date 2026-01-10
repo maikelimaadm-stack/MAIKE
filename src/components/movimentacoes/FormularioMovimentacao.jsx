@@ -894,8 +894,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     )}
                   </div>
                   <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-8 text-xs" disabled={!canAddProduto}>
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar Produto
-                  </Button>
+
                 </div>
 
                 {!canAddProduto && (
