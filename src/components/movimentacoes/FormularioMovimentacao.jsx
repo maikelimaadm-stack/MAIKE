@@ -288,7 +288,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     }));
   };
 
-  const handleAtualizarProduto = (index, campo, valor) => {
+  const handleAtualizarProduto = (index, campo, valor) => { // mantido para compatibilidade, tabela é somente leitura
     setFormData((prev) => ({
       ...prev,
       produtos_selecionados: prev.produtos_selecionados.map((p, i) => {
@@ -453,10 +453,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return {
          produto_id: p.produto_id,
          produto_nome: p.produto_nome,
-         produto_codigo: p.produto_codigo,
+         produto_codigo: p.produto_codigo || '',
          unidade_medida: p.unidade,
          quantidade: qtd,
-         valor_unitario: valorUnitario,
+         valor_unitario: (typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0')) || valorUnitario,
          desconto: desconto,
          valor_total: valorLiquido,
          observacao_item: p.observacao_item || undefined
@@ -923,44 +923,56 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           value={currentItem?.produto_id || ''}
                           onChange={(v) => {
                             const prod = produtos.find(p => p.id === v);
-                            setCurrentItem(prev=>({
-                              ...(prev||{}),
-                              produto_id: v || '',
-                              produto_nome: prod?.nome_produto || '',
-                              unidade: prod?.unidade_medida || '',
-                            }));
+                            const det = (formData.tipo_detalhado || '').toLowerCase();
+                            let precoBase = 0;
                             if (prod) {
-                              const det = (formData.tipo_detalhado || '').toLowerCase();
-                              let precoBase = 0;
                               if (formData.tipo_movimentacao === 'Entrada') {
                                 precoBase = prod.preco_custo || 0;
                               } else if (formData.tipo_movimentacao === 'Saída') {
                                 precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
-                              } else {
+                              } else if (formData.tipo_movimentacao === 'Transferência') {
                                 precoBase = prod.preco_custo || 0;
+                              } else if (formData.tipo_movimentacao === 'Ajuste') {
+                                precoBase = 0; // pode ser 0 em ajuste
                               }
-                              setCurrentItem(prev=>{
-                                const qtd = parseNumero(prev?.quantidade||'0');
-                                const total = qtd > 0 ? (qtd * precoBase) : 0;
-                                return { ...(prev||{}), preco: formatarNumero(precoBase), valor_total: formatarNumero(total) };
-                              });
                             }
+                            setCurrentItem(prev=>{
+                              const qtd = parseNumero(prev?.quantidade||'0');
+                              const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : (qtd > 0 ? (qtd * (precoBase || 0)) : 0);
+                              return {
+                                ...(prev||{}),
+                                produto_id: v || '',
+                                produto_nome: prod?.nome_produto || '',
+                                produto_codigo: prod?.codigo_interno || '',
+                                unidade: prod?.unidade_medida || '',
+                                preco_custo: prod?.preco_custo || 0,
+                                preco_venda: prod?.preco_venda || 0,
+                                preco: formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && det.includes('venda')) ? formatarNumero(precoBase || 0) : formatarNumero(precoBase || 0),
+                                valor_total: formatarNumero(total)
+                              };
+                            });
                           }}
                           placeholder="Selecione o produto"
                           displayField="nome_produto"
                           searchFields={["nome_produto","codigo_interno","codigo_barras"]}
                           className="w-full"
                         />
-                        {(formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && (currentItem?.produto_id) && (
+                        {currentItem?.produto_id && (
                           (()=>{
-                            const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
-                            const qtd = parseNumero(currentItem.quantidade||'0');
-                            const ok = saldo >= qtd;
+                            const saldo = (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência')
+                              ? (estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0)
+                              : null;
                             return (
-                              <div className="mt-1 text-xs">
-                                <Badge className={ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}>
-                                  Saldo disponível: {saldo.toFixed(2)} {currentItem.unidade || 'UN'}
-                                </Badge>
+                              <div className="mt-1 text-xs text-slate-600">
+                                <span className="font-medium">Código:</span> {currentItem.produto_codigo || '-'}
+                                {' '}|{' '}
+                                <span className="font-medium">UN:</span> {currentItem.unidade || '-'}
+                                {saldo !== null && (
+                                  <>
+                                    {' '}|{' '}
+                                    <span className="font-medium">Saldo (origem):</span> {saldo.toFixed(2)} {currentItem.unidade || 'UN'}
+                                  </>
+                                )}
                               </div>
                             );
                           })()
@@ -982,8 +994,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                 precoBase = parseNumero(currentItem?.preco || '0') || (prod.preco_custo || 0);
                               } else if (formData.tipo_movimentacao === 'Saída') {
                                 precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
-                              } else {
+                              } else if (formData.tipo_movimentacao === 'Transferência') {
                                 precoBase = prod.preco_custo || 0;
+                              } else if (formData.tipo_movimentacao === 'Ajuste') {
+                                precoBase = 0;
                               }
                               const qtdNum = parseNumero(val);
                               if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && currentItem?.produto_id) {
@@ -992,7 +1006,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   toast.error('Quantidade maior que o saldo disponível');
                                 }
                               }
-                              const total = (qtdNum || 0) * (precoBase || 0);
+                              const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * (precoBase || 0));
                               setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
                             }
                           }}
@@ -1014,7 +1028,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           }}
                           className="h-8 text-xs"
                           placeholder="0,00"
-                          readOnly={formData.tipo_movimentacao !== 'Entrada'}
+                          readOnly={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda')))}
                         />
                       </div>
 
@@ -1038,18 +1052,31 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
                           if (qtdNum > saldo) { toast.error('Saldo insuficiente'); return; }
                         }
-                        const novo = { ...currentItem };
+                        const precoUnit = parseNumero(currentItem?.preco || '0');
+                        const desconto = parseNumero(currentItem?.desconto_item || '0');
+                        const total = parseNumero(currentItem?.valor_total || '0');
+                        const novo = {
+                          produto_id: currentItem.produto_id,
+                          produto_nome: currentItem.produto_nome,
+                          produto_codigo: currentItem.produto_codigo || '',
+                          unidade: currentItem.unidade || '',
+                          quantidade: formatarNumero(qtdNum),
+                          preco_unitario: precoUnit,
+                          valor_total: formatarNumero(total),
+                          desconto_item: formatarNumero(desconto),
+                          observacao_item: currentItem.observacao_item || ''
+                        };
                         if (editingIndex !== null) {
                           setFormData(prev=>({ ...prev, produtos_selecionados: prev.produtos_selecionados.map((x,i)=> i===editingIndex ? novo : x) }));
                         } else {
                           setFormData(prev=>({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
                         }
-                        setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' });
+                        setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' });
                         setEditingIndex(null);
                       }}>
-                        <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Produto' : 'Adicionar Produto'}
+                        <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' })}>Limpar</Button>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
                       {editingIndex !== null && (
                         <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' }); }}>Cancelar Edição</Button>
                       )}
@@ -1071,51 +1098,63 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Unid.</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
                         <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor Total</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Desconto</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Preço Unit.</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
+                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
                         <TableHead className="text-xs font-bold py-1 border border-black w-12 text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {formData.produtos_selecionados.map((p, idx) => (
-                        <TableRow key={idx} className="hover:bg-gray-50">
-                          <TableCell className="text-xs py-1 border border-gray-300">
-                            <AutocompleteGenerico
-                              items={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
-                              value={p.produto_id}
-                              onChange={(v) => handleAtualizarProduto(idx, 'produto_id', v)}
-                              placeholder="Selecione o produto"
-                              displayField="nome_produto"
-                              searchFields={["nome_produto","codigo_interno","codigo_barras"]}
-                              className="w-full"
-                            />
-                          </TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300">{p.unidade || '-'}</TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
-                            <Input value={p.quantidade || ''} onChange={(e)=>handleAtualizarProduto(idx,'quantidade', e.target.value)} className="h-8 text-xs text-right" />
-                          </TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
-                            <Input value={p.valor_total || ''} onChange={(e)=>handleAtualizarProduto(idx,'valor_total', e.target.value)} className="h-8 text-xs text-right" />
-                          </TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-right">
-                            <Input value={p.desconto_item || ''} onChange={(e)=>handleAtualizarProduto(idx,'desconto_item', e.target.value)} className="h-8 text-xs text-right" />
-                          </TableCell>
-                          <TableCell className="text-xs py-1 border border-gray-300 text-center">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  <MoreVertical className="w-3.5 h-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverProduto(idx)}>Remover</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {formData.produtos_selecionados.map((p, idx) => {
+                        const qtdNum = parseNumero(p.quantidade || '0');
+                        const precoUnit = typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0');
+                        const total = parseNumero(p.valor_total || '0');
+                        const desc = parseNumero(p.desconto_item || '0');
+                        const liquido = total - desc;
+                        return (
+                          <TableRow key={idx} className="hover:bg-gray-50">
+                            <TableCell className="text-xs py-1 border border-gray-300">{p.produto_nome || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300">{p.produto_codigo || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300">{p.unidade || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(qtdNum)}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(precoUnit)}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.valor_total || '0,00'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.desconto_item || '0,00'}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(liquido)}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreVertical className="w-3.5 h-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem className="text-xs" onClick={() => {
+                                    // carregar para edição
+                                    setEditingIndex(idx);
+                                    setCurrentItem({
+                                      produto_id: p.produto_id,
+                                      produto_nome: p.produto_nome,
+                                      produto_codigo: p.produto_codigo || '',
+                                      unidade: p.unidade || '',
+                                      quantidade: p.quantidade || '',
+                                      preco: formatarNumero(precoUnit || 0),
+                                      valor_total: p.valor_total || '',
+                                      observacao_item: p.observacao_item || '',
+                                      desconto_item: p.desconto_item || '0,00'
+                                    });
+                                  }}>Editar</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverProduto(idx)}>Remover</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
