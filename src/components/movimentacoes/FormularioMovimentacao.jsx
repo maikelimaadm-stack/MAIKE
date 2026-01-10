@@ -162,7 +162,22 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     initialData: []
   });
 
-  // Calcular estoque por local
+  // Ajuste de IDs a partir de nomes ao carregar edição antiga
+  useEffect(() => {
+    if (!initialData) return;
+    // origem
+    if (!formData.local_estoque_origem_id && initialData.local_estoque_origem && locais.length) {
+      const local = locais.find(l => l.nome === initialData.local_estoque_origem);
+      if (local) setFormData(prev => ({ ...prev, local_estoque_origem_id: local.id }));
+    }
+    // destino
+    if (!formData.local_estoque_destino_id && initialData.local_estoque_destino && locais.length) {
+      const local = locais.find(l => l.nome === initialData.local_estoque_destino);
+      if (local) setFormData(prev => ({ ...prev, local_estoque_destino_id: local.id }));
+    }
+  }, [initialData, locais]);
+
+   // Calcular estoque por local
   const estoquePorLocal = useMemo(() => {
     const estoques = {};
 
@@ -179,40 +194,40 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         estoques[mov.produto_id] = {};
       }
 
-      const localOrigem = mov.local_estoque_origem_id;
-      const localDestino = mov.local_estoque_destino_id;
+      const origemId = mov.local_estoque_origem_id || locais.find(l => l.nome === mov.local_estoque_origem)?.id;
+      const destinoId = mov.local_estoque_destino_id || locais.find(l => l.nome === mov.local_estoque_destino)?.id;
       const qtd = mov.quantidade || 0;
 
-      if (mov.tipo_movimentacao === 'Entrada' && localDestino) {
-        if (!estoques[mov.produto_id][localDestino]) estoques[mov.produto_id][localDestino] = 0;
-        estoques[mov.produto_id][localDestino] += qtd;
-      } else if (mov.tipo_movimentacao === 'Saída' && localOrigem) {
-        if (!estoques[mov.produto_id][localOrigem]) estoques[mov.produto_id][localOrigem] = 0;
-        estoques[mov.produto_id][localOrigem] -= qtd;
+      if (mov.tipo_movimentacao === 'Entrada' && destinoId) {
+        if (!estoques[mov.produto_id][destinoId]) estoques[mov.produto_id][destinoId] = 0;
+        estoques[mov.produto_id][destinoId] += qtd;
+      } else if (mov.tipo_movimentacao === 'Saída' && origemId) {
+        if (!estoques[mov.produto_id][origemId]) estoques[mov.produto_id][origemId] = 0;
+        estoques[mov.produto_id][origemId] -= qtd;
       } else if (mov.tipo_movimentacao === 'Transferência') {
-        if (localOrigem) {
-          if (!estoques[mov.produto_id][localOrigem]) estoques[mov.produto_id][localOrigem] = 0;
-          estoques[mov.produto_id][localOrigem] -= qtd;
+        if (origemId) {
+          if (!estoques[mov.produto_id][origemId]) estoques[mov.produto_id][origemId] = 0;
+          estoques[mov.produto_id][origemId] -= qtd;
         }
-        if (localDestino) {
-          if (!estoques[mov.produto_id][localDestino]) estoques[mov.produto_id][localDestino] = 0;
-          estoques[mov.produto_id][localDestino] += qtd;
+        if (destinoId) {
+          if (!estoques[mov.produto_id][destinoId]) estoques[mov.produto_id][destinoId] = 0;
+          estoques[mov.produto_id][destinoId] += qtd;
         }
       } else if (mov.tipo_movimentacao === 'Ajuste') {
-        const local = localDestino || localOrigem;
-        if (local) {
-          if (!estoques[mov.produto_id][local]) estoques[mov.produto_id][local] = 0;
+        const localId = destinoId || origemId;
+        if (localId) {
+          if (!estoques[mov.produto_id][localId]) estoques[mov.produto_id][localId] = 0;
           if (mov.tipo_detalhado?.toUpperCase().includes('POSITIVO')) {
-            estoques[mov.produto_id][local] += qtd;
+            estoques[mov.produto_id][localId] += qtd;
           } else {
-            estoques[mov.produto_id][local] -= qtd;
+            estoques[mov.produto_id][localId] -= qtd;
           }
         }
       }
     });
 
     return estoques;
-  }, [produtos, movimentacoesEstoque]);
+  }, [produtos, movimentacoesEstoque, locais]);
 
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
@@ -469,7 +484,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo de Movimentação *</Label>
-                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => {handleChange('tipo_movimentacao', v);handleChange('tipo_detalhado', '');handleChange('vinculado', false);handleChange('tipo_vinculo', '');}} required>
+                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => {handleChange('tipo_movimentacao', v);handleChange('tipo_detalhado', '');handleChange('vinculado', false);handleChange('tipo_vinculo', ''); if (v === 'Entrada') { handleChange('local_estoque_origem_id', ''); } else if (v === 'Saída') { handleChange('local_estoque_destino_id', ''); }}} required>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
