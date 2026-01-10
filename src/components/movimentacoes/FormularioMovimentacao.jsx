@@ -42,6 +42,22 @@ const formatarMoeda = (valor) => {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+const formatarMoedaInput = (valor) => {
+  const num = Number(valor) || 0;
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const parseMoedaInput = (str) => {
+  if (!str && str !== 0) return 0;
+  const cleaned = String(str)
+    .replace(/\s/g, '')
+    .replace(/R\$/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
 const TIPOS_DETALHADOS = {
   'Entrada': ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Devolução de Cliente', 'Doação Recebida', 'Bonificação', 'Produção', 'Importação', 'Transferência Recebida', 'Acerto de Estoque', 'Outros'],
   'Saída': ['Venda', 'Venda à Vista', 'Venda a Prazo', 'Devolução ao Fornecedor', 'Doação', 'Perda', 'Quebra', 'Consumo Interno', 'Produção', 'Transferência Enviada', 'Acerto de Estoque', 'Suplementação', 'Aplicação em Área', 'Manutenção de Máquina', 'Outros'],
@@ -918,7 +934,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <CardTitle className="text-sm font-semibold text-slate-900">Lançar Produto</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div className="md:col-span-3 space-y-2">
                         <Label className="text-xs">Produto</Label>
                         <AutocompleteGenerico
@@ -950,7 +966,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                                 unidade: prod?.unidade_medida || '',
                                                                 preco_custo: prod?.preco_custo || 0,
                                                                 preco_venda: prod?.preco_venda || 0,
-                                                                preco: formatarNumero(precoBase || 0),
+                                                                preco: formatarMoedaInput(precoBase || 0),
                                                                                                   preco_unitario: precoBase || 0,
                                                                                                   valor_total: formatarNumero(total)
                                                               };
@@ -1013,7 +1029,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                          const isEditable = (formData.tipo_movimentacao === 'Entrada') || (formData.tipo_movimentacao === 'Saída' && det.includes('venda'));
                                                          const unit = isEditable ? (parseNumero(currentItem?.preco || '0') || (precoBase || 0)) : (precoBase || 0);
                                                          const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * unit);
-                                                         setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarNumero(total) }));
+                                                                                        setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarMoedaInput(total) }));
                                                        }
                                                      }}
                           className="h-8 text-xs"
@@ -1027,11 +1043,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           value={currentItem?.preco || ''}
                           onChange={(e)=>{
                                                        const val = e.target.value;
-                                                       const unit = parseNumero(val || '0');
-                                                       setCurrentItem(prev=>({ ...(prev||{}), preco: val, preco_unitario: unit }));
-                                                       const qtdNum = parseNumero(currentItem?.quantidade||'0');
-                                                       const total = qtdNum * unit;
-                                                       setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
+                                                       const unit = parseMoedaInput(val || '0');
+                                                                                    setCurrentItem(prev=>({ ...(prev||{}), preco: formatarMoedaInput(unit), preco_unitario: unit }));
+                                                                                    const qtdNum = parseNumero(currentItem?.quantidade||'0');
+                                                                                    const total = qtdNum * unit;
+                                                                                    setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarMoedaInput(total) }));
                                                      }}
                           className="h-8 text-xs"
                           placeholder="0,00"
