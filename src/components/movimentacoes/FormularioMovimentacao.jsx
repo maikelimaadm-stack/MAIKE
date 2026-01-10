@@ -271,11 +271,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
 
 
+
+
                 // Não preencher valor automático por enquanto, deixar usuário definir
               }}} // Calcular valor total baseado na quantidade
-          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {const qtd = parseNumero(valor);
-            updated.valor_total = formatarNumero(qtd * updated.preco_custo);
-          }
+          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {const qtd = parseNumero(valor);updated.valor_total = formatarNumero(qtd * updated.preco_custo);}
 
           return updated;
         }
@@ -795,7 +795,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
               }
 
-              <div className="border-t pt-4">
+              <div className="pt-4 border-t">
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <Label className="text-xs font-semibold">Produtos</Label>
@@ -817,7 +817,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 }
 
                 {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border">
+                <div className="bg-white pb-24 rounded border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
