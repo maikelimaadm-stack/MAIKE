@@ -13,8 +13,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { 
-  ArrowDownCircle, ArrowUpCircle, RefreshCw, Plus, Trash2, MoreVertical, Pencil, 
-  Package, Save, X, FileText, AlertTriangle, User, Truck, MapPin, Settings
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, ArrowLeftRight, Plus, Trash2, MoreVertical, Pencil, 
+  Package, Save, X, FileText, AlertTriangle, User, Truck, MapPin, Settings, Building2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -51,7 +51,6 @@ const parseNumeroBR = (str) => {
 const OPERACOES_ENTRADA = [
   { value: 'compra', label: 'Compra', exigeFornecedor: true, exigeDocumento: true },
   { value: 'compra_vista', label: 'Compra à Vista', exigeFornecedor: true, exigeDocumento: true },
-  { value: 'compra_prazo', label: 'Compra a Prazo', exigeFornecedor: true, exigeDocumento: true },
   { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false, exigeDocumento: false },
   { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true, exigeDocumento: false },
   { value: 'doacao_recebida', label: 'Doação Recebida', exigeFornecedor: false, exigeDocumento: false },
@@ -62,9 +61,8 @@ const OPERACOES_ENTRADA = [
 ];
 
 const OPERACOES_SAIDA = [
-  { value: 'venda', label: 'Venda', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
-  { value: 'venda_vista', label: 'Venda à Vista', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
-  { value: 'venda_prazo', label: 'Venda a Prazo', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
+  { value: 'venda', label: 'Venda', exigeCliente: true, precoEditavel: true, exigeDocumento: true },
+  { value: 'venda_vista', label: 'Venda à Vista', exigeCliente: true, precoEditavel: true, exigeDocumento: true },
   { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: true, usaCusto: true },
   { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: true, usaCusto: true },
   { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: true, usaCusto: true },
@@ -75,6 +73,11 @@ const OPERACOES_SAIDA = [
   { value: 'transferencia_enviada', label: 'Transferência Enviada', exigeVinculo: false, precoEditavel: true, usaCusto: true },
   { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: true, usaCusto: true },
   { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: true }
+];
+
+const OPERACOES_TRANSFERENCIA = [
+  { value: 'entre_locais', label: 'Entre Locais (Estoques)' },
+  { value: 'outros_transferencia', label: 'Outros' }
 ];
 
 const OPERACOES_AJUSTE = [
@@ -107,7 +110,7 @@ const TIPOS_VINCULO = [
   { value: 'lote', label: 'Lote (Pecuária)', icon: Package },
   { value: 'area', label: 'Área / Pasto', icon: MapPin },
   { value: 'maquina', label: 'Máquina / Veículo', icon: Truck },
-  { value: 'centro_custo', label: 'Centro de Custo', icon: Settings }
+  { value: 'funcionario', label: 'Funcionário', icon: User }
 ];
 
 export default function MovimentacaoEstoqueFormV2({ 
@@ -123,15 +126,20 @@ export default function MovimentacaoEstoqueFormV2({
   // ========== ESTADO DO CABEÇALHO ==========
   const [tipo, setTipo] = useState(
     initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' : 
+    initialData?.tipo_movimentacao === 'Transferência' ? 'TRANSFERENCIA' :
     initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA'
   );
   const [operacao, setOperacao] = useState(initialData?.tipo_detalhado || '');
   const [dataMovimentacao, setDataMovimentacao] = useState(
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
   );
-  const [localEstoqueId, setLocalEstoqueId] = useState(
-    initialData?.local_estoque_destino_id || initialData?.local_estoque_origem_id || ''
-  );
+  
+  // Locais de estoque
+  const [localEstoqueOrigemId, setLocalEstoqueOrigemId] = useState(initialData?.local_estoque_origem_id || '');
+  const [localEstoqueDestinoId, setLocalEstoqueDestinoId] = useState(initialData?.local_estoque_destino_id || '');
+  
+  // Centro de custo (SEMPRE VISÍVEL)
+  const [centroCustoId, setCentroCustoId] = useState(initialData?.centro_custo_id || '');
   
   // Documento
   const [tipoDocumento, setTipoDocumento] = useState(initialData?.tipo_documento || '');
@@ -142,15 +150,15 @@ export default function MovimentacaoEstoqueFormV2({
   const [cfop, setCfop] = useState(initialData?.cfop || '');
   const [naturezaOperacao, setNaturezaOperacao] = useState(initialData?.natureza_operacao || '');
   
-  // Parceiro
+  // Parceiro (Fornecedor/Cliente - usar AutocompleteGenerico padrão financeiro)
   const [fornecedorId, setFornecedorId] = useState(initialData?.fornecedor_id || '');
-  const [clienteNome, setClienteNome] = useState(initialData?.cliente_nome || '');
+  const [clienteId, setClienteId] = useState(initialData?.cliente_id || '');
   
   // Vínculo
   const [tipoVinculo, setTipoVinculo] = useState(initialData?.tipo_vinculo || '');
   const [vinculoId, setVinculoId] = useState(
     initialData?.lote_vinculado_id || initialData?.area_vinculada_id || 
-    initialData?.maquina_vinculada_id || initialData?.centro_custo_id || ''
+    initialData?.maquina_vinculada_id || ''
   );
   
   // Motivo (para perda/quebra/ajuste)
@@ -180,11 +188,21 @@ export default function MovimentacaoEstoqueFormV2({
   // Dialogs
   const [showDialogLocal, setShowDialogLocal] = useState(false);
   const [showDialogFornecedor, setShowDialogFornecedor] = useState(false);
+  const [showDialogCentro, setShowDialogCentro] = useState(false);
 
   // ========== QUERIES ==========
   const { data: locais = [] } = useQuery({
     queryKey: ['locais_estoque'],
     queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+
+  const { data: centrosCusto = [] } = useQuery({
+    queryKey: ['centros_custo', empresaId],
+    queryFn: async () => {
+      const all = await base44.entities.CentroCusto.list();
+      return all.filter(c => c.empresa_id === empresaId && c.ativo !== false);
+    },
+    enabled: !!empresaId
   });
 
   const { data: lotes = [] } = useQuery({
@@ -214,15 +232,6 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
-  const { data: centrosCusto = [] } = useQuery({
-    queryKey: ['centros_custo', empresaId],
-    queryFn: async () => {
-      const all = await base44.entities.CentroCusto.list();
-      return all.filter(c => c.empresa_id === empresaId && c.ativo !== false);
-    },
-    enabled: !!empresaId
-  });
-
   const { data: lotesNota = [] } = useQuery({
     queryKey: ['lotes_nota', empresaId],
     queryFn: async () => {
@@ -241,10 +250,16 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
+  // Clientes (filtrar fornecedores que são clientes)
+  const clientes = useMemo(() => {
+    return fornecedores.filter(f => f.tipos?.includes('Cliente') || !f.tipos || f.tipos.length === 0);
+  }, [fornecedores]);
+
   // ========== COMPUTED ==========
   const operacoesDisponiveis = useMemo(() => {
     if (tipo === 'ENTRADA') return OPERACOES_ENTRADA;
     if (tipo === 'SAIDA') return OPERACOES_SAIDA;
+    if (tipo === 'TRANSFERENCIA') return OPERACOES_TRANSFERENCIA;
     if (tipo === 'AJUSTE') return OPERACOES_AJUSTE;
     return [];
   }, [tipo]);
@@ -255,8 +270,9 @@ export default function MovimentacaoEstoqueFormV2({
 
   // Flags de exibição de campos
   const exibeFornecedor = tipo === 'ENTRADA' && operacaoSelecionada?.exigeFornecedor;
-  const exibeDocumento = tipo === 'ENTRADA' && operacaoSelecionada?.exigeDocumento;
+  const exibeDocumentoEntrada = tipo === 'ENTRADA' && operacaoSelecionada?.exigeDocumento;
   const exibeCliente = tipo === 'SAIDA' && operacaoSelecionada?.exigeCliente;
+  const exibeDocumentoSaida = tipo === 'SAIDA' && operacaoSelecionada?.exigeDocumento;
   const exibeVinculo = tipo === 'SAIDA' && operacaoSelecionada?.exigeVinculo;
   const exibeMotivo = (tipo === 'SAIDA' && operacaoSelecionada?.exigeMotivo) || tipo === 'AJUSTE';
   const usaCusto = operacaoSelecionada?.usaCusto || false;
@@ -277,10 +293,15 @@ export default function MovimentacaoEstoqueFormV2({
       if (mov.tipo_movimentacao === 'Entrada' && destinoId) {
         if (!estoques[mov.produto_id][destinoId]) estoques[mov.produto_id][destinoId] = 0;
         estoques[mov.produto_id][destinoId] += qtd;
-      } else if (mov.tipo_movimentacao === 'Saída' && origemId) {
+      } else if ((mov.tipo_movimentacao === 'Saída' || mov.tipo_movimentacao === 'Transferência') && origemId) {
         if (!estoques[mov.produto_id][origemId]) estoques[mov.produto_id][origemId] = 0;
         estoques[mov.produto_id][origemId] -= qtd;
-      } else if (mov.tipo_movimentacao === 'Ajuste') {
+      }
+      if (mov.tipo_movimentacao === 'Transferência' && destinoId) {
+        if (!estoques[mov.produto_id][destinoId]) estoques[mov.produto_id][destinoId] = 0;
+        estoques[mov.produto_id][destinoId] += qtd;
+      }
+      if (mov.tipo_movimentacao === 'Ajuste') {
         const localId = destinoId || origemId;
         if (localId) {
           if (!estoques[mov.produto_id][localId]) estoques[mov.produto_id][localId] = 0;
@@ -296,19 +317,47 @@ export default function MovimentacaoEstoqueFormV2({
     return estoques;
   }, [produtos, movimentacoesEstoque]);
 
+  // Local de origem (para saída/transferência/ajuste negativo)
+  const localOrigemAtual = useMemo(() => {
+    if (tipo === 'ENTRADA') return localEstoqueDestinoId;
+    if (tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') return localEstoqueOrigemId;
+    if (tipo === 'AJUSTE') {
+      return operacao?.includes('positivo') ? localEstoqueDestinoId : localEstoqueOrigemId;
+    }
+    return '';
+  }, [tipo, operacao, localEstoqueOrigemId, localEstoqueDestinoId]);
+
   // Saldo do produto no local
   const saldoProdutoNoLocal = useMemo(() => {
-    if (!currentItem.produto_id || !localEstoqueId) return null;
-    return estoquePorLocal[currentItem.produto_id]?.[localEstoqueId] || 0;
-  }, [currentItem.produto_id, localEstoqueId, estoquePorLocal]);
+    if (!currentItem.produto_id || !localOrigemAtual) return null;
+    return estoquePorLocal[currentItem.produto_id]?.[localOrigemAtual] || 0;
+  }, [currentItem.produto_id, localOrigemAtual, estoquePorLocal]);
+
+  // Produtos filtrados por estoque (para saída/transferência)
+  const produtosFiltrados = useMemo(() => {
+    if (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao?.includes('positivo'))) {
+      return produtos;
+    }
+    
+    // Para saída/transferência/ajuste negativo, filtrar por saldo > 0
+    if (!localOrigemAtual) return [];
+    
+    return produtos.filter(p => {
+      const saldo = estoquePorLocal[p.id]?.[localOrigemAtual] || 0;
+      return saldo > 0;
+    }).map(p => ({
+      ...p,
+      saldo_local: estoquePorLocal[p.id]?.[localOrigemAtual] || 0
+    }));
+  }, [tipo, operacao, localOrigemAtual, produtos, estoquePorLocal]);
 
   // Lotes disponíveis do produto no local
   const lotesDisponiveis = useMemo(() => {
-    if (!currentItem.produto_id || !localEstoqueId) return [];
+    if (!currentItem.produto_id || !localOrigemAtual) return [];
     return lotesNota
-      .filter(l => l.produto_id === currentItem.produto_id && l.local_estoque_id === localEstoqueId && l.quantidade_disponivel > 0)
+      .filter(l => l.produto_id === currentItem.produto_id && l.local_estoque_id === localOrigemAtual && l.quantidade_disponivel > 0)
       .sort((a, b) => new Date(a.data_documento || a.created_date || 0) - new Date(b.data_documento || b.created_date || 0));
-  }, [currentItem.produto_id, localEstoqueId, lotesNota]);
+  }, [currentItem.produto_id, localOrigemAtual, lotesNota]);
 
   // Totais dos itens
   const totaisGerais = useMemo(() => {
@@ -327,7 +376,7 @@ export default function MovimentacaoEstoqueFormV2({
     resetCurrentItem();
     // Limpar campos incompatíveis
     setFornecedorId('');
-    setClienteNome('');
+    setClienteId('');
     setTipoVinculo('');
     setVinculoId('');
     setMotivoMovimentacao('');
@@ -338,10 +387,18 @@ export default function MovimentacaoEstoqueFormV2({
     setChaveDocumento('');
     setCfop('');
     setNaturezaOperacao('');
+    // Resetar locais conforme tipo
+    if (novoTipo === 'ENTRADA') {
+      setLocalEstoqueOrigemId('');
+    } else if (novoTipo === 'SAIDA') {
+      setLocalEstoqueDestinoId('');
+    }
   };
 
   const handleOperacaoChange = (novaOperacao) => {
     setOperacao(novaOperacao);
+    setItens([]);
+    resetCurrentItem();
     // Reset campos dependentes
     if (tipo === 'ENTRADA') {
       const op = OPERACOES_ENTRADA.find(o => o.value === novaOperacao);
@@ -358,7 +415,7 @@ export default function MovimentacaoEstoqueFormV2({
     }
     if (tipo === 'SAIDA') {
       const op = OPERACOES_SAIDA.find(o => o.value === novaOperacao);
-      if (!op?.exigeCliente) setClienteNome('');
+      if (!op?.exigeCliente) setClienteId('');
       if (!op?.exigeVinculo) {
         setTipoVinculo('');
         setVinculoId('');
@@ -397,15 +454,17 @@ export default function MovimentacaoEstoqueFormV2({
       precoInicial = prod.preco_custo || 0;
     } else if (tipo === 'SAIDA') {
       if (operacaoSelecionada?.usaCusto) {
-        // Para operações de custo, usar o custo médio do produto
         precoInicial = prod.preco_custo || 0;
       } else {
-        // Para vendas, usar preço de venda
         precoInicial = prod.preco_venda || prod.preco_custo || 0;
       }
+    } else if (tipo === 'TRANSFERENCIA') {
+      precoInicial = prod.preco_custo || 0;
     } else if (tipo === 'AJUSTE') {
-      precoInicial = 0; // Ajuste pode ter valor zero
+      precoInicial = 0;
     }
+
+    const saldoLocal = estoquePorLocal[produtoId]?.[localOrigemAtual] || 0;
 
     setCurrentItem(prev => ({
       ...prev,
@@ -414,6 +473,7 @@ export default function MovimentacaoEstoqueFormV2({
       produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
       unidade: prod.unidade_medida || 'UN',
       preco_unitario: formatarMoedaBR(precoInicial),
+      saldo_local: saldoLocal,
       lote_origem_id: '',
       lote_origem_info: null
     }));
@@ -472,7 +532,6 @@ export default function MovimentacaoEstoqueFormV2({
   };
 
   const handleAdicionarItem = () => {
-    // Validações
     if (!currentItem.produto_id) {
       toast.error('❌ Selecione um produto');
       return;
@@ -484,8 +543,9 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    // Validar saldo para saída
-    if (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'))) {
+    // Validar saldo para saída/transferência/ajuste negativo
+    const precisaValidarSaldo = tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'));
+    if (precisaValidarSaldo) {
       if (saldoProdutoNoLocal !== null && qtd > saldoProdutoNoLocal) {
         toast.error(`❌ Quantidade maior que o saldo disponível (${formatarNumero(saldoProdutoNoLocal)})`);
         return;
@@ -554,8 +614,9 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    if (!localEstoqueId) {
-      toast.error('❌ Selecione o local de estoque');
+    // Centro de custo SEMPRE obrigatório
+    if (!centroCustoId) {
+      toast.error('❌ Selecione o Centro de Custo (obrigatório)');
       return;
     }
 
@@ -564,62 +625,84 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    // Validações específicas por tipo
-    if (tipo === 'ENTRADA' && exibeFornecedor && !fornecedorId) {
-      toast.error('❌ Selecione o fornecedor (obrigatório para esta operação)');
-      return;
-    }
-
-    if (tipo === 'ENTRADA' && exibeDocumento && !numeroDocumento) {
-      toast.error('❌ Informe o número do documento (obrigatório para compra)');
-      return;
+    // Validações por tipo
+    if (tipo === 'ENTRADA') {
+      if (!localEstoqueDestinoId) {
+        toast.error('❌ Selecione o Local de Entrada');
+        return;
+      }
+      if (exibeFornecedor && !fornecedorId) {
+        toast.error('❌ Selecione o Fornecedor (obrigatório para compra)');
+        return;
+      }
+      if (exibeDocumentoEntrada && !numeroDocumento) {
+        toast.error('❌ Informe o número do documento (obrigatório para compra)');
+        return;
+      }
     }
 
     if (tipo === 'SAIDA') {
-      if (exibeCliente && !clienteNome.trim()) {
-        toast.error('❌ Informe o cliente/destinatário');
+      if (!localEstoqueOrigemId) {
+        toast.error('❌ Selecione o Local de Saída');
         return;
       }
-
+      if (exibeCliente && !clienteId) {
+        toast.error('❌ Selecione o Cliente (obrigatório para venda)');
+        return;
+      }
       if (exibeVinculo && !tipoVinculo) {
         toast.error('❌ Selecione o tipo de vínculo (obrigatório para esta operação)');
         return;
       }
-
       if (exibeVinculo && !vinculoId) {
         toast.error('❌ Selecione o vínculo');
         return;
       }
-
       if (exibeMotivo && !motivoMovimentacao) {
         toast.error('❌ Informe o motivo (obrigatório para perda/quebra)');
         return;
       }
     }
 
-    if (tipo === 'AJUSTE' && !motivoMovimentacao) {
-      toast.error('❌ Informe o motivo do ajuste (obrigatório)');
-      return;
+    if (tipo === 'TRANSFERENCIA') {
+      if (!localEstoqueOrigemId) {
+        toast.error('❌ Selecione o Local de Origem');
+        return;
+      }
+      if (!localEstoqueDestinoId) {
+        toast.error('❌ Selecione o Local de Destino');
+        return;
+      }
+      if (localEstoqueOrigemId === localEstoqueDestinoId) {
+        toast.error('❌ Local de origem e destino devem ser diferentes');
+        return;
+      }
+    }
+
+    if (tipo === 'AJUSTE') {
+      const localAjuste = operacao?.includes('positivo') ? localEstoqueDestinoId : localEstoqueOrigemId;
+      if (!localAjuste) {
+        toast.error('❌ Selecione o Local do Ajuste');
+        return;
+      }
+      if (!motivoMovimentacao) {
+        toast.error('❌ Informe o motivo do ajuste (obrigatório)');
+        return;
+      }
     }
 
     // Preparar dados
     const fornecedor = fornecedores.find(f => f.id === fornecedorId);
-    const local = locais.find(l => l.id === localEstoqueId);
+    const cliente = fornecedores.find(f => f.id === clienteId);
+    const localOrigem = locais.find(l => l.id === localEstoqueOrigemId);
+    const localDestino = locais.find(l => l.id === localEstoqueDestinoId);
+    const centro = centrosCusto.find(c => c.id === centroCustoId);
 
     // Determinar tipo de movimentação para o banco
     let tipoMovimentacao = 'Entrada';
     if (tipo === 'SAIDA') tipoMovimentacao = 'Saída';
+    if (tipo === 'TRANSFERENCIA') tipoMovimentacao = 'Transferência';
     if (tipo === 'AJUSTE') tipoMovimentacao = 'Ajuste';
-
-    // Determinar local origem/destino
-    let localOrigemId, localOrigemNome, localDestinoId, localDestinoNome;
-    if (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao?.includes('positivo'))) {
-      localDestinoId = localEstoqueId;
-      localDestinoNome = local?.nome;
-    } else {
-      localOrigemId = localEstoqueId;
-      localOrigemNome = local?.nome;
-    }
 
     // Dados do vínculo
     let vinculoData = {};
@@ -637,10 +720,6 @@ export default function MovimentacaoEstoqueFormV2({
         const maq = maquinas.find(m => m.id === vinculoId);
         vinculoData.maquina_vinculada_id = vinculoId;
         vinculoData.maquina_vinculada_nome = maq?.nome || maq?.identificacao;
-      } else if (tipoVinculo === 'centro_custo') {
-        const cc = centrosCusto.find(c => c.id === vinculoId);
-        vinculoData.centro_custo_id = vinculoId;
-        vinculoData.centro_custo_nome = cc?.nome;
       }
     }
 
@@ -649,10 +728,12 @@ export default function MovimentacaoEstoqueFormV2({
       tipo_movimentacao: tipoMovimentacao,
       tipo_detalhado: operacao,
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
-      local_estoque_origem_id: localOrigemId,
-      local_estoque_origem_nome: localOrigemNome,
-      local_estoque_destino_id: localDestinoId,
-      local_estoque_destino_nome: localDestinoNome,
+      local_estoque_origem_id: localEstoqueOrigemId || undefined,
+      local_estoque_origem_nome: localOrigem?.nome || undefined,
+      local_estoque_destino_id: localEstoqueDestinoId || undefined,
+      local_estoque_destino_nome: localDestino?.nome || undefined,
+      centro_custo_id: centroCustoId,
+      centro_custo_nome: centro?.nome,
       tipo_documento: tipoDocumento || undefined,
       numero_documento: numeroDocumento || undefined,
       serie_documento: serieDocumento || undefined,
@@ -662,7 +743,8 @@ export default function MovimentacaoEstoqueFormV2({
       natureza_operacao: naturezaOperacao || undefined,
       fornecedor_id: fornecedorId || undefined,
       fornecedor_nome: fornecedor?.nome || undefined,
-      cliente_nome: clienteNome || undefined,
+      cliente_id: clienteId || undefined,
+      cliente_nome: cliente?.nome || undefined,
       motivo_movimentacao: motivoMovimentacao || undefined,
       observacoes: observacoes || undefined,
       status: 'Ativa',
@@ -697,13 +779,14 @@ export default function MovimentacaoEstoqueFormV2({
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 {tipo === 'ENTRADA' && <ArrowDownCircle className="w-4 h-4 text-emerald-600" />}
                 {tipo === 'SAIDA' && <ArrowUpCircle className="w-4 h-4 text-red-600" />}
-                {tipo === 'AJUSTE' && <RefreshCw className="w-4 h-4 text-blue-600" />}
+                {tipo === 'TRANSFERENCIA' && <ArrowLeftRight className="w-4 h-4 text-blue-600" />}
+                {tipo === 'AJUSTE' && <RefreshCw className="w-4 h-4 text-amber-600" />}
                 {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 space-y-3">
               
-              {/* Linha 1: Tipo, Operação, Data, Local */}
+              {/* Linha 1: Tipo, Operação, Data */}
               <div className="grid grid-cols-4 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Tipo *</Label>
@@ -724,9 +807,15 @@ export default function MovimentacaoEstoqueFormV2({
                           SAÍDA
                         </span>
                       </SelectItem>
+                      <SelectItem value="TRANSFERENCIA" className="text-xs">
+                        <span className="flex items-center gap-2">
+                          <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                          TRANSFERÊNCIA
+                        </span>
+                      </SelectItem>
                       <SelectItem value="AJUSTE" className="text-xs">
                         <span className="flex items-center gap-2">
-                          <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+                          <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
                           AJUSTE
                         </span>
                       </SelectItem>
@@ -738,6 +827,7 @@ export default function MovimentacaoEstoqueFormV2({
                   <Label className="text-xs font-medium">
                     {tipo === 'ENTRADA' ? 'Operação de Entrada *' : 
                      tipo === 'SAIDA' ? 'Operação de Saída *' : 
+                     tipo === 'TRANSFERENCIA' ? 'Operação *' :
                      'Tipo de Ajuste *'}
                   </Label>
                   <Select value={operacao} onValueChange={handleOperacaoChange}>
@@ -764,31 +854,83 @@ export default function MovimentacaoEstoqueFormV2({
                   />
                 </div>
 
+                {/* Centro de Custo - SEMPRE VISÍVEL */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium">
-                    {tipo === 'ENTRADA' ? 'Local de Entrada *' : 
-                     tipo === 'SAIDA' ? 'Local de Saída *' : 
-                     'Local do Ajuste *'}
+                  <Label className="text-xs font-medium flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" /> Centro de Custo *
                   </Label>
                   <div className="flex gap-1">
                     <AutocompleteGenerico
-                      items={locais}
-                      value={localEstoqueId}
-                      onChange={setLocalEstoqueId}
+                      items={centrosCusto}
+                      value={centroCustoId}
+                      onChange={setCentroCustoId}
                       placeholder="Selecione"
                       displayField="nome"
-                      searchFields={["nome"]}
+                      searchFields={["nome", "codigo"]}
                       className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogLocal(true)}>
+                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogCentro(true)}>
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Linha 2: Documento (condicional) */}
-              {exibeDocumento && (
+              {/* Linha 2: Locais de Estoque */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Local Origem - para Saída, Transferência, Ajuste Negativo */}
+                {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && !operacao?.includes('positivo'))) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">
+                      {tipo === 'TRANSFERENCIA' ? 'Local de Origem *' : 
+                       tipo === 'AJUSTE' ? 'Local do Ajuste *' : 
+                       'Local de Saída *'}
+                    </Label>
+                    <div className="flex gap-1">
+                      <AutocompleteGenerico
+                        items={locais}
+                        value={localEstoqueOrigemId}
+                        onChange={(v) => { setLocalEstoqueOrigemId(v); setItens([]); resetCurrentItem(); }}
+                        placeholder="Selecione"
+                        displayField="nome"
+                        searchFields={["nome"]}
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogLocal(true)}>
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Local Destino - para Entrada, Transferência, Ajuste Positivo */}
+                {(tipo === 'ENTRADA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao?.includes('positivo'))) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">
+                      {tipo === 'TRANSFERENCIA' ? 'Local de Destino *' : 
+                       tipo === 'AJUSTE' ? 'Local do Ajuste *' : 
+                       'Local de Entrada *'}
+                    </Label>
+                    <div className="flex gap-1">
+                      <AutocompleteGenerico
+                        items={locais}
+                        value={localEstoqueDestinoId}
+                        onChange={(v) => { setLocalEstoqueDestinoId(v); if (tipo === 'ENTRADA') { setItens([]); resetCurrentItem(); } }}
+                        placeholder="Selecione"
+                        displayField="nome"
+                        searchFields={["nome"]}
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogLocal(true)}>
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bloco Documento - ENTRADA (compra) */}
+              {exibeDocumentoEntrada && (
                 <div className="bg-slate-50 border rounded p-2 space-y-2">
                   <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
                     <FileText className="w-3.5 h-3.5" /> Dados do Documento
@@ -807,75 +949,69 @@ export default function MovimentacaoEstoqueFormV2({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">Nº Documento *</Label>
-                      <Input 
-                        value={numeroDocumento} 
-                        onChange={(e) => setNumeroDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="000000"
-                      />
+                      <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs" placeholder="000000" />
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">Série</Label>
-                      <Input 
-                        value={serieDocumento} 
-                        onChange={(e) => setSerieDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="001"
-                      />
+                      <Input value={serieDocumento} onChange={(e) => setSerieDocumento(e.target.value)} className="h-8 text-xs" placeholder="001" />
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">Data Doc.</Label>
-                      <Input 
-                        type="date"
-                        value={dataDocumento} 
-                        onChange={(e) => setDataDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+                      <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs" />
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">CFOP</Label>
-                      <Input 
-                        value={cfop} 
-                        onChange={(e) => setCfop(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="0000"
-                        maxLength={4}
-                      />
+                      <Input value={cfop} onChange={(e) => setCfop(e.target.value)} className="h-8 text-xs" placeholder="0000" maxLength={4} />
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">Natureza Op.</Label>
-                      <Input 
-                        value={naturezaOperacao} 
-                        onChange={(e) => setNaturezaOperacao(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="Compra p/ comercialização"
-                      />
+                      <Input value={naturezaOperacao} onChange={(e) => setNaturezaOperacao(e.target.value)} className="h-8 text-xs" placeholder="Compra p/ comercialização" />
                     </div>
                   </div>
-
                   {tipoDocumento === 'nfe' && (
                     <div className="space-y-1">
                       <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
-                      <Input 
-                        value={chaveDocumento} 
-                        onChange={(e) => setChaveDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="00000000000000000000000000000000000000000000"
-                        maxLength={44}
-                      />
+                      <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value)} className="h-8 text-xs" placeholder="00000000000000000000000000000000000000000000" maxLength={44} />
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Linha 3: Fornecedor (condicional) */}
+              {/* Bloco Documento - SAÍDA (venda) - opcional */}
+              {exibeDocumentoSaida && (
+                <div className="bg-slate-50 border rounded p-2 space-y-2">
+                  <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5" /> Dados do Documento (opcional)
+                  </Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tipo Doc.</Label>
+                      <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_DOCUMENTO.map(t => (
+                            <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nº Documento</Label>
+                      <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs" placeholder="000000" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Data Doc.</Label>
+                      <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fornecedor - ENTRADA (compra) */}
               {exibeFornecedor && (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
@@ -887,9 +1023,10 @@ export default function MovimentacaoEstoqueFormV2({
                         items={fornecedores}
                         value={fornecedorId}
                         onChange={setFornecedorId}
-                        placeholder="Selecione o fornecedor"
+                        placeholder="Buscar por nome, CPF ou CNPJ..."
                         displayField="nome"
-                        searchFields={["nome", "cnpj", "cpf"]}
+                        searchFields={["nome", "cpf", "cnpj", "razao_social"]}
+                        renderSubtext={(item) => item.cpf || item.cnpj || ''}
                         className="flex-1"
                       />
                       <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogFornecedor(true)}>
@@ -900,24 +1037,33 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
               )}
 
-              {/* Linha 4: Cliente (condicional) */}
+              {/* Cliente - SAÍDA (venda) - usar AutocompleteGenerico igual Fornecedor */}
               {exibeCliente && (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs font-medium flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" /> Cliente / Destinatário *
+                      <User className="w-3.5 h-3.5" /> Cliente *
                     </Label>
-                    <Input 
-                      value={clienteNome} 
-                      onChange={(e) => setClienteNome(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Nome do cliente ou destinatário"
-                    />
+                    <div className="flex gap-1">
+                      <AutocompleteGenerico
+                        items={clientes}
+                        value={clienteId}
+                        onChange={setClienteId}
+                        placeholder="Buscar por nome, CPF ou CNPJ..."
+                        displayField="nome"
+                        searchFields={["nome", "cpf", "cnpj", "razao_social"]}
+                        renderSubtext={(item) => item.cpf || item.cnpj || ''}
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogFornecedor(true)}>
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Linha 5: Vínculo (condicional) */}
+              {/* Vínculo - SAÍDA (consumo, suplementação, etc) */}
               {exibeVinculo && (
                 <div className="bg-blue-50 border border-blue-200 rounded p-2 space-y-2">
                   <Label className="text-xs font-semibold text-blue-700">Vínculo da Saída (Obrigatório)</Label>
@@ -940,14 +1086,11 @@ export default function MovimentacaoEstoqueFormV2({
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-1">
                       <Label className="text-xs">Vínculo *</Label>
                       {tipoVinculo === 'lote' ? (
                         <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione o lote" />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o lote" /></SelectTrigger>
                           <SelectContent>
                             {lotes.map(l => (
                               <SelectItem key={l.id} value={l.id} className="text-xs">
@@ -958,9 +1101,7 @@ export default function MovimentacaoEstoqueFormV2({
                         </Select>
                       ) : tipoVinculo === 'area' ? (
                         <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione a área" />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione a área" /></SelectTrigger>
                           <SelectContent>
                             {areas.map(a => (
                               <SelectItem key={a.id} value={a.id} className="text-xs">
@@ -971,9 +1112,7 @@ export default function MovimentacaoEstoqueFormV2({
                         </Select>
                       ) : tipoVinculo === 'maquina' ? (
                         <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione a máquina" />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione a máquina" /></SelectTrigger>
                           <SelectContent>
                             {maquinas.map(m => (
                               <SelectItem key={m.id} value={m.id} className="text-xs">
@@ -982,17 +1121,15 @@ export default function MovimentacaoEstoqueFormV2({
                             ))}
                           </SelectContent>
                         </Select>
-                      ) : tipoVinculo === 'centro_custo' ? (
-                        <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione o centro de custo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {centrosCusto.map(c => (
-                              <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      ) : tipoVinculo === 'funcionario' ? (
+                        <AutocompleteGenerico
+                          items={fornecedores.filter(f => f.tipos?.includes('Funcionario'))}
+                          value={vinculoId}
+                          onChange={setVinculoId}
+                          placeholder="Buscar funcionário..."
+                          displayField="nome"
+                          searchFields={["nome", "cpf"]}
+                        />
                       ) : (
                         <Input className="h-8 text-xs" disabled placeholder="Selecione o tipo primeiro" />
                       )}
@@ -1001,7 +1138,7 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
               )}
 
-              {/* Linha 6: Motivo (condicional) */}
+              {/* Motivo - SAÍDA (perda/quebra) ou AJUSTE */}
               {exibeMotivo && (
                 <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-2">
                   <Label className="text-xs font-semibold text-amber-700">
@@ -1009,9 +1146,7 @@ export default function MovimentacaoEstoqueFormV2({
                   </Label>
                   {tipo === 'SAIDA' && (operacao === 'perda' || operacao === 'quebra') ? (
                     <Select value={motivoMovimentacao} onValueChange={setMotivoMovimentacao}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Selecione o motivo" />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
                       <SelectContent>
                         {MOTIVOS_PERDA.map(m => (
                           <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
@@ -1019,26 +1154,15 @@ export default function MovimentacaoEstoqueFormV2({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input 
-                      value={motivoMovimentacao} 
-                      onChange={(e) => setMotivoMovimentacao(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Descreva o motivo do ajuste..."
-                    />
+                    <Input value={motivoMovimentacao} onChange={(e) => setMotivoMovimentacao(e.target.value)} className="h-8 text-xs" placeholder="Descreva o motivo do ajuste..." />
                   )}
                 </div>
               )}
 
-              {/* Linha 7: Observações */}
+              {/* Observações */}
               <div className="space-y-1">
                 <Label className="text-xs">Observações Gerais</Label>
-                <Textarea 
-                  value={observacoes} 
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  className="text-xs min-h-[40px]"
-                  rows={1}
-                  placeholder="Observações opcionais..."
-                />
+                <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} className="text-xs min-h-[40px]" rows={1} placeholder="Observações opcionais..." />
               </div>
             </CardContent>
           </Card>
@@ -1053,46 +1177,44 @@ export default function MovimentacaoEstoqueFormV2({
             </CardHeader>
             <CardContent className="p-3 space-y-3">
               
-              {/* Linha 1: Produto */}
+              {/* Aviso se não selecionou local */}
+              {((tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && !localEstoqueOrigemId) && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Selecione o Local de {tipo === 'TRANSFERENCIA' ? 'Origem' : 'Saída'} para visualizar os produtos disponíveis.
+                </div>
+              )}
+
+              {/* Produto - com AutocompleteGenerico padrão financeiro */}
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 space-y-1">
                   <Label className="text-xs">Produto *</Label>
                   <AutocompleteGenerico
-                    items={produtos}
+                    items={produtosFiltrados}
                     value={currentItem.produto_id}
                     onChange={handleProdutoChange}
-                    placeholder="Selecione o produto"
+                    placeholder="Buscar por nome, código interno ou código de barras..."
                     displayField="nome_produto"
                     searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                    renderSubtext={(item) => `Código: ${item.codigo_interno || item.codigo_barras || '-'} | UN: ${item.unidade_medida || 'UN'}${item.saldo_local !== undefined ? ` | Saldo: ${formatarNumero(item.saldo_local)}` : ''}`}
                   />
                 </div>
 
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Código</Label>
-                  <Input 
-                    value={currentItem.produto_codigo}
-                    readOnly
-                    className="h-8 text-xs bg-slate-100"
-                  />
+                  <Input value={currentItem.produto_codigo} readOnly className="h-8 text-xs bg-slate-100" />
                 </div>
 
                 <div className="col-span-1 space-y-1">
                   <Label className="text-xs">UN</Label>
-                  <Input 
-                    value={currentItem.unidade}
-                    readOnly
-                    className="h-8 text-xs bg-slate-100"
-                  />
+                  <Input value={currentItem.unidade} readOnly className="h-8 text-xs bg-slate-100" />
                 </div>
 
-                {(tipo === 'SAIDA' || tipo === 'AJUSTE') && currentItem.produto_id && (
+                {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && !operacao?.includes('positivo'))) && currentItem.produto_id && (
                   <div className="col-span-3 space-y-1">
                     <Label className="text-xs">Saldo no Local</Label>
                     <div className="h-8 flex items-center">
-                      <Badge 
-                        variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} 
-                        className="text-xs"
-                      >
+                      <Badge variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} className="text-xs">
                         {formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade}
                       </Badge>
                     </div>
@@ -1100,14 +1222,13 @@ export default function MovimentacaoEstoqueFormV2({
                 )}
               </div>
 
-              {/* Seletor de Lote/Nota (para saída com custo) */}
-              {tipo === 'SAIDA' && usaCusto && currentItem.produto_id && localEstoqueId && lotesDisponiveis.length > 0 && (
+              {/* Seletor de Lote/Nota (para saída/transferência com custo) */}
+              {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA') && usaCusto && currentItem.produto_id && localOrigemAtual && lotesDisponiveis.length > 0 && (
                 <div className="bg-slate-50 border rounded p-2">
                   <Label className="text-xs font-medium mb-1 block">Selecionar Lote/Nota de Origem (opcional - define o custo)</Label>
                   {currentItem.lote_origem_info && (
                     <Badge variant="outline" className="text-xs mb-2">
-                      Selecionado: {currentItem.lote_origem_info.numero_documento || 'S/N'} - 
-                      Custo: {formatarMoedaBR(currentItem.lote_origem_info.custo_unitario)}
+                      Selecionado: {currentItem.lote_origem_info.numero_documento || 'S/N'} - Custo: {formatarMoedaBR(currentItem.lote_origem_info.custo_unitario)}
                     </Badge>
                   )}
                   <div className="max-h-28 overflow-auto border rounded bg-white">
@@ -1123,17 +1244,9 @@ export default function MovimentacaoEstoqueFormV2({
                       </TableHeader>
                       <TableBody>
                         {lotesDisponiveis.map(lote => (
-                          <TableRow 
-                            key={lote.id} 
-                            className={`cursor-pointer hover:bg-emerald-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`}
-                            onClick={() => handleSelecionarLote(lote)}
-                          >
+                          <TableRow key={lote.id} className={`cursor-pointer hover:bg-emerald-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`} onClick={() => handleSelecionarLote(lote)}>
                             <TableCell className="py-1 px-2 border border-gray-300">
-                              <input 
-                                type="radio" 
-                                checked={currentItem.lote_origem_id === lote.id}
-                                onChange={() => handleSelecionarLote(lote)}
-                              />
+                              <input type="radio" checked={currentItem.lote_origem_id === lote.id} onChange={() => handleSelecionarLote(lote)} />
                             </TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{lote.numero_documento || 'S/N'}</TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{lote.data_documento ? new Date(lote.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
@@ -1147,70 +1260,38 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
               )}
 
-              {/* Linha 2: Quantidade e Valores */}
+              {/* Quantidade e Valores */}
               <div className="grid grid-cols-5 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Quantidade *</Label>
-                  <Input 
-                    value={currentItem.quantidade}
-                    onChange={(e) => handleQuantidadeChange(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="0,00"
-                  />
+                  <Input value={currentItem.quantidade} onChange={(e) => handleQuantidadeChange(e.target.value)} className="h-8 text-xs" placeholder="0,00" />
                 </div>
-
                 <div className="space-y-1">
                   <Label className="text-xs">Preço Unitário (R$)</Label>
-                  <Input 
-                    value={currentItem.preco_unitario}
-                    onChange={(e) => handlePrecoChange(e.target.value)}
-                    className="h-8 text-xs text-right font-mono"
-                    placeholder="R$ 0,00"
-                  />
+                  <Input value={currentItem.preco_unitario} onChange={(e) => handlePrecoChange(e.target.value)} className="h-8 text-xs text-right font-mono" placeholder="R$ 0,00" />
                 </div>
-
                 <div className="space-y-1">
                   <Label className="text-xs">Total (R$)</Label>
-                  <Input 
-                    value={currentItem.total}
-                    readOnly
-                    className="h-8 text-xs text-right font-mono bg-slate-100"
-                  />
+                  <Input value={currentItem.total} readOnly className="h-8 text-xs text-right font-mono bg-slate-100" />
                 </div>
-
                 <div className="space-y-1">
                   <Label className="text-xs">Desconto (R$)</Label>
-                  <Input 
-                    value={currentItem.desconto}
-                    onChange={(e) => handleDescontoChange(e.target.value)}
-                    className="h-8 text-xs text-right font-mono"
-                    placeholder="R$ 0,00"
-                  />
+                  <Input value={currentItem.desconto} onChange={(e) => handleDescontoChange(e.target.value)} className="h-8 text-xs text-right font-mono" placeholder="R$ 0,00" />
                 </div>
-
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Valor Líquido (R$)</Label>
-                  <Input 
-                    value={currentItem.liquido}
-                    readOnly
-                    className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold"
-                  />
+                  <Input value={currentItem.liquido} readOnly className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold" />
                 </div>
               </div>
 
-              {/* Linha 3: Observação do Item */}
+              {/* Observação do Item */}
               <div className="space-y-1">
                 <Label className="text-xs">Observação do Item</Label>
-                <Input 
-                  value={currentItem.observacao_item}
-                  onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
-                  className="h-8 text-xs"
-                  placeholder="Observação opcional do item..."
-                />
+                <Input value={currentItem.observacao_item} onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))} className="h-8 text-xs" placeholder="Observação opcional do item..." />
               </div>
 
               {/* Validação de saldo */}
-              {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'))) && 
+              {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'))) && 
                currentItem.produto_id && 
                parseNumeroBR(currentItem.quantidade) > (saldoProdutoNoLocal || 0) && (
                 <div className="bg-red-50 border border-red-200 rounded p-2 flex items-center gap-2 text-red-700">
@@ -1223,22 +1304,11 @@ export default function MovimentacaoEstoqueFormV2({
 
               {/* Botões do item */}
               <div className="flex gap-2 pt-1">
-                <Button 
-                  type="button" 
-                  size="sm" 
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleAdicionarItem}
-                >
+                <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAdicionarItem}>
                   <Plus className="w-3.5 h-3.5 mr-1" />
                   {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Item'}
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 text-xs"
-                  onClick={resetCurrentItem}
-                >
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={resetCurrentItem}>
                   {editingIndex !== null ? 'Cancelar Edição' : 'Limpar'}
                 </Button>
               </div>
@@ -1249,11 +1319,9 @@ export default function MovimentacaoEstoqueFormV2({
           {itens.length > 0 && (
             <Card className="shadow-sm border-slate-300">
               <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-                <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Itens Lançados ({itens.length})
-                  </span>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Itens Lançados ({itens.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -1336,26 +1404,9 @@ export default function MovimentacaoEstoqueFormV2({
       </motion.div>
 
       {/* Dialogs */}
-      <DialogCadastroRapido 
-        tipo="local_estoque" 
-        open={showDialogLocal} 
-        onClose={() => setShowDialogLocal(false)} 
-        onSuccess={(id) => { 
-          queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); 
-          setLocalEstoqueId(id); 
-          setShowDialogLocal(false); 
-        }} 
-      />
-      <DialogCadastroRapido 
-        tipo="fornecedor" 
-        open={showDialogFornecedor} 
-        onClose={() => setShowDialogFornecedor(false)} 
-        onSuccess={(id) => { 
-          queryClient.invalidateQueries({ queryKey: ['fornecedores'] }); 
-          setFornecedorId(id); 
-          setShowDialogFornecedor(false); 
-        }} 
-      />
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowDialogLocal(false); }} />
+      <DialogCadastroRapido tipo="fornecedor" open={showDialogFornecedor} onClose={() => setShowDialogFornecedor(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['fornecedores'] }); setShowDialogFornecedor(false); }} />
+      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_custo'] }); setCentroCustoId(id); setShowDialogCentro(false); }} />
     </>
   );
 }
