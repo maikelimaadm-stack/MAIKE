@@ -66,8 +66,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     return {
       tipo_movimentacao: initialData?.tipo_movimentacao || "",
       tipo_detalhado: initialData?.tipo_detalhado || "",
-      local_estoque: initialData?.local_estoque_origem || initialData?.local_estoque_destino || initialData?.local_estoque || "",
-      local_destino: initialData?.local_estoque_destino || "",
+      local_estoque_origem_id: initialData?.local_estoque_origem_id || "",
+      local_estoque_destino_id: initialData?.local_estoque_destino_id || "",
       empresa_destino_id: initialData?.empresa_destino_id || "",
       tipo_documento: initialData?.tipo_documento || "Nota Fiscal",
       numero_documento: initialData?.numero_documento || "",
@@ -179,8 +179,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         estoques[mov.produto_id] = {};
       }
 
-      const localOrigem = mov.local_estoque_origem;
-      const localDestino = mov.local_estoque_destino;
+      const localOrigem = mov.local_estoque_origem_id;
+      const localDestino = mov.local_estoque_destino_id;
       const qtd = mov.quantidade || 0;
 
       if (mov.tipo_movimentacao === 'Entrada' && localDestino) {
@@ -217,13 +217,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
     const filtraPorLocal = formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência';
-    if (!formData.local_estoque || !filtraPorLocal) {
+    if (!formData.local_estoque_origem_id || !filtraPorLocal) {
       return produtos;
     }
 
     return produtos
       .map((produto) => {
-        const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
+        const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque_origem_id] || 0;
         return {
           ...produto,
           estoque_no_local: estoqueNoLocal,
@@ -231,7 +231,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         };
       })
       .filter((p) => p.estoque_no_local > 0);
-  }, [produtos, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
+  }, [produtos, formData.local_estoque_origem_id, formData.tipo_movimentacao, estoquePorLocal]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -321,7 +321,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     // Validar estoque para saídas
     if (formData.tipo_movimentacao === 'Saída') {
       for (const prod of formData.produtos_selecionados) {
-        const estoqueDisponivel = estoquePorLocal[prod.produto_id]?.[formData.local_estoque] || 0;
+        const estoqueDisponivel = estoquePorLocal[prod.produto_id]?.[formData.local_estoque_origem_id] || 0;
         const qtdSaida = parseNumero(prod.quantidade);
         if (qtdSaida > estoqueDisponivel) {
           toast.error(`❌ Estoque insuficiente de ${prod.produto_nome}. Disponível: ${estoqueDisponivel.toFixed(2)}`);
@@ -330,12 +330,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       }
     }
 
-    if ((formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Saída') && !formData.local_estoque) {
-      toast.error('❌ O campo Local de Estoque é obrigatório!');
+    if (formData.tipo_movimentacao === 'Entrada' && !formData.local_estoque_destino_id) {
+      toast.error('❌ Selecione o local de estoque de destino!');
+      return;
+    }
+    if (formData.tipo_movimentacao === 'Saída' && !formData.local_estoque_origem_id) {
+      toast.error('❌ Selecione o local de estoque de origem!');
       return;
     }
 
-    if (formData.tipo_movimentacao === 'Transferência' && (!formData.local_estoque || !formData.local_destino)) {
+    if (formData.tipo_movimentacao === 'Transferência' && (!formData.local_estoque_origem_id || !formData.local_estoque_destino_id)) {
       toast.error('❌ Defina local de origem e destino para transferência!');
       return;
     }
@@ -378,7 +382,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     const areaVinculada = areas.find((a) => a.id === formData.area_vinculada_id);
     const maquinaVinculada = maquinas.find((m) => m.id === formData.maquina_vinculada_id);
 
-    const produtosProcessados = formData.produtos_selecionados.map((p) => {
+    const produtosProcessados = (formData.produtos_selecionados || []).map((p) => {
       const qtd = parseNumero(p.quantidade);
       const totalGross = parseNumero(p.valor_total);
       const desconto = parseNumero(p.desconto_item || "0");
@@ -400,8 +404,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     const dadosComuns = {
       tipo_movimentacao: formData.tipo_movimentacao,
       tipo_detalhado: formData.tipo_detalhado,
-      local_estoque_origem: formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? formData.local_estoque : undefined,
-      local_estoque_destino: formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' ? formData.tipo_movimentacao === 'Transferência' ? formData.local_destino : formData.local_estoque : undefined,
+      local_estoque_origem_id: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') ? formData.local_estoque_origem_id : undefined,
+      local_estoque_origem_nome: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') ? (locais.find(l => l.id === formData.local_estoque_origem_id)?.nome) : undefined,
+      local_estoque_destino_id: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência') ? formData.local_estoque_destino_id : undefined,
+      local_estoque_destino_nome: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência') ? (locais.find(l => l.id === formData.local_estoque_destino_id)?.nome) : undefined,
       empresa_destino_id: formData.tipo_detalhado === 'Entre Empresas' ? formData.empresa_destino_id : undefined,
       empresa_destino_nome: empresaDestino?.nome,
       tipo_documento: formData.tipo_documento || undefined,
@@ -519,13 +525,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   <div className="flex gap-2">
                     <AutocompleteGenerico
                       items={locais}
-                      value={locais.find((l) => l.nome === formData.local_estoque)?.id || ""}
+                      value={formData.tipo_movimentacao === 'Entrada' ? (formData.local_estoque_destino_id || "") : (formData.local_estoque_origem_id || "")}
                       onChange={(id) => {
-                        const local = locais.find((l) => l.id === id);
-                        handleChange('local_estoque', local?.nome || "");
-                        // Limpar produtos selecionados ao mudar o local (para saídas)
-                        if (formData.tipo_movimentacao === 'Saída') {
-                          handleChange('produtos_selecionados', []);
+                        if (formData.tipo_movimentacao === 'Entrada') {
+                          handleChange('local_estoque_destino_id', id);
+                        } else {
+                          handleChange('local_estoque_origem_id', id);
+                          // Limpar produtos selecionados ao mudar o local de origem em Saída
+                          if (formData.tipo_movimentacao === 'Saída') {
+                            handleChange('produtos_selecionados', []);
+                          }
                         }
                       }}
                       placeholder="Selecione o local"
@@ -545,10 +554,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <div className="flex gap-2">
                       <AutocompleteGenerico
                       items={locais}
-                      value={locais.find((l) => l.nome === formData.local_destino)?.id || ""}
+                      value={formData.local_estoque_destino_id || ""}
                       onChange={(id) => {
-                        const local = locais.find((l) => l.id === id);
-                        handleChange('local_destino', local?.nome || "");
+                        handleChange('local_estoque_destino_id', id);
                       }}
                       placeholder="Selecione o local"
                       displayField="nome"
@@ -843,7 +851,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         const liquido = total - desc;
                         const qtd = parseNumero(produto.quantidade || "0");
                         const unitario = qtd > 0 ? liquido / qtd : 0;
-                        const estoqueDisponivel = estoquePorLocal[produto.produto_id]?.[formData.local_estoque] || 0;
+                        const estoqueDisponivel = estoquePorLocal[produto.produto_id]?.[formData.local_estoque_origem_id] || 0;
 
                         return (
                           <TableRow key={index}>

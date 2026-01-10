@@ -182,8 +182,10 @@ export default function MovimentacoesEstoque() {
       unidade_medida: produto.unidade || produtoData.unidade_medida,
       valor_unitario: valorUnitario,
       valor_total: valorLiquido,
-      local_estoque_origem: dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_estoque : undefined,
-      local_estoque_destino: dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência' ? (dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_destino : dadosComuns.local_estoque) : undefined,
+      local_estoque_origem_id: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_id : undefined,
+      local_estoque_origem: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_nome : undefined,
+      local_estoque_destino_id: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_id : undefined,
+      local_estoque_destino: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_nome : undefined,
       tipo_documento: dadosComuns.tipo_documento || undefined,
       numero_documento: dadosComuns.numero_documento || undefined,
       serie_documento: dadosComuns.serie_documento || undefined,
@@ -225,7 +227,7 @@ export default function MovimentacoesEstoque() {
     setSaveProgress({ current: 0, total: produtosLista.length });
 
     try {
-      const { produtos_selecionados, produtos, ...dadosComuns } = formData;
+      const { produtos_selecionados, produtos: produtosForm, ...dadosComuns } = formData;
 
       // Se está editando, atualizar a movimentação existente
       if (editingMovimentacao?.id) {
@@ -279,8 +281,10 @@ export default function MovimentacoesEstoque() {
           unidade_medida: produto.unidade || produtoData.unidade_medida,
           valor_unitario: valorUnitario,
           valor_total: valorLiquido,
-          local_estoque_origem: dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_estoque : undefined,
-          local_estoque_destino: dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência' ? (dadosComuns.tipo_movimentacao === 'Transferência' ? dadosComuns.local_destino : dadosComuns.local_estoque) : undefined,
+          local_estoque_origem_id: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_id : undefined,
+          local_estoque_origem: (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_origem_nome : undefined,
+          local_estoque_destino_id: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_id : undefined,
+          local_estoque_destino: (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') ? dadosComuns.local_estoque_destino_nome : undefined,
           tipo_documento: dadosComuns.tipo_documento || undefined,
           numero_documento: dadosComuns.numero_documento || undefined,
           serie_documento: dadosComuns.serie_documento || undefined,
