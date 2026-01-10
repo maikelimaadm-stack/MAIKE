@@ -602,11 +602,11 @@ export default function MovimentacaoEstoqueFormV2({
         <CardContent className="p-3 space-y-2">
           
           {/* Linha 1: Tipo, Operação, Data */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Tipo *</Label>
               <Select value={tipo} onValueChange={handleTipoChange}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -621,7 +621,7 @@ export default function MovimentacaoEstoqueFormV2({
             <div className="space-y-1">
               <Label className="text-xs">Operação *</Label>
               <Select value={operacao} onValueChange={handleOperacaoChange}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs w-full">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -638,8 +638,22 @@ export default function MovimentacaoEstoqueFormV2({
                 type="date" 
                 value={dataMovimentacao} 
                 onChange={(e) => setDataMovimentacao(e.target.value)}
-                className="h-8 text-xs w-[150px]"
+                className="h-8 text-xs w-full max-w-[140px]"
               />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Centro de Custo *</Label>
+              <Select value={centroCustoId} onValueChange={setCentroCustoId}>
+                <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {centrosCusto.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
