@@ -938,14 +938,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 )}
 
 
-                    <div className="space-y-1 text-xs">
-                      <div className="font-semibold text-slate-800 mb-1">Resumo</div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Total Produtos:</span>
-                        <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
-                      </div>
-                    </div>
-                  </div>
+
 
                 <ItemProdutoForm
                   open={showItemForm}
