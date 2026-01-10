@@ -1173,6 +1173,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                    preco_unitario: precoUnit,
                                                    valor_total: formatarMoedaInput(total),
                                                    desconto_item: formatarMoedaInput(desconto),
+                                                   documento_origem_id: currentItem.documento_origem_id || undefined,
+                                                   custo_unitario_origem: typeof currentItem.custo_unitario_origem === 'number' ? currentItem.custo_unitario_origem : undefined,
+                                                   quantidade_origem: qtdNum,
                                                    observacao_item: currentItem.observacao_item || ''
                                                  };
                         if (editingIndex !== null) {
@@ -1185,9 +1188,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       }}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' })>Limpar</Button>
                       {editingIndex !== null && (
-                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
+                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' }); }}>Cancelar Edição</Button>
                       )}
                     </div>
                   </CardContent>
@@ -1237,17 +1240,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   <DropdownMenuItem className="text-xs" onClick={() => {
                                     setEditingIndex(idx);
                                     setCurrentItem({
-                                      produto_id: p.produto_id,
-                                      produto_nome: p.produto_nome,
-                                      produto_codigo: p.produto_codigo || '',
-                                      unidade: p.unidade || '',
-                                      quantidade: p.quantidade || '',
-                                      preco: formatarMoedaInput(precoUnit || 0),
-                                      preco_unitario: typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0'),
-                                      valor_total: p.valor_total || '',
-                                      observacao_item: p.observacao_item || '',
-                                      desconto_item: p.desconto_item || '0,00'
-                                    });
+                                                                           produto_id: p.produto_id,
+                                                                           produto_nome: p.produto_nome,
+                                                                           produto_codigo: p.produto_codigo || '',
+                                                                           unidade: p.unidade || '',
+                                                                           quantidade: p.quantidade || '',
+                                                                           preco: formatarMoedaInput(precoUnit || 0),
+                                                                           preco_unitario: typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0'),
+                                                                           valor_total: p.valor_total || '',
+                                                                           desconto_item: p.desconto_item || 'R$ 0,00',
+                                                                           valor_liquido_item: (() => { const t = parseMoedaInput(p.valor_total || '0'); const d = parseMoedaInput(p.desconto_item || '0'); return formatarMoedaInput(Math.max(0, t - d)); })(),
+                                                                           documento_origem_id: p.documento_origem_id || '',
+                                                                           custo_unitario_origem: typeof p.custo_unitario_origem === 'number' ? p.custo_unitario_origem : 0,
+                                                                           quantidade_origem: typeof p.quantidade_origem === 'number' ? p.quantidade_origem : parseNumero(p.quantidade || '0'),
+                                                                           observacao_item: p.observacao_item || ''
+                                                                         });
                                   }}>Editar</DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs text-red-600" onClick={() => handleRemoverProduto(idx)}>Remover</DropdownMenuItem>
                                 </DropdownMenuContent>
