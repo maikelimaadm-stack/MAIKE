@@ -951,8 +951,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                                 preco_custo: prod?.preco_custo || 0,
                                                                 preco_venda: prod?.preco_venda || 0,
                                                                 preco: formatarNumero(precoBase || 0),
-                                                                preco_unitario: precoBase || 0,
-                                                                valor_total: formatarNumero(total)
+                                                                                                  preco_unitario: precoBase || 0,
+                                                                                                  valor_total: formatarNumero(total)
                                                               };
                             });
                           }}
@@ -988,32 +988,34 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         <Input
                           value={currentItem?.quantidade || ''}
                           onChange={(e)=>{
-                            const val = e.target.value;
-                            setCurrentItem(prev=>({ ...(prev||{}), quantidade: val }));
-                            const prod = produtos.find(p=>p.id=== (currentItem?.produto_id||''));
-                            const det = (formData.tipo_detalhado || '').toLowerCase();
-                            let precoBase = 0;
-                            if (prod) {
-                              if (formData.tipo_movimentacao === 'Entrada') {
-                                precoBase = parseNumero(currentItem?.preco || '0') || (prod.preco_custo || 0);
-                              } else if (formData.tipo_movimentacao === 'Saída') {
-                                precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
-                              } else if (formData.tipo_movimentacao === 'Transferência') {
-                                precoBase = prod.preco_custo || 0;
-                              } else if (formData.tipo_movimentacao === 'Ajuste') {
-                                precoBase = 0;
-                              }
-                              const qtdNum = parseNumero(val);
-                              if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && currentItem?.produto_id) {
-                                const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
-                                if (qtdNum > saldo) {
-                                  toast.error('Quantidade maior que o saldo disponível');
-                                }
-                              }
-                              const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * (precoBase || 0));
-                              setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
-                            }
-                          }}
+                                                       const val = e.target.value;
+                                                       setCurrentItem(prev=>({ ...(prev||{}), quantidade: val }));
+                                                       const prod = produtos.find(p=>p.id=== (currentItem?.produto_id||''));
+                                                       const det = (formData.tipo_detalhado || '').toLowerCase();
+                                                       let precoBase = 0;
+                                                       if (prod) {
+                                                         if (formData.tipo_movimentacao === 'Entrada') {
+                                                           precoBase = parseNumero(currentItem?.preco || '0') || (prod.preco_custo || 0);
+                                                         } else if (formData.tipo_movimentacao === 'Saída') {
+                                                           precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
+                                                         } else if (formData.tipo_movimentacao === 'Transferência') {
+                                                           precoBase = prod.preco_custo || 0;
+                                                         } else if (formData.tipo_movimentacao === 'Ajuste') {
+                                                           precoBase = 0;
+                                                         }
+                                                         const qtdNum = parseNumero(val);
+                                                         if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && currentItem?.produto_id) {
+                                                           const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
+                                                           if (qtdNum > saldo) {
+                                                             toast.error('Quantidade maior que o saldo disponível');
+                                                           }
+                                                         }
+                                                         const isEditable = (formData.tipo_movimentacao === 'Entrada') || (formData.tipo_movimentacao === 'Saída' && det.includes('venda'));
+                                                         const unit = isEditable ? (parseNumero(currentItem?.preco || '0') || (precoBase || 0)) : (precoBase || 0);
+                                                         const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * unit);
+                                                         setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarNumero(total) }));
+                                                       }
+                                                     }}
                           className="h-8 text-xs"
                           placeholder="0,00"
                         />
@@ -1033,6 +1035,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                      }}
                           className="h-8 text-xs"
                           placeholder="0,00"
+                          title={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda'))) ? 'Calculado pelo custo' : undefined}
                           readOnly={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda')))}
                         />
                       </div>
@@ -1071,16 +1074,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         const desconto = parseNumero(currentItem?.desconto_item || '0');
                         const total = parseNumero(currentItem?.valor_total || '0');
                         const novo = {
-                          produto_id: currentItem.produto_id,
-                          produto_nome: currentItem.produto_nome,
-                          produto_codigo: currentItem.produto_codigo || '',
-                          unidade: currentItem.unidade || '',
-                          quantidade: formatarNumero(qtdNum),
-                          preco_unitario: precoUnit,
-                          valor_total: formatarNumero(total),
-                          desconto_item: formatarNumero(desconto),
-                          observacao_item: currentItem.observacao_item || ''
-                        };
+                                                   produto_id: currentItem.produto_id,
+                                                   produto_nome: currentItem.produto_nome,
+                                                   produto_codigo: currentItem.produto_codigo || '',
+                                                   unidade: currentItem.unidade || '',
+                                                   quantidade: formatarNumero(qtdNum),
+                                                   preco: currentItem.preco || formatarNumero(precoUnit),
+                                                   preco_unitario: precoUnit,
+                                                   valor_total: formatarNumero(total),
+                                                   desconto_item: formatarNumero(desconto),
+                                                   observacao_item: currentItem.observacao_item || ''
+                                                 };
                         if (editingIndex !== null) {
                           setFormData(prev=>({ ...prev, produtos_selecionados: prev.produtos_selecionados.map((x,i)=> i===editingIndex ? novo : x) }));
                         } else {
