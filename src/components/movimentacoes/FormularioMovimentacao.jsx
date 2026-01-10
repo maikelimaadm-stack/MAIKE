@@ -973,7 +973,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   maquinas={maquinas}
                   initialItem={editingIndex !== null ? formData.produtos_selecionados[editingIndex] : null}
                 />
-              </div>
 
 
 
