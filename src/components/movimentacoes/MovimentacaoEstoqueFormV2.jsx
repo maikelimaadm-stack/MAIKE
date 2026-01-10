@@ -24,18 +24,73 @@ import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
 import SeletorLoteNota from "./SeletorLoteNota.jsx";
 
-import {
-  formatarMoedaBR,
-  parseMoedaBR,
-  formatarNumero,
-  parseNumeroBR,
-  calcularTotaisItem,
-  distribuirSaidaPorLotes,
-  calcularSaldoProdutoLocal,
-  OPERACOES_POR_TIPO,
-  TIPOS_VINCULO,
-  TIPOS_DOCUMENTO
-} from "./utils/movimentacaoUtils.js";
+// Funções utilitárias inline
+const formatarMoedaBR = (valor) => {
+  if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const parseMoedaBR = (str) => {
+  if (!str && str !== 0) return 0;
+  if (typeof str === 'number') return str;
+  const cleaned = String(str).replace(/\s/g, '').replace(/R\$/g, '').replace(/\./g, '').replace(',', '.');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+};
+
+const formatarNumero = (num, decimais = 2) => {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  return Number(num).toLocaleString('pt-BR', { minimumFractionDigits: decimais, maximumFractionDigits: decimais });
+};
+
+const parseNumeroBR = (str) => {
+  if (!str && str !== 0) return 0;
+  if (typeof str === 'number') return str;
+  return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+};
+
+const calcularSaldoProdutoLocal = (lotes, produtoId, localId) => {
+  return lotes
+    .filter(l => l.produto_id === produtoId && l.local_estoque_id === localId && l.quantidade_disponivel > 0)
+    .reduce((sum, l) => sum + (l.quantidade_disponivel || 0), 0);
+};
+
+const OPERACOES_POR_TIPO = {
+  ENTRADA: [
+    { value: 'compra', label: 'Compra', exigeFornecedor: true },
+    { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false },
+    { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true },
+    { value: 'ajuste_positivo', label: 'Ajuste Positivo', exigeFornecedor: false },
+    { value: 'producao_entrada', label: 'Produção/Entrada Interna', exigeFornecedor: false },
+    { value: 'outros_entrada', label: 'Outros', exigeFornecedor: false }
+  ],
+  SAIDA: [
+    { value: 'venda', label: 'Venda', exigeDestino: true, precoEditavel: true },
+    { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: false },
+    { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: false },
+    { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: false },
+    { value: 'manutencao', label: 'Manutenção', exigeVinculo: true, precoEditavel: false },
+    { value: 'perda_quebra', label: 'Perda/Quebra', exigeVinculo: false, precoEditavel: false },
+    { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: false },
+    { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false }
+  ]
+};
+
+const TIPOS_VINCULO = [
+  { value: 'lote', label: 'Lote (Pecuária)' },
+  { value: 'area', label: 'Área / Pasto' },
+  { value: 'maquina', label: 'Máquina / Veículo' },
+  { value: 'centro_custo', label: 'Centro de Custo' },
+  { value: 'funcionario', label: 'Funcionário' },
+  { value: 'outro', label: 'Outro (texto livre)' }
+];
+
+const TIPOS_DOCUMENTO = [
+  { value: 'nfe', label: 'NF-e' },
+  { value: 'nota_fiscal', label: 'Nota Fiscal' },
+  { value: 'recibo', label: 'Recibo' },
+  { value: 'outros', label: 'Outros' }
+];
 
 export default function MovimentacaoEstoqueFormV2({ 
   onSubmit, 

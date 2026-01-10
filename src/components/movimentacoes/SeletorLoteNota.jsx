@@ -3,7 +3,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatarMoedaBR, formatarNumero } from "./utils/movimentacaoUtils.js";
+
+const formatarMoedaBR = (valor) => {
+  if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const formatarNumero = (num, decimais = 2) => {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  return Number(num).toLocaleString('pt-BR', { minimumFractionDigits: decimais, maximumFractionDigits: decimais });
+};
 
 export default function SeletorLoteNota({ 
   open, 
