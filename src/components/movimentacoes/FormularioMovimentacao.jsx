@@ -841,7 +841,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 }
 
                 {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border min-h-[260px]">
+                <div className="bg-white rounded border min-h-[340px]">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
