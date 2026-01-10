@@ -16,9 +16,10 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 
-import FormularioMovimentacao from "../components/movimentacoes/FormularioMovimentacao";
+import MovimentacaoEstoqueFormV2 from "../components/movimentacoes/MovimentacaoEstoqueFormV2";
 import TabelaMovimentacoes from "../components/movimentacoes/TabelaMovimentacoes";
 import ImportarNFeMovimentacao from "../components/movimentacoes/ImportarNFeMovimentacao";
+import { parseMoedaBR } from "../components/movimentacoes/utils/movimentacaoUtils.js";
 
 const getNextSystemNumber = async () => {
   try {
@@ -57,6 +58,43 @@ const parseNumero = (str) => {
   if (!str && str !== 0) return 0;
   if (typeof str === 'number') return str;
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+};
+
+// Criar lote de estoque (para entradas)
+const criarLoteEstoque = async (empresaId, produto, dadosComuns, fornecedor) => {
+  const loteData = {
+    empresa_id: empresaId,
+    produto_id: produto.produto_id,
+    produto_nome: produto.produto_nome,
+    local_estoque_id: dadosComuns.local_estoque_destino_id,
+    local_estoque_nome: dadosComuns.local_estoque_destino_nome,
+    numero_documento: dadosComuns.numero_documento || null,
+    serie_documento: dadosComuns.serie_documento || null,
+    data_documento: dadosComuns.data_documento || null,
+    fornecedor_id: dadosComuns.fornecedor_id || null,
+    fornecedor_nome: fornecedor?.nome || null,
+    custo_unitario: produto.valor_unitario || 0,
+    quantidade_entrada: produto.quantidade,
+    quantidade_disponivel: produto.quantidade,
+    status: 'Disponivel'
+  };
+  
+  return await base44.entities.EstoqueLoteNota.create(loteData);
+};
+
+// Baixar estoque do lote (para saídas)
+const baixarLoteEstoque = async (loteOrigemId, quantidade) => {
+  if (!loteOrigemId) return;
+  
+  const lote = await base44.entities.EstoqueLoteNota.filter({ id: loteOrigemId });
+  if (lote && lote.length > 0) {
+    const loteAtual = lote[0];
+    const novoSaldo = Math.max(0, (loteAtual.quantidade_disponivel || 0) - quantidade);
+    await base44.entities.EstoqueLoteNota.update(loteOrigemId, {
+      quantidade_disponivel: novoSaldo,
+      status: novoSaldo <= 0 ? 'Esgotado' : 'Disponivel'
+    });
+  }
 };
 
 export default function MovimentacoesEstoque() {
@@ -140,11 +178,11 @@ export default function MovimentacoesEstoque() {
     const produtoData = produtos.find(p => p.id === produto.produto_id);
     if (!produtoData) throw new Error(`Produto ${produto.produto_nome} não encontrado`);
 
-    const quantidade = parseNumero(produto.quantidade);
-    const valorTotal = parseNumero(produto.valor_total);
-    const desconto = parseNumero(produto.desconto_item || 0);
-    const valorLiquido = valorTotal - desconto;
-    const valorUnitario = quantidade > 0 ? (valorLiquido / quantidade) : 0;
+    const quantidade = typeof produto.quantidade === 'number' ? produto.quantidade : parseNumero(produto.quantidade);
+    const valorTotal = typeof produto.valor_total === 'number' ? produto.valor_total : parseMoedaBR(produto.valor_total);
+    const desconto = typeof produto.desconto === 'number' ? produto.desconto : parseMoedaBR(produto.desconto || 0);
+    const valorLiquido = valorTotal;
+    const valorUnitario = typeof produto.valor_unitario === 'number' ? produto.valor_unitario : (quantidade > 0 ? valorLiquido / quantidade : 0);
 
     const estoqueAtual = produtoData.estoque_atual || 0;
     const custoMedioAtual = produtoData.preco_custo || 0;
@@ -225,6 +263,21 @@ export default function MovimentacoesEstoque() {
       estoque_atual: novoEstoque,
       preco_custo: novoCustoMedio
     });
+
+    // Criar lote de estoque para entradas
+    if (dadosComuns.tipo_movimentacao === 'Entrada') {
+      const fornecedor = fornecedores.find(f => f.id === dadosComuns.fornecedor_id);
+      await criarLoteEstoque(empresaSelecionadaId, {
+        ...produto,
+        quantidade,
+        valor_unitario: valorUnitario
+      }, dadosComuns, fornecedor);
+    }
+
+    // Baixar lote de estoque para saídas
+    if (dadosComuns.tipo_movimentacao === 'Saída' && produto.lote_origem_id) {
+      await baixarLoteEstoque(produto.lote_origem_id, quantidade);
+    }
   };
 
   const handleSubmit = async (formData) => {
@@ -468,11 +521,10 @@ export default function MovimentacoesEstoque() {
 
       <AnimatePresence>
         {showForm && (
-          <FormularioMovimentacao
+          <MovimentacaoEstoqueFormV2
             onSubmit={handleSubmit}
             onCancel={() => { setShowForm(false); setEditingMovimentacao(null); setDadosImportadosXML(null); }}
             initialData={dadosImportadosXML || editingMovimentacao}
-            isEditing={!!editingMovimentacao}
             produtos={produtos}
             fornecedores={fornecedores}
           />
