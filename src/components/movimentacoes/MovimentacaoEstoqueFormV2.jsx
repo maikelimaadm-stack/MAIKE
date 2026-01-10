@@ -657,22 +657,8 @@ export default function MovimentacaoEstoqueFormV2({
             </div>
           </div>
 
-          {/* Linha 2: Centro de Custo, Local(is) */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Centro de Custo *</Label>
-              <Select value={centroCustoId} onValueChange={setCentroCustoId}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {centrosCusto.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          {/* Linha 2: Locais e Parceiros */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {/* Local Origem */}
             {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && !operacao?.includes('positivo'))) && (
               <div className="space-y-1">
@@ -680,7 +666,7 @@ export default function MovimentacaoEstoqueFormV2({
                   {tipo === 'TRANSFERENCIA' ? 'Local Origem *' : tipo === 'AJUSTE' ? 'Local Ajuste *' : 'Local Saída *'}
                 </Label>
                 <Select value={localEstoqueOrigemId} onValueChange={(v) => { setLocalEstoqueOrigemId(v); setItens([]); resetCurrentItem(); }}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -699,7 +685,7 @@ export default function MovimentacaoEstoqueFormV2({
                   {tipo === 'TRANSFERENCIA' ? 'Local Destino *' : tipo === 'AJUSTE' ? 'Local Ajuste *' : 'Local Entrada *'}
                 </Label>
                 <Select value={localEstoqueDestinoId} onValueChange={(v) => { setLocalEstoqueDestinoId(v); if (tipo === 'ENTRADA') { setItens([]); resetCurrentItem(); } }}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -716,7 +702,7 @@ export default function MovimentacaoEstoqueFormV2({
               <div className="space-y-1">
                 <Label className="text-xs">Fornecedor *</Label>
                 <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -733,7 +719,7 @@ export default function MovimentacaoEstoqueFormV2({
               <div className="space-y-1">
                 <Label className="text-xs">Cliente *</Label>
                 <Select value={clienteId} onValueChange={setClienteId}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 text-xs w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
