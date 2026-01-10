@@ -98,31 +98,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const queryClient = useQueryClient();
 
-  // Produtos locais (atualizam após cadastro/edição rápida)
-  const [produtosLista, setProdutosLista] = useState(produtos || []);
-  useEffect(() => { setProdutosLista(produtos || []); }, [produtos]);
-
-
-
   const { data: locais = [] } = useQuery({
     queryKey: ['locais_mov'],
     queryFn: () => base44.entities.LocalEstoque.list(),
     initialData: []
   });
-
-  // Ajustar IDs de locais quando lista de locais carregar
-  useEffect(() => {
-    if (locais.length) {
-      if (formData.local_estoque && !formData.local_estoque_id) {
-        const loc = locais.find(l => l.nome === formData.local_estoque);
-        if (loc) setFormData(prev => ({ ...prev, local_estoque_id: loc.id }));
-      }
-      if (formData.local_destino && !formData.local_destino_id) {
-        const loc = locais.find(l => l.nome === formData.local_destino);
-        if (loc) setFormData(prev => ({ ...prev, local_destino_id: loc.id }));
-      }
-    }
-  }, [locais]);
 
   const { data: centros = [] } = useQuery({
     queryKey: ['centros_mov', empresaSelecionadaId],
@@ -186,7 +166,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const estoquePorLocal = useMemo(() => {
     const estoques = {};
 
-    produtosLista.forEach((produto) => {
+    produtos.forEach((produto) => {
       if (!estoques[produto.id]) {
         estoques[produto.id] = {};
       }
@@ -232,16 +212,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     });
 
     return estoques;
-  }, [produtosLista, movimentacoesEstoque]);
+  }, [produtos, movimentacoesEstoque]);
 
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
     const filtraPorLocal = formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência';
     if (!formData.local_estoque || !filtraPorLocal) {
-      return produtosLista;
+      return produtos;
     }
 
-    return produtosLista
+    return produtos
       .map((produto) => {
         const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
         return {
@@ -251,7 +231,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         };
       })
       .filter((p) => p.estoque_no_local > 0);
-  }, [produtosLista, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
+  }, [produtos, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -279,7 +259,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
           const updated = { ...p, [campo]: valor };
 
           if (campo === 'produto_id') {
-            const produto = produtosLista.find((prod) => prod.id === valor);
+            const produto = produtos.find((prod) => prod.id === valor);
             if (produto) {
               updated.produto_nome = produto.nome_produto;
               updated.unidade = produto.unidade_medida;
@@ -539,13 +519,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   <div className="flex gap-2">
                     <AutocompleteGenerico
                       items={locais}
-                      value={formData.local_estoque_id || ""}
+                      value={locais.find((l) => l.nome === formData.local_estoque)?.id || ""}
                       onChange={(id) => {
                         const local = locais.find((l) => l.id === id);
-                        handleChange('local_estoque_id', id);
                         handleChange('local_estoque', local?.nome || "");
-                        // Limpar produtos selecionados ao mudar o local (para saídas/transferências)
-                        if (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') {
+                        // Limpar produtos selecionados ao mudar o local (para saídas)
+                        if (formData.tipo_movimentacao === 'Saída') {
                           handleChange('produtos_selecionados', []);
                         }
                       }}
@@ -566,10 +545,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <div className="flex gap-2">
                       <AutocompleteGenerico
                       items={locais}
-                      value={formData.local_destino_id || ""}
+                      value={locais.find((l) => l.nome === formData.local_destino)?.id || ""}
                       onChange={(id) => {
                         const local = locais.find((l) => l.id === id);
-                        handleChange('local_destino_id', id);
                         handleChange('local_destino', local?.nome || "");
                       }}
                       placeholder="Selecione o local"
@@ -604,10 +582,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <div className="flex gap-2">
                         <AutocompleteGenerico
                         items={locaisEmpresaDestino}
-                        value={formData.local_destino_id || ""}
+                        value={locaisEmpresaDestino.find((l) => l.nome === formData.local_destino)?.id || ""}
                         onChange={(id) => {
                           const local = locaisEmpresaDestino.find((l) => l.id === id);
-                          handleChange('local_destino_id', id);
                           handleChange('local_destino', local?.nome || "");
                         }}
                         placeholder="Selecione o local"
@@ -843,7 +820,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 }
 
                 {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border min-h-[420px]">
+                <div className="bg-white rounded border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
@@ -887,7 +864,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               </TableCell>
                               <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[360px] md:min-w-[420px]">
                                 <AutocompleteGenerico
-                                items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtosLista}
+                                items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtos}
                                 value={produto.produto_id}
                                 onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
                                 placeholder="Buscar produto..."
@@ -912,7 +889,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   handleAtualizarProduto(index, 'quantidade', valor);
                                 }}
                                 placeholder="0,00"
-                                className="text-center h-8 text-xs" />
+                                className="text-center h-6 text-xs" />
 
                               </TableCell>
                               <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
@@ -923,7 +900,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   handleAtualizarProduto(index, 'valor_total', valor);
                                 }}
                                 placeholder="0,00"
-                                className="text-center h-8 text-xs" />
+                                className="text-center h-6 text-xs" />
 
                               </TableCell>
                               <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
@@ -934,7 +911,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   handleAtualizarProduto(index, 'desconto_item', valor);
                                 }}
                                 placeholder="0,00"
-                                className="text-center h-8 text-xs" />
+                                className="text-center h-6 text-xs" />
 
                               </TableCell>
                               <TableCell className="w-24">
@@ -997,7 +974,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
       <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['locais_mov'] });const local = locais.find((l) => l.id === id);if (local && !formData.local_estoque) handleChange('local_estoque', local.nome);setShowDialogLocal(false);}} />
       <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['centros_mov'] });handleChange('centro_custo_id', id);setShowDialogCentro(false);}} />
-      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={async (id) => {queryClient.invalidateQueries({ queryKey: ['produtos'] }); try { const all = await base44.entities.Produto.list(); setProdutosLista(all); } catch (e) {} setShowDialogProduto(false);}} />
+      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['produtos'] });setShowDialogProduto(false);}} />
     </>);
 
 }
