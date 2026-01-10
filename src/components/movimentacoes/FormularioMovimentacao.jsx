@@ -558,12 +558,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
         <Card className="shadow-sm border-slate-300 bg-white max-w-[1600px] w-full mx-auto">
-          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+          <CardHeader className="bg-slate-50 border-b border-slate-200 py-1 px-3">
             <CardTitle className="text-sm font-semibold text-slate-900">
               {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-3">
             <form onSubmit={handleSubmit} className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-2">
