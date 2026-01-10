@@ -18,8 +18,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger } from
+"@/components/ui/dropdown-menu";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 
@@ -51,7 +51,7 @@ const TIPOS_DETALHADOS = {
 export default function FormularioMovimentacao({ onSubmit, onCancel, initialData = null, produtos, fornecedores }) {
   const [formData, setFormData] = useState(() => {
     let produtosSelecionados = initialData?.produtos_selecionados || [];
-    
+
     if (initialData?.produto_id && produtosSelecionados.length === 0) {
       produtosSelecionados = [{
         produto_id: initialData.produto_id,
@@ -101,80 +101,80 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const { data: locais = [] } = useQuery({
     queryKey: ['locais_mov'],
     queryFn: () => base44.entities.LocalEstoque.list(),
-    initialData: [],
+    initialData: []
   });
 
   const { data: centros = [] } = useQuery({
     queryKey: ['centros_mov', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.CentroCusto.list();
-      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+      return all.filter((c) => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: empresas = [] } = useQuery({
     queryKey: ['empresas_mov'],
     queryFn: () => base44.entities.Empresa.list(),
-    initialData: [],
+    initialData: []
   });
 
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes_mov', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Lote.list();
-      return all.filter(l => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
+      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas_mov', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.AreaPastagem.list();
-      return all.filter(a => a.empresa_id === empresaSelecionadaId);
+      return all.filter((a) => a.empresa_id === empresaSelecionadaId);
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: maquinas = [] } = useQuery({
     queryKey: ['maquinas_mov', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.Maquina.list();
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativo');
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId && m.status === 'Ativo');
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: movimentacoesEstoque = [] } = useQuery({
     queryKey: ['movimentacoes_estoque_form', empresaSelecionadaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list();
-      return all.filter(m => m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
+      return all.filter((m) => m.empresa_id === empresaSelecionadaId && m.status === 'Ativa');
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: !!empresaSelecionadaId
   });
 
   const { data: locaisEmpresaDestino = [] } = useQuery({
     queryKey: ['locais_empresa_destino', formData.empresa_destino_id],
     queryFn: () => base44.entities.LocalEstoque.list(),
     enabled: !!formData.empresa_destino_id,
-    initialData: [],
+    initialData: []
   });
 
   // Calcular estoque por local
   const estoquePorLocal = useMemo(() => {
     const estoques = {};
-    
-    produtos.forEach(produto => {
+
+    produtos.forEach((produto) => {
       if (!estoques[produto.id]) {
         estoques[produto.id] = {};
       }
     });
 
-    movimentacoesEstoque.forEach(mov => {
+    movimentacoesEstoque.forEach((mov) => {
       if (!mov.produto_id) return;
-      
+
       if (!estoques[mov.produto_id]) {
         estoques[mov.produto_id] = {};
       }
@@ -220,60 +220,60 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return produtos;
     }
 
-    return produtos.map(produto => {
+    return produtos.map((produto) => {
       const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
       return {
         ...produto,
         estoque_no_local: estoqueNoLocal,
         nome_com_estoque: `${produto.nome_produto} (${estoqueNoLocal.toFixed(2)} ${produto.unidade_medida || 'UN'})`
       };
-    }).filter(p => p.estoque_no_local > 0 || formData.tipo_movimentacao !== 'Saída');
+    }).filter((p) => p.estoque_no_local > 0 || formData.tipo_movimentacao !== 'Saída');
   }, [produtos, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleAdicionarProduto = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       produtos_selecionados: [...prev.produtos_selecionados, { produto_id: "", produto_nome: "", quantidade: "", valor_total: "", desconto_item: "0,00" }]
     }));
   };
 
   const handleRemoverProduto = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       produtos_selecionados: prev.produtos_selecionados.filter((_, i) => i !== index)
     }));
   };
 
   const handleAtualizarProduto = (index, campo, valor) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       produtos_selecionados: prev.produtos_selecionados.map((p, i) => {
         if (i === index) {
           const updated = { ...p, [campo]: valor };
 
           if (campo === 'produto_id') {
-            const produto = produtos.find(prod => prod.id === valor);
+            const produto = produtos.find((prod) => prod.id === valor);
             if (produto) {
               updated.produto_nome = produto.nome_produto;
               updated.unidade = produto.unidade_medida;
               updated.preco_custo = produto.preco_custo || 0;
               updated.preco_venda = produto.preco_venda || 0;
               updated.estoque_no_local = estoquePorLocal[valor]?.[formData.local_estoque] || 0;
-              
+
               // Para saídas, preencher automaticamente o valor baseado no custo
               if (formData.tipo_movimentacao === 'Saída' && produto.preco_custo) {
-                // Não preencher valor automático por enquanto, deixar usuário definir
-              }
-            }
-          }
 
-          // Calcular valor total baseado na quantidade
-          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {
-            const qtd = parseNumero(valor);
+
+
+
+
+                // Não preencher valor automático por enquanto, deixar usuário definir
+              }}} // Calcular valor total baseado na quantidade
+          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {const qtd = parseNumero(valor);
             updated.valor_total = formatarNumero(qtd * updated.preco_custo);
           }
 
@@ -307,8 +307,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    const produtosIncompletos = formData.produtos_selecionados.filter(p =>
-      !p.produto_id || parseNumero(p.quantidade) <= 0
+    const produtosIncompletos = formData.produtos_selecionados.filter((p) =>
+    !p.produto_id || parseNumero(p.quantidade) <= 0
     );
     if (produtosIncompletos.length > 0) {
       toast.error('❌ Preencha todos os campos dos produtos (produto e quantidade)!');
@@ -368,20 +368,20 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       }
     }
 
-    const centro = centros.find(c => c.id === formData.centro_custo_id);
-    const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_id);
-    const empresaDestino = empresas.find(e => e.id === formData.empresa_destino_id);
-    const loteVinculado = lotes.find(l => l.id === formData.lote_vinculado_id);
-    const areaVinculada = areas.find(a => a.id === formData.area_vinculada_id);
-    const maquinaVinculada = maquinas.find(m => m.id === formData.maquina_vinculada_id);
+    const centro = centros.find((c) => c.id === formData.centro_custo_id);
+    const fornecedor = fornecedores.find((f) => f.id === formData.fornecedor_id);
+    const empresaDestino = empresas.find((e) => e.id === formData.empresa_destino_id);
+    const loteVinculado = lotes.find((l) => l.id === formData.lote_vinculado_id);
+    const areaVinculada = areas.find((a) => a.id === formData.area_vinculada_id);
+    const maquinaVinculada = maquinas.find((m) => m.id === formData.maquina_vinculada_id);
 
-    const produtosProcessados = formData.produtos_selecionados.map(p => {
+    const produtosProcessados = formData.produtos_selecionados.map((p) => {
       const qtd = parseNumero(p.quantidade);
       const totalGross = parseNumero(p.valor_total);
       const desconto = parseNumero(p.desconto_item || "0");
       const valorLiquido = totalGross - desconto;
-      const valorUnitario = qtd > 0 ? (valorLiquido / qtd) : 0;
-      
+      const valorUnitario = qtd > 0 ? valorLiquido / qtd : 0;
+
       return {
         produto_id: p.produto_id,
         produto_nome: p.produto_nome,
@@ -398,7 +398,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       tipo_movimentacao: formData.tipo_movimentacao,
       tipo_detalhado: formData.tipo_detalhado,
       local_estoque_origem: formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? formData.local_estoque : undefined,
-      local_estoque_destino: formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' ? (formData.tipo_movimentacao === 'Transferência' ? formData.local_destino : formData.local_estoque) : undefined,
+      local_estoque_destino: formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' ? formData.tipo_movimentacao === 'Transferência' ? formData.local_destino : formData.local_estoque : undefined,
       empresa_destino_id: formData.tipo_detalhado === 'Entre Empresas' ? formData.empresa_destino_id : undefined,
       empresa_destino_nome: empresaDestino?.nome,
       tipo_documento: formData.tipo_documento || undefined,
@@ -433,9 +433,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
   const tiposDetalhadosDisponiveis = TIPOS_DETALHADOS[formData.tipo_movimentacao] || [];
   const mostrarFornecedor = formData.tipo_movimentacao === 'Entrada';
-  const mostrarCliente = formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some(t => formData.tipo_detalhado.includes(t));
-  const mostrarDadosNFe = (formData.tipo_movimentacao === 'Entrada' && ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Importação'].some(t => formData.tipo_detalhado.includes(t))) || 
-                          (formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some(t => formData.tipo_detalhado.includes(t)));
+  const mostrarCliente = formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some((t) => formData.tipo_detalhado.includes(t));
+  const mostrarDadosNFe = formData.tipo_movimentacao === 'Entrada' && ['Compra', 'Compra à Vista', 'Compra a Prazo', 'Importação'].some((t) => formData.tipo_detalhado.includes(t)) ||
+  formData.tipo_movimentacao === 'Saída' && ['Venda', 'Venda à Vista', 'Venda a Prazo'].some((t) => formData.tipo_detalhado.includes(t));
   const mostrarLocalDestino = formData.tipo_movimentacao === 'Transferência';
   const mostrarEmpresaDestino = formData.tipo_movimentacao === 'Transferência' && formData.tipo_detalhado === 'Entre Empresas';
   const mostrarVinculo = formData.tipo_movimentacao === 'Saída';
@@ -460,7 +460,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo de Movimentação *</Label>
-                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => { handleChange('tipo_movimentacao', v); handleChange('tipo_detalhado', ''); handleChange('vinculado', false); handleChange('tipo_vinculo', ''); }} required>
+                  <Select value={formData.tipo_movimentacao} onValueChange={(v) => {handleChange('tipo_movimentacao', v);handleChange('tipo_detalhado', '');handleChange('vinculado', false);handleChange('tipo_vinculo', '');}} required>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
@@ -480,9 +480,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <SelectValue placeholder="Selecione o tipo acima" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tiposDetalhadosDisponiveis.map(tipo => (
-                        <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
-                      ))}
+                      {tiposDetalhadosDisponiveis.map((tipo) =>
+                      <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -497,8 +497,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       placeholder="Selecione o centro de custo"
                       displayField="nome"
                       searchFields={["nome", "codigo"]}
-                      className="flex-1"
-                    />
+                      className="flex-1" />
+
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogCentro(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
@@ -509,16 +509,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">
-                    {formData.tipo_movimentacao === 'Entrada' ? 'Local Estoque Destino *' : 
-                     formData.tipo_movimentacao === 'Saída' ? 'Local Estoque Origem *' : 
-                     'Local Estoque Origem *'}
+                    {formData.tipo_movimentacao === 'Entrada' ? 'Local Estoque Destino *' :
+                    formData.tipo_movimentacao === 'Saída' ? 'Local Estoque Origem *' :
+                    'Local Estoque Origem *'}
                   </Label>
                   <div className="flex gap-2">
                     <AutocompleteGenerico
                       items={locais}
-                      value={locais.find(l => l.nome === formData.local_estoque)?.id || ""}
+                      value={locais.find((l) => l.nome === formData.local_estoque)?.id || ""}
                       onChange={(id) => {
-                        const local = locais.find(l => l.id === id);
+                        const local = locais.find((l) => l.id === id);
                         handleChange('local_estoque', local?.nome || "");
                         // Limpar produtos selecionados ao mudar o local (para saídas)
                         if (formData.tipo_movimentacao === 'Saída') {
@@ -528,128 +528,128 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       placeholder="Selecione o local"
                       displayField="nome"
                       searchFields={["nome", "descricao"]}
-                      className="flex-1"
-                    />
+                      className="flex-1" />
+
                     <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
 
-                {mostrarLocalDestino && !mostrarEmpresaDestino && (
-                  <div className="space-y-1">
+                {mostrarLocalDestino && !mostrarEmpresaDestino &&
+                <div className="space-y-1">
                     <Label className="text-xs">Local Estoque Destino *</Label>
                     <div className="flex gap-2">
                       <AutocompleteGenerico
-                        items={locais}
-                        value={locais.find(l => l.nome === formData.local_destino)?.id || ""}
-                        onChange={(id) => {
-                          const local = locais.find(l => l.id === id);
-                          handleChange('local_destino', local?.nome || "");
-                        }}
-                        placeholder="Selecione o local"
-                        displayField="nome"
-                        searchFields={["nome", "descricao"]}
-                        className="flex-1"
-                      />
+                      items={locais}
+                      value={locais.find((l) => l.nome === formData.local_destino)?.id || ""}
+                      onChange={(id) => {
+                        const local = locais.find((l) => l.id === id);
+                        handleChange('local_destino', local?.nome || "");
+                      }}
+                      placeholder="Selecione o local"
+                      displayField="nome"
+                      searchFields={["nome", "descricao"]}
+                      className="flex-1" />
+
                       <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                         <Plus className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
-                )}
+                }
 
-                {mostrarEmpresaDestino && (
-                  <>
+                {mostrarEmpresaDestino &&
+                <>
                     <div className="space-y-1">
                       <Label className="text-xs">Empresa Destino *</Label>
                       <AutocompleteGenerico
-                        items={empresas}
-                        value={formData.empresa_destino_id}
-                        onChange={(v) => { handleChange('empresa_destino_id', v); handleChange('local_destino', ''); }}
-                        placeholder="Selecione a empresa"
-                        displayField="apelido"
-                        searchFields={["apelido", "nome"]}
-                        renderSubtext={(item) => item.nome}
-                      />
+                      items={empresas}
+                      value={formData.empresa_destino_id}
+                      onChange={(v) => {handleChange('empresa_destino_id', v);handleChange('local_destino', '');}}
+                      placeholder="Selecione a empresa"
+                      displayField="apelido"
+                      searchFields={["apelido", "nome"]}
+                      renderSubtext={(item) => item.nome} />
+
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">Local na Empresa Destino *</Label>
                       <div className="flex gap-2">
                         <AutocompleteGenerico
-                          items={locaisEmpresaDestino}
-                          value={locaisEmpresaDestino.find(l => l.nome === formData.local_destino)?.id || ""}
-                          onChange={(id) => {
-                            const local = locaisEmpresaDestino.find(l => l.id === id);
-                            handleChange('local_destino', local?.nome || "");
-                          }}
-                          placeholder="Selecione o local"
-                          displayField="nome"
-                          searchFields={["nome", "descricao"]}
-                          className="flex-1"
-                        />
+                        items={locaisEmpresaDestino}
+                        value={locaisEmpresaDestino.find((l) => l.nome === formData.local_destino)?.id || ""}
+                        onChange={(id) => {
+                          const local = locaisEmpresaDestino.find((l) => l.id === id);
+                          handleChange('local_destino', local?.nome || "");
+                        }}
+                        placeholder="Selecione o local"
+                        displayField="nome"
+                        searchFields={["nome", "descricao"]}
+                        className="flex-1" />
+
                         <Button type="button" variant="outline" size="icon" onClick={() => setShowDialogLocal(true)} className="h-8 w-8">
                           <Plus className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
                   </>
-                )}
+                }
 
-                {mostrarFornecedor && (
-                  <div className="space-y-1">
+                {mostrarFornecedor &&
+                <div className="space-y-1">
                     <Label className="text-xs">Fornecedor *</Label>
                     <AutocompleteGenerico
-                      items={fornecedores}
-                      value={formData.fornecedor_id}
-                      onChange={(v) => handleChange('fornecedor_id', v)}
-                      placeholder="Selecione o fornecedor"
-                      displayField="nome"
-                      searchFields={["nome", "cpf", "cnpj"]}
-                      renderSubtext={(item) => item.cpf || item.cnpj}
-                    />
-                  </div>
-                )}
+                    items={fornecedores}
+                    value={formData.fornecedor_id}
+                    onChange={(v) => handleChange('fornecedor_id', v)}
+                    placeholder="Selecione o fornecedor"
+                    displayField="nome"
+                    searchFields={["nome", "cpf", "cnpj"]}
+                    renderSubtext={(item) => item.cpf || item.cnpj} />
 
-                {mostrarCliente && (
-                  <div className="space-y-1">
+                  </div>
+                }
+
+                {mostrarCliente &&
+                <div className="space-y-1">
                     <Label className="text-xs">Cliente/Destinatário</Label>
                     <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="Nome do Cliente" className="h-8 text-xs" />
                   </div>
-                )}
+                }
               </div>
 
               {/* Seção de Vínculo para Saídas */}
-              {mostrarVinculo && (
-                <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/50">
+              {mostrarVinculo &&
+              <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/50">
                   <div className="flex items-center gap-3 mb-3">
                     <Link2 className="w-4 h-4 text-blue-600" />
                     <Label className="text-xs font-semibold text-blue-900">Vincular Saída</Label>
                     <Switch
-                      checked={formData.vinculado}
-                      onCheckedChange={(checked) => {
-                        handleChange('vinculado', checked);
-                        if (!checked) {
-                          handleChange('tipo_vinculo', '');
-                          handleChange('lote_vinculado_id', '');
-                          handleChange('area_vinculada_id', '');
-                          handleChange('maquina_vinculada_id', '');
-                        }
-                      }}
-                    />
+                    checked={formData.vinculado}
+                    onCheckedChange={(checked) => {
+                      handleChange('vinculado', checked);
+                      if (!checked) {
+                        handleChange('tipo_vinculo', '');
+                        handleChange('lote_vinculado_id', '');
+                        handleChange('area_vinculada_id', '');
+                        handleChange('maquina_vinculada_id', '');
+                      }
+                    }} />
+
                   </div>
 
-                  {formData.vinculado && (
-                    <div className="grid grid-cols-2 gap-3">
+                  {formData.vinculado &&
+                <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Tipo de Vínculo *</Label>
                         <Select value={formData.tipo_vinculo} onValueChange={(v) => {
-                          handleChange('tipo_vinculo', v);
-                          handleChange('lote_vinculado_id', '');
-                          handleChange('area_vinculada_id', '');
-                          handleChange('maquina_vinculada_id', '');
-                        }}>
+                      handleChange('tipo_vinculo', v);
+                      handleChange('lote_vinculado_id', '');
+                      handleChange('area_vinculada_id', '');
+                      handleChange('maquina_vinculada_id', '');
+                    }}>
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
@@ -676,66 +676,66 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         </Select>
                       </div>
 
-                      {formData.tipo_vinculo === 'lote' && (
-                        <div className="space-y-1">
+                      {formData.tipo_vinculo === 'lote' &&
+                  <div className="space-y-1">
                           <Label className="text-xs">Lote *</Label>
                           <Select value={formData.lote_vinculado_id} onValueChange={(v) => handleChange('lote_vinculado_id', v)}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Selecione o lote" />
                             </SelectTrigger>
                             <SelectContent>
-                              {lotes.map(lote => (
-                                <SelectItem key={lote.id} value={lote.id} className="text-xs">
+                              {lotes.map((lote) =>
+                        <SelectItem key={lote.id} value={lote.id} className="text-xs">
                                   {lote.identificacao || lote.nome} - {lote.quantidade_animais || 0} cab
                                 </SelectItem>
-                              ))}
+                        )}
                             </SelectContent>
                           </Select>
                         </div>
-                      )}
+                  }
 
-                      {formData.tipo_vinculo === 'area' && (
-                        <div className="space-y-1">
+                      {formData.tipo_vinculo === 'area' &&
+                  <div className="space-y-1">
                           <Label className="text-xs">Área *</Label>
                           <Select value={formData.area_vinculada_id} onValueChange={(v) => handleChange('area_vinculada_id', v)}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Selecione a área" />
                             </SelectTrigger>
                             <SelectContent>
-                              {areas.map(area => (
-                                <SelectItem key={area.id} value={area.id} className="text-xs">
+                              {areas.map((area) =>
+                        <SelectItem key={area.id} value={area.id} className="text-xs">
                                   {area.nome} {area.tamanho_hectares ? `(${area.tamanho_hectares} ha)` : ''}
                                 </SelectItem>
-                              ))}
+                        )}
                             </SelectContent>
                           </Select>
                         </div>
-                      )}
+                  }
 
-                      {formData.tipo_vinculo === 'maquina' && (
-                        <div className="space-y-1">
+                      {formData.tipo_vinculo === 'maquina' &&
+                  <div className="space-y-1">
                           <Label className="text-xs">Máquina *</Label>
                           <Select value={formData.maquina_vinculada_id} onValueChange={(v) => handleChange('maquina_vinculada_id', v)}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Selecione a máquina" />
                             </SelectTrigger>
                             <SelectContent>
-                              {maquinas.map(maq => (
-                                <SelectItem key={maq.id} value={maq.id} className="text-xs">
+                              {maquinas.map((maq) =>
+                        <SelectItem key={maq.id} value={maq.id} className="text-xs">
                                   {maq.nome || maq.identificacao} {maq.placa ? `(${maq.placa})` : ''}
                                 </SelectItem>
-                              ))}
+                        )}
                             </SelectContent>
                           </Select>
                         </div>
-                      )}
+                  }
                     </div>
-                  )}
+                }
                 </div>
-              )}
+              }
 
-              {mostrarDadosNFe && (
-                <>
+              {mostrarDadosNFe &&
+              <>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Tipo Documento</Label>
@@ -786,46 +786,46 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <Input value={formData.chave_documento} onChange={(e) => handleChange('chave_documento', e.target.value)} placeholder="00000000000000000000000000000000000000000000" className="h-8 text-xs" maxLength={44} />
                   </div>
                 </>
-              )}
+              }
 
-              {formData.tipo_movimentacao === 'Ajuste' && (
-                <div className="space-y-1">
+              {formData.tipo_movimentacao === 'Ajuste' &&
+              <div className="space-y-1">
                   <Label className="text-xs">Motivo do Ajuste *</Label>
                   <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o motivo do ajuste" className="h-8 text-xs" required />
                 </div>
-              )}
+              }
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <Label className="text-xs font-semibold">Produtos</Label>
-                    {formData.tipo_movimentacao === 'Saída' && formData.local_estoque && (
-                      <p className="text-[10px] text-blue-600">
+                    {formData.tipo_movimentacao === 'Saída' && formData.local_estoque &&
+                    <p className="text-[10px] text-blue-600">
                         Mostrando produtos com estoque em: {formData.local_estoque}
                       </p>
-                    )}
+                    }
                   </div>
                   <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs" disabled={formData.tipo_movimentacao === 'Saída' && !formData.local_estoque}>
                     Adicionar
                   </Button>
                 </div>
 
-                {formData.tipo_movimentacao === 'Saída' && !formData.local_estoque && (
-                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                {formData.tipo_movimentacao === 'Saída' && !formData.local_estoque &&
+                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
                     ⚠️ Selecione o local de estoque para visualizar os produtos disponíveis
                   </div>
-                )}
+                }
 
-                {formData.produtos_selecionados.length > 0 && (
-                  <div className="border rounded bg-white">
+                {formData.produtos_selecionados.length > 0 &&
+                <div className="bg-white rounded border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8 text-xs"></TableHead>
                           <TableHead className="min-w-[200px] text-xs">Produto *</TableHead>
-                          {formData.tipo_movimentacao === 'Saída' && (
-                            <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
-                          )}
+                          {formData.tipo_movimentacao === 'Saída' &&
+                        <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
+                        }
                           <TableHead className="text-center w-16 text-xs">Qtd *</TableHead>
                           <TableHead className="text-center w-20 text-xs">Total</TableHead>
                           <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
@@ -835,15 +835,15 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </TableHeader>
                       <TableBody>
                         {formData.produtos_selecionados.map((produto, index) => {
-                          const total = parseNumero(produto.valor_total || "0");
-                          const desc = parseNumero(produto.desconto_item || "0");
-                          const liquido = total - desc;
-                          const qtd = parseNumero(produto.quantidade || "0");
-                          const unitario = qtd > 0 ? (liquido / qtd) : 0;
-                          const estoqueDisponivel = estoquePorLocal[produto.produto_id]?.[formData.local_estoque] || 0;
+                        const total = parseNumero(produto.valor_total || "0");
+                        const desc = parseNumero(produto.desconto_item || "0");
+                        const liquido = total - desc;
+                        const qtd = parseNumero(produto.quantidade || "0");
+                        const unitario = qtd > 0 ? liquido / qtd : 0;
+                        const estoqueDisponivel = estoquePorLocal[produto.produto_id]?.[formData.local_estoque] || 0;
 
-                          return (
-                            <TableRow key={index}>
+                        return (
+                          <TableRow key={index}>
                               <TableCell className="w-8">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
@@ -859,57 +859,57 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
-                              <TableCell className="min-w-[200px]">
+                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[200px]">
                                 <AutocompleteGenerico
-                                  items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtos}
-                                  value={produto.produto_id}
-                                  onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
-                                  placeholder="Buscar produto..."
-                                  displayField={formData.tipo_movimentacao === 'Saída' ? "nome_com_estoque" : "nome_produto"}
-                                  searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                                  renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
-                                  className="w-full"
-                                />
+                                items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtos}
+                                value={produto.produto_id}
+                                onChange={(v) => handleAtualizarProduto(index, 'produto_id', v)}
+                                placeholder="Buscar produto..."
+                                displayField={formData.tipo_movimentacao === 'Saída' ? "nome_com_estoque" : "nome_produto"}
+                                searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                                renderSubtext={(p) => p.codigo_interno ? `Cód: ${p.codigo_interno}` : ''}
+                                className="w-full" />
+
                               </TableCell>
-                              {formData.tipo_movimentacao === 'Saída' && (
-                                <TableCell className="w-20 text-center">
+                              {formData.tipo_movimentacao === 'Saída' &&
+                            <TableCell className="w-20 text-center">
                                   <Badge variant="outline" className={`text-[10px] ${estoqueDisponivel > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                                     {estoqueDisponivel.toFixed(2)}
                                   </Badge>
                                 </TableCell>
-                              )}
-                              <TableCell className="w-16">
-                                <Input 
-                                  value={produto.quantidade} 
-                                  onChange={(e) => {
-                                    const valor = e.target.value.replace(/[^\d,]/g, '');
-                                    handleAtualizarProduto(index, 'quantidade', valor);
-                                  }} 
-                                  placeholder="0,00" 
-                                  className="text-center h-6 text-xs" 
-                                />
+                            }
+                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-16">
+                                <Input
+                                value={produto.quantidade}
+                                onChange={(e) => {
+                                  const valor = e.target.value.replace(/[^\d,]/g, '');
+                                  handleAtualizarProduto(index, 'quantidade', valor);
+                                }}
+                                placeholder="0,00"
+                                className="text-center h-6 text-xs" />
+
                               </TableCell>
-                              <TableCell className="w-20">
-                                <Input 
-                                  value={produto.valor_total} 
-                                  onChange={(e) => {
-                                    const valor = e.target.value.replace(/[^\d,]/g, '');
-                                    handleAtualizarProduto(index, 'valor_total', valor);
-                                  }} 
-                                  placeholder="0,00" 
-                                  className="text-center h-6 text-xs" 
-                                />
+                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
+                                <Input
+                                value={produto.valor_total}
+                                onChange={(e) => {
+                                  const valor = e.target.value.replace(/[^\d,]/g, '');
+                                  handleAtualizarProduto(index, 'valor_total', valor);
+                                }}
+                                placeholder="0,00"
+                                className="text-center h-6 text-xs" />
+
                               </TableCell>
-                              <TableCell className="w-20">
-                                <Input 
-                                  value={produto.desconto_item || "0,00"} 
-                                  onChange={(e) => {
-                                    const valor = e.target.value.replace(/[^\d,]/g, '');
-                                    handleAtualizarProduto(index, 'desconto_item', valor);
-                                  }} 
-                                  placeholder="0,00" 
-                                  className="text-center h-6 text-xs" 
-                                />
+                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
+                                <Input
+                                value={produto.desconto_item || "0,00"}
+                                onChange={(e) => {
+                                  const valor = e.target.value.replace(/[^\d,]/g, '');
+                                  handleAtualizarProduto(index, 'desconto_item', valor);
+                                }}
+                                placeholder="0,00"
+                                className="text-center h-6 text-xs" />
+
                               </TableCell>
                               <TableCell className="w-24">
                                 <div className="text-center">
@@ -920,35 +920,35 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               <TableCell className="text-center w-12">
                                 <span className="text-xs font-mono">{produto.unidade || '-'}</span>
                               </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                            </TableRow>);
+
+                      })}
                       </TableBody>
                     </Table>
                   </div>
-                )}
+                }
 
-                {formData.produtos_selecionados.length > 0 && (
-                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+                {formData.produtos_selecionados.length > 0 &&
+                <div className="mt-3 bg-white border border-slate-300 rounded p-3">
                     <div className="space-y-1 text-xs">
                       <div className="font-semibold text-slate-800 mb-1">Resumo</div>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Total Produtos:</span>
                         <span className="font-mono font-semibold text-slate-800">{formatarMoeda(totalProdutosLiquido)}</span>
                       </div>
-                      {formData.vinculado && formData.tipo_vinculo && (
-                        <div className="flex justify-between text-blue-700">
+                      {formData.vinculado && formData.tipo_vinculo &&
+                    <div className="flex justify-between text-blue-700">
                           <span>Vinculado a:</span>
                           <span className="font-semibold">
-                            {formData.tipo_vinculo === 'lote' && lotes.find(l => l.id === formData.lote_vinculado_id)?.identificacao}
-                            {formData.tipo_vinculo === 'area' && areas.find(a => a.id === formData.area_vinculada_id)?.nome}
-                            {formData.tipo_vinculo === 'maquina' && (maquinas.find(m => m.id === formData.maquina_vinculada_id)?.nome || maquinas.find(m => m.id === formData.maquina_vinculada_id)?.identificacao)}
+                            {formData.tipo_vinculo === 'lote' && lotes.find((l) => l.id === formData.lote_vinculado_id)?.identificacao}
+                            {formData.tipo_vinculo === 'area' && areas.find((a) => a.id === formData.area_vinculada_id)?.nome}
+                            {formData.tipo_vinculo === 'maquina' && (maquinas.find((m) => m.id === formData.maquina_vinculada_id)?.nome || maquinas.find((m) => m.id === formData.maquina_vinculada_id)?.identificacao)}
                           </span>
                         </div>
-                      )}
+                    }
                     </div>
                   </div>
-                )}
+                }
               </div>
 
               <div className="space-y-1">
@@ -969,9 +969,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
         </Card>
       </motion.div>
 
-      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['locais_mov'] }); const local = locais.find(l => l.id === id); if (local && !formData.local_estoque) handleChange('local_estoque', local.nome); setShowDialogLocal(false); }} />
-      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['centros_mov'] }); handleChange('centro_custo_id', id); setShowDialogCentro(false); }} />
-      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => { queryClient.invalidateQueries({ queryKey: ['produtos'] }); setShowDialogProduto(false); }} />
-    </>
-  );
+      <DialogCadastroRapido tipo="local_estoque" open={showDialogLocal} onClose={() => setShowDialogLocal(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['locais_mov'] });const local = locais.find((l) => l.id === id);if (local && !formData.local_estoque) handleChange('local_estoque', local.nome);setShowDialogLocal(false);}} />
+      <DialogCadastroRapido tipo="centro_custo" open={showDialogCentro} onClose={() => setShowDialogCentro(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['centros_mov'] });handleChange('centro_custo_id', id);setShowDialogCentro(false);}} />
+      <DialogCadastroRapido tipo="produto" open={showDialogProduto} onClose={() => setShowDialogProduto(false)} onSuccess={(id) => {queryClient.invalidateQueries({ queryKey: ['produtos'] });setShowDialogProduto(false);}} />
+    </>);
+
 }
