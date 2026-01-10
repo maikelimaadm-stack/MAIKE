@@ -101,10 +101,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [currentItem, setCurrentItem] = useState({
     produto_id: '',
     produto_nome: '',
+    produto_codigo: '',
     unidade: '',
     quantidade: '',
     preco: '',
     valor_total: '',
+    desconto_item: '0,00',
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
@@ -545,7 +547,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs">Tipo de Movimentação *</Label>
                   <Select value={formData.tipo_movimentacao} onValueChange={(v) => {handleChange('tipo_movimentacao', v);handleChange('tipo_detalhado', '');handleChange('vinculado', false);handleChange('tipo_vinculo', ''); if (v === 'Entrada') { handleChange('local_estoque_origem_id', ''); } else if (v === 'Saída') { handleChange('local_estoque_destino_id', ''); }}} required>
@@ -599,7 +601,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs">
                     {formData.tipo_movimentacao === 'Entrada' ? 'Local Estoque Destino *' :
@@ -834,7 +836,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               {mostrarDadosNFe &&
               <>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Tipo Documento</Label>
                       <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
@@ -862,7 +864,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Data Documento</Label>
                       <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs" />
@@ -1037,7 +1039,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         <Input value={currentItem?.valor_total || ''} readOnly className="h-8 text-xs" />
                       </div>
 
-                      <div className="md:col-span-3 space-y-1">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Desconto</Label>
+                        <Input
+                          value={currentItem?.desconto_item || ''}
+                          onChange={(e)=> setCurrentItem(prev=>({ ...(prev||{}), desconto_item: e.target.value }))}
+                          className="h-8 text-xs"
+                          placeholder="0,00"
+                        />
+                      </div>
+
+                      <div className="md:col-span-3 space-y-2">
                         <Label className="text-xs">Observação do Item</Label>
                         <Textarea value={currentItem?.observacao_item || ''} onChange={(e)=>setCurrentItem(prev=>({ ...(prev||{}), observacao_item: e.target.value }))} className="text-xs" rows={2} />
                       </div>
@@ -1078,7 +1090,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
                       {editingIndex !== null && (
-                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' }); }}>Cancelar Edição</Button>
+                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
                       )}
                     </div>
                   </CardContent>
