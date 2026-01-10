@@ -936,8 +936,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
                 )}
 
-                {formData.produtos_selecionados.length > 0 && (
-                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+
                     <div className="space-y-1 text-xs">
                       <div className="font-semibold text-slate-800 mb-1">Resumo</div>
                       <div className="flex justify-between">
@@ -975,28 +974,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   initialItem={editingIndex !== null ? formData.produtos_selecionados[editingIndex] : null}
                 />
               </div>
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <Label className="text-xs font-semibold">Produtos</Label>
-                    {formData.tipo_movimentacao === 'Saída' && formData.local_estoque &&
-                    <p className="text-[10px] text-blue-600">
-                        Mostrando produtos com estoque em: {formData.local_estoque}
-                      </p>
-                    }
-                  </div>
-                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs" disabled={!canAddProduto}>
-                    Adicionar
-                  </Button>
-                </div>
 
-                {formData.tipo_movimentacao === 'Saída' && !formData.local_estoque &&
-                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
-                    ⚠️ Selecione o local de estoque para visualizar os produtos disponíveis
-                  </div>
-                }
 
-                {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border">
+
+
+
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
@@ -1108,9 +1090,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       })}
                       </TableBody>
-                    </Table>
-                  </div>
-                }
+
 
                 {formData.produtos_selecionados.length > 0 &&
                 <div className="mt-3 bg-white border border-slate-300 rounded p-3">
