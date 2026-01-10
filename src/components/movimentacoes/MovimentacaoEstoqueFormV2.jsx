@@ -950,7 +950,7 @@ export default function MovimentacaoEstoqueFormV2({
             <Input 
               value={currentItem.observacao_item} 
               onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))} 
-              className="h-8 text-xs" 
+              className="h-8 text-xs w-full" 
             />
           </div>
 
