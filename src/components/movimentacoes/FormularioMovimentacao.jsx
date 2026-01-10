@@ -133,6 +133,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   });
   const [editingIndex, setEditingIndex] = useState(null);
   const [costOrigin, setCostOrigin] = useState('fifo');
+  const [selectedCostLayerId, setSelectedCostLayerId] = useState(null);
+
+  useEffect(() => {
+    setSelectedCostLayerId(null);
+  }, [currentItem.produto_id, formData.local_estoque_origem_id]);
   
   
 
@@ -275,6 +280,44 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
     return estoques;
   }, [produtos, movimentacoesEstoque, locais]);
+
+  // Camadas de custo (Entradas) por produto/local com FIFO
+  const costLayers = useMemo(() => {
+    const prodId = currentItem?.produto_id;
+    const localId = formData.local_estoque_origem_id;
+    if (!prodId || !localId) return [];
+
+    const entradas = (movimentacoesEstoque || [])
+      .filter(m => m.tipo_movimentacao === 'Entrada' && m.local_estoque_destino_id === localId && m.produto_id === prodId)
+      .sort((a,b) => new Date(a.data_documento || a.created_date || 0) - new Date(b.data_documento || b.created_date || 0));
+
+    const saidas = (movimentacoesEstoque || [])
+      .filter(m => (m.tipo_movimentacao === 'Saída' || m.tipo_movimentacao === 'Transferência') && m.local_estoque_origem_id === localId && m.produto_id === prodId)
+      .reduce((sum, m) => sum + (m.quantidade || 0), 0);
+
+    let remainingOut = saidas;
+    const layers = [];
+    for (const ent of entradas) {
+      const qtdEnt = ent.quantidade || 0;
+      const used = Math.min(qtdEnt, remainingOut);
+      const saldo = Math.max(0, qtdEnt - used);
+      const custoUnit = (typeof ent.valor_unitario === 'number' && ent.valor_unitario >= 0)
+        ? ent.valor_unitario
+        : ((ent.valor_total && ent.quantidade) ? ent.valor_total / ent.quantidade : 0);
+      layers.push({
+        id: ent.id,
+        numero_documento: ent.numero_documento,
+        serie_documento: ent.serie_documento,
+        data_documento: ent.data_documento,
+        fornecedor_nome: ent.fornecedor_nome,
+        saldo,
+        custo_unit: custoUnit
+      });
+      remainingOut = Math.max(0, remainingOut - qtdEnt);
+    }
+
+    return layers.filter(l => l.saldo > 0);
+  }, [movimentacoesEstoque, currentItem?.produto_id, formData.local_estoque_origem_id]);
 
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
@@ -537,8 +580,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const mostrarVinculo = formData.tipo_movimentacao === 'Saída';
 
   const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
-     const total = parseNumero(p.valor_total || "0");
-     const desc = parseNumero(p.desconto_item || "0");
+     const total = parseMoedaInput(p.valor_total || "0");
+     const desc = parseMoedaInput(p.desconto_item || "0");
      return sum + (total - desc);
    }, 0);
 
@@ -950,17 +993,22 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                             const prod = produtos.find(p => p.id === v);
                             const det = (formData.tipo_detalhado || '').toLowerCase();
                             let precoBase = 0;
-                            if (prod) {
-                              if (formData.tipo_movimentacao === 'Entrada') {
-                                precoBase = prod.preco_custo || 0;
-                              } else if (formData.tipo_movimentacao === 'Saída') {
-                                precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
-                              } else if (formData.tipo_movimentacao === 'Transferência') {
-                                precoBase = prod.preco_custo || 0;
-                              } else if (formData.tipo_movimentacao === 'Ajuste') {
-                                precoBase = 0; // pode ser 0 em ajuste
-                              }
-                            }
+                             if (prod) {
+                               if (formData.tipo_movimentacao === 'Entrada') {
+                                 precoBase = prod.preco_custo || 0;
+                               } else if (formData.tipo_movimentacao === 'Saída') {
+                                 const isVenda = det.includes('venda');
+                                 const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
+                                 precoBase = isVenda
+                                   ? ((prod.preco_venda || 0) > 0 ? prod.preco_venda : (layerCost ?? prod.preco_custo || 0))
+                                   : (layerCost ?? prod.preco_custo || 0);
+                               } else if (formData.tipo_movimentacao === 'Transferência') {
+                                 const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
+                                 precoBase = layerCost ?? prod.preco_custo || 0;
+                               } else if (formData.tipo_movimentacao === 'Ajuste') {
+                                 precoBase = 0; // pode ser 0 em ajuste
+                               }
+                             }
                             setCurrentItem(prev=>{
                               const qtd = parseNumero(prev?.quantidade||'0');
                               const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : (qtd > 0 ? (qtd * (precoBase || 0)) : 0);
@@ -1018,15 +1066,18 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                        const det = (formData.tipo_detalhado || '').toLowerCase();
                                                        let precoBase = 0;
                                                        if (prod) {
-                                                         if (formData.tipo_movimentacao === 'Entrada') {
-                                                           precoBase = parseNumero(currentItem?.preco || '0') || (prod.preco_custo || 0);
-                                                         } else if (formData.tipo_movimentacao === 'Saída') {
-                                                           precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
-                                                         } else if (formData.tipo_movimentacao === 'Transferência') {
-                                                           precoBase = prod.preco_custo || 0;
-                                                         } else if (formData.tipo_movimentacao === 'Ajuste') {
-                                                           precoBase = 0;
-                                                         }
+                                                          if (formData.tipo_movimentacao === 'Entrada') {
+                                                            precoBase = parseMoedaInput(currentItem?.preco || '0') || (prod.preco_custo || 0);
+                                                          } else if (formData.tipo_movimentacao === 'Saída') {
+                                                            const isVenda = det.includes('venda');
+                                                            const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
+                                                            precoBase = isVenda ? (parseMoedaInput(currentItem?.preco || '0') || (prod.preco_venda || layerCost || prod.preco_custo || 0)) : (layerCost || prod.preco_custo || 0);
+                                                          } else if (formData.tipo_movimentacao === 'Transferência') {
+                                                            const layerCost = costOrigin === 'lote' ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit) : (costLayers[0]?.custo_unit);
+                                                            precoBase = layerCost || prod.preco_custo || 0;
+                                                          } else if (formData.tipo_movimentacao === 'Ajuste') {
+                                                            precoBase = 0;
+                                                          }
                                                          const qtdNum = parseNumero(val);
                                                          if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && currentItem?.produto_id) {
                                                            const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
@@ -1106,19 +1157,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
                           if (qtdNum > saldo) { toast.error('Saldo insuficiente'); return; }
                         }
-                        const precoUnit = parseNumero(currentItem?.preco || '0');
-                        const desconto = parseNumero(currentItem?.desconto_item || '0');
-                        const total = parseNumero(currentItem?.valor_total || '0');
+                        const precoUnit = currentItem?.preco_unitario ?? parseMoedaInput(currentItem?.preco || '0');
+                        const desconto = parseMoedaInput(currentItem?.desconto_item || '0');
+                        const total = parseMoedaInput(currentItem?.valor_total || '0');
                         const novo = {
                                                    produto_id: currentItem.produto_id,
                                                    produto_nome: currentItem.produto_nome,
                                                    produto_codigo: currentItem.produto_codigo || '',
                                                    unidade: currentItem.unidade || '',
                                                    quantidade: formatarNumero(qtdNum),
-                                                   preco: currentItem.preco || formatarNumero(precoUnit),
+                                                   preco: currentItem.preco || formatarMoedaInput(precoUnit),
                                                    preco_unitario: precoUnit,
-                                                   valor_total: formatarNumero(total),
-                                                   desconto_item: formatarNumero(desconto),
+                                                   valor_total: formatarMoedaInput(total),
+                                                   desconto_item: formatarMoedaInput(desconto),
                                                    observacao_item: currentItem.observacao_item || ''
                                                  };
                         if (editingIndex !== null) {
@@ -1203,10 +1254,10 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                             <TableCell className="text-xs py-1 px-2 border border-gray-300">{p.produto_codigo || '-'}</TableCell>
                             <TableCell className="text-xs py-1 px-2 border border-gray-300">{p.unidade || '-'}</TableCell>
                             <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(qtdNum)}</TableCell>
-                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(precoUnit)}</TableCell>
-                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{p.valor_total || '0,00'}</TableCell>
-                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{p.desconto_item || '0,00'}</TableCell>
-                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(liquido)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarMoeda(precoUnit)}</TableCell>
+                                                          <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarMoeda(total)}</TableCell>
+                                                          <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarMoeda(desc)}</TableCell>
+                                                          <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarMoeda(liquido)}</TableCell>
                           </TableRow>
                         );
                       })}
