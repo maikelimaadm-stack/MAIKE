@@ -102,6 +102,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [produtosLista, setProdutosLista] = useState(produtos || []);
   useEffect(() => { setProdutosLista(produtos || []); }, [produtos]);
 
+
+
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais_mov'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+    initialData: []
+  });
+
   // Ajustar IDs de locais quando lista de locais carregar
   useEffect(() => {
     if (locais.length) {
@@ -115,12 +123,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       }
     }
   }, [locais]);
-
-  const { data: locais = [] } = useQuery({
-    queryKey: ['locais_mov'],
-    queryFn: () => base44.entities.LocalEstoque.list(),
-    initialData: []
-  });
 
   const { data: centros = [] } = useQuery({
     queryKey: ['centros_mov', empresaSelecionadaId],
@@ -841,7 +843,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 }
 
                 {formData.produtos_selecionados.length > 0 &&
-                <div className="bg-white rounded border min-h-[340px]">
+                <div className="bg-white rounded border min-h-[420px]">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50">
