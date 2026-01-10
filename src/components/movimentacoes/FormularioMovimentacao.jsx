@@ -66,6 +66,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     return {
       tipo_movimentacao: initialData?.tipo_movimentacao || "",
       tipo_detalhado: initialData?.tipo_detalhado || "",
+      data_movimentacao: initialData?.data_movimentacao ? (initialData.data_movimentacao.split('T')[0]) : new Date().toISOString().slice(0,10),
       local_estoque_origem_id: initialData?.local_estoque_origem_id || "",
       local_estoque_destino_id: initialData?.local_estoque_destino_id || "",
       empresa_destino_id: initialData?.empresa_destino_id || "",
@@ -164,18 +165,24 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
   // Ajuste de IDs a partir de nomes ao carregar edição antiga
   useEffect(() => {
-    if (!initialData) return;
-    // origem
-    if (!formData.local_estoque_origem_id && initialData.local_estoque_origem && locais.length) {
-      const local = locais.find(l => l.nome === initialData.local_estoque_origem);
-      if (local) setFormData(prev => ({ ...prev, local_estoque_origem_id: local.id }));
-    }
-    // destino
-    if (!formData.local_estoque_destino_id && initialData.local_estoque_destino && locais.length) {
-      const local = locais.find(l => l.nome === initialData.local_estoque_destino);
-      if (local) setFormData(prev => ({ ...prev, local_estoque_destino_id: local.id }));
-    }
-  }, [initialData, locais]);
+     if (!initialData) return;
+     // origem
+     if (!formData.local_estoque_origem_id && initialData.local_estoque_origem && locais.length) {
+       const local = locais.find(l => l.nome === initialData.local_estoque_origem);
+       if (local) setFormData(prev => ({ ...prev, local_estoque_origem_id: local.id }));
+     }
+     // destino
+     if (!formData.local_estoque_destino_id && initialData.local_estoque_destino && locais.length) {
+       const local = locais.find(l => l.nome === initialData.local_estoque_destino);
+       if (local) setFormData(prev => ({ ...prev, local_estoque_destino_id: local.id }));
+     }
+     // data
+     if (initialData.data_movimentacao && !formData.data_movimentacao) {
+       try {
+         setFormData(prev => ({ ...prev, data_movimentacao: initialData.data_movimentacao.split('T')[0] }));
+       } catch {}
+     }
+   }, [initialData, locais]);
 
    // Calcular estoque por local
   const estoquePorLocal = useMemo(() => {
@@ -294,7 +301,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                 // Não preencher valor automático por enquanto, deixar usuário definir
               }}} // Calcular valor total baseado na quantidade
-          if (campo === 'quantidade' && updated.preco_custo && formData.tipo_movimentacao === 'Saída') {const qtd = parseNumero(valor);updated.valor_total = formatarNumero(qtd * updated.preco_custo);}
+          if (campo === 'quantidade') {
+            const qtd = parseNumero(valor);
+            if (formData.tipo_movimentacao === 'Transferência') {
+              updated.valor_total = formatarNumero(qtd * (updated.preco_custo || 0));
+            } else if (formData.tipo_movimentacao === 'Saída') {
+              const det = (formData.tipo_detalhado || '').toLowerCase();
+              if (det.includes('venda') && (updated.preco_venda || 0) > 0) {
+                updated.valor_total = formatarNumero(qtd * updated.preco_venda);
+              } else if (det.includes('consumo') || det.includes('suplementa') || det.includes('aplica') || det.includes('manuten')) {
+                updated.valor_total = formatarNumero(qtd * (updated.preco_custo || 0));
+              }
+            } else if (formData.tipo_movimentacao === 'Ajuste') {
+              // livre
+            }
+          }
           return updated;
         }
         return p;
@@ -405,24 +426,25 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       const valorUnitario = qtd > 0 ? valorLiquido / qtd : 0;
 
       return {
-        produto_id: p.produto_id,
-        produto_nome: p.produto_nome,
-        produto_codigo: p.produto_codigo,
-        unidade_medida: p.unidade,
-        quantidade: qtd,
-        valor_unitario: valorUnitario,
-        desconto: desconto,
-        valor_total: valorLiquido
-      };
+         produto_id: p.produto_id,
+         produto_nome: p.produto_nome,
+         produto_codigo: p.produto_codigo,
+         unidade_medida: p.unidade,
+         quantidade: qtd,
+         valor_unitario: valorUnitario,
+         desconto: desconto,
+         valor_total: valorLiquido,
+         observacao_item: p.observacao_item || undefined
+       };
     });
 
     const dadosComuns = {
       tipo_movimentacao: formData.tipo_movimentacao,
       tipo_detalhado: formData.tipo_detalhado,
-      local_estoque_origem_id: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') ? formData.local_estoque_origem_id : undefined,
-      local_estoque_origem_nome: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') ? (locais.find(l => l.id === formData.local_estoque_origem_id)?.nome) : undefined,
-      local_estoque_destino_id: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência') ? formData.local_estoque_destino_id : undefined,
-      local_estoque_destino_nome: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência') ? (locais.find(l => l.id === formData.local_estoque_destino_id)?.nome) : undefined,
+      local_estoque_origem_id: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' || (formData.tipo_movimentacao === 'Ajuste' && !(formData.tipo_detalhado || '').toUpperCase().includes('POSITIVO'))) ? formData.local_estoque_origem_id : undefined,
+      local_estoque_origem_nome: (formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' || (formData.tipo_movimentacao === 'Ajuste' && !(formData.tipo_detalhado || '').toUpperCase().includes('POSITIVO'))) ? (locais.find(l => l.id === formData.local_estoque_origem_id)?.nome) : undefined,
+      local_estoque_destino_id: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' || (formData.tipo_movimentacao === 'Ajuste' && (formData.tipo_detalhado || '').toUpperCase().includes('POSITIVO'))) ? formData.local_estoque_destino_id : undefined,
+      local_estoque_destino_nome: (formData.tipo_movimentacao === 'Entrada' || formData.tipo_movimentacao === 'Transferência' || (formData.tipo_movimentacao === 'Ajuste' && (formData.tipo_detalhado || '').toUpperCase().includes('POSITIVO'))) ? (locais.find(l => l.id === formData.local_estoque_destino_id)?.nome) : undefined,
       empresa_destino_id: formData.tipo_detalhado === 'Entre Empresas' ? formData.empresa_destino_id : undefined,
       empresa_destino_nome: empresaDestino?.nome,
       tipo_documento: formData.tipo_documento || undefined,
@@ -439,7 +461,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       centro_custo_nome: centro?.nome,
       motivo_movimentacao: formData.motivo_movimentacao,
       observacoes: formData.observacoes || undefined,
-      data_movimentacao: new Date().toISOString(),
+      data_movimentacao: formData.data_movimentacao ? new Date(formData.data_movimentacao).toISOString() : new Date().toISOString(),
       status: 'Ativa',
       // Dados de vínculo
       vinculado: formData.vinculado,
@@ -465,10 +487,27 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const mostrarVinculo = formData.tipo_movimentacao === 'Saída';
 
   const totalProdutosLiquido = formData.produtos_selecionados.reduce((sum, p) => {
-    const total = parseNumero(p.valor_total || "0");
-    const desc = parseNumero(p.desconto_item || "0");
-    return sum + (total - desc);
-  }, 0);
+     const total = parseNumero(p.valor_total || "0");
+     const desc = parseNumero(p.desconto_item || "0");
+     return sum + (total - desc);
+   }, 0);
+
+   const canAddProduto = React.useMemo(() => {
+     if (formData.tipo_movimentacao === 'Entrada') return !!formData.local_estoque_destino_id;
+     if (formData.tipo_movimentacao === 'Saída') return !!formData.local_estoque_origem_id;
+     if (formData.tipo_movimentacao === 'Transferência') return !!formData.local_estoque_origem_id && !!formData.local_estoque_destino_id;
+     if (formData.tipo_movimentacao === 'Ajuste') return !!(formData.local_estoque_origem_id || formData.local_estoque_destino_id);
+     return false;
+   }, [formData.tipo_movimentacao, formData.local_estoque_origem_id, formData.local_estoque_destino_id]);
+
+   const isPrecoTravado = React.useMemo(() => {
+     if (formData.tipo_movimentacao === 'Transferência') return true;
+     if (formData.tipo_movimentacao === 'Saída') {
+       const det = (formData.tipo_detalhado || '').toLowerCase();
+       if (det.includes('consumo') || det.includes('suplementa') || det.includes('aplica') || det.includes('manuten')) return true;
+     }
+     return false;
+   }, [formData.tipo_movimentacao, formData.tipo_detalhado]);
 
   return (
     <>
@@ -512,6 +551,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
 
                 <div className="space-y-1">
+                  <Label className="text-xs">Data da Movimentação</Label>
+                  <Input type="date" value={formData.data_movimentacao} onChange={(e) => handleChange('data_movimentacao', e.target.value)} className="h-8 text-xs" />
+                </div>
+
+                 <div className="space-y-1">
                   <Label className="text-xs">Centro de Custo</Label>
                   <div className="flex gap-2">
                     <AutocompleteGenerico
@@ -543,6 +587,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       value={formData.tipo_movimentacao === 'Entrada' ? (formData.local_estoque_destino_id || "") : (formData.local_estoque_origem_id || "")}
                       onChange={(id) => {
                         if (formData.tipo_movimentacao === 'Entrada') {
+                          handleChange('local_estoque_destino_id', id);
+                        } else if (formData.tipo_movimentacao === 'Ajuste') {
+                          handleChange('local_estoque_origem_id', id);
                           handleChange('local_estoque_destino_id', id);
                         } else {
                           handleChange('local_estoque_origem_id', id);
@@ -831,7 +878,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </p>
                     }
                   </div>
-                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs" disabled={formData.tipo_movimentacao === 'Saída' && !formData.local_estoque}>
+                  <Button type="button" onClick={handleAdicionarProduto} variant="outline" size="sm" className="h-7 text-xs" disabled={!canAddProduto}>
                     Adicionar
                   </Button>
                 </div>
@@ -856,6 +903,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                           <TableHead className="text-center w-20 text-xs">Total</TableHead>
                           <TableHead className="text-center w-20 text-xs">Desc.</TableHead>
                           <TableHead className="text-center w-24 text-xs">Líquido</TableHead>
+                          <TableHead className="text-center w-36 text-xs">Obs.</TableHead>
                           <TableHead className="text-center w-12 text-xs">UN</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -916,16 +964,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                               </TableCell>
                               <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
-                                <Input
-                                value={produto.valor_total}
-                                onChange={(e) => {
-                                  const valor = e.target.value.replace(/[^\d,]/g, '');
-                                  handleAtualizarProduto(index, 'valor_total', valor);
-                                }}
-                                placeholder="0,00"
-                                className="text-center h-6 text-xs" />
+                                 <Input
+                                 value={produto.valor_total}
+                                 onChange={(e) => {
+                                   const valor = e.target.value.replace(/[^\d,]/g, '');
+                                   handleAtualizarProduto(index, 'valor_total', valor);
+                                 }}
+                                 placeholder="0,00"
+                                 disabled={isPrecoTravado || formData.tipo_movimentacao === 'Transferência'}
+                                 className="text-center h-6 text-xs" />
 
-                              </TableCell>
+                               </TableCell>
                               <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20">
                                 <Input
                                 value={produto.desconto_item || "0,00"}
@@ -938,14 +987,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                               </TableCell>
                               <TableCell className="w-24">
-                                <div className="text-center">
-                                  <div className="font-bold text-xs">{formatarMoeda(liquido)}</div>
-                                  <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center w-12">
-                                <span className="text-xs font-mono">{produto.unidade || '-'}</span>
-                              </TableCell>
+                                 <div className="text-center">
+                                   <div className="font-bold text-xs">{formatarMoeda(liquido)}</div>
+                                   <div className="text-[10px] text-slate-500">Un: {formatarMoeda(unitario)}</div>
+                                 </div>
+                               </TableCell>
+                               <TableCell className="w-36">
+                                 <Input value={produto.observacao_item || ''} onChange={(e) => handleAtualizarProduto(index, 'observacao_item', e.target.value)} placeholder="Observação" className="h-6 text-xs" />
+                               </TableCell>
+                               <TableCell className="text-center w-12">
+                                 <span className="text-xs font-mono">{produto.unidade || '-'}</span>
+                               </TableCell>
                             </TableRow>);
 
                       })}

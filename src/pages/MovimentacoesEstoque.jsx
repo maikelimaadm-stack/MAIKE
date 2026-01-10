@@ -173,7 +173,7 @@ export default function MovimentacoesEstoque() {
       numero_movimentacao: String(proximoNumero),
       tipo_movimentacao: dadosComuns.tipo_movimentacao,
       tipo_detalhado: dadosComuns.tipo_detalhado,
-      data_movimentacao: new Date().toISOString(),
+      data_movimentacao: dadosComuns.data_movimentacao ? new Date(dadosComuns.data_movimentacao).toISOString() : new Date().toISOString(),
       produto_id: produto.produto_id,
       produto_nome: produto.produto_nome,
       produto_codigo: produtoData.codigo_interno,

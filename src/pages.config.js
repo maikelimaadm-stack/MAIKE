@@ -36,6 +36,7 @@ import Home from './pages/Home';
 import LancamentoFinanceiro from './pages/LancamentoFinanceiro';
 import LancamentoPesagensIndividuais from './pages/LancamentoPesagensIndividuais';
 import LancamentoPesagensMobile from './pages/LancamentoPesagensMobile';
+import LancamentoProdutosEstoque from './pages/LancamentoProdutosEstoque';
 import LancamentoTarefaForm from './pages/LancamentoTarefaForm';
 import LancamentosTarefas from './pages/LancamentosTarefas';
 import LivroCaixa from './pages/LivroCaixa';
@@ -69,7 +70,6 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
-import LancamentoProdutosEstoque from './pages/LancamentoProdutosEstoque';
 import __Layout from './Layout.jsx';
 
 
@@ -112,6 +112,7 @@ export const PAGES = {
     "LancamentoFinanceiro": LancamentoFinanceiro,
     "LancamentoPesagensIndividuais": LancamentoPesagensIndividuais,
     "LancamentoPesagensMobile": LancamentoPesagensMobile,
+    "LancamentoProdutosEstoque": LancamentoProdutosEstoque,
     "LancamentoTarefaForm": LancamentoTarefaForm,
     "LancamentosTarefas": LancamentosTarefas,
     "LivroCaixa": LivroCaixa,
@@ -145,7 +146,6 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
-    "LancamentoProdutosEstoque": LancamentoProdutosEstoque,
 }
 
 export const pagesConfig = {
