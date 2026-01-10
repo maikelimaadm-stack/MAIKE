@@ -876,11 +876,11 @@ export default function MovimentacaoEstoqueFormV2({
           )}
 
           {/* Linha 1: Produto, Quantidade, Unidade */}
-          <div className="grid grid-cols-12 gap-2">
-            <div className="col-span-6 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs">Produto *</Label>
               <Select value={currentItem.produto_id} onValueChange={handleProdutoChange}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs w-full">
                   <SelectValue placeholder="Selecione o produto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -896,24 +896,24 @@ export default function MovimentacaoEstoqueFormV2({
                 <p className="text-xs text-slate-600">Saldo disponível: {saldoProdutoNoLocal.toFixed(2)} {currentItem.unidade}</p>
               )}
             </div>
-            <div className="col-span-3 space-y-1">
+            <div className="space-y-1">
               <Label className="text-xs">Quantidade *</Label>
               <Input 
                 type="number" 
                 step="0.01"
                 value={currentItem.quantidade} 
                 onChange={(e) => handleQuantidadeChange(e.target.value)} 
-                className="h-8 text-xs" 
+                className="h-8 text-xs w-full" 
               />
             </div>
-            <div className="col-span-3 space-y-1">
+            <div className="space-y-1">
               <Label className="text-xs">Unidade</Label>
-              <Input value={currentItem.unidade} readOnly className="h-8 text-xs bg-slate-100" />
+              <Input value={currentItem.unidade} readOnly className="h-8 text-xs w-full bg-slate-100" />
             </div>
           </div>
 
           {/* Linha 2: Preço, Total, Desconto, Líquido */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Preço Unitário</Label>
               <Input 
@@ -921,12 +921,12 @@ export default function MovimentacaoEstoqueFormV2({
                 step="0.01"
                 value={currentItem.preco_unitario} 
                 onChange={(e) => handlePrecoChange(e.target.value)} 
-                className="h-8 text-xs" 
+                className="h-8 text-xs w-full" 
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Total</Label>
-              <Input value={currentItem.total} readOnly className="h-8 text-xs bg-slate-100" />
+              <Input value={currentItem.total} readOnly className="h-8 text-xs w-full bg-slate-100" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Desconto</Label>
@@ -935,12 +935,12 @@ export default function MovimentacaoEstoqueFormV2({
                 step="0.01"
                 value={currentItem.desconto} 
                 onChange={(e) => handleDescontoChange(e.target.value)} 
-                className="h-8 text-xs" 
+                className="h-8 text-xs w-full" 
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Líquido</Label>
-              <Input value={currentItem.liquido} readOnly className="h-8 text-xs bg-slate-100 font-semibold" />
+              <Input value={currentItem.liquido} readOnly className="h-8 text-xs w-full bg-slate-100 font-semibold" />
             </div>
           </div>
 
