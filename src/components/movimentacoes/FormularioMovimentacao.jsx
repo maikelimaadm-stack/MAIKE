@@ -1091,6 +1091,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       })}
                       </TableBody>
+                    </Table>
 
 
                 {formData.produtos_selecionados.length > 0 &&
@@ -1114,9 +1115,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     </div>
                   </div>
                 }
-              </div>
 
-              <div className="space-y-1">
+                <div className="space-y-1">
                 <Label className="text-xs">Observações</Label>
                 <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="Observações Adicionais..." className="text-xs" rows={2} />
               </div>
