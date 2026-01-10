@@ -319,6 +319,44 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
     return layers.filter(l => l.saldo > 0);
   }, [movimentacoesEstoque, currentItem?.produto_id, formData.local_estoque_origem_id]);
 
+  // Recalcular preço/total ao mudar tipo, origem do custo ou camada selecionada
+  useEffect(() => {
+    if (!currentItem?.produto_id) return;
+    const prod = produtos.find(p => p.id === currentItem.produto_id);
+    if (!prod) return;
+    const det = (formData.tipo_detalhado || '').toLowerCase();
+    let base = 0;
+    if (formData.tipo_movimentacao === 'Entrada') {
+      base = prod.preco_custo || 0;
+    } else if (formData.tipo_movimentacao === 'Saída') {
+      const isVenda = det.includes('venda');
+      const layerCost = costOrigin === 'lote'
+        ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit)
+        : (costLayers[0]?.custo_unit);
+      base = isVenda
+        ? ((prod.preco_venda || 0) > 0 ? prod.preco_venda : (((layerCost ?? prod.preco_custo) || 0)))
+        : (((layerCost ?? prod.preco_custo) || 0));
+    } else if (formData.tipo_movimentacao === 'Transferência') {
+      const layerCost = costOrigin === 'lote'
+        ? (costLayers.find(l => l.id === selectedCostLayerId)?.custo_unit)
+        : (costLayers[0]?.custo_unit);
+      base = ((layerCost ?? prod.preco_custo) || 0);
+    } else {
+      base = 0;
+    }
+    const qtdNum = parseNumero(currentItem?.quantidade || '0');
+    const keepUserTyped = (formData.tipo_movimentacao === 'Entrada') || (formData.tipo_movimentacao === 'Saída' && det.includes('venda'));
+    const unit = keepUserTyped ? (parseMoedaInput(currentItem?.preco || '0') || base) : base;
+    const totalCalc = (formData.tipo_movimentacao === 'Ajuste') ? 0 : (qtdNum * unit);
+    setCurrentItem(prev => ({
+      ...(prev || {}),
+      preco: formatarMoedaInput(unit),
+      preco_unitario: unit,
+      valor_total: formatarMoedaInput(totalCalc),
+      valor_liquido_item: formatarMoedaInput(totalCalc - parseMoedaInput(prev?.desconto_item || '0')),
+    }));
+  }, [currentItem?.produto_id, currentItem?.quantidade, formData.tipo_movimentacao, formData.tipo_detalhado, costOrigin, selectedCostLayerId]);
+
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
     const filtraPorLocal = formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência';
@@ -1089,7 +1127,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                            }
                                                          }
                                                          const isEditable = (formData.tipo_movimentacao === 'Entrada') || (formData.tipo_movimentacao === 'Saída' && det.includes('venda'));
-                                                         const unit = isEditable ? (parseNumero(currentItem?.preco || '0') || (precoBase || 0)) : (precoBase || 0);
+                                                         const unit = isEditable ? (parseMoedaInput(currentItem?.preco || '0') || (precoBase || 0)) : (precoBase || 0);
                                                          const total = (formData.tipo_movimentacao === 'Ajuste') ? 0 : ((qtdNum || 0) * unit);
                                                                                         setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarMoedaInput(total), valor_liquido_item: formatarMoedaInput(total - parseMoedaInput(prev?.desconto_item || '0')) }));
                                                        }
@@ -1183,7 +1221,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         } else {
                           setFormData(prev=>({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
                         }
-                        setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' });
+                        setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', desconto_item: 'R$ 0,00', valor_liquido_item: 'R$ 0,00', documento_origem_id: '', custo_unitario_origem: 0, quantidade_origem: 0, observacao_item: '' });
                         setEditingIndex(null);
                       }}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
@@ -1224,8 +1262,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       {formData.produtos_selecionados.map((p, idx) => {
                         const qtdNum = parseNumero(p.quantidade || '0');
                         const precoUnit = typeof p.preco_unitario === 'number' ? p.preco_unitario : parseNumero(p.preco_unitario || '0');
-                        const total = parseNumero(p.valor_total || '0');
-                        const desc = parseNumero(p.desconto_item || '0');
+                        const total = parseMoedaInput(p.valor_total || '0');
+                        const desc = parseMoedaInput(p.desconto_item || '0');
                         const liquido = total - desc;
                         return (
                           <TableRow key={idx} className="hover:bg-gray-50">
