@@ -897,6 +897,154 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                 </div>
 
+                {/* Formulário Padrão de Produto */}
+                <Card className="bg-white border border-slate-300 mb-3">
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-sm font-semibold text-slate-900">Lançar Produto</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="md:col-span-3 space-y-1">
+                        <Label className="text-xs">Produto</Label>
+                        <AutocompleteGenerico
+                          items={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
+                          value={currentItem?.produto_id || ''}
+                          onChange={(v) => {
+                            const prod = produtos.find(p => p.id === v);
+                            setCurrentItem(prev=>({
+                              ...(prev||{}),
+                              produto_id: v || '',
+                              produto_nome: prod?.nome_produto || '',
+                              unidade: prod?.unidade_medida || '',
+                            }));
+                            if (prod) {
+                              const det = (formData.tipo_detalhado || '').toLowerCase();
+                              let precoBase = 0;
+                              if (formData.tipo_movimentacao === 'Entrada') {
+                                precoBase = prod.preco_custo || 0;
+                              } else if (formData.tipo_movimentacao === 'Saída') {
+                                precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
+                              } else {
+                                precoBase = prod.preco_custo || 0;
+                              }
+                              setCurrentItem(prev=>{
+                                const qtd = parseNumero(prev?.quantidade||'0');
+                                const total = qtd > 0 ? (qtd * precoBase) : 0;
+                                return { ...(prev||{}), preco: formatarNumero(precoBase), valor_total: formatarNumero(total) };
+                              });
+                            }
+                          }}
+                          placeholder="Selecione o produto"
+                          displayField="nome_produto"
+                          searchFields={["nome_produto","codigo_interno","codigo_barras"]}
+                          className="w-full"
+                        />
+                        {(formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && (currentItem?.produto_id) && (
+                          (()=>{
+                            const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
+                            const qtd = parseNumero(currentItem.quantidade||'0');
+                            const ok = saldo >= qtd;
+                            return (
+                              <div className="mt-1 text-xs">
+                                <Badge className={ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}>
+                                  Saldo disponível: {saldo.toFixed(2)} {currentItem.unidade || 'UN'}
+                                </Badge>
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Quantidade</Label>
+                        <Input
+                          value={currentItem?.quantidade || ''}
+                          onChange={(e)=>{
+                            const val = e.target.value;
+                            setCurrentItem(prev=>({ ...(prev||{}), quantidade: val }));
+                            const prod = produtos.find(p=>p.id=== (currentItem?.produto_id||''));
+                            const det = (formData.tipo_detalhado || '').toLowerCase();
+                            let precoBase = 0;
+                            if (prod) {
+                              if (formData.tipo_movimentacao === 'Entrada') {
+                                precoBase = parseNumero(currentItem?.preco || '0') || (prod.preco_custo || 0);
+                              } else if (formData.tipo_movimentacao === 'Saída') {
+                                precoBase = det.includes('venda') && (prod.preco_venda || 0) > 0 ? (prod.preco_venda || 0) : (prod.preco_custo || 0);
+                              } else {
+                                precoBase = prod.preco_custo || 0;
+                              }
+                              const qtdNum = parseNumero(val);
+                              if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência') && currentItem?.produto_id) {
+                                const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
+                                if (qtdNum > saldo) {
+                                  toast.error('Quantidade maior que o saldo disponível');
+                                }
+                              }
+                              const total = (qtdNum || 0) * (precoBase || 0);
+                              setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
+                            }
+                          }}
+                          className="h-8 text-xs"
+                          placeholder="0,00"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Preço</Label>
+                        <Input
+                          value={currentItem?.preco || ''}
+                          onChange={(e)=>{
+                            const val = e.target.value;
+                            setCurrentItem(prev=>({ ...(prev||{}), preco: val }));
+                            const qtdNum = parseNumero(currentItem?.quantidade||'0');
+                            const total = qtdNum * parseNumero(val||'0');
+                            setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarNumero(total) }));
+                          }}
+                          className="h-8 text-xs"
+                          placeholder="0,00"
+                          readOnly={formData.tipo_movimentacao !== 'Entrada'}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Valor Total</Label>
+                        <Input value={currentItem?.valor_total || ''} readOnly className="h-8 text-xs" />
+                      </div>
+
+                      <div className="md:col-span-3 space-y-1">
+                        <Label className="text-xs">Observação do Item</Label>
+                        <Textarea value={currentItem?.observacao_item || ''} onChange={(e)=>setCurrentItem(prev=>({ ...(prev||{}), observacao_item: e.target.value }))} className="text-xs" rows={2} />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={()=>{
+                        if (!currentItem?.produto_id) { toast.error('Selecione o produto'); return; }
+                        const qtdNum = parseNumero(currentItem?.quantidade||'0');
+                        if (qtdNum <= 0) { toast.error('Informe a quantidade'); return; }
+                        if ((formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência')) {
+                          const saldo = estoquePorLocal[currentItem.produto_id]?.[formData.local_estoque_origem_id] || 0;
+                          if (qtdNum > saldo) { toast.error('Saldo insuficiente'); return; }
+                        }
+                        const novo = { ...currentItem };
+                        if (editingIndex !== null) {
+                          setFormData(prev=>({ ...prev, produtos_selecionados: prev.produtos_selecionados.map((x,i)=> i===editingIndex ? novo : x) }));
+                        } else {
+                          setFormData(prev=>({ ...prev, produtos_selecionados: [...prev.produtos_selecionados, novo] }));
+                        }
+                        setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' });
+                        setEditingIndex(null);
+                      }}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Produto' : 'Adicionar Produto'}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' })}>Limpar</Button>
+                      {editingIndex !== null && (
+                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '' }); }}>Cancelar Edição</Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {!canAddProduto && (
                   <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
                     {formData.tipo_movimentacao === 'Saída' && '⚠️ Selecione o Local de Origem para visualizar e liberar produtos.'}
