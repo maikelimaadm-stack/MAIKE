@@ -918,8 +918,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     <CardTitle className="text-sm font-semibold text-slate-900">Lançar Produto</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="md:col-span-3 space-y-1">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="md:col-span-3 space-y-2">
                         <Label className="text-xs">Produto</Label>
                         <AutocompleteGenerico
                           items={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
@@ -1043,6 +1043,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <div className="space-y-2">
                         <Label className="text-xs">Valor Total</Label>
                         <Input value={currentItem?.valor_total || ''} readOnly className="h-8 text-xs" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs">Desconto</Label>
+                        <Input
+                          value={currentItem?.desconto_item || ''}
+                          onChange={(e)=> setCurrentItem(prev=>({ ...(prev||{}), desconto_item: e.target.value }))}
+                          className="h-8 text-xs"
+                          placeholder="0,00"
+                        />
                       </div>
 
                       <div className="space-y-2">
