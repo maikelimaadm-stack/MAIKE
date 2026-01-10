@@ -216,18 +216,21 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
   // Produtos disponíveis no local selecionado (para saída)
   const produtosComEstoqueNoLocal = useMemo(() => {
-    if (!formData.local_estoque || formData.tipo_movimentacao !== 'Saída') {
+    const filtraPorLocal = formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência';
+    if (!formData.local_estoque || !filtraPorLocal) {
       return produtos;
     }
 
-    return produtos.map((produto) => {
-      const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
-      return {
-        ...produto,
-        estoque_no_local: estoqueNoLocal,
-        nome_com_estoque: `${produto.nome_produto} (${estoqueNoLocal.toFixed(2)} ${produto.unidade_medida || 'UN'})`
-      };
-    }).filter((p) => p.estoque_no_local > 0 || formData.tipo_movimentacao !== 'Saída');
+    return produtos
+      .map((produto) => {
+        const estoqueNoLocal = estoquePorLocal[produto.id]?.[formData.local_estoque] || 0;
+        return {
+          ...produto,
+          estoque_no_local: estoqueNoLocal,
+          nome_com_estoque: `${produto.nome_produto} (${estoqueNoLocal.toFixed(2)} ${produto.unidade_medida || 'UN'})`
+        };
+      })
+      .filter((p) => p.estoque_no_local > 0);
   }, [produtos, formData.local_estoque, formData.tipo_movimentacao, estoquePorLocal]);
 
   const handleChange = (field, value) => {
@@ -822,7 +825,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8 text-xs"></TableHead>
-                          <TableHead className="min-w-[200px] text-xs">Produto *</TableHead>
+                          <TableHead className="min-w-[360px] md:min-w-[420px] text-xs">Produto *</TableHead>
                           {formData.tipo_movimentacao === 'Saída' &&
                         <TableHead className="text-center w-20 text-xs">Disponível</TableHead>
                         }
@@ -859,7 +862,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
-                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[200px]">
+                              <TableCell className="align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[360px] md:min-w-[420px]">
                                 <AutocompleteGenerico
                                 items={formData.tipo_movimentacao === 'Saída' ? produtosComEstoqueNoLocal : produtos}
                                 value={produto.produto_id}
