@@ -564,12 +564,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-xs">Tipo de Movimentação *</Label>
+                  <Label className="text-[11px] leading-tight">Tipo de Movimentação *</Label>
                   <Select value={formData.tipo_movimentacao} onValueChange={(v) => {handleChange('tipo_movimentacao', v);handleChange('tipo_detalhado', '');handleChange('vinculado', false);handleChange('tipo_vinculo', ''); if (v === 'Entrada') { handleChange('local_estoque_origem_id', ''); } else if (v === 'Saída') { handleChange('local_estoque_destino_id', ''); }}} required>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-8 text-xs px-2">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -582,9 +582,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Tipo Detalhado *</Label>
+                  <Label className="text-[11px] leading-tight">Tipo Detalhado *</Label>
                   <Select value={formData.tipo_detalhado} onValueChange={(v) => handleChange('tipo_detalhado', v)} required disabled={!formData.tipo_movimentacao}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-8 text-xs px-2">
                       <SelectValue placeholder="Selecione o tipo acima" />
                     </SelectTrigger>
                     <SelectContent>
@@ -596,12 +596,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Data da Movimentação</Label>
-                  <Input type="date" value={formData.data_movimentacao} onChange={(e) => handleChange('data_movimentacao', e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] leading-tight">Data da Movimentação</Label>
+                  <Input type="date" value={formData.data_movimentacao} onChange={(e) => handleChange('data_movimentacao', e.target.value)} className="h-8 text-xs px-2" />
                 </div>
 
                  <div className="space-y-2">
-                  <Label className="text-xs">Centro de Custo</Label>
+                  <Label className="text-[11px] leading-tight">Centro de Custo</Label>
                   <div className="flex gap-2">
                     <AutocompleteGenerico
                       items={centros}
@@ -619,9 +619,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-xs">
+                  <Label className="text-[11px] leading-tight">
                     {formData.tipo_movimentacao === 'Entrada' ? 'Local Estoque Destino *' :
                     formData.tipo_movimentacao === 'Saída' ? 'Local Estoque Origem *' :
                     'Local Estoque Origem *'}
@@ -657,7 +657,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                 {mostrarLocalDestino && !mostrarEmpresaDestino &&
                 <div className="space-y-2">
-                    <Label className="text-xs">Local Estoque Destino *</Label>
+                    <Label className="text-[11px] leading-tight">Local Estoque Destino *</Label>
                     <div className="flex gap-2">
                       <AutocompleteGenerico
                       items={locais}
@@ -680,7 +680,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 {mostrarEmpresaDestino &&
                 <>
                     <div className="space-y-2">
-                      <Label className="text-xs">Empresa Destino *</Label>
+                      <Label className="text-[11px] leading-tight">Empresa Destino *</Label>
                       <AutocompleteGenerico
                       items={empresas}
                       value={formData.empresa_destino_id}
@@ -693,7 +693,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Local na Empresa Destino *</Label>
+                      <Label className="text-[11px] leading-tight">Local na Empresa Destino *</Label>
                       <div className="flex gap-2">
                         <AutocompleteGenerico
                         items={locaisEmpresaDestino}
@@ -717,7 +717,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                 {mostrarFornecedor &&
                 <div className="space-y-2">
-                    <Label className="text-xs">Fornecedor *</Label>
+                    <Label className="text-[11px] leading-tight">Fornecedor *</Label>
                     <AutocompleteGenerico
                     items={fornecedores}
                     value={formData.fornecedor_id}
@@ -732,8 +732,8 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                 {mostrarCliente &&
                 <div className="space-y-2">
-                    <Label className="text-xs">Cliente/Destinatário</Label>
-                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="Nome do Cliente" className="h-8 text-xs" />
+                    <Label className="text-[11px] leading-tight">Cliente/Destinatário</Label>
+                    <Input value={formData.cliente_nome} onChange={(e) => handleChange('cliente_nome', e.target.value)} placeholder="Nome do Cliente" className="h-8 text-xs px-2" />
                   </div>
                 }
               </div>
@@ -741,9 +741,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               {/* Seção de Vínculo para Saídas */}
               {mostrarVinculo &&
               <div className="border border-blue-200 rounded-lg p-3 bg-blue-50/50">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-2 mb-1">
                     <Link2 className="w-4 h-4 text-blue-600" />
-                    <Label className="text-xs font-semibold text-blue-900">Vincular Saída</Label>
+                    <Label className="text-[11px] leading-tight">Vincular Saída</Label>
                     <Switch
                     checked={formData.vinculado}
                     onCheckedChange={(checked) => {
@@ -759,16 +759,16 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   </div>
 
                   {formData.vinculado &&
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-2">
-                        <Label className="text-xs">Tipo de Vínculo *</Label>
+                        <Label className="text-[11px] leading-tight">Tipo de Vínculo *</Label>
                         <Select value={formData.tipo_vinculo} onValueChange={(v) => {
                       handleChange('tipo_vinculo', v);
                       handleChange('lote_vinculado_id', '');
                       handleChange('area_vinculada_id', '');
                       handleChange('maquina_vinculada_id', '');
                     }}>
-                          <SelectTrigger className="h-8 text-xs">
+                          <SelectTrigger className="h-8 text-xs px-2">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -796,9 +796,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       {formData.tipo_vinculo === 'lote' &&
                   <div className="space-y-2">
-                          <Label className="text-xs">Lote *</Label>
+                          <Label className="text-[11px] leading-tight">Lote *</Label>
                           <Select value={formData.lote_vinculado_id} onValueChange={(v) => handleChange('lote_vinculado_id', v)}>
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-8 text-xs px-2">
                               <SelectValue placeholder="Selecione o lote" />
                             </SelectTrigger>
                             <SelectContent>
@@ -814,9 +814,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       {formData.tipo_vinculo === 'area' &&
                   <div className="space-y-2">
-                          <Label className="text-xs">Área *</Label>
+                          <Label className="text-[11px] leading-tight">Área *</Label>
                           <Select value={formData.area_vinculada_id} onValueChange={(v) => handleChange('area_vinculada_id', v)}>
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-8 text-xs px-2">
                               <SelectValue placeholder="Selecione a área" />
                             </SelectTrigger>
                             <SelectContent>
@@ -832,9 +832,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
                       {formData.tipo_vinculo === 'maquina' &&
                   <div className="space-y-2">
-                          <Label className="text-xs">Máquina *</Label>
+                          <Label className="text-[11px] leading-tight">Máquina *</Label>
                           <Select value={formData.maquina_vinculada_id} onValueChange={(v) => handleChange('maquina_vinculada_id', v)}>
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-8 text-xs px-2">
                               <SelectValue placeholder="Selecione a máquina" />
                             </SelectTrigger>
                             <SelectContent>
@@ -854,11 +854,11 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
 
               {mostrarDadosNFe &&
               <>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-2">
-                      <Label className="text-xs">Tipo Documento</Label>
+                      <Label className="text-[11px] leading-tight">Tipo Documento</Label>
                       <Select value={formData.tipo_documento} onValueChange={(v) => handleChange('tipo_documento', v)}>
-                        <SelectTrigger className="h-8 text-xs">
+                        <SelectTrigger className="h-8 text-xs px-2">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
@@ -872,52 +872,52 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Nº Documento</Label>
-                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs" />
+                      <Label className="text-[11px] leading-tight">Nº Documento</Label>
+                      <Input value={formData.numero_documento} onChange={(e) => handleChange('numero_documento', e.target.value)} placeholder="000000" className="h-8 text-xs px-2" />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Série</Label>
-                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="001" className="h-8 text-xs" />
+                      <Label className="text-[11px] leading-tight">Série</Label>
+                      <Input value={formData.serie_documento} onChange={(e) => handleChange('serie_documento', e.target.value)} placeholder="001" className="h-8 text-xs px-2" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-2">
-                      <Label className="text-xs">Data Documento</Label>
-                      <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs" />
+                      <Label className="text-[11px] leading-tight">Data Documento</Label>
+                      <Input type="date" value={formData.data_documento} onChange={(e) => handleChange('data_documento', e.target.value)} className="h-8 text-xs px-2" />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs">CFOP</Label>
-                      <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="0000" className="h-8 text-xs" maxLength={4} />
+                      <Label className="text-[11px] leading-tight">CFOP</Label>
+                      <Input value={formData.cfop} onChange={(e) => handleChange('cfop', e.target.value)} placeholder="0000" className="h-8 text-xs px-2" maxLength={4} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Natureza da Operação</Label>
-                      <Input value={formData.natureza_operacao} onChange={(e) => handleChange('natureza_operacao', e.target.value)} placeholder="Compra para Comercialização" className="h-8 text-xs" />
+                      <Label className="text-[11px] leading-tight">Natureza da Operação</Label>
+                      <Input value={formData.natureza_operacao} onChange={(e) => handleChange('natureza_operacao', e.target.value)} placeholder="Compra para Comercialização" className="h-8 text-xs px-2" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
-                    <Input value={formData.chave_documento} onChange={(e) => handleChange('chave_documento', e.target.value)} placeholder="00000000000000000000000000000000000000000000" className="h-8 text-xs" maxLength={44} />
+                    <Label className="text-[11px] leading-tight">Chave NF-e (44 dígitos)</Label>
+                    <Input value={formData.chave_documento} onChange={(e) => handleChange('chave_documento', e.target.value)} placeholder="00000000000000000000000000000000000000000000" className="h-8 text-xs px-2" maxLength={44} />
                   </div>
                 </>
               }
 
               {formData.tipo_movimentacao === 'Ajuste' &&
               <div className="space-y-2">
-                  <Label className="text-xs">Motivo do Ajuste *</Label>
-                  <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o motivo do ajuste" className="h-8 text-xs" required />
+                  <Label className="text-[11px] leading-tight">Motivo do Ajuste *</Label>
+                  <Input value={formData.motivo_movimentacao} onChange={(e) => handleChange('motivo_movimentacao', e.target.value)} placeholder="Descreva o motivo do ajuste" className="h-8 text-xs px-2" required />
                 </div>
               }
 
-              <div className="pt-4 border-t">
+              <div className="pt-2 border-t">
 
                 <div className="flex justify-between items-center mb-2">
                   <div>
-                    <Label className="text-xs font-semibold">Produtos</Label>
+                    <Label className="text-[11px] leading-tight">Produtos</Label>
                     {formData.tipo_movimentacao === 'Saída' && formData.local_estoque_origem_id && (
                       <p className="text-[10px] text-blue-600">Origem: {locais.find(l => l.id === formData.local_estoque_origem_id)?.nome}</p>
                     )}
@@ -930,14 +930,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 </div>
 
                 {/* Formulário Padrão de Produto */}
-                <Card className="bg-white border border-slate-300 mb-3">
-                  <CardHeader className="py-2">
+                <Card className="bg-white border border-slate-300 mb-1">
+                  <CardHeader className="py-1 px-3">
                     <CardTitle className="text-sm font-semibold text-slate-900">Lançar Produto</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                      <div className="md:col-span-3 space-y-2">
-                        <Label className="text-xs">Produto</Label>
+                  <CardContent className="p-3 space-y-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      <div className="col-span-5 space-y-1">
+                        <Label className="text-[11px] leading-tight">Produto</Label>
                         <AutocompleteGenerico
                           items={formData.tipo_movimentacao === 'Saída' || formData.tipo_movimentacao === 'Transferência' ? produtosComEstoqueNoLocal : produtos}
                           value={currentItem?.produto_id || ''}
@@ -1003,7 +1003,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Quantidade</Label>
+                        <Label className="text-[11px] leading-tight">Quantidade</Label>
                         <Input
                           value={currentItem?.quantidade || ''}
                           onChange={(e)=>{
@@ -1035,13 +1035,13 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                                                         setCurrentItem(prev=>({ ...(prev||{}), preco_unitario: unit, valor_total: formatarMoedaInput(total), valor_liquido_item: formatarMoedaInput(total - parseMoedaInput(prev?.desconto_item || '0')) }));
                                                        }
                                                      }}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs px-2"
                           placeholder="0,00"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Preço</Label>
+                        <Label className="text-[11px] leading-tight">Preço</Label>
                         <Input
                           value={currentItem?.preco || ''}
                           onChange={(e)=>{
@@ -1052,7 +1052,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                                                                     const total = qtdNum * unit;
                                                                                     setCurrentItem(prev=>({ ...(prev||{}), valor_total: formatarMoedaInput(total), valor_liquido_item: formatarMoedaInput(total - parseMoedaInput(prev?.desconto_item || '0')) }));
                                                      }}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs px-2"
                           placeholder="0,00"
                           title={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda'))) ? 'Calculado pelo custo' : undefined}
                           readOnly={!(formData.tipo_movimentacao === 'Entrada' || (formData.tipo_movimentacao === 'Saída' && (formData.tipo_detalhado || '').toLowerCase().includes('venda')))}
@@ -1060,12 +1060,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Valor Total</Label>
-                        <Input value={currentItem?.valor_total || ''} readOnly className="h-9 text-sm text-right font-mono" />
+                        <Label className="text-[11px] leading-tight">Valor Total</Label>
+                        <Input value={currentItem?.valor_total || ''} readOnly className="h-8 text-xs px-2 text-right font-mono" />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Desconto</Label>
+                        <Label className="text-[11px] leading-tight">Desconto</Label>
                         <Input
                           value={currentItem?.desconto_item || ''}
                           onChange={(e)=> {
@@ -1076,19 +1076,19 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                               return { ...(prev||{}), desconto_item: formatarMoedaInput(d), valor_liquido_item: formatarMoedaInput(Math.max(0, totalN - d)) };
                             });
                           }}
-                          className="h-9 text-sm text-right font-mono"
+                          className="h-8 text-xs px-2 text-right font-mono"
                           placeholder="R$ 0,00"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Valor Líquido</Label>
-                        <Input value={currentItem?.valor_liquido_item || 'R$ 0,00'} readOnly className="h-9 text-sm text-right font-mono" />
+                        <Label className="text-[11px] leading-tight">Valor Líquido</Label>
+                        <Input value={currentItem?.valor_liquido_item || 'R$ 0,00'} readOnly className="h-8 text-xs px-2 text-right font-mono" />
                       </div>
 
-                      <div className="md:col-span-3 space-y-2">
-                        <Label className="text-xs">Observação do Item</Label>
-                        <Textarea value={currentItem?.observacao_item || ''} onChange={(e)=>setCurrentItem(prev=>({ ...(prev||{}), observacao_item: e.target.value }))} className="text-xs" rows={2} />
+                      <div className="col-span-5 space-y-1">
+                        <Label className="text-[11px] leading-tight">Observação do Item</Label>
+                        <Textarea value={currentItem?.observacao_item || ''} onChange={(e)=>setCurrentItem(prev=>({ ...(prev||{}), observacao_item: e.target.value }))} className="text-xs px-2 py-1" rows={2} />
                       </div>
                     </div>
 
@@ -1126,9 +1126,9 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       }}>
                         <Plus className="w-3.5 h-3.5 mr-1" /> {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Produto'}
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=> setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', valor_total: '', observacao_item: '', desconto_item: '0,00' })}>Limpar</Button>
                       {editingIndex !== null && (
-                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
+                        <Button type="button" variant="outline" size="sm" className="h-8 text-xs px-2" onClick={()=>{ setEditingIndex(null); setCurrentItem({ produto_id: '', produto_nome: '', produto_codigo: '', unidade: '', quantidade: '', preco: '', preco_unitario: 0, valor_total: '', observacao_item: '', desconto_item: '0,00' }); }}>Cancelar Edição</Button>
                       )}
                     </div>
                   </CardContent>
@@ -1147,15 +1147,15 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                   <Table className="w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs font-bold py-1 border border-black w-12 text-center">Ações</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Preço Unit.</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
-                        <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black w-12 text-center">Ações</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black">Produto</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black">Código</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black">UN</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black text-right">Qtd</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black text-right">Preço Unit.</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black text-right">Total</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black text-right">Desc.</TableHead>
+                        <TableHead className="text-[11px] py-1 border border-black text-right">Líquido</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1167,7 +1167,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                         const liquido = total - desc;
                         return (
                           <TableRow key={idx} className="hover:bg-gray-50">
-                            <TableCell className="text-xs py-1 border border-gray-300 text-center">
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-center">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -1194,14 +1194,14 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{p.produto_nome || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{p.produto_codigo || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{p.unidade || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(qtdNum)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(precoUnit)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.valor_total || '0,00'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{p.desconto_item || '0,00'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{formatarNumero(liquido)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300">{p.produto_nome || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300">{p.produto_codigo || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300">{p.unidade || '-'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(qtdNum)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(precoUnit)}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{p.valor_total || '0,00'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{p.desconto_item || '0,00'}</TableCell>
+                            <TableCell className="text-xs py-1 px-2 border border-gray-300 text-right">{formatarNumero(liquido)}</TableCell>
                           </TableRow>
                         );
                       })}
@@ -1210,7 +1210,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                 )}
 
                 {formData.produtos_selecionados.length > 0 && (
-                  <div className="mt-3 bg-white border border-slate-300 rounded p-3">
+                  <div className="mt-1 bg-white border border-slate-300 rounded p-2">
                     <div className="space-y-1 text-xs">
                       <div className="font-semibold text-slate-800 mb-1">Resumo</div>
                       <div className="flex justify-between">
@@ -1225,12 +1225,12 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               </div>
 
                 <div className="space-y-2">
-                <Label className="text-xs">Observações</Label>
-                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="Observações Adicionais..." className="text-xs" rows={2} />
+                <Label className="text-[11px] leading-tight">Observações</Label>
+                <Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} placeholder="Observações Adicionais..." className="text-xs px-2 py-1" rows={2} />
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
+                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs px-2">
                   Cancelar
                 </Button>
                 <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
