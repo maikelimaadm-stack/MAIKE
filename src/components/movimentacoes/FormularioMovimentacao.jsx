@@ -290,7 +290,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               updated.unidade = produto.unidade_medida;
               updated.preco_custo = produto.preco_custo || 0;
               updated.preco_venda = produto.preco_venda || 0;
-              updated.estoque_no_local = estoquePorLocal[valor]?.[formData.local_estoque] || 0;
+              updated.estoque_no_local = estoquePorLocal[valor]?.[formData.local_estoque_origem_id] || 0;
 
               // Para saídas, preencher automaticamente o valor baseado no custo
               if (formData.tipo_movimentacao === 'Saída' && produto.preco_custo) {
