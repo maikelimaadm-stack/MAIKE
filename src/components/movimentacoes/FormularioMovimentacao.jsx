@@ -882,7 +882,7 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
               }
 
               <div className="pt-4 border-t">
-{false && (
+
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <Label className="text-xs font-semibold">Produtos</Label>
@@ -946,7 +946,6 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
                       </div>
                     </div>
                   </div>
-                )}
 
                 <ItemProdutoForm
                   open={showItemForm}
