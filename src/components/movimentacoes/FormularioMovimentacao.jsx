@@ -390,7 +390,17 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
       return;
     }
 
-    // Validar vínculo
+    // Regras de vínculo obrigatório (Saída com consumo/aplicação/manutenção/suplementação)
+  if (formData.tipo_movimentacao === 'Saída') {
+    const det = (formData.tipo_detalhado || '').toLowerCase();
+    const obrigatorio = det.includes('consumo') || det.includes('suplementa') || det.includes('aplica') || det.includes('manuten');
+    if (obrigatorio && !formData.vinculado) {
+      toast.error('❌ Para este tipo de saída, é obrigatório informar um vínculo (lote, área, máquina, etc).');
+      return;
+    }
+  }
+
+  // Validar vínculo
     if (formData.vinculado && !formData.tipo_vinculo) {
       toast.error('❌ Selecione o tipo de vínculo!');
       return;
