@@ -97,6 +97,18 @@ export default function FormularioMovimentacao({ onSubmit, onCancel, initialData
   const [showDialogCentro, setShowDialogCentro] = useState(false);
   const [showDialogProduto, setShowDialogProduto] = useState(false);
   
+  // Estado do formulário inline de produto
+  const [currentItem, setCurrentItem] = useState({
+    produto_id: '',
+    produto_nome: '',
+    unidade: '',
+    quantidade: '',
+    preco: '',
+    valor_total: '',
+    observacao_item: ''
+  });
+  const [editingIndex, setEditingIndex] = useState(null);
+  
   
 
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
