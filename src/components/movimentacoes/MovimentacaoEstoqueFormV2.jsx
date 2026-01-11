@@ -9,20 +9,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { 
-  ArrowDownCircle, ArrowUpCircle, RefreshCw, Plus, Trash2, MoreVertical, Pencil, 
-  Package, Save, X, FileText, AlertTriangle, User, Truck, MapPin, Settings
+  ArrowDownCircle, ArrowUpCircle, Plus, Trash2, MoreVertical, Pencil, 
+  Package, Save, X, FileText, AlertTriangle 
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
 import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
+import SeletorLoteNota from "./SeletorLoteNota.jsx";
 
-// ========== FUNÇÕES UTILITÁRIAS ==========
+// Funções utilitárias inline
 const formatarMoedaBR = (valor) => {
   if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -37,7 +39,7 @@ const parseMoedaBR = (str) => {
 };
 
 const formatarNumero = (num, decimais = 2) => {
-  if (num === null || num === undefined || isNaN(num)) return '0,00';
+  if (num === null || num === undefined || isNaN(num)) return '0';
   return Number(num).toLocaleString('pt-BR', { minimumFractionDigits: decimais, maximumFractionDigits: decimais });
 };
 
@@ -47,67 +49,47 @@ const parseNumeroBR = (str) => {
   return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
 };
 
-// ========== CONFIGURAÇÕES DE OPERAÇÕES ==========
-const OPERACOES_ENTRADA = [
-  { value: 'compra', label: 'Compra', exigeFornecedor: true, exigeDocumento: true },
-  { value: 'compra_vista', label: 'Compra à Vista', exigeFornecedor: true, exigeDocumento: true },
-  { value: 'compra_prazo', label: 'Compra a Prazo', exigeFornecedor: true, exigeDocumento: true },
-  { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false, exigeDocumento: false },
-  { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true, exigeDocumento: false },
-  { value: 'doacao_recebida', label: 'Doação Recebida', exigeFornecedor: false, exigeDocumento: false },
-  { value: 'producao_entrada', label: 'Produção / Entrada Interna', exigeFornecedor: false, exigeDocumento: false },
-  { value: 'transferencia_recebida', label: 'Transferência Recebida', exigeFornecedor: false, exigeDocumento: false },
-  { value: 'ajuste_positivo', label: 'Ajuste Positivo', exigeFornecedor: false, exigeDocumento: false },
-  { value: 'outros_entrada', label: 'Outros', exigeFornecedor: false, exigeDocumento: false }
-];
+const calcularSaldoProdutoLocal = (lotes, produtoId, localId) => {
+  return lotes
+    .filter(l => l.produto_id === produtoId && l.local_estoque_id === localId && l.quantidade_disponivel > 0)
+    .reduce((sum, l) => sum + (l.quantidade_disponivel || 0), 0);
+};
 
-const OPERACOES_SAIDA = [
-  { value: 'venda', label: 'Venda', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
-  { value: 'venda_vista', label: 'Venda à Vista', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
-  { value: 'venda_prazo', label: 'Venda a Prazo', exigeCliente: true, precoEditavel: true, exigeDocumento: false },
-  { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: true, usaCusto: true },
-  { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: true, usaCusto: true },
-  { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: true, usaCusto: true },
-  { value: 'manutencao', label: 'Manutenção de Máquina', exigeVinculo: true, precoEditavel: true, usaCusto: true },
-  { value: 'doacao', label: 'Doação', exigeVinculo: false, precoEditavel: true, usaCusto: true },
-  { value: 'perda', label: 'Perda', exigeMotivo: true, precoEditavel: true, usaCusto: true },
-  { value: 'quebra', label: 'Quebra', exigeMotivo: true, precoEditavel: true, usaCusto: true },
-  { value: 'transferencia_enviada', label: 'Transferência Enviada', exigeVinculo: false, precoEditavel: true, usaCusto: true },
-  { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: true, usaCusto: true },
-  { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: true }
-];
+const OPERACOES_POR_TIPO = {
+  ENTRADA: [
+    { value: 'compra', label: 'Compra', exigeFornecedor: true },
+    { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false },
+    { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true },
+    { value: 'ajuste_positivo', label: 'Ajuste Positivo', exigeFornecedor: false },
+    { value: 'producao_entrada', label: 'Produção/Entrada Interna', exigeFornecedor: false },
+    { value: 'outros_entrada', label: 'Outros', exigeFornecedor: false }
+  ],
+  SAIDA: [
+    { value: 'venda', label: 'Venda', exigeDestino: true, precoEditavel: true },
+    { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: false },
+    { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: false },
+    { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: false },
+    { value: 'manutencao', label: 'Manutenção', exigeVinculo: true, precoEditavel: false },
+    { value: 'perda_quebra', label: 'Perda/Quebra', exigeVinculo: false, precoEditavel: false },
+    { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: false },
+    { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false }
+  ]
+};
 
-const OPERACOES_AJUSTE = [
-  { value: 'ajuste_positivo', label: 'Ajuste Positivo', tipoAjuste: 'positivo' },
-  { value: 'ajuste_negativo', label: 'Ajuste Negativo', tipoAjuste: 'negativo' },
-  { value: 'inventario', label: 'Inventário', tipoAjuste: 'inventario' },
-  { value: 'correcao', label: 'Correção', tipoAjuste: 'correcao' }
-];
-
-const MOTIVOS_PERDA = [
-  'Vencimento',
-  'Quebra',
-  'Roubo',
-  'Contaminação',
-  'Erro operacional',
-  'Deterioração',
-  'Sinistro',
-  'Outro'
+const TIPOS_VINCULO = [
+  { value: 'lote', label: 'Lote (Pecuária)' },
+  { value: 'area', label: 'Área / Pasto' },
+  { value: 'maquina', label: 'Máquina / Veículo' },
+  { value: 'centro_custo', label: 'Centro de Custo' },
+  { value: 'funcionario', label: 'Funcionário' },
+  { value: 'outro', label: 'Outro (texto livre)' }
 ];
 
 const TIPOS_DOCUMENTO = [
   { value: 'nfe', label: 'NF-e' },
-  { value: 'nfce', label: 'NFC-e' },
   { value: 'nota_fiscal', label: 'Nota Fiscal' },
   { value: 'recibo', label: 'Recibo' },
   { value: 'outros', label: 'Outros' }
-];
-
-const TIPOS_VINCULO = [
-  { value: 'lote', label: 'Lote (Pecuária)', icon: Package },
-  { value: 'area', label: 'Área / Pasto', icon: MapPin },
-  { value: 'maquina', label: 'Máquina / Veículo', icon: Truck },
-  { value: 'centro_custo', label: 'Centro de Custo', icon: Settings }
 ];
 
 export default function MovimentacaoEstoqueFormV2({ 
@@ -121,10 +103,7 @@ export default function MovimentacaoEstoqueFormV2({
   const queryClient = useQueryClient();
 
   // ========== ESTADO DO CABEÇALHO ==========
-  const [tipo, setTipo] = useState(
-    initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' : 
-    initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA'
-  );
+  const [tipo, setTipo] = useState(initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' : 'ENTRADA');
   const [operacao, setOperacao] = useState(initialData?.tipo_detalhado || '');
   const [dataMovimentacao, setDataMovimentacao] = useState(
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
@@ -139,26 +118,22 @@ export default function MovimentacaoEstoqueFormV2({
   const [serieDocumento, setSerieDocumento] = useState(initialData?.serie_documento || '');
   const [dataDocumento, setDataDocumento] = useState(initialData?.data_documento || '');
   const [chaveDocumento, setChaveDocumento] = useState(initialData?.chave_documento || '');
-  const [cfop, setCfop] = useState(initialData?.cfop || '');
-  const [naturezaOperacao, setNaturezaOperacao] = useState(initialData?.natureza_operacao || '');
   
   // Parceiro
   const [fornecedorId, setFornecedorId] = useState(initialData?.fornecedor_id || '');
-  const [clienteNome, setClienteNome] = useState(initialData?.cliente_nome || '');
-  
-  // Vínculo
+  const [destinoTexto, setDestinoTexto] = useState(initialData?.cliente_nome || initialData?.destino_responsavel || '');
   const [tipoVinculo, setTipoVinculo] = useState(initialData?.tipo_vinculo || '');
   const [vinculoId, setVinculoId] = useState(
     initialData?.lote_vinculado_id || initialData?.area_vinculada_id || 
     initialData?.maquina_vinculada_id || initialData?.centro_custo_id || ''
   );
   
-  // Motivo (para perda/quebra/ajuste)
-  const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
   const [observacoes, setObservacoes] = useState(initialData?.observacoes || '');
 
   // ========== ESTADO DOS ITENS ==========
   const [itens, setItens] = useState([]);
+  const [modoEntrada, setModoEntrada] = useState('por_nota'); // 'por_nota' | 'rapida'
+  const [modoCustoSaida, setModoCustoSaida] = useState('por_lote'); // 'por_lote' | 'fifo'
   
   // Item atual (formulário)
   const [currentItem, setCurrentItem] = useState({
@@ -176,6 +151,7 @@ export default function MovimentacaoEstoqueFormV2({
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
+  const [showSeletorLote, setShowSeletorLote] = useState(false);
 
   // Dialogs
   const [showDialogLocal, setShowDialogLocal] = useState(false);
@@ -232,75 +208,23 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
-  const { data: movimentacoesEstoque = [] } = useQuery({
-    queryKey: ['movimentacoes_calc', empresaId],
-    queryFn: async () => {
-      const all = await base44.entities.MovimentacaoEstoque.list();
-      return all.filter(m => m.empresa_id === empresaId && m.status === 'Ativa');
-    },
-    enabled: !!empresaId
-  });
-
   // ========== COMPUTED ==========
   const operacoesDisponiveis = useMemo(() => {
-    if (tipo === 'ENTRADA') return OPERACOES_ENTRADA;
-    if (tipo === 'SAIDA') return OPERACOES_SAIDA;
-    if (tipo === 'AJUSTE') return OPERACOES_AJUSTE;
-    return [];
+    return OPERACOES_POR_TIPO[tipo] || [];
   }, [tipo]);
 
   const operacaoSelecionada = useMemo(() => {
     return operacoesDisponiveis.find(op => op.value === operacao);
   }, [operacoesDisponiveis, operacao]);
 
-  // Flags de exibição de campos
-  const exibeFornecedor = tipo === 'ENTRADA' && operacaoSelecionada?.exigeFornecedor;
-  const exibeDocumento = tipo === 'ENTRADA' && operacaoSelecionada?.exigeDocumento;
-  const exibeCliente = tipo === 'SAIDA' && operacaoSelecionada?.exigeCliente;
-  const exibeVinculo = tipo === 'SAIDA' && operacaoSelecionada?.exigeVinculo;
-  const exibeMotivo = (tipo === 'SAIDA' && operacaoSelecionada?.exigeMotivo) || tipo === 'AJUSTE';
-  const usaCusto = operacaoSelecionada?.usaCusto || false;
+  const exigeVinculo = operacaoSelecionada?.exigeVinculo || false;
+  const precoEditavel = tipo === 'ENTRADA' || (operacaoSelecionada?.precoEditavel ?? false);
 
-  // Calcular estoque por local
-  const estoquePorLocal = useMemo(() => {
-    const estoques = {};
-    produtos.forEach(p => { estoques[p.id] = {}; });
-
-    movimentacoesEstoque.forEach(mov => {
-      if (!mov.produto_id) return;
-      if (!estoques[mov.produto_id]) estoques[mov.produto_id] = {};
-
-      const origemId = mov.local_estoque_origem_id;
-      const destinoId = mov.local_estoque_destino_id;
-      const qtd = mov.quantidade || 0;
-
-      if (mov.tipo_movimentacao === 'Entrada' && destinoId) {
-        if (!estoques[mov.produto_id][destinoId]) estoques[mov.produto_id][destinoId] = 0;
-        estoques[mov.produto_id][destinoId] += qtd;
-      } else if (mov.tipo_movimentacao === 'Saída' && origemId) {
-        if (!estoques[mov.produto_id][origemId]) estoques[mov.produto_id][origemId] = 0;
-        estoques[mov.produto_id][origemId] -= qtd;
-      } else if (mov.tipo_movimentacao === 'Ajuste') {
-        const localId = destinoId || origemId;
-        if (localId) {
-          if (!estoques[mov.produto_id][localId]) estoques[mov.produto_id][localId] = 0;
-          if (mov.tipo_detalhado?.toLowerCase().includes('positivo') || mov.tipo_detalhado?.toLowerCase().includes('inventário')) {
-            estoques[mov.produto_id][localId] += qtd;
-          } else {
-            estoques[mov.produto_id][localId] -= qtd;
-          }
-        }
-      }
-    });
-
-    return estoques;
-  }, [produtos, movimentacoesEstoque]);
-
-  // Saldo do produto no local
+  // Saldo do produto no local (para saída)
   const saldoProdutoNoLocal = useMemo(() => {
-    if (!currentItem.produto_id || !localEstoqueId) return null;
-    return estoquePorLocal[currentItem.produto_id]?.[localEstoqueId] || 0;
-  }, [currentItem.produto_id, localEstoqueId, estoquePorLocal]);
+    if (tipo !== 'SAIDA' || !currentItem.produto_id || !localEstoqueId) return null;
+    return calcularSaldoProdutoLocal(lotesNota, currentItem.produto_id, localEstoqueId);
+  }, [tipo, currentItem.produto_id, localEstoqueId, lotesNota]);
 
   // Lotes disponíveis do produto no local
   const lotesDisponiveis = useMemo(() => {
@@ -325,46 +249,6 @@ export default function MovimentacaoEstoqueFormV2({
     setOperacao('');
     setItens([]);
     resetCurrentItem();
-    // Limpar campos incompatíveis
-    setFornecedorId('');
-    setClienteNome('');
-    setTipoVinculo('');
-    setVinculoId('');
-    setMotivoMovimentacao('');
-    setTipoDocumento('');
-    setNumeroDocumento('');
-    setSerieDocumento('');
-    setDataDocumento('');
-    setChaveDocumento('');
-    setCfop('');
-    setNaturezaOperacao('');
-  };
-
-  const handleOperacaoChange = (novaOperacao) => {
-    setOperacao(novaOperacao);
-    // Reset campos dependentes
-    if (tipo === 'ENTRADA') {
-      const op = OPERACOES_ENTRADA.find(o => o.value === novaOperacao);
-      if (!op?.exigeFornecedor) setFornecedorId('');
-      if (!op?.exigeDocumento) {
-        setTipoDocumento('');
-        setNumeroDocumento('');
-        setSerieDocumento('');
-        setDataDocumento('');
-        setChaveDocumento('');
-        setCfop('');
-        setNaturezaOperacao('');
-      }
-    }
-    if (tipo === 'SAIDA') {
-      const op = OPERACOES_SAIDA.find(o => o.value === novaOperacao);
-      if (!op?.exigeCliente) setClienteNome('');
-      if (!op?.exigeVinculo) {
-        setTipoVinculo('');
-        setVinculoId('');
-      }
-      if (!op?.exigeMotivo) setMotivoMovimentacao('');
-    }
   };
 
   const resetCurrentItem = () => {
@@ -396,15 +280,13 @@ export default function MovimentacaoEstoqueFormV2({
     if (tipo === 'ENTRADA') {
       precoInicial = prod.preco_custo || 0;
     } else if (tipo === 'SAIDA') {
-      if (operacaoSelecionada?.usaCusto) {
-        // Para operações de custo, usar o custo médio do produto
-        precoInicial = prod.preco_custo || 0;
-      } else {
-        // Para vendas, usar preço de venda
+      if (precoEditavel) {
         precoInicial = prod.preco_venda || prod.preco_custo || 0;
+      } else {
+        // Custo virá do lote selecionado
+        const primeiroLote = lotesDisponiveis.find(l => l.produto_id === produtoId);
+        precoInicial = primeiroLote?.custo_unitario || prod.preco_custo || 0;
       }
-    } else if (tipo === 'AJUSTE') {
-      precoInicial = 0; // Ajuste pode ter valor zero
     }
 
     setCurrentItem(prev => ({
@@ -419,17 +301,13 @@ export default function MovimentacaoEstoqueFormV2({
     }));
   };
 
-  const recalcularTotais = (quantidade, precoUnitario, desconto) => {
-    const qtd = parseNumeroBR(quantidade) || 0;
-    const preco = parseMoedaBR(precoUnitario) || 0;
-    const desc = parseMoedaBR(desconto) || 0;
+  const handleQuantidadeChange = (valor) => {
+    const qtd = parseNumeroBR(valor);
+    const preco = parseMoedaBR(currentItem.preco_unitario);
+    const desc = parseMoedaBR(currentItem.desconto);
     const total = qtd * preco;
     const liquido = Math.max(0, total - desc);
-    return { total, liquido };
-  };
 
-  const handleQuantidadeChange = (valor) => {
-    const { total, liquido } = recalcularTotais(valor, currentItem.preco_unitario, currentItem.desconto);
     setCurrentItem(prev => ({
       ...prev,
       quantidade: valor,
@@ -439,27 +317,38 @@ export default function MovimentacaoEstoqueFormV2({
   };
 
   const handlePrecoChange = (valor) => {
-    const { total, liquido } = recalcularTotais(currentItem.quantidade, valor, currentItem.desconto);
+    const preco = parseMoedaBR(valor);
+    const qtd = parseNumeroBR(currentItem.quantidade);
+    const desc = parseMoedaBR(currentItem.desconto);
+    const total = qtd * preco;
+    const liquido = Math.max(0, total - desc);
+
     setCurrentItem(prev => ({
       ...prev,
-      preco_unitario: valor,
+      preco_unitario: formatarMoedaBR(preco),
       total: formatarMoedaBR(total),
       liquido: formatarMoedaBR(liquido)
     }));
   };
 
   const handleDescontoChange = (valor) => {
-    const { total, liquido } = recalcularTotais(currentItem.quantidade, currentItem.preco_unitario, valor);
+    const desc = parseMoedaBR(valor);
+    const total = parseMoedaBR(currentItem.total);
+    const liquido = Math.max(0, total - desc);
+
     setCurrentItem(prev => ({
       ...prev,
-      desconto: valor,
+      desconto: formatarMoedaBR(desc),
       liquido: formatarMoedaBR(liquido)
     }));
   };
 
   const handleSelecionarLote = (lote) => {
     const preco = lote.custo_unitario || 0;
-    const { total, liquido } = recalcularTotais(currentItem.quantidade, formatarMoedaBR(preco), currentItem.desconto);
+    const qtd = parseNumeroBR(currentItem.quantidade);
+    const desc = parseMoedaBR(currentItem.desconto);
+    const total = qtd * preco;
+    const liquido = Math.max(0, total - desc);
 
     setCurrentItem(prev => ({
       ...prev,
@@ -469,25 +358,37 @@ export default function MovimentacaoEstoqueFormV2({
       total: formatarMoedaBR(total),
       liquido: formatarMoedaBR(liquido)
     }));
+    setShowSeletorLote(false);
   };
 
   const handleAdicionarItem = () => {
     // Validações
     if (!currentItem.produto_id) {
-      toast.error('❌ Selecione um produto');
+      toast.error('Selecione um produto');
       return;
     }
 
     const qtd = parseNumeroBR(currentItem.quantidade);
     if (qtd <= 0) {
-      toast.error('❌ Informe uma quantidade válida');
+      toast.error('Informe uma quantidade válida');
       return;
     }
 
     // Validar saldo para saída
-    if (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'))) {
-      if (saldoProdutoNoLocal !== null && qtd > saldoProdutoNoLocal) {
-        toast.error(`❌ Quantidade maior que o saldo disponível (${formatarNumero(saldoProdutoNoLocal)})`);
+    if (tipo === 'SAIDA') {
+      if (modoCustoSaida === 'por_lote' && !currentItem.lote_origem_id) {
+        toast.error('Selecione o lote/nota de origem');
+        return;
+      }
+
+      if (currentItem.lote_origem_id) {
+        const lote = lotesNota.find(l => l.id === currentItem.lote_origem_id);
+        if (lote && qtd > lote.quantidade_disponivel) {
+          toast.error(`Quantidade maior que o saldo do lote (${formatarNumero(lote.quantidade_disponivel)})`);
+          return;
+        }
+      } else if (saldoProdutoNoLocal !== null && qtd > saldoProdutoNoLocal) {
+        toast.error(`Quantidade maior que o saldo disponível (${formatarNumero(saldoProdutoNoLocal)})`);
         return;
       }
     }
@@ -509,10 +410,10 @@ export default function MovimentacaoEstoqueFormV2({
 
     if (editingIndex !== null) {
       setItens(prev => prev.map((item, idx) => idx === editingIndex ? novoItem : item));
-      toast.success('✅ Item atualizado');
+      toast.success('Item atualizado');
     } else {
       setItens(prev => [...prev, novoItem]);
-      toast.success('✅ Item adicionado');
+      toast.success('Item adicionado');
     }
 
     resetCurrentItem();
@@ -550,123 +451,72 @@ export default function MovimentacaoEstoqueFormV2({
 
     // Validações gerais
     if (!operacao) {
-      toast.error('❌ Selecione a operação');
+      toast.error('Selecione a operação');
       return;
     }
 
     if (!localEstoqueId) {
-      toast.error('❌ Selecione o local de estoque');
+      toast.error('Selecione o local de estoque');
       return;
     }
 
     if (itens.length === 0) {
-      toast.error('❌ Adicione pelo menos um item');
+      toast.error('Adicione pelo menos um item');
       return;
     }
 
     // Validações específicas por tipo
-    if (tipo === 'ENTRADA' && exibeFornecedor && !fornecedorId) {
-      toast.error('❌ Selecione o fornecedor (obrigatório para esta operação)');
-      return;
-    }
-
-    if (tipo === 'ENTRADA' && exibeDocumento && !numeroDocumento) {
-      toast.error('❌ Informe o número do documento (obrigatório para compra)');
-      return;
+    if (tipo === 'ENTRADA') {
+      const opConfig = operacoesDisponiveis.find(op => op.value === operacao);
+      if (opConfig?.exigeFornecedor && !fornecedorId) {
+        toast.error('Selecione o fornecedor');
+        return;
+      }
     }
 
     if (tipo === 'SAIDA') {
-      if (exibeCliente && !clienteNome.trim()) {
-        toast.error('❌ Informe o cliente/destinatário');
+      if (operacaoSelecionada?.exigeDestino && !destinoTexto.trim()) {
+        toast.error('Informe o destino/responsável');
         return;
       }
 
-      if (exibeVinculo && !tipoVinculo) {
-        toast.error('❌ Selecione o tipo de vínculo (obrigatório para esta operação)');
+      if (exigeVinculo && !tipoVinculo) {
+        toast.error('Selecione o tipo de vínculo');
         return;
       }
 
-      if (exibeVinculo && !vinculoId) {
-        toast.error('❌ Selecione o vínculo');
+      if (exigeVinculo && tipoVinculo !== 'outro' && !vinculoId) {
+        toast.error('Selecione o vínculo');
         return;
       }
-
-      if (exibeMotivo && !motivoMovimentacao) {
-        toast.error('❌ Informe o motivo (obrigatório para perda/quebra)');
-        return;
-      }
-    }
-
-    if (tipo === 'AJUSTE' && !motivoMovimentacao) {
-      toast.error('❌ Informe o motivo do ajuste (obrigatório)');
-      return;
     }
 
     // Preparar dados
     const fornecedor = fornecedores.find(f => f.id === fornecedorId);
     const local = locais.find(l => l.id === localEstoqueId);
 
-    // Determinar tipo de movimentação para o banco
-    let tipoMovimentacao = 'Entrada';
-    if (tipo === 'SAIDA') tipoMovimentacao = 'Saída';
-    if (tipo === 'AJUSTE') tipoMovimentacao = 'Ajuste';
-
-    // Determinar local origem/destino
-    let localOrigemId, localOrigemNome, localDestinoId, localDestinoNome;
-    if (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao?.includes('positivo'))) {
-      localDestinoId = localEstoqueId;
-      localDestinoNome = local?.nome;
-    } else {
-      localOrigemId = localEstoqueId;
-      localOrigemNome = local?.nome;
-    }
-
-    // Dados do vínculo
-    let vinculoData = {};
-    if (exibeVinculo && tipoVinculo && vinculoId) {
-      vinculoData.tipo_vinculo = tipoVinculo;
-      if (tipoVinculo === 'lote') {
-        const lote = lotes.find(l => l.id === vinculoId);
-        vinculoData.lote_vinculado_id = vinculoId;
-        vinculoData.lote_vinculado_nome = lote?.identificacao || lote?.nome;
-      } else if (tipoVinculo === 'area') {
-        const area = areas.find(a => a.id === vinculoId);
-        vinculoData.area_vinculada_id = vinculoId;
-        vinculoData.area_vinculada_nome = area?.nome;
-      } else if (tipoVinculo === 'maquina') {
-        const maq = maquinas.find(m => m.id === vinculoId);
-        vinculoData.maquina_vinculada_id = vinculoId;
-        vinculoData.maquina_vinculada_nome = maq?.nome || maq?.identificacao;
-      } else if (tipoVinculo === 'centro_custo') {
-        const cc = centrosCusto.find(c => c.id === vinculoId);
-        vinculoData.centro_custo_id = vinculoId;
-        vinculoData.centro_custo_nome = cc?.nome;
-      }
-    }
-
     const dadosMovimentacao = {
       empresa_id: empresaId,
-      tipo_movimentacao: tipoMovimentacao,
+      tipo_movimentacao: tipo === 'ENTRADA' ? 'Entrada' : 'Saída',
       tipo_detalhado: operacao,
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
-      local_estoque_origem_id: localOrigemId,
-      local_estoque_origem_nome: localOrigemNome,
-      local_estoque_destino_id: localDestinoId,
-      local_estoque_destino_nome: localDestinoNome,
+      local_estoque_origem_id: tipo === 'SAIDA' ? localEstoqueId : undefined,
+      local_estoque_origem_nome: tipo === 'SAIDA' ? local?.nome : undefined,
+      local_estoque_destino_id: tipo === 'ENTRADA' ? localEstoqueId : undefined,
+      local_estoque_destino_nome: tipo === 'ENTRADA' ? local?.nome : undefined,
       tipo_documento: tipoDocumento || undefined,
       numero_documento: numeroDocumento || undefined,
       serie_documento: serieDocumento || undefined,
       data_documento: dataDocumento || undefined,
       chave_documento: chaveDocumento || undefined,
-      cfop: cfop || undefined,
-      natureza_operacao: naturezaOperacao || undefined,
-      fornecedor_id: fornecedorId || undefined,
-      fornecedor_nome: fornecedor?.nome || undefined,
-      cliente_nome: clienteNome || undefined,
-      motivo_movimentacao: motivoMovimentacao || undefined,
+      fornecedor_id: tipo === 'ENTRADA' ? fornecedorId : undefined,
+      fornecedor_nome: tipo === 'ENTRADA' ? fornecedor?.nome : undefined,
+      destino_responsavel: tipo === 'SAIDA' ? destinoTexto : undefined,
+      cliente_nome: tipo === 'SAIDA' && operacao === 'venda' ? destinoTexto : undefined,
+      tipo_vinculo: tipo === 'SAIDA' && exigeVinculo ? tipoVinculo : undefined,
+      vinculo_id: tipo === 'SAIDA' && exigeVinculo ? vinculoId : undefined,
       observacoes: observacoes || undefined,
       status: 'Ativa',
-      ...vinculoData,
       produtos: itens.map(item => ({
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
@@ -695,9 +545,11 @@ export default function MovimentacaoEstoqueFormV2({
           <Card className="shadow-sm border-slate-300">
             <CardHeader className="py-2 px-3 bg-slate-100 border-b">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                {tipo === 'ENTRADA' && <ArrowDownCircle className="w-4 h-4 text-emerald-600" />}
-                {tipo === 'SAIDA' && <ArrowUpCircle className="w-4 h-4 text-red-600" />}
-                {tipo === 'AJUSTE' && <RefreshCw className="w-4 h-4 text-blue-600" />}
+                {tipo === 'ENTRADA' ? (
+                  <ArrowDownCircle className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <ArrowUpCircle className="w-4 h-4 text-red-600" />
+                )}
                 {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
               </CardTitle>
             </CardHeader>
@@ -708,7 +560,7 @@ export default function MovimentacaoEstoqueFormV2({
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Tipo *</Label>
                   <Select value={tipo} onValueChange={handleTipoChange}>
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-9 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -724,24 +576,14 @@ export default function MovimentacaoEstoqueFormV2({
                           SAÍDA
                         </span>
                       </SelectItem>
-                      <SelectItem value="AJUSTE" className="text-xs">
-                        <span className="flex items-center gap-2">
-                          <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-                          AJUSTE
-                        </span>
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium">
-                    {tipo === 'ENTRADA' ? 'Operação de Entrada *' : 
-                     tipo === 'SAIDA' ? 'Operação de Saída *' : 
-                     'Tipo de Ajuste *'}
-                  </Label>
-                  <Select value={operacao} onValueChange={handleOperacaoChange}>
-                    <SelectTrigger className="h-8 text-xs">
+                  <Label className="text-xs font-medium">Operação *</Label>
+                  <Select value={operacao} onValueChange={setOperacao}>
+                    <SelectTrigger className="h-9 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -760,15 +602,13 @@ export default function MovimentacaoEstoqueFormV2({
                     type="date" 
                     value={dataMovimentacao} 
                     onChange={(e) => setDataMovimentacao(e.target.value)}
-                    className="h-8 text-xs"
+                    className="h-9 text-xs"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">
-                    {tipo === 'ENTRADA' ? 'Local de Entrada *' : 
-                     tipo === 'SAIDA' ? 'Local de Saída *' : 
-                     'Local do Ajuste *'}
+                    {tipo === 'ENTRADA' ? 'Local de Entrada (Destino) *' : 'Local de Saída (Origem) *'}
                   </Label>
                   <div className="flex gap-1">
                     <AutocompleteGenerico
@@ -780,114 +620,84 @@ export default function MovimentacaoEstoqueFormV2({
                       searchFields={["nome"]}
                       className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogLocal(true)}>
+                    <Button type="button" variant="outline" size="icon" className="h-9 w-9" onClick={() => setShowDialogLocal(true)}>
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Linha 2: Documento (condicional) */}
-              {exibeDocumento && (
-                <div className="bg-slate-50 border rounded p-2 space-y-2">
-                  <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                    <FileText className="w-3.5 h-3.5" /> Dados do Documento
-                  </Label>
-                  <div className="grid grid-cols-6 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tipo Doc.</Label>
-                      <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_DOCUMENTO.map(t => (
-                            <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Nº Documento *</Label>
-                      <Input 
-                        value={numeroDocumento} 
-                        onChange={(e) => setNumeroDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="000000"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Série</Label>
-                      <Input 
-                        value={serieDocumento} 
-                        onChange={(e) => setSerieDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="001"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Data Doc.</Label>
-                      <Input 
-                        type="date"
-                        value={dataDocumento} 
-                        onChange={(e) => setDataDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">CFOP</Label>
-                      <Input 
-                        value={cfop} 
-                        onChange={(e) => setCfop(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="0000"
-                        maxLength={4}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Natureza Op.</Label>
-                      <Input 
-                        value={naturezaOperacao} 
-                        onChange={(e) => setNaturezaOperacao(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="Compra p/ comercialização"
-                      />
-                    </div>
-                  </div>
-
-                  {tipoDocumento === 'nfe' && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Chave NF-e (44 dígitos)</Label>
-                      <Input 
-                        value={chaveDocumento} 
-                        onChange={(e) => setChaveDocumento(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="00000000000000000000000000000000000000000000"
-                        maxLength={44}
-                      />
-                    </div>
-                  )}
+              {/* Linha 2: Documento */}
+              <div className="grid grid-cols-5 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo Doc.</Label>
+                  <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_DOCUMENTO.map(t => (
+                        <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              {/* Linha 3: Fornecedor (condicional) */}
-              {exibeFornecedor && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nº Documento</Label>
+                  <Input 
+                    value={numeroDocumento} 
+                    onChange={(e) => setNumeroDocumento(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="000000"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Série</Label>
+                  <Input 
+                    value={serieDocumento} 
+                    onChange={(e) => setSerieDocumento(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="001"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Data Doc.</Label>
+                  <Input 
+                    type="date"
+                    value={dataDocumento} 
+                    onChange={(e) => setDataDocumento(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Chave NF-e</Label>
+                  <Input 
+                    value={chaveDocumento} 
+                    onChange={(e) => setChaveDocumento(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="44 dígitos"
+                    maxLength={44}
+                  />
+                </div>
+              </div>
+
+              {/* Linha 3: Parceiro */}
+              <div className="grid grid-cols-3 gap-2">
+                {tipo === 'ENTRADA' ? (
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" /> Fornecedor *
+                    <Label className="text-xs font-medium">
+                      Fornecedor {operacaoSelecionada?.exigeFornecedor ? '*' : ''}
                     </Label>
                     <div className="flex gap-1">
                       <AutocompleteGenerico
                         items={fornecedores}
                         value={fornecedorId}
                         onChange={setFornecedorId}
-                        placeholder="Selecione o fornecedor"
+                        placeholder="Selecione"
                         displayField="nome"
                         searchFields={["nome", "cnpj", "cpf"]}
                         className="flex-1"
@@ -897,350 +707,326 @@ export default function MovimentacaoEstoqueFormV2({
                       </Button>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Linha 4: Cliente (condicional) */}
-              {exibeCliente && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" /> Cliente / Destinatário *
-                    </Label>
-                    <Input 
-                      value={clienteNome} 
-                      onChange={(e) => setClienteNome(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Nome do cliente ou destinatário"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Linha 5: Vínculo (condicional) */}
-              {exibeVinculo && (
-                <div className="bg-blue-50 border border-blue-200 rounded p-2 space-y-2">
-                  <Label className="text-xs font-semibold text-blue-700">Vínculo da Saída (Obrigatório)</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                ) : (
+                  <>
                     <div className="space-y-1">
-                      <Label className="text-xs">Tipo de Vínculo *</Label>
-                      <Select value={tipoVinculo} onValueChange={(v) => { setTipoVinculo(v); setVinculoId(''); }}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_VINCULO.map(t => (
-                            <SelectItem key={t.value} value={t.value} className="text-xs">
-                              <span className="flex items-center gap-2">
-                                <t.icon className="w-3.5 h-3.5" />
-                                {t.label}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs font-medium">
+                        Destino/Responsável {operacaoSelecionada?.exigeDestino ? '*' : ''}
+                      </Label>
+                      <Input 
+                        value={destinoTexto} 
+                        onChange={(e) => setDestinoTexto(e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="Cliente, setor, responsável..."
+                      />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Vínculo *</Label>
-                      {tipoVinculo === 'lote' ? (
-                        <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione o lote" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {lotes.map(l => (
-                              <SelectItem key={l.id} value={l.id} className="text-xs">
-                                {l.identificacao || l.nome} ({l.quantidade_animais || 0} cab)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : tipoVinculo === 'area' ? (
-                        <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione a área" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {areas.map(a => (
-                              <SelectItem key={a.id} value={a.id} className="text-xs">
-                                {a.nome} {a.tamanho_hectares ? `(${a.tamanho_hectares} ha)` : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : tipoVinculo === 'maquina' ? (
-                        <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione a máquina" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {maquinas.map(m => (
-                              <SelectItem key={m.id} value={m.id} className="text-xs">
-                                {m.nome || m.identificacao} {m.placa ? `(${m.placa})` : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : tipoVinculo === 'centro_custo' ? (
-                        <Select value={vinculoId} onValueChange={setVinculoId}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Selecione o centro de custo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {centrosCusto.map(c => (
-                              <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input className="h-8 text-xs" disabled placeholder="Selecione o tipo primeiro" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                    {exigeVinculo && (
+                      <>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">Tipo Vínculo *</Label>
+                          <Select value={tipoVinculo} onValueChange={(v) => { setTipoVinculo(v); setVinculoId(''); }}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_VINCULO.map(t => (
+                                <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-              {/* Linha 6: Motivo (condicional) */}
-              {exibeMotivo && (
-                <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-2">
-                  <Label className="text-xs font-semibold text-amber-700">
-                    {tipo === 'AJUSTE' ? 'Motivo do Ajuste *' : 'Motivo da Perda/Quebra *'}
-                  </Label>
-                  {tipo === 'SAIDA' && (operacao === 'perda' || operacao === 'quebra') ? (
-                    <Select value={motivoMovimentacao} onValueChange={setMotivoMovimentacao}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Selecione o motivo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MOTIVOS_PERDA.map(m => (
-                          <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input 
-                      value={motivoMovimentacao} 
-                      onChange={(e) => setMotivoMovimentacao(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder="Descreva o motivo do ajuste..."
-                    />
-                  )}
-                </div>
-              )}
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">Vínculo *</Label>
+                          {tipoVinculo === 'outro' ? (
+                            <Input 
+                              value={vinculoId} 
+                              onChange={(e) => setVinculoId(e.target.value)}
+                              className="h-8 text-xs"
+                              placeholder="Descreva..."
+                            />
+                          ) : tipoVinculo === 'lote' ? (
+                            <Select value={vinculoId} onValueChange={setVinculoId}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {lotes.map(l => (
+                                  <SelectItem key={l.id} value={l.id} className="text-xs">
+                                    {l.identificacao || l.nome} ({l.quantidade_animais || 0} cab)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : tipoVinculo === 'area' ? (
+                            <Select value={vinculoId} onValueChange={setVinculoId}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {areas.map(a => (
+                                  <SelectItem key={a.id} value={a.id} className="text-xs">
+                                    {a.nome} {a.tamanho_hectares ? `(${a.tamanho_hectares} ha)` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : tipoVinculo === 'maquina' ? (
+                            <Select value={vinculoId} onValueChange={setVinculoId}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {maquinas.map(m => (
+                                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                                    {m.nome || m.identificacao} {m.placa ? `(${m.placa})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : tipoVinculo === 'centro_custo' ? (
+                            <Select value={vinculoId} onValueChange={setVinculoId}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {centrosCusto.map(c => (
+                                  <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input className="h-8 text-xs" disabled placeholder="Selecione o tipo" />
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
 
-              {/* Linha 7: Observações */}
-              <div className="space-y-1">
-                <Label className="text-xs">Observações Gerais</Label>
-                <Textarea 
-                  value={observacoes} 
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  className="text-xs min-h-[40px]"
-                  rows={1}
-                  placeholder="Observações opcionais..."
-                />
+                <div className="space-y-1 col-span-full">
+                  <Label className="text-xs">Observações</Label>
+                  <Textarea 
+                    value={observacoes} 
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    className="text-xs min-h-[40px]"
+                    rows={1}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* ========== CARD 2: FORMULÁRIO DO ITEM ========== */}
+          {/* ========== CARD 2: ITENS ========== */}
           <Card className="shadow-sm border-slate-300">
             <CardHeader className="py-2 px-3 bg-slate-100 border-b">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Package className="w-4 h-4" />
-                Lançar Produto
+                Itens / Produtos
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 space-y-3">
               
-              {/* Linha 1: Produto */}
-              <div className="grid grid-cols-12 gap-2">
-                <div className="col-span-6 space-y-1">
-                  <Label className="text-xs">Produto *</Label>
-                  <AutocompleteGenerico
-                    items={produtos}
-                    value={currentItem.produto_id}
-                    onChange={handleProdutoChange}
-                    placeholder="Selecione o produto"
-                    displayField="nome_produto"
-                    searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
-                  />
-                </div>
-
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Código</Label>
-                  <Input 
-                    value={currentItem.produto_codigo}
-                    readOnly
-                    className="h-8 text-xs bg-slate-100"
-                  />
-                </div>
-
-                <div className="col-span-1 space-y-1">
-                  <Label className="text-xs">UN</Label>
-                  <Input 
-                    value={currentItem.unidade}
-                    readOnly
-                    className="h-8 text-xs bg-slate-100"
-                  />
-                </div>
-
-                {(tipo === 'SAIDA' || tipo === 'AJUSTE') && currentItem.produto_id && (
-                  <div className="col-span-3 space-y-1">
-                    <Label className="text-xs">Saldo no Local</Label>
-                    <div className="h-8 flex items-center">
-                      <Badge 
-                        variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} 
-                        className="text-xs"
-                      >
-                        {formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade}
-                      </Badge>
+              {/* Modo de custo */}
+              {tipo === 'SAIDA' && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                  <Label className="text-xs font-medium mb-1 block">Origem do Custo</Label>
+                  <RadioGroup value={modoCustoSaida} onValueChange={setModoCustoSaida} className="flex gap-4">
+                    <div className="flex items-center gap-1">
+                      <RadioGroupItem value="por_lote" id="por_lote" />
+                      <label htmlFor="por_lote" className="text-xs">Por Nota/Lote (obrigatório)</label>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <RadioGroupItem value="fifo" id="fifo" disabled />
+                      <label htmlFor="fifo" className="text-xs text-slate-400">Automático (FIFO) - em desenvolvimento</label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+
+              {/* Formulário do Item */}
+              <div className="bg-slate-50 border rounded p-3 space-y-2">
+                {/* Linha 1: Produto, Quantidade, UN, Saldo */}
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-6 space-y-1">
+                    <Label className="text-xs">Produto *</Label>
+                    <AutocompleteGenerico
+                      items={produtos}
+                      value={currentItem.produto_id}
+                      onChange={handleProdutoChange}
+                      placeholder="Selecione o produto"
+                      displayField="nome_produto"
+                      searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Quantidade *</Label>
+                    <Input 
+                      value={currentItem.quantidade}
+                      onChange={(e) => handleQuantidadeChange(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="0,00"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-1">
+                    <Label className="text-xs">UN</Label>
+                    <Input 
+                      value={currentItem.unidade}
+                      readOnly
+                      className="h-8 text-xs bg-slate-100"
+                    />
+                  </div>
+
+                  {tipo === 'SAIDA' && currentItem.produto_id && (
+                    <div className="col-span-3 space-y-1">
+                      <Label className="text-xs">Saldo no Local</Label>
+                      <div className="h-8 flex items-center">
+                        <Badge variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} className="text-xs">
+                          {formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Seletor de Lote (para saída por lote) */}
+                {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && currentItem.produto_id && localEstoqueId && (
+                  <div className="bg-white border rounded p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs font-medium">Lote/Nota de Origem *</Label>
+                      {currentItem.lote_origem_info && (
+                        <Badge variant="outline" className="text-xs">
+                          {currentItem.lote_origem_info.numero_documento || 'S/N'} - 
+                          Saldo: {formatarNumero(currentItem.lote_origem_info.quantidade_disponivel)} - 
+                          Custo: {formatarMoedaBR(currentItem.lote_origem_info.custo_unitario)}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {lotesDisponiveis.length === 0 ? (
+                      <div className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Nenhum lote disponível para este produto neste local
+                      </div>
+                    ) : (
+                      <div className="max-h-32 overflow-auto border rounded">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-[10px] py-1">Sel.</TableHead>
+                              <TableHead className="text-[10px] py-1">Documento</TableHead>
+                              <TableHead className="text-[10px] py-1">Data</TableHead>
+                              <TableHead className="text-[10px] py-1">Fornecedor</TableHead>
+                              <TableHead className="text-[10px] py-1 text-right">Saldo</TableHead>
+                              <TableHead className="text-[10px] py-1 text-right">Custo</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lotesDisponiveis.map(lote => (
+                              <TableRow 
+                                key={lote.id} 
+                                className={`cursor-pointer hover:bg-emerald-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`}
+                                onClick={() => handleSelecionarLote(lote)}
+                              >
+                                <TableCell className="py-1 px-2">
+                                  <input 
+                                    type="radio" 
+                                    checked={currentItem.lote_origem_id === lote.id}
+                                    onChange={() => handleSelecionarLote(lote)}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-xs py-1">{lote.numero_documento || 'S/N'}/{lote.serie_documento || ''}</TableCell>
+                                <TableCell className="text-xs py-1">{lote.data_documento ? new Date(lote.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="text-xs py-1">{lote.fornecedor_nome || '-'}</TableCell>
+                                <TableCell className="text-xs py-1 text-right font-mono">{formatarNumero(lote.quantidade_disponivel)}</TableCell>
+                                <TableCell className="text-xs py-1 text-right font-mono">{formatarMoedaBR(lote.custo_unitario)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
 
-              {/* Seletor de Lote/Nota (para saída com custo) */}
-              {tipo === 'SAIDA' && usaCusto && currentItem.produto_id && localEstoqueId && lotesDisponiveis.length > 0 && (
-                <div className="bg-slate-50 border rounded p-2">
-                  <Label className="text-xs font-medium mb-1 block">Selecionar Lote/Nota de Origem (opcional - define o custo)</Label>
-                  {currentItem.lote_origem_info && (
-                    <Badge variant="outline" className="text-xs mb-2">
-                      Selecionado: {currentItem.lote_origem_info.numero_documento || 'S/N'} - 
-                      Custo: {formatarMoedaBR(currentItem.lote_origem_info.custo_unitario)}
-                    </Badge>
-                  )}
-                  <div className="max-h-28 overflow-auto border rounded bg-white">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-[10px] py-1 border border-black">Sel.</TableHead>
-                          <TableHead className="text-[10px] py-1 border border-black">Documento</TableHead>
-                          <TableHead className="text-[10px] py-1 border border-black">Data</TableHead>
-                          <TableHead className="text-[10px] py-1 border border-black text-right">Saldo</TableHead>
-                          <TableHead className="text-[10px] py-1 border border-black text-right">Custo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lotesDisponiveis.map(lote => (
-                          <TableRow 
-                            key={lote.id} 
-                            className={`cursor-pointer hover:bg-emerald-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`}
-                            onClick={() => handleSelecionarLote(lote)}
-                          >
-                            <TableCell className="py-1 px-2 border border-gray-300">
-                              <input 
-                                type="radio" 
-                                checked={currentItem.lote_origem_id === lote.id}
-                                onChange={() => handleSelecionarLote(lote)}
-                              />
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{lote.numero_documento || 'S/N'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{lote.data_documento ? new Date(lote.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(lote.quantidade_disponivel)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(lote.custo_unitario)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                {/* Linha 2: Valores */}
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preço Unitário (R$)</Label>
+                    <Input 
+                      value={currentItem.preco_unitario}
+                      onChange={(e) => handlePrecoChange(e.target.value)}
+                      className="h-8 text-xs text-right font-mono"
+                      placeholder="R$ 0,00"
+                      readOnly={!precoEditavel}
+                      title={!precoEditavel ? 'Custo definido pelo lote' : undefined}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Total (R$)</Label>
+                    <Input 
+                      value={currentItem.total}
+                      readOnly
+                      className="h-8 text-xs text-right font-mono bg-slate-100"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Desconto (R$)</Label>
+                    <Input 
+                      value={currentItem.desconto}
+                      onChange={(e) => handleDescontoChange(e.target.value)}
+                      className="h-8 text-xs text-right font-mono"
+                      placeholder="R$ 0,00"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Líquido (R$)</Label>
+                    <Input 
+                      value={currentItem.liquido}
+                      readOnly
+                      className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold"
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* Linha 2: Quantidade e Valores */}
-              <div className="grid grid-cols-5 gap-2">
+                {/* Linha 3: Observação */}
                 <div className="space-y-1">
-                  <Label className="text-xs">Quantidade *</Label>
+                  <Label className="text-xs">Observação do Item</Label>
                   <Input 
-                    value={currentItem.quantidade}
-                    onChange={(e) => handleQuantidadeChange(e.target.value)}
+                    value={currentItem.observacao_item}
+                    onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
                     className="h-8 text-xs"
-                    placeholder="0,00"
+                    placeholder="Observação opcional..."
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Preço Unitário (R$)</Label>
-                  <Input 
-                    value={currentItem.preco_unitario}
-                    onChange={(e) => handlePrecoChange(e.target.value)}
-                    className="h-8 text-xs text-right font-mono"
-                    placeholder="R$ 0,00"
-                  />
+                {/* Botões do item */}
+                <div className="flex gap-2 pt-1">
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                    onClick={handleAdicionarItem}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Item'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs"
+                    onClick={resetCurrentItem}
+                  >
+                    {editingIndex !== null ? 'Cancelar Edição' : 'Limpar'}
+                  </Button>
                 </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Total (R$)</Label>
-                  <Input 
-                    value={currentItem.total}
-                    readOnly
-                    className="h-8 text-xs text-right font-mono bg-slate-100"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Desconto (R$)</Label>
-                  <Input 
-                    value={currentItem.desconto}
-                    onChange={(e) => handleDescontoChange(e.target.value)}
-                    className="h-8 text-xs text-right font-mono"
-                    placeholder="R$ 0,00"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Valor Líquido (R$)</Label>
-                  <Input 
-                    value={currentItem.liquido}
-                    readOnly
-                    className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold"
-                  />
-                </div>
-              </div>
-
-              {/* Linha 3: Observação do Item */}
-              <div className="space-y-1">
-                <Label className="text-xs">Observação do Item</Label>
-                <Input 
-                  value={currentItem.observacao_item}
-                  onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
-                  className="h-8 text-xs"
-                  placeholder="Observação opcional do item..."
-                />
-              </div>
-
-              {/* Validação de saldo */}
-              {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao?.includes('negativo'))) && 
-               currentItem.produto_id && 
-               parseNumeroBR(currentItem.quantidade) > (saldoProdutoNoLocal || 0) && (
-                <div className="bg-red-50 border border-red-200 rounded p-2 flex items-center gap-2 text-red-700">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-xs font-medium">
-                    ❌ Quantidade maior que o saldo disponível ({formatarNumero(saldoProdutoNoLocal || 0)} {currentItem.unidade})
-                  </span>
-                </div>
-              )}
-
-              {/* Botões do item */}
-              <div className="flex gap-2 pt-1">
-                <Button 
-                  type="button" 
-                  size="sm" 
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleAdicionarItem}
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Item'}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 text-xs"
-                  onClick={resetCurrentItem}
-                >
-                  {editingIndex !== null ? 'Cancelar Edição' : 'Limpar'}
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1269,6 +1055,9 @@ export default function MovimentacaoEstoqueFormV2({
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
+                      {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && (
+                        <TableHead className="text-xs font-bold py-1 border border-black">Nota/Lote</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1299,6 +1088,11 @@ export default function MovimentacaoEstoqueFormV2({
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.total)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.desconto)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoedaBR(item.liquido)}</TableCell>
+                        {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && (
+                          <TableCell className="text-xs py-1 border border-gray-300">
+                            {item.lote_origem_info?.numero_documento || '-'}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
