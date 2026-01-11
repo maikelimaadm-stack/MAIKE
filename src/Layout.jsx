@@ -425,7 +425,7 @@ export default function Layout({ children, currentPageName }) {
     if (item.url) return location.pathname === createPageUrl(item.url);
     if (item.submenu) return item.submenu.some(sub => {
       if (sub.url) return location.pathname === createPageUrl(sub.url);
-      if (sub.submenu) return sub.submenu.some(subsub => location.pathname === createPageUrl(subsub.url));
+      if (sub.submenu) return sub.submenu.some(subsub => subsub.url && location.pathname === createPageUrl(subsub.url));
       return false;
     });
     return false;
