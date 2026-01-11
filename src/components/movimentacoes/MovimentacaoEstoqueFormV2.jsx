@@ -85,16 +85,12 @@ const OPERACOES_POR_TIPO = {
     { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false, exigeMotivo: false }
   ],
   TRANSFERENCIA: [
-    { value: 'entre_locais', label: 'Entre Locais', exigeLocalOrigem: true, exigeLocalDestino: true },
-    { value: 'entre_empresas', label: 'Entre Empresas', exigeLocalOrigem: true, exigeLocalDestino: true },
-    { value: 'outros_transferencia', label: 'Outros', exigeLocalOrigem: true, exigeLocalDestino: true }
+    { value: 'entre_locais', label: 'Entre Locais (mesma empresa)', exigeLocalOrigem: true, exigeLocalDestino: true },
+    { value: 'entre_empresas', label: 'Entre Empresas', exigeLocalOrigem: true, exigeLocalDestino: true, exigeEmpresaDestino: true }
   ],
   AJUSTE: [
     { value: 'ajuste_positivo', label: 'Ajuste Positivo (Entrada)', exigeMotivo: true },
-    { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', exigeMotivo: true },
-    { value: 'inventario', label: 'Inventário', exigeMotivo: true },
-    { value: 'correcao', label: 'Correção de Estoque', exigeMotivo: true },
-    { value: 'outros_ajuste', label: 'Outros Ajustes', exigeMotivo: true }
+    { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', exigeMotivo: true }
   ]
 };
 
