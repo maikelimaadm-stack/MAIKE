@@ -271,7 +271,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2025-12-22-gestao-tarefas-restored-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-01-11-relatorios-estoque-v1'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {
