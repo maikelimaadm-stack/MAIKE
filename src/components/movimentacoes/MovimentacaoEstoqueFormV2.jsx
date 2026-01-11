@@ -85,12 +85,16 @@ const OPERACOES_POR_TIPO = {
     { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false, exigeMotivo: false }
   ],
   TRANSFERENCIA: [
-    { value: 'entre_locais', label: 'Entre Locais (mesma empresa)', exigeLocalOrigem: true, exigeLocalDestino: true },
-    { value: 'entre_empresas', label: 'Entre Empresas', exigeLocalOrigem: true, exigeLocalDestino: true, exigeEmpresaDestino: true }
+    { value: 'entre_locais', label: 'Entre Locais', exigeLocalOrigem: true, exigeLocalDestino: true },
+    { value: 'entre_empresas', label: 'Entre Empresas', exigeLocalOrigem: true, exigeLocalDestino: true },
+    { value: 'outros_transferencia', label: 'Outros', exigeLocalOrigem: true, exigeLocalDestino: true }
   ],
   AJUSTE: [
     { value: 'ajuste_positivo', label: 'Ajuste Positivo (Entrada)', exigeMotivo: true },
-    { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', exigeMotivo: true }
+    { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', exigeMotivo: true },
+    { value: 'inventario', label: 'Inventário', exigeMotivo: true },
+    { value: 'correcao', label: 'Correção de Estoque', exigeMotivo: true },
+    { value: 'outros_ajuste', label: 'Outros Ajustes', exigeMotivo: true }
   ]
 };
 
@@ -167,13 +171,6 @@ export default function MovimentacaoEstoqueFormV2({
   
   // Centro de Custo (sempre visível)
   const [centroCustoId, setCentroCustoId] = useState(initialData?.centro_custo_id || '');
-  
-  // Empresa Destino (para transferência entre empresas)
-  const [empresaDestinoId, setEmpresaDestinoId] = useState(initialData?.empresa_destino_id || '');
-  
-  // Dialog de confirmação ao trocar local origem (quando tem itens)
-  const [showConfirmLocalChange, setShowConfirmLocalChange] = useState(false);
-  const [pendingLocalId, setPendingLocalId] = useState(null);
   
   // Motivo/Justificativa
   const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
@@ -257,20 +254,6 @@ export default function MovimentacaoEstoqueFormV2({
     },
     enabled: !!empresaId
   });
-
-  // Query para listar todas as empresas (para transferência entre empresas)
-  const { data: empresas = [] } = useQuery({
-    queryKey: ['empresas_lista'],
-    queryFn: () => base44.entities.Empresa.list(),
-  });
-
-  // Locais de estoque filtrados pela empresa destino (para transferência entre empresas)
-  const locaisEmpresaDestino = useMemo(() => {
-    if (!empresaDestinoId || operacao !== 'entre_empresas') return [];
-    // Por enquanto, consideramos que locais não têm empresa_id, então mostra todos
-    // Se tiver empresa_id no LocalEstoque, filtrar aqui
-    return locais;
-  }, [empresaDestinoId, operacao, locais]);
 
   // Clientes = fornecedores com tipo Cliente
   const clientes = useMemo(() => {
@@ -385,18 +368,6 @@ export default function MovimentacaoEstoqueFormV2({
 
   const handleLocalOrigemChange = (novoLocalId) => {
     const localAnterior = localEstoqueOrigemId;
-    
-    // Se tem itens lançados e está mudando local, pedir confirmação
-    if (itens.length > 0 && novoLocalId !== localAnterior && (tipo === 'SAIDA' || tipo === 'TRANSFERENCIA')) {
-      setPendingLocalId(novoLocalId);
-      setShowConfirmLocalChange(true);
-      return;
-    }
-    
-    aplicarTrocaLocalOrigem(novoLocalId, localAnterior);
-  };
-
-  const aplicarTrocaLocalOrigem = (novoLocalId, localAnterior) => {
     setLocalEstoqueOrigemId(novoLocalId);
     
     // Se mudou o local e tem produto selecionado, validar
@@ -434,19 +405,6 @@ export default function MovimentacaoEstoqueFormV2({
         }
       }
     }
-  };
-
-  const confirmarTrocaLocal = () => {
-    setItens([]);
-    resetCurrentItem();
-    aplicarTrocaLocalOrigem(pendingLocalId, localEstoqueOrigemId);
-    setShowConfirmLocalChange(false);
-    setPendingLocalId(null);
-  };
-
-  const cancelarTrocaLocal = () => {
-    setShowConfirmLocalChange(false);
-    setPendingLocalId(null);
   };
 
   const resetCurrentItem = () => {
@@ -683,10 +641,6 @@ export default function MovimentacaoEstoqueFormV2({
     const precisaSaida = tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo');
 
     // Validar saldo
-    // Variáveis para guardar rateio calculado (evitar mutação direta do state)
-    let rateioCalculado = currentItem.rateio_lotes;
-    let precoCalculado = parseMoedaBR(currentItem.preco_unitario);
-
     if (precisaSaida) {
       if (modoCustoSaida === 'por_lote') {
         if (!currentItem.lote_origem_id) {
@@ -705,11 +659,11 @@ export default function MovimentacaoEstoqueFormV2({
             toast.error(resultado.erro || 'Saldo insuficiente para FIFO');
             return;
           }
-          rateioCalculado = resultado.rateio;
-          precoCalculado = resultado.custoMedioPonderado;
+          currentItem.rateio_lotes = resultado.rateio;
+          currentItem.preco_unitario = formatarMoedaBR(resultado.custoMedioPonderado);
         }
         
-        const qtdRateada = rateioCalculado.reduce((sum, r) => sum + r.quantidade_consumida, 0);
+        const qtdRateada = currentItem.rateio_lotes.reduce((sum, r) => sum + r.quantidade_consumida, 0);
         if (Math.abs(qtdRateada - qtd) > 0.001) {
           toast.error('Erro no cálculo FIFO. Ajuste a quantidade.');
           return;
@@ -1519,11 +1473,12 @@ export default function MovimentacaoEstoqueFormV2({
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Documento</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Data</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Qtd Consumida</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Custo Unit.</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Valor</TableHead>                            </TableRow>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd Consumida</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Unit.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor</TableHead>
+                            </TableRow>
                           </TableHeader>
                           <TableBody>
                             {currentItem.rateio_lotes.map((rateio, idx) => (
