@@ -683,6 +683,10 @@ export default function MovimentacaoEstoqueFormV2({
     const precisaSaida = tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo');
 
     // Validar saldo
+    // Variáveis para guardar rateio calculado (evitar mutação direta do state)
+    let rateioCalculado = currentItem.rateio_lotes;
+    let precoCalculado = parseMoedaBR(currentItem.preco_unitario);
+
     if (precisaSaida) {
       if (modoCustoSaida === 'por_lote') {
         if (!currentItem.lote_origem_id) {
@@ -701,11 +705,11 @@ export default function MovimentacaoEstoqueFormV2({
             toast.error(resultado.erro || 'Saldo insuficiente para FIFO');
             return;
           }
-          currentItem.rateio_lotes = resultado.rateio;
-          currentItem.preco_unitario = formatarMoedaBR(resultado.custoMedioPonderado);
+          rateioCalculado = resultado.rateio;
+          precoCalculado = resultado.custoMedioPonderado;
         }
         
-        const qtdRateada = currentItem.rateio_lotes.reduce((sum, r) => sum + r.quantidade_consumida, 0);
+        const qtdRateada = rateioCalculado.reduce((sum, r) => sum + r.quantidade_consumida, 0);
         if (Math.abs(qtdRateada - qtd) > 0.001) {
           toast.error('Erro no cálculo FIFO. Ajuste a quantidade.');
           return;
