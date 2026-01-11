@@ -70,6 +70,12 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import RelatorioSaldoAtual from './pages/RelatorioSaldoAtual';
+import RelatorioExtratoMovimentacoes from './pages/RelatorioExtratoMovimentacoes';
+import RelatorioConsumoPeriodo from './pages/RelatorioConsumoPeriodo';
+import RelatorioPerdasAnalitico from './pages/RelatorioPerdasAnalitico';
+import RelatorioKardex from './pages/RelatorioKardex';
+import RelatorioEntradasFornecedor from './pages/RelatorioEntradasFornecedor';
 import __Layout from './Layout.jsx';
 
 
@@ -146,6 +152,12 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "RelatorioSaldoAtual": RelatorioSaldoAtual,
+    "RelatorioExtratoMovimentacoes": RelatorioExtratoMovimentacoes,
+    "RelatorioConsumoPeriodo": RelatorioConsumoPeriodo,
+    "RelatorioPerdasAnalitico": RelatorioPerdasAnalitico,
+    "RelatorioKardex": RelatorioKardex,
+    "RelatorioEntradasFornecedor": RelatorioEntradasFornecedor,
 }
 
 export const pagesConfig = {
