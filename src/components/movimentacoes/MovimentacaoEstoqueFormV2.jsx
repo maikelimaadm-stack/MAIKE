@@ -258,6 +258,20 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
+  // Query para listar todas as empresas (para transferência entre empresas)
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas_lista'],
+    queryFn: () => base44.entities.Empresa.list(),
+  });
+
+  // Locais de estoque filtrados pela empresa destino (para transferência entre empresas)
+  const locaisEmpresaDestino = useMemo(() => {
+    if (!empresaDestinoId || operacao !== 'entre_empresas') return [];
+    // Por enquanto, consideramos que locais não têm empresa_id, então mostra todos
+    // Se tiver empresa_id no LocalEstoque, filtrar aqui
+    return locais;
+  }, [empresaDestinoId, operacao, locais]);
+
   // Clientes = fornecedores com tipo Cliente
   const clientes = useMemo(() => {
     return fornecedores.filter(f => f.tipos?.includes('Cliente') || f.tipos?.includes('Fornecedor'));
