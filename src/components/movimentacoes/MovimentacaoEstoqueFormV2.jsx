@@ -1416,13 +1416,12 @@ export default function MovimentacaoEstoqueFormV2({
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-xs font-bold py-1 border border-black w-10">Sel.</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black">Fornecedor</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo</TableHead>
-                            </TableRow>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Sel.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Documento</TableHead>
+                             <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Data</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Fornecedor</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Saldo</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Custo</TableHead>                            </TableRow>
                           </TableHeader>
                           <TableBody>
                             {lotesDisponiveis.map(lote => (
