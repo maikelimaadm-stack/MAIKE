@@ -735,19 +735,22 @@ export default function Layout({ children, currentPageName }) {
                                   
                                   <div className="absolute left-full top-0 ml-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
                                     <div className="py-1">
-                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
-                                        <Link 
-                                          key={subsub.id}
-                                          to={createPageUrl(subsub.url)}
-                                          className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                            location.pathname === createPageUrl(subsub.url)
-                                              ? 'bg-emerald-50 text-emerald-800 font-medium'
-                                              : 'text-slate-700'
-                                          }`}
-                                        >
-                                          {subsub.title}
-                                        </Link>
-                                      ))}
+                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => {
+                                        if (!subsub.url) return null;
+                                        return (
+                                          <Link 
+                                            key={subsub.id}
+                                            to={createPageUrl(subsub.url)}
+                                            className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
+                                              location.pathname === createPageUrl(subsub.url)
+                                                ? 'bg-emerald-50 text-emerald-800 font-medium'
+                                                : 'text-slate-700'
+                                            }`}
+                                          >
+                                            {subsub.title}
+                                          </Link>
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 </div>
