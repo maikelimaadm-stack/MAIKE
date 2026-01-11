@@ -174,6 +174,7 @@ export default function MovimentacaoEstoqueFormV2({
     liquido: '',
     lote_origem_id: '',
     lote_origem_info: null,
+    rateio_lotes: [], // Para FIFO
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
@@ -352,9 +353,66 @@ export default function MovimentacaoEstoqueFormV2({
       liquido: '',
       lote_origem_id: '',
       lote_origem_info: null,
+      rateio_lotes: [],
       observacao_item: ''
     });
     setEditingIndex(null);
+  };
+
+  // Função para calcular rateio FIFO
+  const calcularRateioFIFO = (produtoId, quantidadeSolicitada) => {
+    if (!produtoId || !localEstoqueId || quantidadeSolicitada <= 0) {
+      return { sucesso: false, erro: 'Dados inválidos', rateio: [], custoMedioPonderado: 0 };
+    }
+
+    // Lotes ordenados por data (mais antigo primeiro - FIFO)
+    const lotesOrdenados = lotesNota
+      .filter(l => l.produto_id === produtoId && l.local_estoque_id === localEstoqueId && l.quantidade_disponivel > 0)
+      .sort((a, b) => {
+        const dataA = new Date(a.data_documento || a.created_date || 0);
+        const dataB = new Date(b.data_documento || b.created_date || 0);
+        return dataA - dataB;
+      });
+
+    const saldoTotal = lotesOrdenados.reduce((sum, l) => sum + (l.quantidade_disponivel || 0), 0);
+    
+    if (quantidadeSolicitada > saldoTotal) {
+      return { 
+        sucesso: false, 
+        erro: `Quantidade (${formatarNumero(quantidadeSolicitada)}) maior que saldo disponível (${formatarNumero(saldoTotal)})`, 
+        rateio: [], 
+        custoMedioPonderado: 0 
+      };
+    }
+
+    const rateio = [];
+    let qtdRestante = quantidadeSolicitada;
+    let custoTotal = 0;
+
+    for (const lote of lotesOrdenados) {
+      if (qtdRestante <= 0) break;
+
+      const consumo = Math.min(qtdRestante, lote.quantidade_disponivel);
+      const custoLote = lote.custo_unitario || 0;
+
+      rateio.push({
+        lote_id: lote.id,
+        numero_documento: lote.numero_documento || 'S/N',
+        serie_documento: lote.serie_documento || '',
+        data_documento: lote.data_documento,
+        fornecedor_nome: lote.fornecedor_nome,
+        quantidade_consumida: consumo,
+        custo_unitario: custoLote,
+        valor_total: consumo * custoLote
+      });
+
+      custoTotal += consumo * custoLote;
+      qtdRestante -= consumo;
+    }
+
+    const custoMedioPonderado = quantidadeSolicitada > 0 ? custoTotal / quantidadeSolicitada : 0;
+
+    return { sucesso: true, erro: null, rateio, custoMedioPonderado, custoTotal };
   };
 
   const handleProdutoChange = (produtoId) => {
@@ -412,6 +470,45 @@ export default function MovimentacaoEstoqueFormV2({
     const qtd = parseNumeroBR(currentItem.quantidade);
     if (qtd > 0) {
       setCurrentItem(prev => ({ ...prev, quantidade: formatarNumero(qtd) }));
+    }
+
+    // Se FIFO, recalcular rateio automaticamente
+    if (modoCustoSaida === 'fifo' && (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo'))) {
+      recalcularFIFO(qtd);
+    }
+  };
+
+  const recalcularFIFO = (quantidade) => {
+    if (!currentItem.produto_id || quantidade <= 0) return;
+
+    const resultado = calcularRateioFIFO(currentItem.produto_id, quantidade);
+    
+    if (resultado.sucesso) {
+      const desc = parseMoedaBR(currentItem.desconto);
+      const total = quantidade * resultado.custoMedioPonderado;
+      const liquido = Math.max(0, total - desc);
+
+      setCurrentItem(prev => ({
+        ...prev,
+        preco_unitario: formatarMoedaBR(resultado.custoMedioPonderado),
+        total: formatarMoedaBR(total),
+        liquido: formatarMoedaBR(liquido),
+        rateio_lotes: resultado.rateio,
+        lote_origem_id: '',
+        lote_origem_info: null
+      }));
+    } else {
+      // Manter quantidade mas zerar valores
+      setCurrentItem(prev => ({
+        ...prev,
+        rateio_lotes: [],
+        preco_unitario: formatarMoedaBR(0),
+        total: formatarMoedaBR(0),
+        liquido: formatarMoedaBR(0)
+      }));
+      if (resultado.erro) {
+        toast.error(resultado.erro);
+      }
     }
   };
 
@@ -474,22 +571,40 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    // Validar saldo para saída/ajuste negativo
-    if (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) {
-      if (modoCustoSaida === 'por_lote' && !currentItem.lote_origem_id) {
-        toast.error('Selecione o lote/nota de origem');
-        return;
-      }
+    const precisaSaida = tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo');
 
-      if (currentItem.lote_origem_id) {
+    // Validar saldo para saída/ajuste negativo
+    if (precisaSaida) {
+      if (modoCustoSaida === 'por_lote') {
+        if (!currentItem.lote_origem_id) {
+          toast.error('Selecione o lote/nota de origem');
+          return;
+        }
         const lote = lotesNota.find(l => l.id === currentItem.lote_origem_id);
         if (lote && qtd > lote.quantidade_disponivel) {
           toast.error(`Quantidade maior que o saldo do lote (${formatarNumero(lote.quantidade_disponivel)})`);
           return;
         }
-      } else if (saldoProdutoNoLocal !== null && qtd > saldoProdutoNoLocal) {
-        toast.error(`Quantidade maior que o saldo disponível (${formatarNumero(saldoProdutoNoLocal)})`);
-        return;
+      } else if (modoCustoSaida === 'fifo') {
+        // Validar FIFO
+        if (!currentItem.rateio_lotes || currentItem.rateio_lotes.length === 0) {
+          // Tentar calcular agora
+          const resultado = calcularRateioFIFO(currentItem.produto_id, qtd);
+          if (!resultado.sucesso) {
+            toast.error(resultado.erro || 'Saldo insuficiente para FIFO');
+            return;
+          }
+          // Atualizar o item com o rateio calculado
+          currentItem.rateio_lotes = resultado.rateio;
+          currentItem.preco_unitario = formatarMoedaBR(resultado.custoMedioPonderado);
+        }
+        
+        // Verificar se o rateio cobre a quantidade
+        const qtdRateada = currentItem.rateio_lotes.reduce((sum, r) => sum + r.quantidade_consumida, 0);
+        if (Math.abs(qtdRateada - qtd) > 0.001) {
+          toast.error('Erro no cálculo FIFO. Ajuste a quantidade.');
+          return;
+        }
       }
     }
 
@@ -503,8 +618,12 @@ export default function MovimentacaoEstoqueFormV2({
       total: parseMoedaBR(currentItem.total),
       desconto: parseMoedaBR(currentItem.desconto),
       liquido: parseMoedaBR(currentItem.liquido),
-      lote_origem_id: currentItem.lote_origem_id || null,
-      lote_origem_info: currentItem.lote_origem_info,
+      // Modo por lote
+      lote_origem_id: modoCustoSaida === 'por_lote' ? (currentItem.lote_origem_id || null) : null,
+      lote_origem_info: modoCustoSaida === 'por_lote' ? currentItem.lote_origem_info : null,
+      // Modo FIFO
+      modo_custo_saida: precisaSaida ? modoCustoSaida : null,
+      rateio_lotes: modoCustoSaida === 'fifo' ? currentItem.rateio_lotes : null,
       observacao_item: currentItem.observacao_item
     };
 
@@ -521,6 +640,12 @@ export default function MovimentacaoEstoqueFormV2({
 
   const handleEditarItem = (index) => {
     const item = itens[index];
+    
+    // Se o item foi salvo com modo diferente do atual, ajustar
+    if (item.modo_custo_saida && item.modo_custo_saida !== modoCustoSaida) {
+      setModoCustoSaida(item.modo_custo_saida);
+    }
+    
     setCurrentItem({
       produto_id: item.produto_id,
       produto_nome: item.produto_nome,
@@ -533,6 +658,7 @@ export default function MovimentacaoEstoqueFormV2({
       liquido: formatarMoedaBR(item.liquido),
       lote_origem_id: item.lote_origem_id || '',
       lote_origem_info: item.lote_origem_info,
+      rateio_lotes: item.rateio_lotes || [],
       observacao_item: item.observacao_item || ''
     });
     setEditingIndex(index);
@@ -657,8 +783,13 @@ export default function MovimentacaoEstoqueFormV2({
         valor_unitario: item.preco_unitario,
         valor_total: item.liquido,
         desconto: item.desconto,
-        lote_origem_id: item.lote_origem_id,
-        custo_unitario_origem: item.lote_origem_info?.custo_unitario,
+        // Modo de custo
+        modo_custo_saida: item.modo_custo_saida || null,
+        // Por lote (manual)
+        lote_origem_id: item.lote_origem_id || null,
+        custo_unitario_origem: item.lote_origem_info?.custo_unitario || null,
+        // FIFO (automático)
+        rateio_lotes: item.rateio_lotes || null,
         observacao_item: item.observacao_item
       }))
     };
@@ -1035,11 +1166,11 @@ export default function MovimentacaoEstoqueFormV2({
                   <RadioGroup value={modoCustoSaida} onValueChange={setModoCustoSaida} className="flex gap-4">
                     <div className="flex items-center gap-1">
                       <RadioGroupItem value="por_lote" id="por_lote" />
-                      <label htmlFor="por_lote" className="text-xs">Por Nota/Lote (obrigatório)</label>
+                      <label htmlFor="por_lote" className="text-xs">Por Nota/Lote (manual)</label>
                     </div>
                     <div className="flex items-center gap-1">
-                      <RadioGroupItem value="fifo" id="fifo" disabled />
-                      <label htmlFor="fifo" className="text-xs text-slate-400">Automático (FIFO) - em desenvolvimento</label>
+                      <RadioGroupItem value="fifo" id="fifo" />
+                      <label htmlFor="fifo" className="text-xs">Automático (FIFO)</label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -1094,7 +1225,7 @@ export default function MovimentacaoEstoqueFormV2({
                   )}
                 </div>
 
-                {/* Seletor de Lote (para saída/ajuste negativo por lote) */}
+                {/* Seletor de Lote - MODO POR LOTE (manual) */}
                 {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && 
                   modoCustoSaida === 'por_lote' && currentItem.produto_id && localEstoqueId && (
                   <div className="bg-white border rounded p-2">
@@ -1149,6 +1280,56 @@ export default function MovimentacaoEstoqueFormV2({
                             ))}
                           </TableBody>
                         </Table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Exibição do Rateio FIFO (automático) */}
+                {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && 
+                  modoCustoSaida === 'fifo' && currentItem.produto_id && localEstoqueId && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs font-medium">Rateio FIFO (automático)</Label>
+                      {currentItem.rateio_lotes && currentItem.rateio_lotes.length > 0 && (
+                        <Badge variant="default" className="text-xs bg-blue-600">
+                          {currentItem.rateio_lotes.length} lote(s) - Custo médio: {formatarMoedaBR(parseMoedaBR(currentItem.preco_unitario))}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {saldoProdutoNoLocal === 0 ? (
+                      <div className="text-xs text-red-600">
+                        Nenhum lote disponível para este produto neste local
+                      </div>
+                    ) : currentItem.rateio_lotes && currentItem.rateio_lotes.length > 0 ? (
+                      <div className="max-h-28 overflow-auto border rounded bg-white">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd Consumida</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Unit.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentItem.rateio_lotes.map((rateio, idx) => (
+                              <TableRow key={idx} className="hover:bg-gray-50">
+                                <TableCell className="text-xs py-1 border border-gray-300">{rateio.numero_documento}/{rateio.serie_documento || ''}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300">{rateio.data_documento ? new Date(rateio.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(rateio.quantidade_consumida)}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(rateio.custo_unitario)}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(rateio.valor_total)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500">
+                        Informe a quantidade para calcular o rateio automaticamente
                       </div>
                     )}
                   </div>
@@ -1254,8 +1435,8 @@ export default function MovimentacaoEstoqueFormV2({
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
-                      {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && modoCustoSaida === 'por_lote' && (
-                        <TableHead className="text-xs font-bold py-1 border border-black">Nota/Lote</TableHead>
+                      {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
+                        <TableHead className="text-xs font-bold py-1 border border-black">Origem</TableHead>
                       )}
                     </TableRow>
                   </TableHeader>
@@ -1287,9 +1468,15 @@ export default function MovimentacaoEstoqueFormV2({
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.total)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.desconto)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoedaBR(item.liquido)}</TableCell>
-                        {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && modoCustoSaida === 'por_lote' && (
+                        {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
                           <TableCell className="text-xs py-1 border border-gray-300">
-                            {item.lote_origem_info?.numero_documento || '-'}
+                            {item.modo_custo_saida === 'fifo' ? (
+                              <span className="text-blue-600">
+                                FIFO: {item.rateio_lotes?.map(r => `${r.numero_documento} (${formatarNumero(r.quantidade_consumida)})`).join(' + ') || '-'}
+                              </span>
+                            ) : (
+                              item.lote_origem_info?.numero_documento || '-'
+                            )}
                           </TableCell>
                         )}
                       </TableRow>
