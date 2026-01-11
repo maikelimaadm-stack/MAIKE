@@ -109,6 +109,17 @@ const baixarLoteEstoque = async (loteOrigemId, quantidade) => {
   }
 };
 
+// Baixar estoque de múltiplos lotes (FIFO)
+const baixarLotesFIFO = async (rateioLotes) => {
+  if (!rateioLotes || rateioLotes.length === 0) return;
+  
+  for (const rateio of rateioLotes) {
+    if (rateio.lote_id && rateio.quantidade_consumida > 0) {
+      await baixarLoteEstoque(rateio.lote_id, rateio.quantidade_consumida);
+    }
+  }
+};
+
 export default function MovimentacoesEstoque() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState(null);
@@ -287,8 +298,14 @@ export default function MovimentacoesEstoque() {
     }
 
     // Baixar lote de estoque para saídas
-    if (dadosComuns.tipo_movimentacao === 'Saída' && produto.lote_origem_id) {
-      await baixarLoteEstoque(produto.lote_origem_id, quantidade);
+    if (dadosComuns.tipo_movimentacao === 'Saída') {
+      if (produto.modo_custo_saida === 'fifo' && produto.rateio_lotes) {
+        // FIFO - baixar de múltiplos lotes
+        await baixarLotesFIFO(produto.rateio_lotes);
+      } else if (produto.lote_origem_id) {
+        // Por lote manual
+        await baixarLoteEstoque(produto.lote_origem_id, quantidade);
+      }
     }
   };
 

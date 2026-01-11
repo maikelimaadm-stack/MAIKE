@@ -53,7 +53,6 @@ import PlanoContas from './pages/PlanoContas';
 import PopularCidades from './pages/PopularCidades';
 import Produtos from './pages/Produtos';
 import RelatorioCustosSafra from './pages/RelatorioCustosSafra';
-import RelatorioEstoque from './pages/RelatorioEstoque';
 import RelatorioFinanceiro from './pages/RelatorioFinanceiro';
 import RelatorioFornecedores from './pages/RelatorioFornecedores';
 import RelatorioHistoricoEntregas from './pages/RelatorioHistoricoEntregas';
@@ -70,6 +69,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import RelatorioEstoque from './pages/RelatorioEstoque';
 import __Layout from './Layout.jsx';
 
 
@@ -129,7 +129,6 @@ export const PAGES = {
     "PopularCidades": PopularCidades,
     "Produtos": Produtos,
     "RelatorioCustosSafra": RelatorioCustosSafra,
-    "RelatorioEstoque": RelatorioEstoque,
     "RelatorioFinanceiro": RelatorioFinanceiro,
     "RelatorioFornecedores": RelatorioFornecedores,
     "RelatorioHistoricoEntregas": RelatorioHistoricoEntregas,
@@ -146,6 +145,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "RelatorioEstoque": RelatorioEstoque,
 }
 
 export const pagesConfig = {
