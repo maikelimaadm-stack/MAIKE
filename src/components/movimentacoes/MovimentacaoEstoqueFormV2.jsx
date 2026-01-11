@@ -239,6 +239,26 @@ export default function MovimentacaoEstoqueFormV2({
     return fornecedores.filter(f => f.tipos?.includes('Cliente') || f.tipos?.includes('Fornecedor'));
   }, [fornecedores]);
 
+  // Produtos disponíveis para saída (apenas os que tem saldo no local selecionado)
+  const produtosDisponiveisSaida = useMemo(() => {
+    if (tipo !== 'SAIDA') return produtos;
+    if (!localEstoqueId) return [];
+    
+    // Agrupar saldos por produto_id no local selecionado
+    const saldosPorProduto = {};
+    lotesNota
+      .filter(l => l.local_estoque_id === localEstoqueId && l.quantidade_disponivel > 0 && l.status === 'Disponivel')
+      .forEach(l => {
+        if (!saldosPorProduto[l.produto_id]) {
+          saldosPorProduto[l.produto_id] = 0;
+        }
+        saldosPorProduto[l.produto_id] += l.quantidade_disponivel || 0;
+      });
+    
+    // Filtrar produtos que tem saldo > 0
+    return produtos.filter(p => (saldosPorProduto[p.id] || 0) > 0);
+  }, [tipo, localEstoqueId, lotesNota, produtos]);
+
   // ========== COMPUTED ==========
   const operacoesDisponiveis = useMemo(() => {
     return OPERACOES_POR_TIPO[tipo] || [];
@@ -338,6 +358,54 @@ export default function MovimentacaoEstoqueFormV2({
       if (operacao === 'venda') setOperacao('');
     }
     // NÃO zerar itens nem currentItem
+  };
+
+  // Handler para mudança de local - NÃO apaga itens, mas valida currentItem
+  const handleLocalChange = (novoLocalId) => {
+    const localAnterior = localEstoqueId;
+    setLocalEstoqueId(novoLocalId);
+    
+    // Se é SAIDA e mudou o local, verificar se currentItem ainda é válido
+    if (tipo === 'SAIDA' && currentItem.produto_id && novoLocalId && novoLocalId !== localAnterior) {
+      // Verificar se o produto tem saldo no novo local
+      const saldoNoNovoLocal = calcularSaldoProdutoLocal(lotesNota, currentItem.produto_id, novoLocalId);
+      
+      if (saldoNoNovoLocal <= 0) {
+        // Produto não disponível no novo local - limpar apenas campos do produto
+        setCurrentItem(prev => ({
+          ...prev,
+          produto_id: '',
+          produto_nome: '',
+          produto_codigo: '',
+          unidade: '',
+          preco_unitario: '',
+          total: '',
+          liquido: '',
+          lote_origem_id: '',
+          lote_origem_info: null,
+          rateio_lotes: []
+          // Mantém quantidade e desconto digitados
+        }));
+        toast.warning('Produto não disponível neste local. Selecione outro produto.');
+      } else if (currentItem.lote_origem_id) {
+        // Verificar se o lote selecionado pertence ao novo local
+        const loteAtual = lotesNota.find(l => l.id === currentItem.lote_origem_id);
+        if (loteAtual && loteAtual.local_estoque_id !== novoLocalId) {
+          // Lote não pertence ao novo local - limpar apenas lote
+          setCurrentItem(prev => ({
+            ...prev,
+            lote_origem_id: '',
+            lote_origem_info: null,
+            rateio_lotes: [],
+            preco_unitario: '',
+            total: '',
+            liquido: ''
+          }));
+          toast.info('Lote anterior não pertence a este local. Selecione um novo lote.');
+        }
+      }
+    }
+    // NÃO limpar itens já adicionados
   };
 
   const resetCurrentItem = () => {
@@ -892,7 +960,7 @@ export default function MovimentacaoEstoqueFormV2({
                   <AutocompleteGenerico
                     items={locais}
                     value={localEstoqueId}
-                    onChange={setLocalEstoqueId}
+                    onChange={handleLocalChange}
                     placeholder="Selecione"
                     displayField="nome"
                     searchFields={["nome"]}
@@ -981,7 +1049,7 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
               )}
 
-              {/* Linha 3: Parceiros */}
+              {/* Linha 3: Parceiros e Centro de Custo */}
               <div className="grid grid-cols-12 gap-2 pt-1 border-t">
                 {/* Fornecedor (ENTRADA) */}
                 {tipo === 'ENTRADA' && (
@@ -1106,8 +1174,8 @@ export default function MovimentacaoEstoqueFormV2({
                   </>
                 )}
 
-                {/* Centro de Custo (SEMPRE) */}
-                <div className={`${tipo === 'AJUSTE' ? 'col-span-4' : 'col-span-4'} space-y-1`}>
+                {/* Centro de Custo (SEMPRE VISÍVEL) */}
+                <div className="col-span-4 space-y-1">
                   <Label className="text-xs">Centro de Custo</Label>
                   <AutocompleteGenerico
                     items={centrosCusto}
@@ -1159,8 +1227,15 @@ export default function MovimentacaoEstoqueFormV2({
             </CardHeader>
             <CardContent className="p-3 space-y-2">
               
+              {/* Aviso: selecionar local antes de produtos (SAÍDA) */}
+              {tipo === 'SAIDA' && !localEstoqueId && (
+                <div className="bg-yellow-50 border border-yellow-300 rounded p-2 text-xs text-yellow-800">
+                  Selecione o <strong>Local de Saída (Origem)</strong> para liberar a lista de produtos.
+                </div>
+              )}
+
               {/* Modo de custo (Saída) */}
-              {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
+              {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && localEstoqueId && (
                 <div className="bg-amber-50 border border-amber-200 rounded p-2">
                   <Label className="text-xs font-medium mb-1 block">Origem do Custo</Label>
                   <RadioGroup value={modoCustoSaida} onValueChange={setModoCustoSaida} className="flex gap-4">
@@ -1183,13 +1258,14 @@ export default function MovimentacaoEstoqueFormV2({
                   <div className="col-span-5 space-y-1">
                     <Label className="text-xs">Produto *</Label>
                     <AutocompleteGenerico
-                      items={produtos}
+                      items={tipo === 'SAIDA' ? produtosDisponiveisSaida : produtos}
                       value={currentItem.produto_id}
                       onChange={handleProdutoChange}
-                      placeholder="Pesquisar produto..."
+                      placeholder={tipo === 'SAIDA' && !localEstoqueId ? "Selecione o local primeiro" : "Pesquisar produto..."}
                       displayField="nome_produto"
                       searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
                       className="h-8"
+                      disabled={tipo === 'SAIDA' && !localEstoqueId}
                     />
                   </div>
 
