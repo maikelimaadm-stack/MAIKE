@@ -9,11 +9,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Search, ChevronLeft, ChevronRight, Download, 
+  ArrowUpDown, ArrowUp, ArrowDown, Settings 
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 // ========== CONFIGURAÇÕES ==========
 const TIPOS_MOVIMENTACAO = [
-  { value: '', label: 'Todos' },
+  { value: 'todos', label: 'Todos' },
   { value: 'Entrada', label: 'Entrada' },
   { value: 'Saída', label: 'Saída' },
   { value: 'Transferência', label: 'Transferência' },
@@ -27,11 +41,31 @@ const OPERACOES_POR_TIPO = {
   'Ajuste': ['ajuste_positivo', 'ajuste_negativo', 'inventario', 'correcao']
 };
 
+const COLUNAS_EXTRATO = [
+  { id: 'data', label: 'Data', default: true, sortable: true },
+  { id: 'numero', label: 'Nº', default: true, sortable: true },
+  { id: 'tipo', label: 'Tipo', default: true, sortable: true },
+  { id: 'operacao', label: 'Operação', default: true, sortable: true },
+  { id: 'produto', label: 'Produto', default: true, sortable: true },
+  { id: 'codigo', label: 'Código', default: true, sortable: false },
+  { id: 'quantidade', label: 'Qtd', default: true, sortable: true },
+  { id: 'unidade', label: 'UN', default: true, sortable: false },
+  { id: 'origem', label: 'Origem', default: true, sortable: false },
+  { id: 'destino', label: 'Destino', default: true, sortable: false },
+  { id: 'centro_custo', label: 'C. Custo', default: true, sortable: false },
+  { id: 'documento', label: 'Documento', default: false, sortable: false },
+  { id: 'fornecedor', label: 'Forn./Cliente', default: false, sortable: false },
+  { id: 'valor_unitario', label: 'Vlr. Unit.', default: false, sortable: true },
+  { id: 'valor_total', label: 'Vlr. Total', default: false, sortable: true },
+  { id: 'observacoes', label: 'Observações', default: false, sortable: false }
+];
+
+const ITEMS_PER_PAGE = 50;
+
 // ========== FUNÇÕES AUXILIARES ==========
 const calcularSaldoPorProdutoELocal = (movimentacoes, produtos) => {
   const saldos = {};
 
-  // Inicializar produtos
   produtos.forEach(p => {
     saldos[p.id] = { 
       produto: p, 
@@ -98,7 +132,6 @@ const calcularSaldoPorProdutoELocal = (movimentacoes, produtos) => {
 
 const filtrarMovimentacoes = (movimentacoes, filtros) => {
   return movimentacoes.filter(mov => {
-    // Período
     if (filtros.dataInicial) {
       const dataInicio = new Date(filtros.dataInicial);
       const dataMov = new Date(mov.data_movimentacao);
@@ -110,47 +143,32 @@ const filtrarMovimentacoes = (movimentacoes, filtros) => {
       const dataMov = new Date(mov.data_movimentacao);
       if (dataMov > dataFim) return false;
     }
-
-    // Local
     if (filtros.localId && filtros.localId !== 'todos') {
       const matchOrigem = mov.local_estoque_origem_id === filtros.localId;
       const matchDestino = mov.local_estoque_destino_id === filtros.localId;
       if (!matchOrigem && !matchDestino) return false;
     }
-
-    // Produto
     if (filtros.produtoId && filtros.produtoId !== 'todos') {
       if (mov.produto_id !== filtros.produtoId) return false;
     }
-
-    // Busca por texto (produto)
     if (filtros.buscaProduto) {
       const busca = filtros.buscaProduto.toLowerCase();
       const matchNome = mov.produto_nome?.toLowerCase().includes(busca);
       const matchCodigo = mov.produto_codigo?.toLowerCase().includes(busca);
       if (!matchNome && !matchCodigo) return false;
     }
-
-    // Tipo
     if (filtros.tipo && filtros.tipo !== 'todos') {
       if (mov.tipo_movimentacao !== filtros.tipo) return false;
     }
-
-    // Tipo detalhado
     if (filtros.tipoDetalhado && filtros.tipoDetalhado !== 'todos') {
       if (mov.tipo_detalhado !== filtros.tipoDetalhado) return false;
     }
-
-    // Centro de custo
     if (filtros.centroCustoId && filtros.centroCustoId !== 'todos') {
       if (mov.centro_custo_id !== filtros.centroCustoId) return false;
     }
-
-    // Fornecedor/Cliente
     if (filtros.parceiroId && filtros.parceiroId !== 'todos') {
       if (mov.fornecedor_id !== filtros.parceiroId && mov.cliente_id !== filtros.parceiroId) return false;
     }
-
     return true;
   });
 };
@@ -158,26 +176,40 @@ const filtrarMovimentacoes = (movimentacoes, filtros) => {
 export default function RelatorioEstoque() {
   const empresaId = localStorage.getItem('empresa_selecionada_id');
   const [abaAtiva, setAbaAtiva] = useState('saldo');
-  const [filtrosAplicados, setFiltrosAplicados] = useState({});
-  const [carregando, setCarregando] = useState(false);
+  
+  // Filtros
+  const [dataInicial, setDataInicial] = useState('');
+  const [dataFinal, setDataFinal] = useState('');
+  const [localId, setLocalId] = useState('todos');
+  const [produtoId, setProdutoId] = useState('todos');
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [tipo, setTipo] = useState('todos');
+  const [tipoDetalhado, setTipoDetalhado] = useState('todos');
+  const [centroCustoId, setCentroCustoId] = useState('todos');
+  const [parceiroId, setParceiroId] = useState('todos');
+  const [apenasComSaldo, setApenasComSaldo] = useState(false);
+  const [apenasSaldoNegativo, setApenasSaldoNegativo] = useState(false);
 
-  // Filtros temporários (antes de aplicar)
-  const [filtros, setFiltros] = useState({
-    dataInicial: '',
-    dataFinal: '',
-    localId: 'todos',
-    produtoId: 'todos',
-    buscaProduto: '',
-    tipo: 'todos',
-    tipoDetalhado: 'todos',
-    centroCustoId: 'todos',
-    parceiroId: 'todos',
-    apenasComSaldo: false,
-    apenasSaldoNegativo: false
+  // Paginação e ordenação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  // Colunas visíveis (Extrato)
+  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
+    const saved = localStorage.getItem('colunas_relatorio_estoque');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return COLUNAS_EXTRATO.filter(c => c.default).map(c => c.id);
+      }
+    }
+    return COLUNAS_EXTRATO.filter(c => c.default).map(c => c.id);
   });
 
   // ========== QUERIES ==========
-  const { data: movimentacoes = [], isLoading: loadingMov } = useQuery({
+  const { data: movimentacoes = [], isLoading } = useQuery({
     queryKey: ['movimentacoes_relatorio', empresaId],
     queryFn: async () => {
       const all = await base44.entities.MovimentacaoEstoque.list('-data_movimentacao');
@@ -218,31 +250,40 @@ export default function RelatorioEstoque() {
     enabled: !!empresaId
   });
 
-  // ========== DADOS CALCULADOS ==========
-  const movimentacoesFiltradas = useMemo(() => {
-    return filtrarMovimentacoes(movimentacoes, filtrosAplicados);
-  }, [movimentacoes, filtrosAplicados]);
+  // ========== FILTROS APLICADOS ==========
+  const filtrosAtivos = useMemo(() => ({
+    dataInicial,
+    dataFinal,
+    localId,
+    produtoId,
+    buscaProduto,
+    tipo,
+    tipoDetalhado,
+    centroCustoId,
+    parceiroId,
+    apenasComSaldo,
+    apenasSaldoNegativo
+  }), [dataInicial, dataFinal, localId, produtoId, buscaProduto, tipo, tipoDetalhado, centroCustoId, parceiroId, apenasComSaldo, apenasSaldoNegativo]);
 
-  const saldos = useMemo(() => {
-    return calcularSaldoPorProdutoELocal(movimentacoesFiltradas, produtos);
-  }, [movimentacoesFiltradas, produtos]);
+  const movimentacoesFiltradas = useMemo(() => {
+    return filtrarMovimentacoes(movimentacoes, filtrosAtivos);
+  }, [movimentacoes, filtrosAtivos]);
 
   const saldosTotais = useMemo(() => {
     return calcularSaldoPorProdutoELocal(movimentacoes, produtos);
   }, [movimentacoes, produtos]);
 
-  // Lista de saldos para exibição
+  // ========== SALDO ATUAL ==========
   const listaSaldos = useMemo(() => {
     let lista = Object.values(saldosTotais).map(s => ({
       ...s,
-      saldoNoLocal: filtrosAplicados.localId && filtrosAplicados.localId !== 'todos' 
-        ? (s.porLocal[filtrosAplicados.localId] || 0) 
+      saldoNoLocal: filtrosAtivos.localId && filtrosAtivos.localId !== 'todos' 
+        ? (s.porLocal[filtrosAtivos.localId] || 0) 
         : null
     }));
 
-    // Filtrar por busca de produto
-    if (filtrosAplicados.buscaProduto) {
-      const busca = filtrosAplicados.buscaProduto.toLowerCase();
+    if (filtrosAtivos.buscaProduto) {
+      const busca = filtrosAtivos.buscaProduto.toLowerCase();
       lista = lista.filter(s => 
         s.produto.nome_produto?.toLowerCase().includes(busca) ||
         s.produto.codigo_interno?.toLowerCase().includes(busca) ||
@@ -250,30 +291,28 @@ export default function RelatorioEstoque() {
       );
     }
 
-    // Filtrar apenas com saldo
-    if (filtrosAplicados.apenasComSaldo) {
+    if (filtrosAtivos.apenasComSaldo) {
       lista = lista.filter(s => {
-        if (filtrosAplicados.localId && filtrosAplicados.localId !== 'todos') {
-          return (s.porLocal[filtrosAplicados.localId] || 0) > 0;
+        if (filtrosAtivos.localId && filtrosAtivos.localId !== 'todos') {
+          return (s.porLocal[filtrosAtivos.localId] || 0) > 0;
         }
         return s.total > 0;
       });
     }
 
-    // Filtrar saldo negativo
-    if (filtrosAplicados.apenasSaldoNegativo) {
+    if (filtrosAtivos.apenasSaldoNegativo) {
       lista = lista.filter(s => {
-        if (filtrosAplicados.localId && filtrosAplicados.localId !== 'todos') {
-          return (s.porLocal[filtrosAplicados.localId] || 0) < 0;
+        if (filtrosAtivos.localId && filtrosAtivos.localId !== 'todos') {
+          return (s.porLocal[filtrosAtivos.localId] || 0) < 0;
         }
         return s.total < 0;
       });
     }
 
     return lista.sort((a, b) => a.produto.nome_produto?.localeCompare(b.produto.nome_produto || ''));
-  }, [saldosTotais, filtrosAplicados]);
+  }, [saldosTotais, filtrosAtivos]);
 
-  // Resumo por período
+  // ========== RESUMO POR PERÍODO ==========
   const resumoPeriodo = useMemo(() => {
     const resumo = {};
 
@@ -317,207 +356,295 @@ export default function RelatorioEstoque() {
   }, [movimentacoesFiltradas]);
 
   // Totalizadores
-  const totalizadores = useMemo(() => {
-    return {
-      totalEntradas: movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Entrada' || (m.tipo_movimentacao === 'Ajuste' && m.tipo_detalhado?.toLowerCase().includes('positivo'))).reduce((s, m) => s + (m.quantidade || 0), 0),
-      totalSaidas: movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Saída' || (m.tipo_movimentacao === 'Ajuste' && !m.tipo_detalhado?.toLowerCase().includes('positivo'))).reduce((s, m) => s + (m.quantidade || 0), 0),
-      totalMovimentacoes: movimentacoesFiltradas.length,
-      saldoGeral: listaSaldos.reduce((s, item) => s + item.total, 0)
-    };
-  }, [movimentacoesFiltradas, listaSaldos]);
+  const totalizadores = useMemo(() => ({
+    totalEntradas: movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Entrada' || (m.tipo_movimentacao === 'Ajuste' && m.tipo_detalhado?.toLowerCase().includes('positivo'))).reduce((s, m) => s + (m.quantidade || 0), 0),
+    totalSaidas: movimentacoesFiltradas.filter(m => m.tipo_movimentacao === 'Saída' || (m.tipo_movimentacao === 'Ajuste' && !m.tipo_detalhado?.toLowerCase().includes('positivo'))).reduce((s, m) => s + (m.quantidade || 0), 0),
+    totalMovimentacoes: movimentacoesFiltradas.length,
+    saldoGeral: listaSaldos.reduce((s, item) => s + item.total, 0)
+  }), [movimentacoesFiltradas, listaSaldos]);
 
-  // ========== HANDLERS ==========
-  const handleAplicarFiltros = () => {
-    setCarregando(true);
-    setTimeout(() => {
-      setFiltrosAplicados({ ...filtros });
-      setCarregando(false);
-    }, 100);
+  // ========== ORDENAÇÃO E PAGINAÇÃO ==========
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
-  const handleLimparFiltros = () => {
-    const limpo = {
-      dataInicial: '',
-      dataFinal: '',
-      localId: 'todos',
-      produtoId: 'todos',
-      buscaProduto: '',
-      tipo: 'todos',
-      tipoDetalhado: 'todos',
-      centroCustoId: 'todos',
-      parceiroId: 'todos',
-      apenasComSaldo: false,
-      apenasSaldoNegativo: false
-    };
-    setFiltros(limpo);
-    setFiltrosAplicados({});
+  const getSortIcon = (field) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" />
+      : <ArrowDown className="w-3 h-3 ml-1" />;
   };
+
+  const sortedExtrato = useMemo(() => {
+    if (!sortField) return movimentacoesFiltradas;
+
+    return [...movimentacoesFiltradas].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortField) {
+        case 'data':
+          aValue = new Date(a.data_movimentacao).getTime();
+          bValue = new Date(b.data_movimentacao).getTime();
+          break;
+        case 'numero':
+          aValue = parseInt(a.numero_movimentacao) || 0;
+          bValue = parseInt(b.numero_movimentacao) || 0;
+          break;
+        case 'tipo':
+          aValue = a.tipo_movimentacao || '';
+          bValue = b.tipo_movimentacao || '';
+          break;
+        case 'operacao':
+          aValue = a.tipo_detalhado || '';
+          bValue = b.tipo_detalhado || '';
+          break;
+        case 'produto':
+          aValue = a.produto_nome || '';
+          bValue = b.produto_nome || '';
+          break;
+        case 'quantidade':
+          aValue = a.quantidade || 0;
+          bValue = b.quantidade || 0;
+          break;
+        case 'valor_unitario':
+          aValue = a.valor_unitario || 0;
+          bValue = b.valor_unitario || 0;
+          break;
+        case 'valor_total':
+          aValue = a.valor_total || 0;
+          bValue = b.valor_total || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [movimentacoesFiltradas, sortField, sortDirection]);
+
+  const totalPages = Math.ceil(sortedExtrato.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedExtrato = sortedExtrato.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const tiposDetalhadosDisponiveis = useMemo(() => {
-    if (!filtros.tipo || filtros.tipo === 'todos') return [];
-    return OPERACOES_POR_TIPO[filtros.tipo] || [];
-  }, [filtros.tipo]);
+    if (!tipo || tipo === 'todos') return [];
+    return OPERACOES_POR_TIPO[tipo] || [];
+  }, [tipo]);
 
-  const isLoading = loadingMov || carregando;
+  const handleLimparFiltros = () => {
+    setDataInicial('');
+    setDataFinal('');
+    setLocalId('todos');
+    setProdutoId('todos');
+    setBuscaProduto('');
+    setTipo('todos');
+    setTipoDetalhado('todos');
+    setCentroCustoId('todos');
+    setParceiroId('todos');
+    setApenasComSaldo(false);
+    setApenasSaldoNegativo(false);
+    setCurrentPage(1);
+  };
 
-  // ========== RENDER ==========
+  const toggleColuna = (colunaId) => {
+    setColunasVisiveis(prev => {
+      const novasColunas = prev.includes(colunaId)
+        ? prev.filter(id => id !== colunaId)
+        : [...prev, colunaId];
+      localStorage.setItem('colunas_relatorio_estoque', JSON.stringify(novasColunas));
+      return novasColunas;
+    });
+  };
+
+  const colunasVisiveisOrdenadas = COLUNAS_EXTRATO.filter(c => colunasVisiveis.includes(c.id));
+
+  const handleExport = () => {
+    const csvRows = [];
+    const headers = ['Data', 'Tipo', 'Operação', 'Produto', 'Código', 'Qtd', 'UN', 'Origem', 'Destino', 'C.Custo', 'Documento', 'Forn./Cliente', 'Vlr.Unit.', 'Vlr.Total', 'Obs'];
+    csvRows.push(headers.join(';'));
+
+    movimentacoesFiltradas.forEach(m => {
+      const row = [
+        m.data_movimentacao ? format(new Date(m.data_movimentacao), 'dd/MM/yyyy') : '',
+        m.tipo_movimentacao || '',
+        m.tipo_detalhado || '',
+        m.produto_nome || '',
+        m.produto_codigo || '',
+        m.quantidade || '',
+        m.unidade_medida || '',
+        m.local_estoque_origem || '',
+        m.local_estoque_destino || '',
+        m.centro_custo_nome || '',
+        m.numero_documento ? `${m.tipo_documento || ''} ${m.numero_documento}` : '',
+        m.fornecedor_nome || m.cliente_nome || '',
+        m.valor_unitario || '',
+        m.valor_total || '',
+        m.observacoes || ''
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `relatorio_estoque_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    toast.success('Relatório exportado!');
+  };
+
+  const renderCell = (coluna, mov) => {
+    switch (coluna.id) {
+      case 'data':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.data_movimentacao ? format(new Date(mov.data_movimentacao), 'dd/MM/yyyy') : '-'}</TableCell>;
+      case 'numero':
+        return <TableCell className="text-xs py-1 border border-gray-300 font-mono">{mov.numero_movimentacao || '-'}</TableCell>;
+      case 'tipo':
+        return (
+          <TableCell className="py-1 border border-gray-300">
+            <Badge variant="outline" className={`text-xs ${
+              mov.tipo_movimentacao === 'Entrada' ? 'bg-green-100 text-green-800 border-green-300' :
+              mov.tipo_movimentacao === 'Saída' ? 'bg-red-100 text-red-800 border-red-300' :
+              mov.tipo_movimentacao === 'Transferência' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+              'bg-amber-100 text-amber-800 border-amber-300'
+            }`}>
+              {mov.tipo_movimentacao}
+            </Badge>
+          </TableCell>
+        );
+      case 'operacao':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.tipo_detalhado || '-'}</TableCell>;
+      case 'produto':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.produto_nome || '-'}</TableCell>;
+      case 'codigo':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.produto_codigo || '-'}</TableCell>;
+      case 'quantidade':
+        return <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{mov.quantidade?.toFixed(2)}</TableCell>;
+      case 'unidade':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.unidade_medida || '-'}</TableCell>;
+      case 'origem':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.local_estoque_origem || '-'}</TableCell>;
+      case 'destino':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.local_estoque_destino || '-'}</TableCell>;
+      case 'centro_custo':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.centro_custo_nome || '-'}</TableCell>;
+      case 'documento':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.numero_documento ? `${mov.tipo_documento || ''} ${mov.numero_documento}` : '-'}</TableCell>;
+      case 'fornecedor':
+        return <TableCell className="text-xs py-1 border border-gray-300">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
+      case 'valor_unitario':
+        return <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{mov.valor_unitario ? mov.valor_unitario.toFixed(2) : '-'}</TableCell>;
+      case 'valor_total':
+        return <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{mov.valor_total ? mov.valor_total.toFixed(2) : '-'}</TableCell>;
+      case 'observacoes':
+        return <TableCell className="text-xs py-1 border border-gray-300 max-w-[200px] truncate" title={mov.observacoes}>{mov.observacoes || '-'}</TableCell>;
+      default:
+        return <TableCell className="text-xs py-1 border border-gray-300">-</TableCell>;
+    }
+  };
+
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Relatório de Estoque</h1>
           <p className="text-xs text-slate-600">Saldos, movimentações e resumos</p>
         </div>
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs">
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* FILTROS */}
-      <Card className="shadow-sm border-slate-300">
-        <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-          <CardTitle className="text-sm font-semibold">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 space-y-2">
-          {/* Linha 1 */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Data Inicial</Label>
-              <Input 
-                type="date" 
-                value={filtros.dataInicial} 
-                onChange={(e) => setFiltros(f => ({ ...f, dataInicial: e.target.value }))}
-                className="h-8 text-xs w-full"
+      <Card>
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 md:grid-cols-9 gap-2">
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Buscar produto..."
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                className="h-8 text-xs pl-8"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Data Final</Label>
-              <Input 
-                type="date" 
-                value={filtros.dataFinal} 
-                onChange={(e) => setFiltros(f => ({ ...f, dataFinal: e.target.value }))}
-                className="h-8 text-xs w-full"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Local de Estoque</Label>
-              <Select value={filtros.localId} onValueChange={(v) => setFiltros(f => ({ ...f, localId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {locais.map(l => (
-                    <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Produto</Label>
-              <Select value={filtros.produtoId} onValueChange={(v) => setFiltros(f => ({ ...f, produtoId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {produtos.map(p => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo Movimentação</Label>
-              <Select value={filtros.tipo} onValueChange={(v) => setFiltros(f => ({ ...f, tipo: v, tipoDetalhado: 'todos' }))}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_MOVIMENTACAO.map(t => (
-                    <SelectItem key={t.value || 'todos'} value={t.value || 'todos'} className="text-xs">{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo Detalhado</Label>
-              <Select value={filtros.tipoDetalhado} onValueChange={(v) => setFiltros(f => ({ ...f, tipoDetalhado: v }))} disabled={filtros.tipo === 'todos'}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {tiposDetalhadosDisponiveis.map(t => (
-                    <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={tipo} onValueChange={(v) => { setTipo(v); setTipoDetalhado('todos'); }}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                {TIPOS_MOVIMENTACAO.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={tipoDetalhado} onValueChange={setTipoDetalhado} disabled={tipo === 'todos'}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Operação" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos" className="text-xs">Todas</SelectItem>
+                {tiposDetalhadosDisponiveis.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={localId} onValueChange={setLocalId}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Local" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                {locais.map(l => <SelectItem key={l.id} value={l.id} className="text-xs">{l.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={centroCustoId} onValueChange={setCentroCustoId}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="C. Custo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                {centrosCusto.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={parceiroId} onValueChange={setParceiroId}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Forn./Cliente" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos" className="text-xs">Todos</SelectItem>
+                {fornecedores.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dataInicial} onChange={(e) => setDataInicial(e.target.value)} className="h-8 text-xs" placeholder="Data início" />
+            <Input type="date" value={dataFinal} onChange={(e) => setDataFinal(e.target.value)} className="h-8 text-xs" placeholder="Data fim" />
           </div>
-
-          {/* Linha 2 */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Centro de Custo</Label>
-              <Select value={filtros.centroCustoId} onValueChange={(v) => setFiltros(f => ({ ...f, centroCustoId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {centrosCusto.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Fornecedor/Cliente</Label>
-              <Select value={filtros.parceiroId} onValueChange={(v) => setFiltros(f => ({ ...f, parceiroId: v }))}>
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {fornecedores.map(f => (
-                    <SelectItem key={f.id} value={f.id} className="text-xs">{f.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">Buscar Produto</Label>
-              <Input 
-                value={filtros.buscaProduto} 
-                onChange={(e) => setFiltros(f => ({ ...f, buscaProduto: e.target.value }))}
-                placeholder="Nome, código interno ou barras..."
-                className="h-8 text-xs w-full"
-              />
-            </div>
-            <div className="flex items-end gap-4">
+          <div className="flex justify-between items-center mt-2">
+            <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox 
                   id="apenasComSaldo" 
-                  checked={filtros.apenasComSaldo}
-                  onCheckedChange={(v) => setFiltros(f => ({ ...f, apenasComSaldo: v, apenasSaldoNegativo: v ? false : f.apenasSaldoNegativo }))}
+                  checked={apenasComSaldo}
+                  onCheckedChange={(v) => { setApenasComSaldo(v); if (v) setApenasSaldoNegativo(false); }}
                 />
                 <Label htmlFor="apenasComSaldo" className="text-xs">Saldo {'>'} 0</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox 
                   id="apenasSaldoNegativo" 
-                  checked={filtros.apenasSaldoNegativo}
-                  onCheckedChange={(v) => setFiltros(f => ({ ...f, apenasSaldoNegativo: v, apenasComSaldo: v ? false : f.apenasComSaldo }))}
+                  checked={apenasSaldoNegativo}
+                  onCheckedChange={(v) => { setApenasSaldoNegativo(v); if (v) setApenasComSaldo(false); }}
                 />
                 <Label htmlFor="apenasSaldoNegativo" className="text-xs">Saldo {'<'} 0</Label>
               </div>
             </div>
-            <div className="flex items-end gap-2">
-              <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAplicarFiltros}>
-                Aplicar Filtros
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={handleLimparFiltros}>
-                Limpar
-              </Button>
+            <div className="text-xs text-slate-500">
+              {movimentacoesFiltradas.length} de {movimentacoes.length} registros
             </div>
+            <Button variant="outline" size="sm" onClick={handleLimparFiltros} className="h-7 text-xs">
+              Limpar Filtros
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -533,9 +660,9 @@ export default function RelatorioEstoque() {
         {/* ABA SALDO ATUAL */}
         <TabsContent value="saldo">
           <Card className="shadow-sm border-slate-300">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">
-                Saldo Atual por Produto {filtrosAplicados.localId && filtrosAplicados.localId !== 'todos' && `(Local: ${locais.find(l => l.id === filtrosAplicados.localId)?.nome})`}
+            <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+              <CardTitle className="text-sm font-semibold text-slate-900">
+                Saldo Atual ({listaSaldos.length} produtos)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -545,34 +672,34 @@ export default function RelatorioEstoque() {
                 <div className="p-4 text-center text-xs text-slate-500">Nenhum produto encontrado</div>
               ) : (
                 <>
-                  <div className="max-h-[500px] overflow-auto">
+                  <div className="overflow-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <TableRow className="bg-slate-50 border-b">
                           <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Total Entradas</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Total Saídas</TableHead>
+                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas</TableHead>
+                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo Total</TableHead>
-                          {filtrosAplicados.localId && filtrosAplicados.localId !== 'todos' && (
+                          {filtrosAtivos.localId && filtrosAtivos.localId !== 'todos' && (
                             <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo no Local</TableHead>
                           )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {listaSaldos.map((item, idx) => (
-                          <TableRow key={item.produto.id} className="hover:bg-gray-50">
+                        {listaSaldos.map((item) => (
+                          <TableRow key={item.produto.id} className="hover:bg-slate-50 border-b">
                             <TableCell className="text-xs py-1 border border-gray-300">{item.produto.nome_produto}</TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{item.produto.codigo_interno || '-'}</TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{item.produto.unidade_medida || 'UN'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{item.totalEntradas.toFixed(2)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{item.totalSaidas.toFixed(2)}</TableCell>
-                            <TableCell className={`text-xs py-1 border border-gray-300 text-right font-semibold ${item.total < 0 ? 'text-red-600' : ''}`}>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-emerald-600">{item.totalEntradas.toFixed(2)}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-600">{item.totalSaidas.toFixed(2)}</TableCell>
+                            <TableCell className={`text-xs py-1 border border-gray-300 text-right font-mono font-semibold ${item.total < 0 ? 'text-red-600' : 'text-slate-900'}`}>
                               {item.total.toFixed(2)}
                             </TableCell>
-                            {filtrosAplicados.localId && filtrosAplicados.localId !== 'todos' && (
-                              <TableCell className={`text-xs py-1 border border-gray-300 text-right font-semibold ${item.saldoNoLocal < 0 ? 'text-red-600' : ''}`}>
+                            {filtrosAtivos.localId && filtrosAtivos.localId !== 'todos' && (
+                              <TableCell className={`text-xs py-1 border border-gray-300 text-right font-mono font-semibold ${(item.saldoNoLocal || 0) < 0 ? 'text-red-600' : 'text-slate-900'}`}>
                                 {(item.saldoNoLocal || 0).toFixed(2)}
                               </TableCell>
                             )}
@@ -594,8 +721,34 @@ export default function RelatorioEstoque() {
         {/* ABA EXTRATO */}
         <TabsContent value="extrato">
           <Card className="shadow-sm border-slate-300">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">Extrato de Movimentações ({movimentacoesFiltradas.length})</CardTitle>
+            <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-900">
+                  Extrato ({movimentacoesFiltradas.length})
+                </CardTitle>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                      <Settings className="w-3.5 h-3.5 mr-1" />
+                      Colunas
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-xs">Visibilidade das Colunas</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {COLUNAS_EXTRATO.map((coluna) => (
+                      <DropdownMenuCheckboxItem
+                        key={coluna.id}
+                        checked={colunasVisiveis.includes(coluna.id)}
+                        onCheckedChange={() => toggleColuna(coluna.id)}
+                        className="text-xs"
+                      >
+                        {coluna.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
@@ -604,57 +757,72 @@ export default function RelatorioEstoque() {
                 <div className="p-4 text-center text-xs text-slate-500">Nenhuma movimentação encontrada</div>
               ) : (
                 <>
-                  <div className="max-h-[500px] overflow-auto">
+                  <div className="overflow-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Tipo</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Operação</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Origem</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Destino</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">C. Custo</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black">Forn./Cliente</TableHead>
+                        <TableRow className="bg-slate-50 border-b">
+                          {colunasVisiveisOrdenadas.map((coluna) => (
+                            <TableHead 
+                              key={coluna.id}
+                              className={`text-xs font-bold py-1 border border-black ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                              onClick={() => coluna.sortable && handleSort(coluna.id)}
+                            >
+                              <div className="flex items-center">
+                                {coluna.label}
+                                {coluna.sortable && getSortIcon(coluna.id)}
+                              </div>
+                            </TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {movimentacoesFiltradas.slice(0, 200).map((mov, idx) => (
-                          <TableRow key={mov.id} className="hover:bg-gray-50">
-                            <TableCell className="text-xs py-1 border border-gray-300">
-                              {mov.data_movimentacao ? format(new Date(mov.data_movimentacao), 'dd/MM/yyyy') : '-'}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.tipo_movimentacao}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.tipo_detalhado || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.produto_nome}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.produto_codigo || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right">{mov.quantidade?.toFixed(2)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.unidade_medida || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.local_estoque_origem || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.local_estoque_destino || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.centro_custo_nome || '-'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">
-                              {mov.numero_documento ? `${mov.tipo_documento || ''} ${mov.numero_documento}` : '-'}
-                            </TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>
+                        {paginatedExtrato.map((mov) => (
+                          <TableRow key={mov.id} className="hover:bg-slate-50 border-b">
+                            {colunasVisiveisOrdenadas.map(coluna => (
+                              <React.Fragment key={coluna.id}>
+                                {renderCell(coluna, mov)}
+                              </React.Fragment>
+                            ))}
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  {movimentacoesFiltradas.length > 200 && (
-                    <div className="p-2 text-center text-xs text-amber-600 bg-amber-50 border-t">
-                      Exibindo 200 de {movimentacoesFiltradas.length} registros. Refine os filtros para ver menos dados.
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-end px-4 py-3 border-t border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-600 mr-2">
+                          Página {currentPage} de {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="h-7 text-xs"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          Anterior
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-7 text-xs"
+                        >
+                          Próxima
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   )}
+
                   <div className="bg-slate-100 p-2 border-t flex justify-end gap-4 text-xs">
-                    <span>Total Movimentações: {totalizadores.totalMovimentacoes}</span>
-                    <span>Entradas: {totalizadores.totalEntradas.toFixed(2)}</span>
-                    <span>Saídas: {totalizadores.totalSaidas.toFixed(2)}</span>
+                    <span>Total: {totalizadores.totalMovimentacoes}</span>
+                    <span className="text-emerald-600">Entradas: {totalizadores.totalEntradas.toFixed(2)}</span>
+                    <span className="text-red-600">Saídas: {totalizadores.totalSaidas.toFixed(2)}</span>
                     <span className="font-semibold">Saldo: {(totalizadores.totalEntradas - totalizadores.totalSaidas).toFixed(2)}</span>
                   </div>
                 </>
@@ -666,42 +834,39 @@ export default function RelatorioEstoque() {
         {/* ABA RESUMO */}
         <TabsContent value="resumo">
           <Card className="shadow-sm border-slate-300">
-            <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold">
-                Resumo por Período 
-                {filtrosAplicados.dataInicial && ` (${format(new Date(filtrosAplicados.dataInicial), 'dd/MM/yyyy')}`}
-                {filtrosAplicados.dataFinal && ` a ${format(new Date(filtrosAplicados.dataFinal), 'dd/MM/yyyy')})`}
-                {!filtrosAplicados.dataInicial && !filtrosAplicados.dataFinal && ' (Todos os períodos)'}
+            <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
+              <CardTitle className="text-sm font-semibold text-slate-900">
+                Resumo por Período ({resumoPeriodo.length} produtos)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="p-4 text-center text-xs text-slate-500">Carregando...</div>
               ) : resumoPeriodo.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-500">Nenhum dado encontrado para o período</div>
+                <div className="p-4 text-center text-xs text-slate-500">Nenhum dado encontrado</div>
               ) : (
                 <>
-                  <div className="max-h-[500px] overflow-auto">
+                  <div className="overflow-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <TableRow className="bg-slate-50 border-b">
                           <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black text-right">Entradas</TableHead>
                           <TableHead className="text-xs font-bold py-1 border border-black text-right">Saídas</TableHead>
-                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo Período</TableHead>
+                          <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {resumoPeriodo.map((item, idx) => (
-                          <TableRow key={item.produto_id} className="hover:bg-gray-50">
+                        {resumoPeriodo.map((item) => (
+                          <TableRow key={item.produto_id} className="hover:bg-slate-50 border-b">
                             <TableCell className="text-xs py-1 border border-gray-300">{item.produto_nome}</TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{item.produto_codigo || '-'}</TableCell>
                             <TableCell className="text-xs py-1 border border-gray-300">{item.unidade || 'UN'}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right text-emerald-600">{item.entradas.toFixed(2)}</TableCell>
-                            <TableCell className="text-xs py-1 border border-gray-300 text-right text-red-600">{item.saidas.toFixed(2)}</TableCell>
-                            <TableCell className={`text-xs py-1 border border-gray-300 text-right font-semibold ${item.saldo < 0 ? 'text-red-600' : ''}`}>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-emerald-600 font-semibold">{item.entradas.toFixed(2)}</TableCell>
+                            <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-red-600 font-semibold">{item.saidas.toFixed(2)}</TableCell>
+                            <TableCell className={`text-xs py-1 border border-gray-300 text-right font-mono font-bold ${item.saldo < 0 ? 'text-red-600' : 'text-slate-900'}`}>
                               {item.saldo.toFixed(2)}
                             </TableCell>
                           </TableRow>
@@ -711,8 +876,8 @@ export default function RelatorioEstoque() {
                   </div>
                   <div className="bg-slate-100 p-2 border-t flex justify-end gap-4 text-xs">
                     <span>Produtos: {resumoPeriodo.length}</span>
-                    <span className="text-emerald-600">Total Entradas: {resumoPeriodo.reduce((s, i) => s + i.entradas, 0).toFixed(2)}</span>
-                    <span className="text-red-600">Total Saídas: {resumoPeriodo.reduce((s, i) => s + i.saidas, 0).toFixed(2)}</span>
+                    <span className="text-emerald-600">Entradas: {resumoPeriodo.reduce((s, i) => s + i.entradas, 0).toFixed(2)}</span>
+                    <span className="text-red-600">Saídas: {resumoPeriodo.reduce((s, i) => s + i.saidas, 0).toFixed(2)}</span>
                     <span className="font-semibold">Saldo: {resumoPeriodo.reduce((s, i) => s + i.saldo, 0).toFixed(2)}</span>
                   </div>
                 </>
