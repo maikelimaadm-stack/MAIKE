@@ -602,11 +602,11 @@ export default function MovimentacaoEstoqueFormV2({
         <CardContent className="p-3 space-y-2">
           
           {/* Linha 1: Tipo, Operação, Data */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Tipo *</Label>
               <Select value={tipo} onValueChange={handleTipoChange}>
-                <SelectTrigger className="h-8 text-xs w-full">
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -621,7 +621,7 @@ export default function MovimentacaoEstoqueFormV2({
             <div className="space-y-1">
               <Label className="text-xs">Operação *</Label>
               <Select value={operacao} onValueChange={handleOperacaoChange}>
-                <SelectTrigger className="h-8 text-xs w-full">
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -638,14 +638,17 @@ export default function MovimentacaoEstoqueFormV2({
                 type="date" 
                 value={dataMovimentacao} 
                 onChange={(e) => setDataMovimentacao(e.target.value)}
-                className="h-8 text-xs w-full max-w-[140px]"
+                className="h-8 text-xs w-[150px]"
               />
             </div>
+          </div>
 
+          {/* Linha 2: Centro de Custo, Local(is) */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Centro de Custo *</Label>
               <Select value={centroCustoId} onValueChange={setCentroCustoId}>
-                <SelectTrigger className="h-8 text-xs w-full">
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -655,10 +658,7 @@ export default function MovimentacaoEstoqueFormV2({
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Linha 2: Locais e Parceiros */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {/* Local Origem */}
             {(tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && !operacao?.includes('positivo'))) && (
               <div className="space-y-1">
@@ -666,7 +666,7 @@ export default function MovimentacaoEstoqueFormV2({
                   {tipo === 'TRANSFERENCIA' ? 'Local Origem *' : tipo === 'AJUSTE' ? 'Local Ajuste *' : 'Local Saída *'}
                 </Label>
                 <Select value={localEstoqueOrigemId} onValueChange={(v) => { setLocalEstoqueOrigemId(v); setItens([]); resetCurrentItem(); }}>
-                  <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -685,7 +685,7 @@ export default function MovimentacaoEstoqueFormV2({
                   {tipo === 'TRANSFERENCIA' ? 'Local Destino *' : tipo === 'AJUSTE' ? 'Local Ajuste *' : 'Local Entrada *'}
                 </Label>
                 <Select value={localEstoqueDestinoId} onValueChange={(v) => { setLocalEstoqueDestinoId(v); if (tipo === 'ENTRADA') { setItens([]); resetCurrentItem(); } }}>
-                  <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -702,7 +702,7 @@ export default function MovimentacaoEstoqueFormV2({
               <div className="space-y-1">
                 <Label className="text-xs">Fornecedor *</Label>
                 <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                  <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -719,7 +719,7 @@ export default function MovimentacaoEstoqueFormV2({
               <div className="space-y-1">
                 <Label className="text-xs">Cliente *</Label>
                 <Select value={clienteId} onValueChange={setClienteId}>
-                  <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -736,11 +736,11 @@ export default function MovimentacaoEstoqueFormV2({
           {exibeDocumento && (
             <div className="bg-slate-50 border rounded p-2 space-y-2">
               <Label className="text-xs font-semibold">Dados do Documento</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+              <div className="grid grid-cols-6 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Tipo</Label>
                   <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                    <SelectTrigger className="h-8 text-xs w-full">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -752,29 +752,29 @@ export default function MovimentacaoEstoqueFormV2({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Número</Label>
-                  <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs w-full" />
+                  <Input value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Série</Label>
-                  <Input value={serieDocumento} onChange={(e) => setSerieDocumento(e.target.value)} className="h-8 text-xs w-full" />
+                  <Input value={serieDocumento} onChange={(e) => setSerieDocumento(e.target.value)} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Data</Label>
-                  <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs w-full max-w-[140px]" />
+                  <Input type="date" value={dataDocumento} onChange={(e) => setDataDocumento(e.target.value)} className="h-8 text-xs w-[130px]" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">CFOP</Label>
-                  <Input value={cfop} onChange={(e) => setCfop(e.target.value)} className="h-8 text-xs w-full" maxLength={4} />
+                  <Input value={cfop} onChange={(e) => setCfop(e.target.value)} className="h-8 text-xs" maxLength={4} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Natureza</Label>
-                  <Input value={naturezaOperacao} onChange={(e) => setNaturezaOperacao(e.target.value)} className="h-8 text-xs w-full" />
+                  <Input value={naturezaOperacao} onChange={(e) => setNaturezaOperacao(e.target.value)} className="h-8 text-xs" />
                 </div>
               </div>
               {tipoDocumento === 'nfe' && (
                 <div className="space-y-1">
                   <Label className="text-xs">Chave NF-e</Label>
-                  <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value)} className="h-8 text-xs w-full" maxLength={44} />
+                  <Input value={chaveDocumento} onChange={(e) => setChaveDocumento(e.target.value)} className="h-8 text-xs" maxLength={44} />
                 </div>
               )}
             </div>
@@ -876,11 +876,11 @@ export default function MovimentacaoEstoqueFormV2({
           )}
 
           {/* Linha 1: Produto, Quantidade, Unidade */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-            <div className="sm:col-span-2 space-y-1">
+          <div className="grid grid-cols-12 gap-2">
+            <div className="col-span-6 space-y-1">
               <Label className="text-xs">Produto *</Label>
               <Select value={currentItem.produto_id} onValueChange={handleProdutoChange}>
-                <SelectTrigger className="h-8 text-xs w-full">
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Selecione o produto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -896,24 +896,24 @@ export default function MovimentacaoEstoqueFormV2({
                 <p className="text-xs text-slate-600">Saldo disponível: {saldoProdutoNoLocal.toFixed(2)} {currentItem.unidade}</p>
               )}
             </div>
-            <div className="space-y-1">
+            <div className="col-span-3 space-y-1">
               <Label className="text-xs">Quantidade *</Label>
               <Input 
                 type="number" 
                 step="0.01"
                 value={currentItem.quantidade} 
                 onChange={(e) => handleQuantidadeChange(e.target.value)} 
-                className="h-8 text-xs w-full" 
+                className="h-8 text-xs" 
               />
             </div>
-            <div className="space-y-1">
+            <div className="col-span-3 space-y-1">
               <Label className="text-xs">Unidade</Label>
-              <Input value={currentItem.unidade} readOnly className="h-8 text-xs w-full bg-slate-100" />
+              <Input value={currentItem.unidade} readOnly className="h-8 text-xs bg-slate-100" />
             </div>
           </div>
 
           {/* Linha 2: Preço, Total, Desconto, Líquido */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Preço Unitário</Label>
               <Input 
@@ -921,12 +921,12 @@ export default function MovimentacaoEstoqueFormV2({
                 step="0.01"
                 value={currentItem.preco_unitario} 
                 onChange={(e) => handlePrecoChange(e.target.value)} 
-                className="h-8 text-xs w-full" 
+                className="h-8 text-xs" 
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Total</Label>
-              <Input value={currentItem.total} readOnly className="h-8 text-xs w-full bg-slate-100" />
+              <Input value={currentItem.total} readOnly className="h-8 text-xs bg-slate-100" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Desconto</Label>
@@ -935,12 +935,12 @@ export default function MovimentacaoEstoqueFormV2({
                 step="0.01"
                 value={currentItem.desconto} 
                 onChange={(e) => handleDescontoChange(e.target.value)} 
-                className="h-8 text-xs w-full" 
+                className="h-8 text-xs" 
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Líquido</Label>
-              <Input value={currentItem.liquido} readOnly className="h-8 text-xs w-full bg-slate-100 font-semibold" />
+              <Input value={currentItem.liquido} readOnly className="h-8 text-xs bg-slate-100 font-semibold" />
             </div>
           </div>
 
@@ -950,7 +950,7 @@ export default function MovimentacaoEstoqueFormV2({
             <Input 
               value={currentItem.observacao_item} 
               onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))} 
-              className="h-8 text-xs w-full" 
+              className="h-8 text-xs" 
             />
           </div>
 
