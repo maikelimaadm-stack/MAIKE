@@ -385,6 +385,18 @@ export default function MovimentacaoEstoqueFormV2({
 
   const handleLocalOrigemChange = (novoLocalId) => {
     const localAnterior = localEstoqueOrigemId;
+    
+    // Se tem itens lançados e está mudando local, pedir confirmação
+    if (itens.length > 0 && novoLocalId !== localAnterior && (tipo === 'SAIDA' || tipo === 'TRANSFERENCIA')) {
+      setPendingLocalId(novoLocalId);
+      setShowConfirmLocalChange(true);
+      return;
+    }
+    
+    aplicarTrocaLocalOrigem(novoLocalId, localAnterior);
+  };
+
+  const aplicarTrocaLocalOrigem = (novoLocalId, localAnterior) => {
     setLocalEstoqueOrigemId(novoLocalId);
     
     // Se mudou o local e tem produto selecionado, validar
@@ -422,6 +434,19 @@ export default function MovimentacaoEstoqueFormV2({
         }
       }
     }
+  };
+
+  const confirmarTrocaLocal = () => {
+    setItens([]);
+    resetCurrentItem();
+    aplicarTrocaLocalOrigem(pendingLocalId, localEstoqueOrigemId);
+    setShowConfirmLocalChange(false);
+    setPendingLocalId(null);
+  };
+
+  const cancelarTrocaLocal = () => {
+    setShowConfirmLocalChange(false);
+    setPendingLocalId(null);
   };
 
   const resetCurrentItem = () => {
