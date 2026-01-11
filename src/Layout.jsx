@@ -725,7 +725,7 @@ export default function Layout({ children, currentPageName }) {
                               return (
                                 <div key={sub.id} className="relative group/sub">
                                   <div className={`flex items-center justify-between px-4 py-2 text-xs hover:bg-slate-50 cursor-pointer ${
-                                    location.pathname === createPageUrl(sub.url)
+                                    sub.url && location.pathname === createPageUrl(sub.url)
                                       ? 'bg-emerald-50 text-emerald-800 font-medium'
                                       : 'text-slate-700'
                                   }`}>
