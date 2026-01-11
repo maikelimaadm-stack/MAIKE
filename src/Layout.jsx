@@ -149,67 +149,7 @@ const DEFAULT_MENU = [
     title: "Relatorios",
     icon: "FileText",
     submenu: [
-      {
-        id: "rel-estoque-grupo",
-        title: "Estoque",
-        submenu: [
-          { id: "rel-saldo-atual", title: "Saldo Atual", url: "RelatorioSaldoAtual" },
-          { id: "rel-estoque-local", title: "Estoque por Local", url: "RelatorioEstoqueLocal" },
-          { id: "rel-estoque-centro", title: "Estoque por Centro Custo", url: "RelatorioEstoqueCentroCusto" },
-          { id: "rel-estoque-lote", title: "Estoque por Lote/Nota", url: "RelatorioEstoqueLote" },
-          { id: "rel-valorizacao", title: "Valorizacao Estoque", url: "RelatorioValorizacao" },
-        ],
-      },
-      {
-        id: "rel-movimentacoes-grupo",
-        title: "Movimentacoes",
-        submenu: [
-          { id: "rel-extrato-mov", title: "Extrato Movimentacoes", url: "RelatorioExtratoMovimentacoes" },
-          { id: "rel-mov-produto", title: "Movimentacoes por Produto", url: "RelatorioMovProduto" },
-          { id: "rel-mov-local", title: "Movimentacoes por Local", url: "RelatorioMovLocal" },
-          { id: "rel-mov-documento", title: "Movimentacoes por Documento", url: "RelatorioMovDocumento" },
-          { id: "rel-transferencias", title: "Transferencias", url: "RelatorioTransferencias" },
-          { id: "rel-ajustes", title: "Ajustes", url: "RelatorioAjustes" },
-        ],
-      },
-      {
-        id: "rel-consumo-grupo",
-        title: "Consumo e Custos",
-        submenu: [
-          { id: "rel-consumo-periodo", title: "Consumo por Periodo", url: "RelatorioConsumoPeriodo" },
-          { id: "rel-consumo-centro", title: "Consumo por Centro Custo", url: "RelatorioConsumoCentroCusto" },
-          { id: "rel-consumo-vinculo", title: "Consumo por Vinculo", url: "RelatorioConsumoVinculo" },
-          { id: "rel-custo-lote", title: "Custo por Lote", url: "RelatorioCustoLote" },
-          { id: "rel-custo-area", title: "Custo por Area", url: "RelatorioCustoArea" },
-          { id: "rel-custo-maquina", title: "Custo por Maquina", url: "RelatorioCustoMaquina" },
-        ],
-      },
-      {
-        id: "rel-perdas-grupo",
-        title: "Perdas e Quebras",
-        submenu: [
-          { id: "rel-perdas-analitico", title: "Perdas e Quebras", url: "RelatorioPerdasAnalitico" },
-          { id: "rel-ranking-perdas", title: "Ranking de Perdas", url: "RelatorioRankingPerdas" },
-        ],
-      },
-      {
-        id: "rel-compras-grupo",
-        title: "Compras e Entradas",
-        submenu: [
-          { id: "rel-entradas-fornecedor", title: "Entradas por Fornecedor", url: "RelatorioEntradasFornecedor" },
-          { id: "rel-entradas-analitico", title: "Entradas Analiticas", url: "RelatorioEntradasAnalitico" },
-          { id: "rel-devolucoes", title: "Devolucoes", url: "RelatorioDevolucoes" },
-        ],
-      },
-      {
-        id: "rel-auditoria-grupo",
-        title: "Auditoria",
-        submenu: [
-          { id: "rel-kardex", title: "Kardex do Produto", url: "RelatorioKardex" },
-          { id: "rel-saldos-negativos", title: "Saldos Negativos", url: "RelatorioSaldosNegativos" },
-          { id: "rel-pendencias", title: "Pendencias Qualidade", url: "RelatorioPendencias" },
-        ],
-      },
+      { id: "rel-estoque", title: "Estoque", url: "RelatoriosEstoque" },
       { id: "rel-pesagens", title: "Pesagens", url: "RelatorioPesagens" },
       { id: "rel-custos-safra", title: "Custos Safra", url: "RelatorioCustosSafra" },
       { id: "rel-entregas", title: "Historico Entregas", url: "RelatorioHistoricoEntregas" },
@@ -271,7 +211,7 @@ export default function Layout({ children, currentPageName }) {
   const [menuItems, setMenuItems] = useState(() => {
     const saved = localStorage.getItem('custom_menu');
     const menuVersion = localStorage.getItem('menu_version');
-    const CURRENT_VERSION = '2026-01-11-relatorios-estoque-v1'; // Atualizar esta versão quando adicionar novos menus
+    const CURRENT_VERSION = '2026-01-11-relatorios-unificado-v2'; // Atualizar esta versão quando adicionar novos menus
     
     // Se não tem menu salvo ou a versão mudou, usa o DEFAULT_MENU
     if (!saved || menuVersion !== CURRENT_VERSION) {

@@ -76,6 +76,7 @@ import RelatorioConsumoPeriodo from './pages/RelatorioConsumoPeriodo';
 import RelatorioPerdasAnalitico from './pages/RelatorioPerdasAnalitico';
 import RelatorioKardex from './pages/RelatorioKardex';
 import RelatorioEntradasFornecedor from './pages/RelatorioEntradasFornecedor';
+import RelatoriosEstoque from './pages/RelatoriosEstoque';
 import __Layout from './Layout.jsx';
 
 
@@ -158,6 +159,7 @@ export const PAGES = {
     "RelatorioPerdasAnalitico": RelatorioPerdasAnalitico,
     "RelatorioKardex": RelatorioKardex,
     "RelatorioEntradasFornecedor": RelatorioEntradasFornecedor,
+    "RelatoriosEstoque": RelatoriosEstoque,
 }
 
 export const pagesConfig = {
