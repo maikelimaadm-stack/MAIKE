@@ -13,18 +13,23 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { 
-  ArrowDownCircle, ArrowUpCircle, Plus, Trash2, MoreVertical, Pencil, 
-  Package, Save, X, FileText, AlertTriangle 
-} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MoreVertical, Pencil, Trash2, Save, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
-import DialogCadastroRapido from "../financeiro/DialogCadastroRapido.jsx";
-import SeletorLoteNota from "./SeletorLoteNota.jsx";
 
-// Funções utilitárias inline
+// ========== FUNÇÕES UTILITÁRIAS ==========
 const formatarMoedaBR = (valor) => {
   if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -39,7 +44,7 @@ const parseMoedaBR = (str) => {
 };
 
 const formatarNumero = (num, decimais = 2) => {
-  if (num === null || num === undefined || isNaN(num)) return '0';
+  if (num === null || num === undefined || isNaN(num)) return '';
   return Number(num).toLocaleString('pt-BR', { minimumFractionDigits: decimais, maximumFractionDigits: decimais });
 };
 
@@ -55,24 +60,32 @@ const calcularSaldoProdutoLocal = (lotes, produtoId, localId) => {
     .reduce((sum, l) => sum + (l.quantidade_disponivel || 0), 0);
 };
 
+// ========== CONSTANTES ==========
 const OPERACOES_POR_TIPO = {
   ENTRADA: [
-    { value: 'compra', label: 'Compra', exigeFornecedor: true },
+    { value: 'compra', label: 'Compra', exigeFornecedor: true, exigeDocumento: true },
     { value: 'devolucao_cliente', label: 'Devolução de Cliente', exigeFornecedor: false },
-    { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true },
+    { value: 'bonificacao', label: 'Bonificação', exigeFornecedor: true, exigeDocumento: true },
     { value: 'ajuste_positivo', label: 'Ajuste Positivo', exigeFornecedor: false },
     { value: 'producao_entrada', label: 'Produção/Entrada Interna', exigeFornecedor: false },
     { value: 'outros_entrada', label: 'Outros', exigeFornecedor: false }
   ],
   SAIDA: [
     { value: 'venda', label: 'Venda', exigeDestino: true, precoEditavel: true },
-    { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: false },
-    { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: false },
-    { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: false },
-    { value: 'manutencao', label: 'Manutenção', exigeVinculo: true, precoEditavel: false },
-    { value: 'perda_quebra', label: 'Perda/Quebra', exigeVinculo: false, precoEditavel: false },
+    { value: 'consumo_interno', label: 'Consumo Interno', exigeVinculo: true, precoEditavel: false, exigeMotivo: true },
+    { value: 'suplementacao', label: 'Suplementação', exigeVinculo: true, precoEditavel: false, exigeMotivo: true },
+    { value: 'aplicacao_area', label: 'Aplicação em Área', exigeVinculo: true, precoEditavel: false, exigeMotivo: true },
+    { value: 'manutencao', label: 'Manutenção', exigeVinculo: true, precoEditavel: false, exigeMotivo: true },
+    { value: 'perda_quebra', label: 'Perda/Quebra', exigeVinculo: false, precoEditavel: false, exigeMotivo: true },
     { value: 'ajuste_negativo', label: 'Ajuste Negativo', exigeVinculo: false, precoEditavel: false },
-    { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false }
+    { value: 'outros_saida', label: 'Outros', exigeVinculo: false, precoEditavel: false, exigeMotivo: true }
+  ],
+  AJUSTE: [
+    { value: 'ajuste_positivo', label: 'Ajuste Positivo (Entrada)', exigeMotivo: true },
+    { value: 'ajuste_negativo', label: 'Ajuste Negativo (Saída)', exigeMotivo: true },
+    { value: 'inventario', label: 'Inventário', exigeMotivo: true },
+    { value: 'correcao', label: 'Correção de Estoque', exigeMotivo: true },
+    { value: 'outros_ajuste', label: 'Outros Ajustes', exigeMotivo: true }
   ]
 };
 
@@ -80,9 +93,8 @@ const TIPOS_VINCULO = [
   { value: 'lote', label: 'Lote (Pecuária)' },
   { value: 'area', label: 'Área / Pasto' },
   { value: 'maquina', label: 'Máquina / Veículo' },
-  { value: 'centro_custo', label: 'Centro de Custo' },
   { value: 'funcionario', label: 'Funcionário' },
-  { value: 'outro', label: 'Outro (texto livre)' }
+  { value: 'outro', label: 'Outro' }
 ];
 
 const TIPOS_DOCUMENTO = [
@@ -103,8 +115,12 @@ export default function MovimentacaoEstoqueFormV2({
   const queryClient = useQueryClient();
 
   // ========== ESTADO DO CABEÇALHO ==========
-  const [tipo, setTipo] = useState(initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' : 'ENTRADA');
+  const [tipo, setTipo] = useState(
+    initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' : 
+    initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA'
+  );
   const [operacao, setOperacao] = useState(initialData?.tipo_detalhado || '');
+  const [modoSaida, setModoSaida] = useState(initialData?.modo_saida || ''); // NFE ou MOVIMENTO
   const [dataMovimentacao, setDataMovimentacao] = useState(
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
   );
@@ -112,30 +128,40 @@ export default function MovimentacaoEstoqueFormV2({
     initialData?.local_estoque_destino_id || initialData?.local_estoque_origem_id || ''
   );
   
-  // Documento
+  // Documento/NF-e
   const [tipoDocumento, setTipoDocumento] = useState(initialData?.tipo_documento || '');
   const [numeroDocumento, setNumeroDocumento] = useState(initialData?.numero_documento || '');
   const [serieDocumento, setSerieDocumento] = useState(initialData?.serie_documento || '');
   const [dataDocumento, setDataDocumento] = useState(initialData?.data_documento || '');
   const [chaveDocumento, setChaveDocumento] = useState(initialData?.chave_documento || '');
+  const [cfop, setCfop] = useState(initialData?.cfop || '');
+  const [naturezaOperacao, setNaturezaOperacao] = useState(initialData?.natureza_operacao || '');
   
-  // Parceiro
+  // Parceiros
   const [fornecedorId, setFornecedorId] = useState(initialData?.fornecedor_id || '');
+  const [clienteId, setClienteId] = useState(initialData?.cliente_id || '');
   const [destinoTexto, setDestinoTexto] = useState(initialData?.cliente_nome || initialData?.destino_responsavel || '');
+  
+  // Vínculo
   const [tipoVinculo, setTipoVinculo] = useState(initialData?.tipo_vinculo || '');
   const [vinculoId, setVinculoId] = useState(
     initialData?.lote_vinculado_id || initialData?.area_vinculada_id || 
-    initialData?.maquina_vinculada_id || initialData?.centro_custo_id || ''
+    initialData?.maquina_vinculada_id || ''
   );
+  
+  // Centro de Custo (sempre visível)
+  const [centroCustoId, setCentroCustoId] = useState(initialData?.centro_custo_id || '');
+  
+  // Motivo/Justificativa
+  const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
   
   const [observacoes, setObservacoes] = useState(initialData?.observacoes || '');
 
   // ========== ESTADO DOS ITENS ==========
   const [itens, setItens] = useState([]);
-  const [modoEntrada, setModoEntrada] = useState('por_nota'); // 'por_nota' | 'rapida'
-  const [modoCustoSaida, setModoCustoSaida] = useState('por_lote'); // 'por_lote' | 'fifo'
+  const [modoCustoSaida, setModoCustoSaida] = useState('por_lote');
   
-  // Item atual (formulário)
+  // Item atual (formulário) - valores como strings para digitação
   const [currentItem, setCurrentItem] = useState({
     produto_id: '',
     produto_nome: '',
@@ -151,11 +177,10 @@ export default function MovimentacaoEstoqueFormV2({
     observacao_item: ''
   });
   const [editingIndex, setEditingIndex] = useState(null);
-  const [showSeletorLote, setShowSeletorLote] = useState(false);
 
-  // Dialogs
-  const [showDialogLocal, setShowDialogLocal] = useState(false);
-  const [showDialogFornecedor, setShowDialogFornecedor] = useState(false);
+  // Dialog de confirmação ao trocar tipo
+  const [showConfirmTipoChange, setShowConfirmTipoChange] = useState(false);
+  const [pendingTipo, setPendingTipo] = useState(null);
 
   // ========== QUERIES ==========
   const { data: locais = [] } = useQuery({
@@ -208,6 +233,11 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
+  // Clientes = fornecedores com tipo Cliente
+  const clientes = useMemo(() => {
+    return fornecedores.filter(f => f.tipos?.includes('Cliente') || f.tipos?.includes('Fornecedor'));
+  }, [fornecedores]);
+
   // ========== COMPUTED ==========
   const operacoesDisponiveis = useMemo(() => {
     return OPERACOES_POR_TIPO[tipo] || [];
@@ -217,12 +247,38 @@ export default function MovimentacaoEstoqueFormV2({
     return operacoesDisponiveis.find(op => op.value === operacao);
   }, [operacoesDisponiveis, operacao]);
 
+  // Quando mostrar documento/NF-e
+  const mostrarDocumento = useMemo(() => {
+    if (tipo === 'ENTRADA') {
+      return operacao === 'compra' || operacao === 'bonificacao';
+    }
+    if (tipo === 'SAIDA') {
+      return modoSaida === 'NFE';
+    }
+    return false;
+  }, [tipo, operacao, modoSaida]);
+
+  // Quando mostrar motivo
+  const exigeMotivo = useMemo(() => {
+    if (tipo === 'AJUSTE') return true;
+    if (tipo === 'SAIDA' && modoSaida === 'MOVIMENTO') {
+      return operacaoSelecionada?.exigeMotivo || false;
+    }
+    return false;
+  }, [tipo, modoSaida, operacaoSelecionada]);
+
   const exigeVinculo = operacaoSelecionada?.exigeVinculo || false;
-  const precoEditavel = tipo === 'ENTRADA' || (operacaoSelecionada?.precoEditavel ?? false);
+  
+  const precoEditavel = useMemo(() => {
+    if (tipo === 'ENTRADA') return true;
+    if (tipo === 'AJUSTE') return true;
+    if (tipo === 'SAIDA' && modoSaida === 'NFE') return true;
+    return operacaoSelecionada?.precoEditavel ?? false;
+  }, [tipo, modoSaida, operacaoSelecionada]);
 
   // Saldo do produto no local (para saída)
   const saldoProdutoNoLocal = useMemo(() => {
-    if (tipo !== 'SAIDA' || !currentItem.produto_id || !localEstoqueId) return null;
+    if ((tipo !== 'SAIDA' && tipo !== 'AJUSTE') || !currentItem.produto_id || !localEstoqueId) return null;
     return calcularSaldoProdutoLocal(lotesNota, currentItem.produto_id, localEstoqueId);
   }, [tipo, currentItem.produto_id, localEstoqueId, lotesNota]);
 
@@ -245,10 +301,42 @@ export default function MovimentacaoEstoqueFormV2({
 
   // ========== HANDLERS ==========
   const handleTipoChange = (novoTipo) => {
+    if (itens.length > 0 && novoTipo !== tipo) {
+      setPendingTipo(novoTipo);
+      setShowConfirmTipoChange(true);
+    } else {
+      aplicarTrocaTipo(novoTipo);
+    }
+  };
+
+  const aplicarTrocaTipo = (novoTipo) => {
     setTipo(novoTipo);
     setOperacao('');
+    setModoSaida('');
+    // NÃO zerar currentItem nem itens aqui, só se confirmar no dialog
+  };
+
+  const confirmarTrocaTipo = () => {
     setItens([]);
     resetCurrentItem();
+    aplicarTrocaTipo(pendingTipo);
+    setShowConfirmTipoChange(false);
+    setPendingTipo(null);
+  };
+
+  const cancelarTrocaTipo = () => {
+    setShowConfirmTipoChange(false);
+    setPendingTipo(null);
+  };
+
+  const handleModoSaidaChange = (modo) => {
+    setModoSaida(modo);
+    if (modo === 'NFE') {
+      setOperacao('venda');
+    } else {
+      if (operacao === 'venda') setOperacao('');
+    }
+    // NÃO zerar itens nem currentItem
   };
 
   const resetCurrentItem = () => {
@@ -277,15 +365,15 @@ export default function MovimentacaoEstoqueFormV2({
     }
 
     let precoInicial = 0;
-    if (tipo === 'ENTRADA') {
+    if (tipo === 'ENTRADA' || tipo === 'AJUSTE') {
       precoInicial = prod.preco_custo || 0;
     } else if (tipo === 'SAIDA') {
-      if (precoEditavel) {
+      if (modoSaida === 'NFE') {
+        // Venda: sugerir preço de venda
         precoInicial = prod.preco_venda || prod.preco_custo || 0;
       } else {
-        // Custo virá do lote selecionado
-        const primeiroLote = lotesDisponiveis.find(l => l.produto_id === produtoId);
-        precoInicial = primeiroLote?.custo_unitario || prod.preco_custo || 0;
+        // Movimento: custo virá do lote
+        precoInicial = prod.preco_custo || 0;
       }
     }
 
@@ -301,13 +389,17 @@ export default function MovimentacaoEstoqueFormV2({
     }));
   };
 
-  const handleQuantidadeChange = (valor) => {
-    const qtd = parseNumeroBR(valor);
-    const preco = parseMoedaBR(currentItem.preco_unitario);
-    const desc = parseMoedaBR(currentItem.desconto);
+  const recalcularTotais = (qtdStr, precoStr, descontoStr) => {
+    const qtd = parseNumeroBR(qtdStr);
+    const preco = parseMoedaBR(precoStr);
+    const desc = parseMoedaBR(descontoStr);
     const total = qtd * preco;
     const liquido = Math.max(0, total - desc);
+    return { total, liquido };
+  };
 
+  const handleQuantidadeChange = (valor) => {
+    const { total, liquido } = recalcularTotais(valor, currentItem.preco_unitario, currentItem.desconto);
     setCurrentItem(prev => ({
       ...prev,
       quantidade: valor,
@@ -316,13 +408,20 @@ export default function MovimentacaoEstoqueFormV2({
     }));
   };
 
-  const handlePrecoChange = (valor) => {
-    const preco = parseMoedaBR(valor);
+  const handleQuantidadeBlur = () => {
     const qtd = parseNumeroBR(currentItem.quantidade);
-    const desc = parseMoedaBR(currentItem.desconto);
-    const total = qtd * preco;
-    const liquido = Math.max(0, total - desc);
+    if (qtd > 0) {
+      setCurrentItem(prev => ({ ...prev, quantidade: formatarNumero(qtd) }));
+    }
+  };
 
+  const handlePrecoChange = (valor) => {
+    setCurrentItem(prev => ({ ...prev, preco_unitario: valor }));
+  };
+
+  const handlePrecoBlur = () => {
+    const preco = parseMoedaBR(currentItem.preco_unitario);
+    const { total, liquido } = recalcularTotais(currentItem.quantidade, preco, currentItem.desconto);
     setCurrentItem(prev => ({
       ...prev,
       preco_unitario: formatarMoedaBR(preco),
@@ -332,13 +431,16 @@ export default function MovimentacaoEstoqueFormV2({
   };
 
   const handleDescontoChange = (valor) => {
-    const desc = parseMoedaBR(valor);
-    const total = parseMoedaBR(currentItem.total);
-    const liquido = Math.max(0, total - desc);
+    setCurrentItem(prev => ({ ...prev, desconto: valor }));
+  };
 
+  const handleDescontoBlur = () => {
+    const desc = parseMoedaBR(currentItem.desconto);
+    const { total, liquido } = recalcularTotais(currentItem.quantidade, currentItem.preco_unitario, desc);
     setCurrentItem(prev => ({
       ...prev,
       desconto: formatarMoedaBR(desc),
+      total: formatarMoedaBR(total),
       liquido: formatarMoedaBR(liquido)
     }));
   };
@@ -358,11 +460,9 @@ export default function MovimentacaoEstoqueFormV2({
       total: formatarMoedaBR(total),
       liquido: formatarMoedaBR(liquido)
     }));
-    setShowSeletorLote(false);
   };
 
   const handleAdicionarItem = () => {
-    // Validações
     if (!currentItem.produto_id) {
       toast.error('Selecione um produto');
       return;
@@ -374,8 +474,8 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    // Validar saldo para saída
-    if (tipo === 'SAIDA') {
+    // Validar saldo para saída/ajuste negativo
+    if (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) {
       if (modoCustoSaida === 'por_lote' && !currentItem.lote_origem_id) {
         toast.error('Selecione o lote/nota de origem');
         return;
@@ -449,7 +549,6 @@ export default function MovimentacaoEstoqueFormV2({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validações gerais
     if (!operacao) {
       toast.error('Selecione a operação');
       return;
@@ -465,7 +564,7 @@ export default function MovimentacaoEstoqueFormV2({
       return;
     }
 
-    // Validações específicas por tipo
+    // Validações específicas
     if (tipo === 'ENTRADA') {
       const opConfig = operacoesDisponiveis.find(op => op.value === operacao);
       if (opConfig?.exigeFornecedor && !fornecedorId) {
@@ -475,48 +574,80 @@ export default function MovimentacaoEstoqueFormV2({
     }
 
     if (tipo === 'SAIDA') {
-      if (operacaoSelecionada?.exigeDestino && !destinoTexto.trim()) {
-        toast.error('Informe o destino/responsável');
+      if (!modoSaida) {
+        toast.error('Selecione o modo de saída (NF-e ou Movimento)');
         return;
       }
-
+      if (modoSaida === 'NFE' && !clienteId && !destinoTexto.trim()) {
+        toast.error('Informe o cliente');
+        return;
+      }
       if (exigeVinculo && !tipoVinculo) {
         toast.error('Selecione o tipo de vínculo');
         return;
       }
-
       if (exigeVinculo && tipoVinculo !== 'outro' && !vinculoId) {
         toast.error('Selecione o vínculo');
         return;
       }
     }
 
+    if (exigeMotivo && !motivoMovimentacao.trim()) {
+      toast.error('Informe o motivo/justificativa');
+      return;
+    }
+
     // Preparar dados
     const fornecedor = fornecedores.find(f => f.id === fornecedorId);
+    const cliente = clientes.find(c => c.id === clienteId);
     const local = locais.find(l => l.id === localEstoqueId);
+    const centro = centrosCusto.find(c => c.id === centroCustoId);
+
+    const tipoMovimentacaoFinal = tipo === 'ENTRADA' ? 'Entrada' : tipo === 'SAIDA' ? 'Saída' : 'Ajuste';
 
     const dadosMovimentacao = {
       empresa_id: empresaId,
-      tipo_movimentacao: tipo === 'ENTRADA' ? 'Entrada' : 'Saída',
+      tipo_movimentacao: tipoMovimentacaoFinal,
       tipo_detalhado: operacao,
+      modo_saida: tipo === 'SAIDA' ? modoSaida : undefined,
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
-      local_estoque_origem_id: tipo === 'SAIDA' ? localEstoqueId : undefined,
-      local_estoque_origem_nome: tipo === 'SAIDA' ? local?.nome : undefined,
-      local_estoque_destino_id: tipo === 'ENTRADA' ? localEstoqueId : undefined,
-      local_estoque_destino_nome: tipo === 'ENTRADA' ? local?.nome : undefined,
-      tipo_documento: tipoDocumento || undefined,
-      numero_documento: numeroDocumento || undefined,
-      serie_documento: serieDocumento || undefined,
-      data_documento: dataDocumento || undefined,
-      chave_documento: chaveDocumento || undefined,
+      
+      // Local
+      local_estoque_origem_id: (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? localEstoqueId : undefined,
+      local_estoque_origem_nome: (tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? local?.nome : undefined,
+      local_estoque_destino_id: (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao !== 'ajuste_negativo')) ? localEstoqueId : undefined,
+      local_estoque_destino_nome: (tipo === 'ENTRADA' || (tipo === 'AJUSTE' && operacao !== 'ajuste_negativo')) ? local?.nome : undefined,
+      
+      // Documento (quando aplicável)
+      tipo_documento: mostrarDocumento ? tipoDocumento : undefined,
+      numero_documento: mostrarDocumento ? numeroDocumento : undefined,
+      serie_documento: mostrarDocumento ? serieDocumento : undefined,
+      data_documento: mostrarDocumento ? dataDocumento : undefined,
+      chave_documento: mostrarDocumento ? chaveDocumento : undefined,
+      cfop: mostrarDocumento ? cfop : undefined,
+      natureza_operacao: mostrarDocumento ? naturezaOperacao : undefined,
+      
+      // Parceiros
       fornecedor_id: tipo === 'ENTRADA' ? fornecedorId : undefined,
       fornecedor_nome: tipo === 'ENTRADA' ? fornecedor?.nome : undefined,
+      cliente_id: (tipo === 'SAIDA' && modoSaida === 'NFE') ? clienteId : undefined,
+      cliente_nome: (tipo === 'SAIDA' && modoSaida === 'NFE') ? (cliente?.nome || destinoTexto) : undefined,
       destino_responsavel: tipo === 'SAIDA' ? destinoTexto : undefined,
-      cliente_nome: tipo === 'SAIDA' && operacao === 'venda' ? destinoTexto : undefined,
-      tipo_vinculo: tipo === 'SAIDA' && exigeVinculo ? tipoVinculo : undefined,
-      vinculo_id: tipo === 'SAIDA' && exigeVinculo ? vinculoId : undefined,
+      
+      // Vínculo
+      tipo_vinculo: (tipo === 'SAIDA' && exigeVinculo) ? tipoVinculo : undefined,
+      vinculo_id: (tipo === 'SAIDA' && exigeVinculo) ? vinculoId : undefined,
+      
+      // Centro de Custo (sempre)
+      centro_custo_id: centroCustoId || undefined,
+      centro_custo_nome: centro?.nome || undefined,
+      
+      // Motivo
+      motivo_movimentacao: exigeMotivo ? motivoMovimentacao : undefined,
+      
       observacoes: observacoes || undefined,
       status: 'Ativa',
+      
       produtos: itens.map(item => ({
         produto_id: item.produto_id,
         produto_nome: item.produto_nome,
@@ -535,277 +666,349 @@ export default function MovimentacaoEstoqueFormV2({
     onSubmit(dadosMovimentacao);
   };
 
+  // Label do local baseado no tipo
+  const labelLocal = useMemo(() => {
+    if (tipo === 'ENTRADA') return 'Local de Entrada (Destino) *';
+    if (tipo === 'SAIDA') return 'Local de Saída (Origem) *';
+    return 'Local do Ajuste *';
+  }, [tipo]);
+
   // ========== RENDER ==========
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-2">
           
           {/* ========== CARD 1: CABEÇALHO ========== */}
-          <Card className="shadow-sm border-slate-300">
+          <Card className="shadow-sm">
             <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                {tipo === 'ENTRADA' ? (
-                  <ArrowDownCircle className="w-4 h-4 text-emerald-600" />
-                ) : (
-                  <ArrowUpCircle className="w-4 h-4 text-red-600" />
-                )}
+              <CardTitle className="text-sm font-semibold">
                 {initialData?.id ? 'Editar Movimentação' : 'Nova Movimentação de Estoque'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-3">
+            <CardContent className="p-3 space-y-2">
               
               {/* Linha 1: Tipo, Operação, Data, Local */}
-              <div className="grid grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Tipo *</Label>
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Tipo *</Label>
                   <Select value={tipo} onValueChange={handleTipoChange}>
-                    <SelectTrigger className="h-9 text-xs">
+                    <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ENTRADA" className="text-xs">
-                        <span className="flex items-center gap-2">
-                          <ArrowDownCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          ENTRADA
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="SAIDA" className="text-xs">
-                        <span className="flex items-center gap-2">
-                          <ArrowUpCircle className="w-3.5 h-3.5 text-red-600" />
-                          SAÍDA
-                        </span>
-                      </SelectItem>
+                      <SelectItem value="ENTRADA" className="text-xs">ENTRADA</SelectItem>
+                      <SelectItem value="SAIDA" className="text-xs">SAÍDA</SelectItem>
+                      <SelectItem value="AJUSTE" className="text-xs">AJUSTE</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Operação *</Label>
-                  <Select value={operacao} onValueChange={setOperacao}>
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operacoesDisponiveis.map(op => (
-                        <SelectItem key={op.value} value={op.value} className="text-xs">
-                          {op.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Data *</Label>
-                  <Input 
-                    type="date" 
-                    value={dataMovimentacao} 
-                    onChange={(e) => setDataMovimentacao(e.target.value)}
-                    className="h-9 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">
-                    {tipo === 'ENTRADA' ? 'Local de Entrada (Destino) *' : 'Local de Saída (Origem) *'}
-                  </Label>
-                  <div className="flex gap-1">
-                    <AutocompleteGenerico
-                      items={locais}
-                      value={localEstoqueId}
-                      onChange={setLocalEstoqueId}
-                      placeholder="Selecione"
-                      displayField="nome"
-                      searchFields={["nome"]}
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="outline" size="icon" className="h-9 w-9" onClick={() => setShowDialogLocal(true)}>
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
+                {/* Modo Saída (apenas para SAIDA) */}
+                {tipo === 'SAIDA' && (
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Modo Saída *</Label>
+                    <Select value={modoSaida} onValueChange={handleModoSaidaChange}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NFE" className="text-xs">NF-e (Venda)</SelectItem>
+                        <SelectItem value="MOVIMENTO" className="text-xs">Movimento Interno</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* Linha 2: Documento */}
-              <div className="grid grid-cols-5 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Tipo Doc.</Label>
-                  <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                <div className={`${tipo === 'SAIDA' ? 'col-span-2' : 'col-span-3'} space-y-1`}>
+                  <Label className="text-xs">Operação *</Label>
+                  <Select 
+                    value={operacao} 
+                    onValueChange={setOperacao}
+                    disabled={tipo === 'SAIDA' && modoSaida === 'NFE'}
+                  >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_DOCUMENTO.map(t => (
-                        <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
-                      ))}
+                      {operacoesDisponiveis
+                        .filter(op => {
+                          if (tipo === 'SAIDA' && modoSaida === 'NFE') return op.value === 'venda';
+                          if (tipo === 'SAIDA' && modoSaida === 'MOVIMENTO') return op.value !== 'venda';
+                          return true;
+                        })
+                        .map(op => (
+                          <SelectItem key={op.value} value={op.value} className="text-xs">
+                            {op.label}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Nº Documento</Label>
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Data *</Label>
                   <Input 
-                    value={numeroDocumento} 
-                    onChange={(e) => setNumeroDocumento(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="000000"
+                    type="date" 
+                    value={dataMovimentacao} 
+                    onChange={(e) => setDataMovimentacao(e.target.value)}
+                    className="h-8 text-xs max-w-[150px]"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Série</Label>
-                  <Input 
-                    value={serieDocumento} 
-                    onChange={(e) => setSerieDocumento(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="001"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Data Doc.</Label>
-                  <Input 
-                    type="date"
-                    value={dataDocumento} 
-                    onChange={(e) => setDataDocumento(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Chave NF-e</Label>
-                  <Input 
-                    value={chaveDocumento} 
-                    onChange={(e) => setChaveDocumento(e.target.value)}
-                    className="h-8 text-xs"
-                    placeholder="44 dígitos"
-                    maxLength={44}
+                <div className={`${tipo === 'SAIDA' ? 'col-span-4' : 'col-span-5'} space-y-1`}>
+                  <Label className="text-xs">{labelLocal}</Label>
+                  <AutocompleteGenerico
+                    items={locais}
+                    value={localEstoqueId}
+                    onChange={setLocalEstoqueId}
+                    placeholder="Selecione"
+                    displayField="nome"
+                    searchFields={["nome"]}
+                    className="h-8"
                   />
                 </div>
               </div>
 
-              {/* Linha 3: Parceiro */}
-              <div className="grid grid-cols-3 gap-2">
-                {tipo === 'ENTRADA' ? (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">
+              {/* Linha 2: Documento/NF-e (condicional) */}
+              {mostrarDocumento && (
+                <div className="grid grid-cols-12 gap-2 pt-1 border-t">
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Tipo Doc.</Label>
+                    <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_DOCUMENTO.map(t => (
+                          <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Nº Documento</Label>
+                    <Input 
+                      value={numeroDocumento} 
+                      onChange={(e) => setNumeroDocumento(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="000000"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-1">
+                    <Label className="text-xs">Série</Label>
+                    <Input 
+                      value={serieDocumento} 
+                      onChange={(e) => setSerieDocumento(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="001"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Data Doc.</Label>
+                    <Input 
+                      type="date"
+                      value={dataDocumento} 
+                      onChange={(e) => setDataDocumento(e.target.value)}
+                      className="h-8 text-xs max-w-[150px]"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">CFOP</Label>
+                    <Input 
+                      value={cfop} 
+                      onChange={(e) => setCfop(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="5102"
+                    />
+                  </div>
+
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-xs">Nat. Operação</Label>
+                    <Input 
+                      value={naturezaOperacao} 
+                      onChange={(e) => setNaturezaOperacao(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="Venda de mercadoria"
+                    />
+                  </div>
+
+                  <div className="col-span-12 space-y-1">
+                    <Label className="text-xs">Chave NF-e</Label>
+                    <Input 
+                      value={chaveDocumento} 
+                      onChange={(e) => setChaveDocumento(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="44 dígitos"
+                      maxLength={44}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Linha 3: Parceiros */}
+              <div className="grid grid-cols-12 gap-2 pt-1 border-t">
+                {/* Fornecedor (ENTRADA) */}
+                {tipo === 'ENTRADA' && (
+                  <div className="col-span-4 space-y-1">
+                    <Label className="text-xs">
                       Fornecedor {operacaoSelecionada?.exigeFornecedor ? '*' : ''}
                     </Label>
-                    <div className="flex gap-1">
-                      <AutocompleteGenerico
-                        items={fornecedores}
-                        value={fornecedorId}
-                        onChange={setFornecedorId}
-                        placeholder="Selecione"
-                        displayField="nome"
-                        searchFields={["nome", "cnpj", "cpf"]}
-                        className="flex-1"
-                      />
-                      <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setShowDialogFornecedor(true)}>
-                        <Plus className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
+                    <AutocompleteGenerico
+                      items={fornecedores}
+                      value={fornecedorId}
+                      onChange={setFornecedorId}
+                      placeholder="Pesquisar fornecedor..."
+                      displayField="nome"
+                      searchFields={["nome", "cnpj", "cpf"]}
+                      className="h-8"
+                    />
                   </div>
-                ) : (
+                )}
+
+                {/* Cliente (SAIDA NFE) */}
+                {tipo === 'SAIDA' && modoSaida === 'NFE' && (
+                  <div className="col-span-4 space-y-1">
+                    <Label className="text-xs">Cliente *</Label>
+                    <AutocompleteGenerico
+                      items={clientes}
+                      value={clienteId}
+                      onChange={(id) => {
+                        setClienteId(id);
+                        const cl = clientes.find(c => c.id === id);
+                        if (cl) setDestinoTexto(cl.nome);
+                      }}
+                      placeholder="Pesquisar cliente..."
+                      displayField="nome"
+                      searchFields={["nome", "cnpj", "cpf"]}
+                      className="h-8"
+                    />
+                  </div>
+                )}
+
+                {/* Destino/Responsável (SAIDA MOVIMENTO) */}
+                {tipo === 'SAIDA' && modoSaida === 'MOVIMENTO' && (
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-xs">Destino/Responsável</Label>
+                    <Input 
+                      value={destinoTexto} 
+                      onChange={(e) => setDestinoTexto(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder="Setor, responsável..."
+                    />
+                  </div>
+                )}
+
+                {/* Vínculo (SAIDA MOVIMENTO que exige) */}
+                {tipo === 'SAIDA' && modoSaida === 'MOVIMENTO' && exigeVinculo && (
                   <>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">
-                        Destino/Responsável {operacaoSelecionada?.exigeDestino ? '*' : ''}
-                      </Label>
-                      <Input 
-                        value={destinoTexto} 
-                        onChange={(e) => setDestinoTexto(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="Cliente, setor, responsável..."
-                      />
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs">Tipo Vínculo *</Label>
+                      <Select value={tipoVinculo} onValueChange={(v) => { setTipoVinculo(v); setVinculoId(''); }}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_VINCULO.map(t => (
+                            <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    {exigeVinculo && (
-                      <>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Tipo Vínculo *</Label>
-                          <Select value={tipoVinculo} onValueChange={(v) => { setTipoVinculo(v); setVinculoId(''); }}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {TIPOS_VINCULO.map(t => (
-                                <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Vínculo *</Label>
-                          {tipoVinculo === 'outro' ? (
-                            <Input 
-                              value={vinculoId} 
-                              onChange={(e) => setVinculoId(e.target.value)}
-                              className="h-8 text-xs"
-                              placeholder="Descreva..."
-                            />
-                          ) : tipoVinculo === 'lote' ? (
-                            <Select value={vinculoId} onValueChange={setVinculoId}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {lotes.map(l => (
-                                  <SelectItem key={l.id} value={l.id} className="text-xs">
-                                    {l.identificacao || l.nome} ({l.quantidade_animais || 0} cab)
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : tipoVinculo === 'area' ? (
-                            <Select value={vinculoId} onValueChange={setVinculoId}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {areas.map(a => (
-                                  <SelectItem key={a.id} value={a.id} className="text-xs">
-                                    {a.nome} {a.tamanho_hectares ? `(${a.tamanho_hectares} ha)` : ''}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : tipoVinculo === 'maquina' ? (
-                            <Select value={vinculoId} onValueChange={setVinculoId}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {maquinas.map(m => (
-                                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                                    {m.nome || m.identificacao} {m.placa ? `(${m.placa})` : ''}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : tipoVinculo === 'centro_custo' ? (
-                            <Select value={vinculoId} onValueChange={setVinculoId}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {centrosCusto.map(c => (
-                                  <SelectItem key={c.id} value={c.id} className="text-xs">{c.nome}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input className="h-8 text-xs" disabled placeholder="Selecione o tipo" />
-                          )}
-                        </div>
-                      </>
-                    )}
+                    <div className="col-span-3 space-y-1">
+                      <Label className="text-xs">Vínculo *</Label>
+                      {tipoVinculo === 'outro' ? (
+                        <Input 
+                          value={vinculoId} 
+                          onChange={(e) => setVinculoId(e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Descreva..."
+                        />
+                      ) : tipoVinculo === 'lote' ? (
+                        <Select value={vinculoId} onValueChange={setVinculoId}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {lotes.map(l => (
+                              <SelectItem key={l.id} value={l.id} className="text-xs">
+                                {l.identificacao || l.nome} ({l.quantidade_animais || 0} cab)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : tipoVinculo === 'area' ? (
+                        <Select value={vinculoId} onValueChange={setVinculoId}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {areas.map(a => (
+                              <SelectItem key={a.id} value={a.id} className="text-xs">
+                                {a.nome} {a.tamanho_hectares ? `(${a.tamanho_hectares} ha)` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : tipoVinculo === 'maquina' ? (
+                        <Select value={vinculoId} onValueChange={setVinculoId}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {maquinas.map(m => (
+                              <SelectItem key={m.id} value={m.id} className="text-xs">
+                                {m.nome || m.identificacao} {m.placa ? `(${m.placa})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input className="h-8 text-xs" disabled placeholder="Selecione o tipo" />
+                      )}
+                    </div>
                   </>
                 )}
 
-                <div className="space-y-1 col-span-full">
+                {/* Centro de Custo (SEMPRE) */}
+                <div className={`${tipo === 'AJUSTE' ? 'col-span-4' : 'col-span-4'} space-y-1`}>
+                  <Label className="text-xs">Centro de Custo</Label>
+                  <AutocompleteGenerico
+                    items={centrosCusto}
+                    value={centroCustoId}
+                    onChange={setCentroCustoId}
+                    placeholder="Selecione..."
+                    displayField="nome"
+                    searchFields={["nome", "codigo"]}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+
+              {/* Linha 4: Motivo (quando exigido) */}
+              {exigeMotivo && (
+                <div className="grid grid-cols-12 gap-2 pt-1 border-t">
+                  <div className="col-span-12 space-y-1">
+                    <Label className="text-xs">Motivo/Justificativa *</Label>
+                    <Textarea 
+                      value={motivoMovimentacao} 
+                      onChange={(e) => setMotivoMovimentacao(e.target.value)}
+                      className="text-xs min-h-[50px]"
+                      placeholder="Informe o motivo da movimentação..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Observações */}
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-12 space-y-1">
                   <Label className="text-xs">Observações</Label>
                   <Textarea 
                     value={observacoes} 
@@ -819,17 +1022,14 @@ export default function MovimentacaoEstoqueFormV2({
           </Card>
 
           {/* ========== CARD 2: ITENS ========== */}
-          <Card className="shadow-sm border-slate-300">
+          <Card className="shadow-sm">
             <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Itens / Produtos
-              </CardTitle>
+              <CardTitle className="text-sm font-semibold">Itens / Produtos</CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-3">
+            <CardContent className="p-3 space-y-2">
               
-              {/* Modo de custo */}
-              {tipo === 'SAIDA' && (
+              {/* Modo de custo (Saída) */}
+              {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && (
                 <div className="bg-amber-50 border border-amber-200 rounded p-2">
                   <Label className="text-xs font-medium mb-1 block">Origem do Custo</Label>
                   <RadioGroup value={modoCustoSaida} onValueChange={setModoCustoSaida} className="flex gap-4">
@@ -846,18 +1046,19 @@ export default function MovimentacaoEstoqueFormV2({
               )}
 
               {/* Formulário do Item */}
-              <div className="bg-slate-50 border rounded p-3 space-y-2">
+              <div className="bg-slate-50 border rounded p-2 space-y-2">
                 {/* Linha 1: Produto, Quantidade, UN, Saldo */}
                 <div className="grid grid-cols-12 gap-2">
-                  <div className="col-span-6 space-y-1">
+                  <div className="col-span-5 space-y-1">
                     <Label className="text-xs">Produto *</Label>
                     <AutocompleteGenerico
                       items={produtos}
                       value={currentItem.produto_id}
                       onChange={handleProdutoChange}
-                      placeholder="Selecione o produto"
+                      placeholder="Pesquisar produto..."
                       displayField="nome_produto"
                       searchFields={["nome_produto", "codigo_interno", "codigo_barras"]}
+                      className="h-8"
                     />
                   </div>
 
@@ -866,7 +1067,8 @@ export default function MovimentacaoEstoqueFormV2({
                     <Input 
                       value={currentItem.quantidade}
                       onChange={(e) => handleQuantidadeChange(e.target.value)}
-                      className="h-8 text-xs"
+                      onBlur={handleQuantidadeBlur}
+                      className="h-8 text-xs text-right"
                       placeholder="0,00"
                     />
                   </div>
@@ -880,8 +1082,8 @@ export default function MovimentacaoEstoqueFormV2({
                     />
                   </div>
 
-                  {tipo === 'SAIDA' && currentItem.produto_id && (
-                    <div className="col-span-3 space-y-1">
+                  {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && currentItem.produto_id && (
+                    <div className="col-span-4 space-y-1">
                       <Label className="text-xs">Saldo no Local</Label>
                       <div className="h-8 flex items-center">
                         <Badge variant={saldoProdutoNoLocal > 0 ? "default" : "destructive"} className="text-xs">
@@ -892,8 +1094,9 @@ export default function MovimentacaoEstoqueFormV2({
                   )}
                 </div>
 
-                {/* Seletor de Lote (para saída por lote) */}
-                {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && currentItem.produto_id && localEstoqueId && (
+                {/* Seletor de Lote (para saída/ajuste negativo por lote) */}
+                {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && 
+                  modoCustoSaida === 'por_lote' && currentItem.produto_id && localEstoqueId && (
                   <div className="bg-white border rounded p-2">
                     <div className="flex items-center justify-between mb-1">
                       <Label className="text-xs font-medium">Lote/Nota de Origem *</Label>
@@ -907,42 +1110,41 @@ export default function MovimentacaoEstoqueFormV2({
                     </div>
                     
                     {lotesDisponiveis.length === 0 ? (
-                      <div className="text-xs text-red-600 flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
+                      <div className="text-xs text-red-600">
                         Nenhum lote disponível para este produto neste local
                       </div>
                     ) : (
-                      <div className="max-h-32 overflow-auto border rounded">
+                      <div className="max-h-28 overflow-auto border rounded">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-[10px] py-1">Sel.</TableHead>
-                              <TableHead className="text-[10px] py-1">Documento</TableHead>
-                              <TableHead className="text-[10px] py-1">Data</TableHead>
-                              <TableHead className="text-[10px] py-1">Fornecedor</TableHead>
-                              <TableHead className="text-[10px] py-1 text-right">Saldo</TableHead>
-                              <TableHead className="text-[10px] py-1 text-right">Custo</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black w-10">Sel.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black">Fornecedor</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Saldo</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {lotesDisponiveis.map(lote => (
                               <TableRow 
                                 key={lote.id} 
-                                className={`cursor-pointer hover:bg-emerald-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`}
+                                className={`cursor-pointer hover:bg-gray-50 ${currentItem.lote_origem_id === lote.id ? 'bg-emerald-100' : ''}`}
                                 onClick={() => handleSelecionarLote(lote)}
                               >
-                                <TableCell className="py-1 px-2">
+                                <TableCell className="py-1 px-2 border border-gray-300">
                                   <input 
                                     type="radio" 
                                     checked={currentItem.lote_origem_id === lote.id}
                                     onChange={() => handleSelecionarLote(lote)}
                                   />
                                 </TableCell>
-                                <TableCell className="text-xs py-1">{lote.numero_documento || 'S/N'}/{lote.serie_documento || ''}</TableCell>
-                                <TableCell className="text-xs py-1">{lote.data_documento ? new Date(lote.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
-                                <TableCell className="text-xs py-1">{lote.fornecedor_nome || '-'}</TableCell>
-                                <TableCell className="text-xs py-1 text-right font-mono">{formatarNumero(lote.quantidade_disponivel)}</TableCell>
-                                <TableCell className="text-xs py-1 text-right font-mono">{formatarMoedaBR(lote.custo_unitario)}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300">{lote.numero_documento || 'S/N'}/{lote.serie_documento || ''}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300">{lote.data_documento ? new Date(lote.data_documento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300">{lote.fornecedor_nome || '-'}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(lote.quantidade_disponivel)}</TableCell>
+                                <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(lote.custo_unitario)}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -953,12 +1155,13 @@ export default function MovimentacaoEstoqueFormV2({
                 )}
 
                 {/* Linha 2: Valores */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Preço Unitário (R$)</Label>
+                    <Label className="text-xs">Preço Unit. (R$)</Label>
                     <Input 
                       value={currentItem.preco_unitario}
                       onChange={(e) => handlePrecoChange(e.target.value)}
+                      onBlur={handlePrecoBlur}
                       className="h-8 text-xs text-right font-mono"
                       placeholder="R$ 0,00"
                       readOnly={!precoEditavel}
@@ -980,6 +1183,7 @@ export default function MovimentacaoEstoqueFormV2({
                     <Input 
                       value={currentItem.desconto}
                       onChange={(e) => handleDescontoChange(e.target.value)}
+                      onBlur={handleDescontoBlur}
                       className="h-8 text-xs text-right font-mono"
                       placeholder="R$ 0,00"
                     />
@@ -993,17 +1197,16 @@ export default function MovimentacaoEstoqueFormV2({
                       className="h-8 text-xs text-right font-mono bg-emerald-50 font-semibold"
                     />
                   </div>
-                </div>
 
-                {/* Linha 3: Observação */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Observação do Item</Label>
-                  <Input 
-                    value={currentItem.observacao_item}
-                    onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
-                    className="h-8 text-xs"
-                    placeholder="Observação opcional..."
-                  />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Obs. Item</Label>
+                    <Input 
+                      value={currentItem.observacao_item}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, observacao_item: e.target.value }))}
+                      className="h-8 text-xs"
+                      placeholder="Opcional..."
+                    />
+                  </div>
                 </div>
 
                 {/* Botões do item */}
@@ -1014,7 +1217,6 @@ export default function MovimentacaoEstoqueFormV2({
                     className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
                     onClick={handleAdicionarItem}
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" />
                     {editingIndex !== null ? 'Atualizar Item' : 'Adicionar Item'}
                   </Button>
                   <Button 
@@ -1033,20 +1235,17 @@ export default function MovimentacaoEstoqueFormV2({
 
           {/* ========== CARD 3: TABELA DE ITENS ========== */}
           {itens.length > 0 && (
-            <Card className="shadow-sm border-slate-300">
+            <Card className="shadow-sm">
               <CardHeader className="py-2 px-3 bg-slate-100 border-b">
-                <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Itens Lançados ({itens.length})
-                  </span>
+                <CardTitle className="text-sm font-semibold">
+                  Itens Lançados ({itens.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs font-bold py-1 border border-black w-16">Ações</TableHead>
+                      <TableHead className="text-xs font-bold py-1 border border-black w-12">Ações</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">Produto</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">Código</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black">UN</TableHead>
@@ -1055,7 +1254,7 @@ export default function MovimentacaoEstoqueFormV2({
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Total</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Desc.</TableHead>
                       <TableHead className="text-xs font-bold py-1 border border-black text-right">Líquido</TableHead>
-                      {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && (
+                      {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && modoCustoSaida === 'por_lote' && (
                         <TableHead className="text-xs font-bold py-1 border border-black">Nota/Lote</TableHead>
                       )}
                     </TableRow>
@@ -1088,7 +1287,7 @@ export default function MovimentacaoEstoqueFormV2({
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.total)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoedaBR(item.desconto)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoedaBR(item.liquido)}</TableCell>
-                        {tipo === 'SAIDA' && modoCustoSaida === 'por_lote' && (
+                        {(tipo === 'SAIDA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) && modoCustoSaida === 'por_lote' && (
                           <TableCell className="text-xs py-1 border border-gray-300">
                             {item.lote_origem_info?.numero_documento || '-'}
                           </TableCell>
@@ -1099,7 +1298,7 @@ export default function MovimentacaoEstoqueFormV2({
                 </Table>
 
                 {/* Rodapé com totais */}
-                <div className="bg-slate-100 p-3 border-t flex justify-end gap-6">
+                <div className="bg-slate-100 p-2 border-t flex justify-end gap-6">
                   <div className="text-xs">
                     <span className="text-slate-600">Total Bruto:</span>
                     <span className="ml-2 font-mono font-semibold">{formatarMoedaBR(totaisGerais.totalBruto)}</span>
@@ -1118,7 +1317,7 @@ export default function MovimentacaoEstoqueFormV2({
           )}
 
           {/* ========== BOTÕES DE AÇÃO ========== */}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
               <X className="w-3.5 h-3.5 mr-1" /> Cancelar
             </Button>
@@ -1129,27 +1328,23 @@ export default function MovimentacaoEstoqueFormV2({
         </form>
       </motion.div>
 
-      {/* Dialogs */}
-      <DialogCadastroRapido 
-        tipo="local_estoque" 
-        open={showDialogLocal} 
-        onClose={() => setShowDialogLocal(false)} 
-        onSuccess={(id) => { 
-          queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); 
-          setLocalEstoqueId(id); 
-          setShowDialogLocal(false); 
-        }} 
-      />
-      <DialogCadastroRapido 
-        tipo="fornecedor" 
-        open={showDialogFornecedor} 
-        onClose={() => setShowDialogFornecedor(false)} 
-        onSuccess={(id) => { 
-          queryClient.invalidateQueries({ queryKey: ['fornecedores'] }); 
-          setFornecedorId(id); 
-          setShowDialogFornecedor(false); 
-        }} 
-      />
+      {/* Dialog de confirmação ao trocar tipo */}
+      <AlertDialog open={showConfirmTipoChange} onOpenChange={setShowConfirmTipoChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm">Confirmar troca de tipo</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Você tem {itens.length} item(ns) lançado(s). Ao trocar o tipo de movimentação, todos os itens serão removidos. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-xs" onClick={cancelarTrocaTipo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={confirmarTrocaTipo}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
