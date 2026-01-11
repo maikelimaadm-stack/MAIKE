@@ -168,6 +168,13 @@ export default function MovimentacaoEstoqueFormV2({
   // Centro de Custo (sempre visível)
   const [centroCustoId, setCentroCustoId] = useState(initialData?.centro_custo_id || '');
   
+  // Empresa Destino (para transferência entre empresas)
+  const [empresaDestinoId, setEmpresaDestinoId] = useState(initialData?.empresa_destino_id || '');
+  
+  // Dialog de confirmação ao trocar local origem (quando tem itens)
+  const [showConfirmLocalChange, setShowConfirmLocalChange] = useState(false);
+  const [pendingLocalId, setPendingLocalId] = useState(null);
+  
   // Motivo/Justificativa
   const [motivoMovimentacao, setMotivoMovimentacao] = useState(initialData?.motivo_movimentacao || '');
   const [motivoPerda, setMotivoPerda] = useState(initialData?.motivo_perda || '');
