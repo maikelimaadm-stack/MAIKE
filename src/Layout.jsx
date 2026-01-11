@@ -624,20 +624,46 @@ export default function Layout({ children, currentPageName }) {
                               {item.title}
                             </div>
                             <div className="ml-3 space-y-0.5">
-                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => (
-                                <Link 
-                                  key={sub.id}
-                                  to={createPageUrl(sub.url)}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className={`block px-2 py-1.5 text-xs rounded ${
-                                    location.pathname === createPageUrl(sub.url)
-                                      ? 'bg-emerald-100 text-emerald-800 font-medium'
-                                      : 'text-slate-600 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {sub.title}
-                                </Link>
-                              ))}
+                              {item.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((sub) => {
+                                // Se tem submenu aninhado (3 níveis)
+                                if (sub.submenu && sub.submenu.length > 0) {
+                                  return (
+                                    <div key={sub.id} className="space-y-0.5">
+                                      <div className="px-2 py-1 text-xs font-medium text-slate-500">{sub.title}</div>
+                                      {sub.submenu.sort((a, b) => a.title.localeCompare(b.title)).map((subsub) => (
+                                        <Link 
+                                          key={subsub.id}
+                                          to={createPageUrl(subsub.url)}
+                                          onClick={() => setMobileMenuOpen(false)}
+                                          className={`block px-4 py-1.5 text-xs rounded ${
+                                            location.pathname === createPageUrl(subsub.url)
+                                              ? 'bg-emerald-100 text-emerald-800 font-medium'
+                                              : 'text-slate-600 hover:bg-slate-50'
+                                          }`}
+                                        >
+                                          {subsub.title}
+                                        </Link>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                                // Item normal com URL
+                                if (!sub.url) return null;
+                                return (
+                                  <Link 
+                                    key={sub.id}
+                                    to={createPageUrl(sub.url)}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`block px-2 py-1.5 text-xs rounded ${
+                                      location.pathname === createPageUrl(sub.url)
+                                        ? 'bg-emerald-100 text-emerald-800 font-medium'
+                                        : 'text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {sub.title}
+                                  </Link>
+                                );
+                              })}
                             </div>
                           </div>
                         );
