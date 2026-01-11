@@ -1473,12 +1473,11 @@ export default function MovimentacaoEstoqueFormV2({
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="text-xs font-bold py-1 border border-black">Documento</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black">Data</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Qtd Consumida</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Custo Unit.</TableHead>
-                              <TableHead className="text-xs font-bold py-1 border border-black text-right">Valor</TableHead>
-                            </TableRow>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Documento</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Data</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Qtd Consumida</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Custo Unit.</TableHead>
+                              <TableHead className="text-xs font-bold py-1 border-r border-slate-200 w-10">Valor</TableHead>                            </TableRow>
                           </TableHeader>
                           <TableBody>
                             {currentItem.rateio_lotes.map((rateio, idx) => (
