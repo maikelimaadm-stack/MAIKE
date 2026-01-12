@@ -248,7 +248,7 @@ export default function Backup() {
           <h1 className="text-xl font-bold text-slate-900">Backup do Sistema</h1>
           <p className="text-xs text-slate-600">Lista completa de arquivos do projeto</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={baixarBackupJSON}
             className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
@@ -266,6 +266,24 @@ export default function Backup() {
           >
             <Download className="w-3.5 h-3.5 mr-2" />
             {exportandoZip ? 'Compactando...' : 'Exportar Pacote (.zip)'}
+          </Button>
+          <Button 
+            onClick={() => inputJsonRef.current?.click()}
+            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+            size="sm"
+            disabled={importandoJson}
+          >
+            <Download className="w-3.5 h-3.5 mr-2" />
+            {importandoJson ? 'Importando...' : 'Importar Dados (.json)'}
+          </Button>
+          <Button 
+            onClick={() => inputZipRef.current?.click()}
+            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+            size="sm"
+            disabled={importandoZip}
+          >
+            <Download className="w-3.5 h-3.5 mr-2" />
+            {importandoZip ? 'Importando...' : 'Importar Pacote (.zip)'}
           </Button>
           <Button 
             onClick={handleCopyAllPaths} 
