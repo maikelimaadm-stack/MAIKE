@@ -88,13 +88,13 @@ const COLUNAS_DETALHES_APARTACAO = [
 
 // Colunas de detalhes para relatório de Vendas (detalhes por boi)
 const COLUNAS_DETALHES_VENDAS = [
+  { id: 'comprador', label: 'Comprador', default: true },
   { id: 'data_pesagem', label: 'Data', default: true },
   { id: 'numero_animal', label: 'Animal', default: true },
   { id: 'peso', label: 'Peso (kg)', default: true },
   { id: 'quantidade_arrobas_calc', label: 'Qtd @', default: true },
   { id: 'valor_arroba', label: 'Valor @', default: true },
   { id: 'valor_total_calc', label: 'Valor Total', default: true },
-  { id: 'comprador', label: 'Comprador', default: true },
   { id: 'destino_venda', label: 'Destino', default: false },
   { id: 'nome_lote', label: 'Lote', default: false },
   { id: 'nome_apartacao', label: 'Apartação', default: false },
