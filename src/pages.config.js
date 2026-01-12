@@ -64,7 +64,6 @@ import RelatorioKardex from './pages/RelatorioKardex';
 import RelatorioMovimentacoesPecuaria from './pages/RelatorioMovimentacoesPecuaria';
 import RelatorioPerdasAnalitico from './pages/RelatorioPerdasAnalitico';
 import RelatorioPesagens from './pages/RelatorioPesagens';
-import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
 import RelatorioProdutos from './pages/RelatorioProdutos';
 import RelatorioSaldoAtual from './pages/RelatorioSaldoAtual';
 import RelatorioSuplementacao from './pages/RelatorioSuplementacao';
@@ -77,6 +76,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import RelatorioPesagensIndividuais from './pages/RelatorioPesagensIndividuais';
 import __Layout from './Layout.jsx';
 
 
@@ -147,7 +147,6 @@ export const PAGES = {
     "RelatorioMovimentacoesPecuaria": RelatorioMovimentacoesPecuaria,
     "RelatorioPerdasAnalitico": RelatorioPerdasAnalitico,
     "RelatorioPesagens": RelatorioPesagens,
-    "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
     "RelatorioProdutos": RelatorioProdutos,
     "RelatorioSaldoAtual": RelatorioSaldoAtual,
     "RelatorioSuplementacao": RelatorioSuplementacao,
@@ -160,6 +159,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "RelatorioPesagensIndividuais": RelatorioPesagensIndividuais,
 }
 
 export const pagesConfig = {
