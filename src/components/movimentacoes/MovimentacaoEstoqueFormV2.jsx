@@ -830,17 +830,22 @@ export default function MovimentacaoEstoqueFormV2({
       tipo === 'SAIDA' ? 'Saída' : 
       tipo === 'TRANSFERENCIA' ? 'Transferência' : 'Ajuste';
 
+    // Preparar locais usando função utilitária
+    const locaisPreparados = prepararLocaisParaSalvar(tipo, operacao, localEstoqueOrigemId, localEstoqueDestinoId, locais);
+
     const dadosMovimentacao = {
       empresa_id: empresaId,
       tipo_movimentacao: tipoMovimentacaoFinal,
-      tipo_detalhado: operacao,
+      tipo_detalhado: toValue(operacao), // Sempre salvar como slug
       data_movimentacao: new Date(dataMovimentacao).toISOString(),
       
-      // Locais
-      local_estoque_origem_id: (tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? localEstoqueOrigemId : undefined,
-      local_estoque_origem_nome: (tipo === 'SAIDA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao === 'ajuste_negativo')) ? localOrigem?.nome : undefined,
-      local_estoque_destino_id: (tipo === 'ENTRADA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao !== 'ajuste_negativo')) ? localEstoqueDestinoId : undefined,
-      local_estoque_destino_nome: (tipo === 'ENTRADA' || tipo === 'TRANSFERENCIA' || (tipo === 'AJUSTE' && operacao !== 'ajuste_negativo')) ? localDestino?.nome : undefined,
+      // Locais usando função utilitária
+      local_estoque_origem_id: locaisPreparados.local_estoque_origem_id,
+      local_estoque_origem: locaisPreparados.local_estoque_origem,
+      local_estoque_origem_nome: locaisPreparados.local_estoque_origem_nome,
+      local_estoque_destino_id: locaisPreparados.local_estoque_destino_id,
+      local_estoque_destino: locaisPreparados.local_estoque_destino,
+      local_estoque_destino_nome: locaisPreparados.local_estoque_destino_nome,
       
       // Documento
       tipo_documento: mostrarDocumento ? tipoDocumento : undefined,
