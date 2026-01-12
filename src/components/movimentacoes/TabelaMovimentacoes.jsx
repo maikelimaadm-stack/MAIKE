@@ -412,12 +412,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       case 'saldo_antes': return formatarNumero(mov.saldo_antes);
       case 'saldo_depois': return formatarNumero(mov.saldo_depois);
       case 'fornecedor': return mov.fornecedor_nome || mov.cliente_nome || '-';
-      case 'local_estoque': {
-        const localPrincipal = mov.tipo_movimentacao === 'Entrada' 
-          ? (mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-')
-          : (mov.local_estoque_origem || mov.local_origem || mov.local_estoque || '-');
-        return localPrincipal;
-      }
+      case 'local_estoque': return getLocalEstoque(mov) || '-';
       case 'local_origem': return mov.local_estoque_origem || mov.local_origem || '-';
       case 'local_destino': return mov.local_estoque_destino || mov.local_destino || '-';
       case 'centro_custo': return mov.centro_custo_nome || '-';
