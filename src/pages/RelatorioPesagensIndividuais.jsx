@@ -231,8 +231,8 @@ export default function RelatorioPesagensIndividuais() {
     return (tipoRelatorio === 'vendas' ? COLUNAS_PAINEL_VENDAS : COLUNAS_PAINEL_APARTACAO).map(c => c.id);
   });
   const [colunasPainelOrdem, setColunasPainelOrdem] = useState(() => {
-    const saved = localStorage.getItem('colunas_painel_ordem_apartacao');
-    const base = COLUNAS_PAINEL_APARTACAO.map(c => c.id);
+    const saved = localStorage.getItem(tipoRelatorio === 'vendas' ? 'colunas_painel_ordem_vendas' : 'colunas_painel_ordem_apartacao');
+    const base = (tipoRelatorio === 'vendas' ? COLUNAS_PAINEL_VENDAS : COLUNAS_PAINEL_APARTACAO).map(c => c.id);
     if (saved) {
       try {
         const arr = JSON.parse(saved) || [];
