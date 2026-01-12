@@ -231,7 +231,10 @@ export default function RelatorioSuplementacao() {
       <div className="hidden print:block mb-6">
         <div className="text-center mb-4">
           <h2 className="text-xl font-bold">{empresa?.nome || 'Empresa'}</h2>
-          <p className="text-sm text-slate-600">Relatório de Suplementação</p>
+          {empresa?.apelido && empresa.apelido !== empresa.nome && (
+            <p className="text-sm text-slate-600">{empresa.apelido}</p>
+          )}
+          <p className="text-sm text-slate-600 mt-1">Relatório de Suplementação</p>
           <p className="text-xs text-slate-500">Gerado em {new Date().toLocaleString('pt-BR')}</p>
         </div>
       </div>

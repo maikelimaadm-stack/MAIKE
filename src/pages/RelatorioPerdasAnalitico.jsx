@@ -58,8 +58,14 @@ export default function RelatorioPerdasAnalitico() {
     enabled: !!empresaId,
   });
 
+  const { data: locais = [] } = useQuery({
+    queryKey: ['locais-perdas'],
+    queryFn: () => base44.entities.LocalEstoque.list(),
+  });
+
   const motivosUnicos = [...new Set(movimentacoes.map(m => m.motivo_perda || m.motivo_movimentacao))].filter(Boolean).sort();
-  const locaisUnicos = [...new Set(movimentacoes.map(m => getLocalEstoque(m)))].filter(Boolean).sort();
+  const locaisOpcoes = locais.map(l => l.id);
+  const nomeLocal = (id) => locais.find(l => l.id === id)?.nome || id;
   const produtosUnicos = [...new Set(movimentacoes.map(m => m.produto_nome))].filter(Boolean).sort();
 
   const toggleFiltro = (lista, setLista, valor) => {
@@ -82,7 +88,7 @@ export default function RelatorioPerdasAnalitico() {
       }
       const motivo = m.motivo_perda || m.motivo_movimentacao;
       if (motivosSelecionados.length > 0 && !motivosSelecionados.includes(motivo)) return false;
-      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(getLocalEstoque(m))) return false;
+      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(m.local_estoque_origem)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_nome)) return false;
       return true;
     });
@@ -122,7 +128,8 @@ export default function RelatorioPerdasAnalitico() {
             <FiltroMultiplo
               label="Locais"
               selecionados={locaisSelecionados}
-              opcoes={locaisUnicos}
+              opcoes={locaisOpcoes}
+              renderLabel={nomeLocal}
               onToggle={(v) => toggleFiltro(locaisSelecionados, setLocaisSelecionados, v)}
             />
             <FiltroMultiplo
@@ -155,7 +162,7 @@ export default function RelatorioPerdasAnalitico() {
             <TableRow key={m.id} className="hover:bg-gray-50">
               <TableCell className="text-xs py-1 border border-gray-300">{formatarData(m.data_movimentacao)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300">{m.produto_nome}</TableCell>
-              <TableCell className="text-xs py-1 border border-gray-300">{getLocalEstoque(m) || '-'}</TableCell>
+              <TableCell className="text-xs py-1 border border-gray-300">{nomeLocal(m.local_estoque_origem) || '-'}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarNumero(m.quantidade)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(m.valor_unitario)}</TableCell>
               <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono font-semibold">{formatarMoeda(m.valor_total)}</TableCell>

@@ -111,7 +111,8 @@ export default function RelatorioKardex() {
           saldo += qtd;
         }
       } else if (m.tipo_movimentacao === 'Ajuste') {
-        if (m.tipo_detalhado?.includes('positivo') || m.tipo_detalhado?.includes('Positivo')) {
+        const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
+        if (tipoSlug.includes('ajuste_positivo')) {
           saldo += qtd;
         } else {
           saldo -= qtd;
@@ -197,9 +198,10 @@ export default function RelatorioKardex() {
           </TableHeader>
           <TableBody>
             {movimentacoesComSaldo.map((m) => {
+              const tipoSlug = String(m.tipo_detalhado || '').toLowerCase();
               const isEntrada = m.tipo_movimentacao === 'Entrada' || 
                 (m.tipo_movimentacao === 'Transferência' && m.local_estoque_destino === localEstoqueId) ||
-                (m.tipo_movimentacao === 'Ajuste' && m.tipo_detalhado?.includes('positivo'));
+                (m.tipo_movimentacao === 'Ajuste' && tipoSlug.includes('ajuste_positivo'));
               const qtdEntrada = isEntrada ? m.quantidade : 0;
               const qtdSaida = !isEntrada ? m.quantidade : 0;
 
