@@ -2638,7 +2638,7 @@ export default function LancamentoPesagensIndividuais() {
             pendingPesagensDB={pendingPesagensDB}
             dataPesagem={dataPesagem}
           />
-        )
+        )}
       </div>
 
       {/* RESUMO DE SANIDADES APLICADAS */}
