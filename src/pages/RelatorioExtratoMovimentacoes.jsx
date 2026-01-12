@@ -156,7 +156,8 @@ export default function RelatorioExtratoMovimentacoes() {
             <FiltroMultiplo
               label="Operações"
               selecionados={operacoesSelecionadas}
-              opcoes={operacoesUnicas}
+              opcoes={operacoesUnicasValues}
+              renderLabel={getLabelOperacao}
               onToggle={(v) => toggleFiltro(operacoesSelecionadas, setOperacoesSelecionadas, v)}
             />
             <FiltroMultiplo
