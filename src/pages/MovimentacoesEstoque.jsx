@@ -289,8 +289,8 @@ export default function MovimentacoesEstoque() {
       preco_custo: novoCustoMedio
     });
 
-    // Criar lote de estoque para entradas
-    if (dadosComuns.tipo_movimentacao === 'Entrada') {
+    // Criar/atualizar lote de estoque para entradas e transferências recebidas
+    if (dadosComuns.tipo_movimentacao === 'Entrada' || dadosComuns.tipo_movimentacao === 'Transferência') {
       const fornecedor = fornecedores.find(f => f.id === dadosComuns.fornecedor_id);
       await criarLoteEstoque(empresaSelecionadaId, {
         ...produto,
@@ -299,8 +299,8 @@ export default function MovimentacoesEstoque() {
       }, { ...dadosComuns, ...locais }, fornecedor);
     }
 
-    // Baixar lote de estoque para saídas
-    if (dadosComuns.tipo_movimentacao === 'Saída') {
+    // Baixar lote de estoque para saídas e transferências enviadas
+    if (dadosComuns.tipo_movimentacao === 'Saída' || dadosComuns.tipo_movimentacao === 'Transferência') {
       if (produto.modo_custo_saida === 'fifo' && produto.rateio_lotes) {
         // FIFO - baixar de múltiplos lotes
         await baixarLotesFIFO(produto.rateio_lotes);

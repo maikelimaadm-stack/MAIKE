@@ -92,11 +92,15 @@ export default function RelatorioExtratoMovimentacoes() {
       if (operacoesSelecionadas.length > 0 && !operacoesSelecionadas.includes(m.tipo_detalhado)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_nome)) return false;
       if (locaisSelecionados.length > 0) {
-        const lid = (m.tipo_movimentacao === 'Entrada') ? m.local_estoque_destino
-          : (m.tipo_movimentacao === 'Saída') ? m.local_estoque_origem
-          : (m.tipo_movimentacao === 'Transferência') ? (m.local_estoque_origem || m.local_estoque_destino)
-          : (toValue(m.tipo_detalhado || '').includes('ajuste_positivo') ? m.local_estoque_destino : m.local_estoque_origem);
-        if (!lid || !locaisSelecionados.includes(lid)) return false;
+        const lids = [];
+        if (m.tipo_movimentacao === 'Entrada') lids.push(m.local_estoque_destino);
+        else if (m.tipo_movimentacao === 'Saída') lids.push(m.local_estoque_origem);
+        else if (m.tipo_movimentacao === 'Transferência') lids.push(m.local_estoque_origem, m.local_estoque_destino);
+        else {
+          const isPos = toValue(m.tipo_detalhado || '').includes('ajuste_positivo');
+          lids.push(isPos ? m.local_estoque_destino : m.local_estoque_origem);
+        }
+        if (!lids.some(l => l && locaisSelecionados.includes(l))) return false;
       }
       if (documentosSelecionados.length > 0 && !documentosSelecionados.includes(m.numero_documento)) return false;
       return true;
