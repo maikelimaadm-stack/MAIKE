@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -193,6 +193,10 @@ export default function Backup() {
 
   const [exportando, setExportando] = useState(false);
   const [exportandoZip, setExportandoZip] = useState(false);
+  const [importandoJson, setImportandoJson] = useState(false);
+  const [importandoZip, setImportandoZip] = useState(false);
+  const inputJsonRef = useRef(null);
+  const inputZipRef = useRef(null);
 
   const baixarBackupJSON = async () => {
     try {
@@ -282,6 +286,37 @@ export default function Backup() {
           </Button>
         </div>
       </div>
+
+      <input type="file" ref={inputJsonRef} accept="application/json" className="hidden" onChange={async (e) => {
+        try {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setImportandoJson(true);
+          const { file_url } = await base44.integrations.Core.UploadFile({ file });
+          const res = await base44.functions.invoke('importBackup', { json_url: file_url, mode: 'append' });
+          toast.success('Importação (.json) concluída');
+        } catch (err) {
+          toast.error('Falha ao importar .json');
+        } finally {
+          setImportandoJson(false);
+          e.target.value = '';
+        }
+      }} />
+      <input type="file" ref={inputZipRef} accept="application/zip,.zip" className="hidden" onChange={async (e) => {
+        try {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setImportandoZip(true);
+          const { file_url } = await base44.integrations.Core.UploadFile({ file });
+          const res = await base44.functions.invoke('importBackup', { zip_url: file_url, mode: 'append' });
+          toast.success('Importação (.zip) concluída');
+        } catch (err) {
+          toast.error('Falha ao importar .zip');
+        } finally {
+          setImportandoZip(false);
+          e.target.value = '';
+        }
+      }} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
