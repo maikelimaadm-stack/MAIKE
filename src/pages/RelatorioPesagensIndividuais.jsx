@@ -464,6 +464,7 @@ export default function RelatorioPesagensIndividuais() {
                   <SelectItem value="sintetico">Sintético (Matriz)</SelectItem>
                   <SelectItem value="apartacao">Por Apartação/Lote</SelectItem>
                   <SelectItem value="apartacao_data">Por Apartação (Resumo por Data)</SelectItem>
+                  <SelectItem value="vendas">Vendas (Detalhado)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1275,6 +1276,235 @@ export default function RelatorioPesagensIndividuais() {
                         </TableRow>
                       </TableBody>
                     </Table>
+                  </div>
+                </div>
+              );
+            })()
+          ) : tipoRelatorio === 'vendas' ? (
+            (() => {
+              const vendas = pesagensFiltradas.filter(p => p.tipo_manejo === 'Saída' && p.motivo_saida === 'Venda');
+              if (vendas.length === 0) {
+                return (
+                  <div className="text-center py-12 text-slate-400">
+                    <p>Nenhuma venda encontrada com os filtros aplicados.</p>
+                  </div>
+                );
+              }
+
+              const fmtNum = (n, d = 2) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+              const fmtInt = (n) => Number(n || 0).toLocaleString('pt-BR');
+              const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+              const total = vendas.length;
+              const pesoTotal = vendas.reduce((s, v) => s + (Number(v.peso) || 0), 0);
+              const pesoMedio = total ? pesoTotal / total : 0;
+              const mediaArrobasPeso = pesoMedio / 30;
+
+              const arrobasInformadas = vendas
+                .map((v) => Number(v.valor_arroba))
+                .filter((n) => !isNaN(n) && n > 0);
+              const mediaValorArroba = arrobasInformadas.length
+                ? arrobasInformadas.reduce((s, n) => s + n, 0) / arrobasInformadas.length
+                : 0;
+
+              const valorTotal = vendas.reduce((s, v) => {
+                const direto = Number(v.valor_venda_total);
+                if (!isNaN(direto) && direto > 0) return s + direto;
+                const calc = (Number(v.peso) || 0) / 30 * (Number(v.valor_arroba) || 0);
+                return s + (isNaN(calc) ? 0 : calc);
+              }, 0);
+
+              // Agrupar por Marca
+              const porMarca = vendas.reduce((acc, v) => {
+                const k = v.marca || 'Sem Marca';
+                if (!acc[k]) acc[k] = [];
+                acc[k].push(v);
+                return acc;
+              }, {});
+
+              // Agrupar por Comprador
+              const porComprador = vendas.reduce((acc, v) => {
+                const k = v.comprador || 'Sem Comprador';
+                if (!acc[k]) acc[k] = [];
+                acc[k].push(v);
+                return acc;
+              }, {});
+
+              return (
+                <div className="space-y-4">
+                  {/* Resumo Geral de Vendas */}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="border border-black text-xs font-bold py-1">Métrica</TableHead>
+                        <TableHead className="border border-black text-xs font-bold text-right py-1">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Animais vendidos</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtInt(total)}</TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Peso total (kg)</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pesoTotal)}</TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Peso médio (kg)</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pesoMedio)}</TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Média (@)</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(mediaArrobasPeso)}</TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Média valor da arroba</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(mediaValorArroba)}</TableCell>
+                      </TableRow>
+                      <TableRow className="hover:bg-gray-50">
+                        <TableCell className="border border-gray-300 text-xs py-1">Valor total</TableCell>
+                        <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(valorTotal)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+
+                  {/* Totais por Marca */}
+                  <div>
+                    <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">TOTAIS POR MARCA</span></div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-center py-1">Qtd</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total (kg)</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Médio (kg)</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Média (@)</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Média Valor @</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(porMarca).sort((a,b)=>a[0].localeCompare(b[0])).map(([marca, items]) => {
+                          const qtd = items.length;
+                          const pTot = items.reduce((s,i)=>s+(Number(i.peso)||0),0);
+                          const pMed = qtd ? pTot/qtd : 0;
+                          const atMed = pMed/30;
+                          const arrs = items.map(i=>Number(i.valor_arroba)).filter(n=>!isNaN(n)&&n>0);
+                          const medValAt = arrs.length ? arrs.reduce((s,n)=>s+n,0)/arrs.length : 0;
+                          const vTot = items.reduce((s,v)=>{
+                            const d = Number(v.valor_venda_total);
+                            if(!isNaN(d)&&d>0) return s+d;
+                            const calc = (Number(v.peso)||0)/30*(Number(v.valor_arroba)||0);
+                            return s+(isNaN(calc)?0:calc);
+                          },0);
+                          return (
+                            <TableRow key={marca} className="hover:bg-gray-50">
+                              <TableCell className="border border-gray-300 text-xs py-1">{marca}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-center py-1">{fmtInt(qtd)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pTot)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pMed)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(atMed)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(medValAt)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTot)}</TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Totais por Comprador */}
+                  <div>
+                    <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">TOTAIS POR COMPRADOR</span></div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-center py-1">Qtd</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Peso Total (kg)</TableHead>
+                          <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(porComprador).sort((a,b)=>a[0].localeCompare(b[0])).map(([comprador, items]) => {
+                          const qtd = items.length;
+                          const pTot = items.reduce((s,i)=>s+(Number(i.peso)||0),0);
+                          const vTot = items.reduce((s,v)=>{
+                            const d = Number(v.valor_venda_total);
+                            if(!isNaN(d)&&d>0) return s+d;
+                            const calc = (Number(v.peso)||0)/30*(Number(v.valor_arroba)||0);
+                            return s+(isNaN(calc)?0:calc);
+                          },0);
+                          return (
+                            <TableRow key={comprador} className="hover:bg-gray-50">
+                              <TableCell className="border border-gray-300 text-xs py-1">{comprador}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-center py-1">{fmtInt(qtd)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(pTot)}</TableCell>
+                              <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTot)}</TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Detalhes das Vendas */}
+                  <div>
+                    <div className="bg-gray-200 px-3 py-1 mb-1"><span className="font-bold text-xs">DETALHES DAS VENDAS</span></div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="border border-black text-xs font-bold py-1">Data</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Animal</TableHead>
+                            <TableHead className="border border-black text-xs font-bold text-right py-1">Peso (kg)</TableHead>
+                            <TableHead className="border border-black text-xs font-bold text-right py-1">Qtd @</TableHead>
+                            <TableHead className="border border-black text-xs font-bold text-right py-1">Valor @</TableHead>
+                            <TableHead className="border border-black text-xs font-bold text-right py-1">Valor Total</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Comprador</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Destino</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Lote</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Apartação</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Sexo</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Raça</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Era</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Marca</TableHead>
+                            <TableHead className="border border-black text-xs font-bold py-1">Obs</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {vendas.map((v) => {
+                            const qtdAt = (Number(v.peso)||0)/30;
+                            const vTotal = !isNaN(Number(v.valor_venda_total)) && Number(v.valor_venda_total) > 0
+                              ? Number(v.valor_venda_total)
+                              : ((Number(v.peso)||0)/30) * (Number(v.valor_arroba)||0);
+                            return (
+                              <TableRow key={v.id} className="hover:bg-gray-50">
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.data_pesagem ? v.data_pesagem.split('T')[0].split('-').reverse().join('/') : '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs font-medium py-1">{v.numero_animal}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(v.peso,0)}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtNum(qtdAt,2)}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(v.valor_arroba)}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs text-right font-mono py-1">{fmtBRL(vTotal)}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.comprador || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.destino_venda || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.nome_lote || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.nome_apartacao || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.sexo || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.raca || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.era || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1">{v.marca || '-'}</TableCell>
+                                <TableCell className="border border-gray-300 text-xs py-1 max-w-[160px] truncate">{v.observacao || '-'}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 text-xs text-right font-semibold">
+                    TOTAL GERAL: {fmtInt(total)} animais | Peso Total: {fmtNum(pesoTotal)} kg | Peso Médio: {fmtNum(pesoMedio)} kg | Média (@): {fmtNum(mediaArrobasPeso)} | Valor Total: {fmtBRL(valorTotal)}
                   </div>
                 </div>
               );
