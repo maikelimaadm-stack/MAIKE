@@ -243,8 +243,9 @@ export default function RelatorioPesagensIndividuais() {
   });
   const colunasPainelOrdenadas = useMemo(() => {
     const ordemCompletada = [...colunasPainelOrdem, ...colunasPainelVisiveis.filter(id => !colunasPainelOrdem.includes(id))];
+    const baseCols = tipoRelatorio === 'vendas' ? COLUNAS_PAINEL_VENDAS : COLUNAS_PAINEL_APARTACAO;
     return ordemCompletada
-      .map(id => COLUNAS_PAINEL_APARTACAO.find(c => c.id === id))
+      .map(id => baseCols.find(c => c.id === id))
       .filter(c => c && colunasPainelVisiveis.includes(c.id));
   }, [colunasPainelOrdem, colunasPainelVisiveis]);
   const toggleColunaPainel = (colunaId) => {
