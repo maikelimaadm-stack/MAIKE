@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import RelatorioBase from "../components/relatorios/RelatorioBase";
 import { FiltroData, FiltroMultiplo, FiltroSelect, BotaoLimparFiltros } from "../components/relatorios/FiltrosRelatorio";
 import { format } from "date-fns";
+import { toLabel, getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
