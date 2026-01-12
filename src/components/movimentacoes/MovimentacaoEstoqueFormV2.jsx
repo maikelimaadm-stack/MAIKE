@@ -264,34 +264,114 @@ export default function MovimentacaoEstoqueFormV2({
     enabled: !!empresaId
   });
 
-  // ========== EFEITO: Carregar itens na edição após produtos carregarem ==========
+  // ========== EFEITO ÚNICO: Re-hidratar cabeçalho e itens baseado apenas em initialData?.id ==========
   useEffect(() => {
-    if (!initialData?.id || itensCarregados) return;
-    if (!produtos || produtos.length === 0) return;
+    // Cabeçalho
+    setTipo(initialData?.tipo_movimentacao === 'Saída' ? 'SAIDA' :
+           initialData?.tipo_movimentacao === 'Transferência' ? 'TRANSFERENCIA' :
+           initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA');
+    setOperacao(initialData?.tipo_detalhado ? toValue(initialData.tipo_detalhado) : '');
+    setDataMovimentacao(initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10));
+    setLocalEstoqueOrigemId(initialData?.local_estoque_origem || '');
+    setLocalEstoqueOrigemNome(initialData?.local_origem || '');
+    setLocalEstoqueDestinoId(initialData?.local_estoque_destino || '');
+    setLocalEstoqueDestinoNome(initialData?.local_destino || '');
+    setTipoDocumento(initialData?.tipo_documento || '');
+    setNumeroDocumento(initialData?.numero_documento || '');
+    setSerieDocumento(initialData?.serie_documento || '');
+    setDataDocumento(initialData?.data_documento || '');
+    setChaveDocumento(initialData?.chave_documento || '');
+    setCfop(initialData?.cfop || '');
+    setNaturezaOperacao(initialData?.natureza_operacao || '');
+    setFornecedorId(initialData?.fornecedor_id || '');
+    setClienteId(initialData?.cliente_id || '');
+    setDestinoTexto(initialData?.cliente_nome || initialData?.destino_responsavel || '');
+    setTipoVinculo(initialData?.tipo_vinculo || '');
+    setVinculoId(initialData?.lote_vinculado_id || initialData?.area_vinculada_id || initialData?.maquina_vinculada_id || '');
+    setCentroCustoId(initialData?.centro_custo_id || '');
+    setMotivoMovimentacao(initialData?.motivo_movimentacao || '');
+    setMotivoPerda(initialData?.motivo_perda || '');
+    setObservacoes(initialData?.observacoes || '');
 
-    // Carregar item editado como primeiro item da lista
-    const prod = produtos.find(p => p.id === initialData.produto_id);
-    if (prod) {
-      const itemInicial = {
+    // Reset itens
+    setItens([]);
+    setItensCarregados(false);
+    setEditingIndex(null);
+    setCurrentItem({ ...defaultCurrentItem });
+
+    // Itens
+    if (!initialData) return;
+    let itemsSource = [];
+    if (Array.isArray(initialData.produtos_selecionados) && initialData.produtos_selecionados.length > 0) {
+      itemsSource = initialData.produtos_selecionados;
+    } else if (Array.isArray(initialData.produtos) && initialData.produtos.length > 0) {
+      itemsSource = initialData.produtos;
+    } else if (initialData.id && initialData.produto_id) {
+      // Caso único sem depender de produtos nas deps
+      itemsSource = [{
         produto_id: initialData.produto_id,
-        produto_nome: prod.nome_produto,
-        produto_codigo: prod.codigo_interno || prod.codigo_barras || '',
-        unidade: initialData.unidade_medida || prod.unidade_medida || 'UN',
-        quantidade: initialData.quantidade || 0,
-        preco_unitario: initialData.valor_unitario || 0,
-        total: (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
+        produto_nome: initialData.produto_nome || '',
+        produto_codigo: initialData.produto_codigo || '',
+        unidade: initialData.unidade_medida || 'UN',
+        quantidade: initialData.quantidade,
+        preco_unitario: initialData.valor_unitario,
+        total: initialData.valor_total,
         desconto: 0,
-        liquido: initialData.valor_total || (initialData.quantidade || 0) * (initialData.valor_unitario || 0),
-        lote_origem_id: '',
+        liquido: initialData.valor_total,
+        lote_origem_id: initialData.lote_origem_id || '',
         lote_origem_info: null,
-        modo_custo_saida: null,
-        rateio_lotes: null,
-        observacao_item: ''
-      };
-      setItens([itemInicial]);
+        rateio_lotes: initialData.rateio_lotes || [],
+        observacao_item: initialData.observacao_item || '',
+        modo_custo_saida: initialData.modo_custo_saida || null,
+      }];
+    }
+
+    if (itemsSource.length > 0) {
+      const mappedItems = itemsSource.map(ps => {
+        // Leitura sem fallback imediato para 0
+        const rawQuantidade = ps.quantidade;
+        const rawPrecoUnitario = ps.preco_unitario ?? ps.valor_unitario;
+        const rawDesconto = ps.desconto;
+        const rawTotal = ps.total ?? ps.valor_total;
+        const rawLiquido = ps.liquido ?? ps.valor_total;
+
+        const quantidadeNum = typeof rawQuantidade === 'string' ? parseNumeroBR(rawQuantidade || '0') : (rawQuantidade ?? 0);
+        const precoUnitarioNum = typeof rawPrecoUnitario === 'string' ? parseMoedaBR(rawPrecoUnitario || '0') : (rawPrecoUnitario ?? 0);
+        const descontoNum = typeof rawDesconto === 'string' ? parseMoedaBR(rawDesconto || '0') : (rawDesconto ?? 0);
+
+        const hasTotal = rawTotal !== null && rawTotal !== undefined && rawTotal !== '';
+        let totalNum = typeof rawTotal === 'string' ? parseMoedaBR(rawTotal || '0') : (rawTotal ?? 0);
+        if (!hasTotal && quantidadeNum !== 0 && precoUnitarioNum !== 0) {
+          totalNum = quantidadeNum * precoUnitarioNum;
+        }
+
+        const hasLiquido = rawLiquido !== null && rawLiquido !== undefined && rawLiquido !== '';
+        let liquidoNum = typeof rawLiquido === 'string' ? parseMoedaBR(rawLiquido || '0') : (rawLiquido ?? 0);
+        if (!hasLiquido) {
+          liquidoNum = totalNum - descontoNum;
+        }
+
+        return {
+          produto_id: ps.produto_id,
+          produto_nome: ps.produto_nome,
+          produto_codigo: ps.produto_codigo || '',
+          unidade: ps.unidade || ps.unidade_medida || 'UN',
+          quantidade: formatarNumero(quantidadeNum),
+          preco_unitario: formatarMoedaBR(precoUnitarioNum),
+          total: formatarMoedaBR(totalNum),
+          desconto: formatarMoedaBR(descontoNum),
+          liquido: formatarMoedaBR(liquidoNum),
+          lote_origem_id: ps.lote_origem_id || '',
+          lote_origem_info: ps.lote_origem_info || null,
+          rateio_lotes: ps.rateio_lotes || [],
+          observacao_item: ps.observacao_item || '',
+          modo_custo_saida: ps.modo_custo_saida || null,
+        };
+      });
+      setItens(mappedItems);
       setItensCarregados(true);
     }
-  }, [initialData, produtos, itensCarregados]);
+  }, [initialData?.id]);
 
   // Precarregar itens quando vier lista de produtos_selecionados (edição em lote)
   useEffect(() => {
