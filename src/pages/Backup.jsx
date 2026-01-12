@@ -243,6 +243,11 @@ export default function Backup() {
       toast.success('Pacote (.zip) exportado com sucesso');
     } catch (e) {
       toast.error('Falha ao exportar pacote .zip');
+    } finally {
+      setExportandoZip(false);
+    }
+  };
+
 
 
   const handleImport = async (file, type) => {
