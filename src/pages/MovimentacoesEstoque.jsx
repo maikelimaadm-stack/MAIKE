@@ -372,7 +372,7 @@ export default function MovimentacoesEstoque() {
 
         await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
           tipo_movimentacao: dadosComuns.tipo_movimentacao,
-          tipo_detalhado: dadosComuns.tipo_detalhado,
+          tipo_detalhado: toValue(dadosComuns.tipo_detalhado),
           produto_id: produto.produto_id,
           produto_nome: produto.produto_nome,
           produto_codigo: produtoData.codigo_interno,
