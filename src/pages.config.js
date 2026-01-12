@@ -45,7 +45,6 @@ import LocaisEstoque from './pages/LocaisEstoque';
 import LotesAnimaisCotacao from './pages/LotesAnimaisCotacao';
 import MapaCadastro from './pages/MapaCadastro';
 import MapaGeral from './pages/MapaGeral';
-import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
 import OperacoesAgricolas from './pages/OperacoesAgricolas';
 import Pesagens from './pages/Pesagens';
 import PesagensIndividuais from './pages/PesagensIndividuais';
@@ -77,6 +76,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Usuarios from './pages/Usuarios';
 import VisualizarFicha from './pages/VisualizarFicha';
+import MovimentacoesEstoque from './pages/MovimentacoesEstoque';
 import __Layout from './Layout.jsx';
 
 
@@ -128,7 +128,6 @@ export const PAGES = {
     "LotesAnimaisCotacao": LotesAnimaisCotacao,
     "MapaCadastro": MapaCadastro,
     "MapaGeral": MapaGeral,
-    "MovimentacoesEstoque": MovimentacoesEstoque,
     "OperacoesAgricolas": OperacoesAgricolas,
     "Pesagens": Pesagens,
     "PesagensIndividuais": PesagensIndividuais,
@@ -160,6 +159,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "Usuarios": Usuarios,
     "VisualizarFicha": VisualizarFicha,
+    "MovimentacoesEstoque": MovimentacoesEstoque,
 }
 
 export const pagesConfig = {

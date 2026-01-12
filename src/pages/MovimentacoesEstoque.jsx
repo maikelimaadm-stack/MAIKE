@@ -236,7 +236,7 @@ export default function MovimentacoesEstoque() {
     const vincId = produto.vinculo_id;
     const vincNome = produto.vinculo_nome;
 
-    const locais = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao });
+    const locais = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao, tipo_detalhado: dadosComuns.tipo_detalhado });
 
     const movimentacao = {
        empresa_id: empresaSelecionadaId,
@@ -296,7 +296,7 @@ export default function MovimentacoesEstoque() {
         ...produto,
         quantidade,
         valor_unitario: valorUnitario
-      }, dadosComuns, fornecedor);
+      }, { ...dadosComuns, ...locais }, fornecedor);
     }
 
     // Baixar lote de estoque para saídas
@@ -372,7 +372,7 @@ export default function MovimentacoesEstoque() {
         const vincNome = produto.vinculo_nome;
 
         // Usar campos de local que já vêm preparados do formulário
-        const locaisEdit = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao });
+        const locaisEdit = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao, tipo_detalhado: dadosComuns.tipo_detalhado });
 
         await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
           tipo_movimentacao: dadosComuns.tipo_movimentacao,
@@ -469,7 +469,7 @@ export default function MovimentacoesEstoque() {
     const initialData = {
       id: movimentacao.id,
       tipo_movimentacao: movimentacao.tipo_movimentacao,
-      tipo_detalhado: getLabelOperacao(movimentacao.tipo_detalhado),
+      tipo_detalhado: movimentacao.tipo_detalhado,
       data_movimentacao: movimentacao.data_movimentacao,
       local_estoque_origem: movimentacao.local_estoque_origem || movimentacao.local_origem || "",
       local_estoque_destino: movimentacao.local_estoque_destino || movimentacao.local_destino || "",

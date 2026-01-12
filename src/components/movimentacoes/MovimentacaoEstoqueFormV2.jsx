@@ -871,7 +871,7 @@ export default function MovimentacaoEstoqueFormV2({
     // Preparar locais usando função utilitária
     const locaisPreparados = prepararLocaisParaSalvar({
       tipo_movimentacao: tipoMovimentacaoFinal,
-      tipo_detalhado: toValue(operacao),
+      tipo_detalhado: operacao,
       origemId: localEstoqueOrigemId,
       origemNome: localEstoqueOrigemNome,
       destinoId: localEstoqueDestinoId,
