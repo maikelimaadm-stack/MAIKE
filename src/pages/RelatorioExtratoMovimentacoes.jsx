@@ -86,7 +86,7 @@ export default function RelatorioExtratoMovimentacoes() {
       if (operacoesSelecionadas.length > 0 && !operacoesSelecionadas.includes(m.tipo_detalhado)) return false;
       if (produtosSelecionados.length > 0 && !produtosSelecionados.includes(m.produto_nome)) return false;
       if (locaisSelecionados.length > 0) {
-        const local = m.local_estoque_origem || m.local_estoque_destino;
+        const local = getLocalEstoque(m);
         if (!locaisSelecionados.includes(local)) return false;
       }
       if (documentosSelecionados.length > 0 && !documentosSelecionados.includes(m.numero_documento)) return false;
