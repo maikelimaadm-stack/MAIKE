@@ -138,7 +138,8 @@ export default function MovimentacaoEstoqueFormV2({
     initialData?.tipo_movimentacao === 'Transferência' ? 'TRANSFERENCIA' :
     initialData?.tipo_movimentacao === 'Ajuste' ? 'AJUSTE' : 'ENTRADA'
   );
-  const [operacao, setOperacao] = useState(initialData?.tipo_detalhado || '');
+  // Garantir que tipo_detalhado seja salvo/carregado como value (slug)
+  const [operacao, setOperacao] = useState(initialData?.tipo_detalhado ? toValue(initialData.tipo_detalhado) : '');
   const [dataMovimentacao, setDataMovimentacao] = useState(
     initialData?.data_movimentacao?.split('T')[0] || new Date().toISOString().slice(0, 10)
   );
