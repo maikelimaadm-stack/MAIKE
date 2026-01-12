@@ -14,7 +14,7 @@ import { Printer, Filter, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AutocompleteGenerico from "../components/financeiro/AutocompleteGenerico";
-import { getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
+import { getLocalEstoque, getLabelOperacao, toValue } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 // ========== CONSTANTES ==========
 const MODELOS_RELATORIO = [
