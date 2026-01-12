@@ -59,6 +59,20 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
   const errors = [];
   const items = [];
 
+  // Controle de SN sequencial (SN1, SN2, ...)
+  const getMaxSnFromList = (list) => {
+    let max = 0;
+    list.forEach((p) => {
+      const m = String(p.numero_animal || '').toUpperCase().match(/^SN\s*(\d+)$/);
+      if (m) {
+        const n = parseInt(m[1]);
+        if (!isNaN(n) && n > max) max = n;
+      }
+    });
+    return max;
+  };
+  let snCounter = getMaxSnFromList(existingPesagens);
+
   for (let i = 0; i < pending.length; i++) {
     const pesagem = pending[i];
     const offlineId = pesagem._offlineId;
@@ -75,6 +89,12 @@ export const syncPesagens = async (empresaId, onProgress, idMap = {}) => {
     
     try {
       const { _offlineId, _offlineTimestamp, _synced, _editId, _action, _isOffline, ...data } = pesagem;
+      
+      // Gerar número sequencial para 'SN'
+      if (String(data.numero_animal || '').trim().toUpperCase() === 'SN') {
+        snCounter += 1;
+        data.numero_animal = `SN${snCounter}`;
+      }
       
       // Mapear IDs offline de apartação/lote/embarque/documento para IDs reais
       if (data.apartacao_id && idMap[data.apartacao_id]) data.apartacao_id = idMap[data.apartacao_id];
