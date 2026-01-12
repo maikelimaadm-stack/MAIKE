@@ -258,7 +258,7 @@ export default function RelatorioPesagensIndividuais() {
     if (habilitando && !colunasPainelOrdem.includes(colunaId)) {
       const novaOrdem = [...colunasPainelOrdem, colunaId];
       setColunasPainelOrdem(novaOrdem);
-      localStorage.setItem('colunas_painel_ordem_apartacao', JSON.stringify(novaOrdem));
+      localStorage.setItem(tipoRelatorio === 'vendas' ? 'colunas_painel_ordem_vendas' : 'colunas_painel_ordem_apartacao', JSON.stringify(novaOrdem));
     }
   };
   const handleDragEndPainel = (result) => {
