@@ -720,7 +720,7 @@ export default function RelatoriosEstoque() {
                       <>
                         <TableCell className="text-xs py-1 border border-gray-300">{formatarDataHora(d.data_movimentacao)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{d.tipo_movimentacao}</TableCell>
-                        <TableCell className="text-xs py-1 border border-gray-300">{d.tipo_detalhado || '-'}</TableCell>
+                        <TableCell className="text-xs py-1 border border-gray-300">{getLabelOperacao(d.tipo_detalhado)}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300">{d.numero_documento || '-'}</TableCell>
                         <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">
                           {d.is_entrada ? formatarNumero(d.quantidade) : ''}
