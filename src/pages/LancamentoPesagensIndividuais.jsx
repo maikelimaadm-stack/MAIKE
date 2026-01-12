@@ -1208,7 +1208,7 @@ export default function LancamentoPesagensIndividuais() {
       setPeso("");
       setObservacao("");
       setLoteTransferencia("");
-      setMotivoSaida("");
+      if (tipoManejo !== 'Saída') setMotivoSaida("");
       setValorPagoCabeca("");
       setOrigemAnimal("");
       setDocumentacao("");
@@ -1216,14 +1216,16 @@ export default function LancamentoPesagensIndividuais() {
       setNumeroNFeCompra("");
       setValorFreteCompra("");
       setObservacoesCompra("");
-      setComprador("");
-      setValorVendaTotal("");
-      setValorArroba("");
-      setDestinoVenda("");
-      setNumeroGTAVenda("");
-      setNumeroNFeVenda("");
-      setValorFreteVenda("");
-      setObservacoesVenda("");
+      if (!(tipoManejo === 'Saída' && motivoSaida === 'Venda')) {
+        setComprador("");
+        setValorVendaTotal("");
+        setValorArroba("");
+        setDestinoVenda("");
+        setNumeroGTAVenda("");
+        setNumeroNFeVenda("");
+        setValorFreteVenda("");
+        setObservacoesVenda("");
+      }
       setFrigorifico("");
       setValorArrobaAbate("");
       setValorTotalAbate("");
@@ -1231,8 +1233,8 @@ export default function LancamentoPesagensIndividuais() {
       setObservacoesAbate("");
       setEmbarqueSelecionadoDoc("");
       setDocumentoSelecionado("");
-      setMostrarDadosVenda(false);
-      setMostrarDadosAbate(false);
+      if (!(tipoManejo === 'Saída' && motivoSaida === 'Venda')) setMostrarDadosVenda(false);
+      if (!(tipoManejo === 'Saída' && motivoSaida === 'Abate')) setMostrarDadosAbate(false);
       setAvisoTela(null);
       numeroInputRef.current?.focus();
     } catch (error) {
@@ -1953,6 +1955,23 @@ export default function LancamentoPesagensIndividuais() {
               <h3 className="text-xs font-semibold text-blue-700 mb-3 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
                 Dados da Venda
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1 ml-auto"
+                  onClick={() => {
+                    setComprador("");
+                    setDestinoVenda("");
+                    setValorArroba("");
+                    setValorVendaTotal("");
+                    setNumeroGTAVenda("");
+                    setNumeroNFeVenda("");
+                    setValorFreteVenda("");
+                    setObservacoesVenda("");
+                  }}
+                >
+                  <X className="w-3.5 h-3.5" /> Limpar Dados da Venda
+                </Button>
               </h3>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
