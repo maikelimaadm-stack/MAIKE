@@ -392,7 +392,7 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       case 'numero': return mov.numero_movimentacao || '-';
       case 'data': return formatarData(mov.data_movimentacao);
       case 'tipo': return mov.tipo_movimentacao || '-';
-      case 'tipo_detalhado': return mov.tipo_detalhado || '-';
+      case 'tipo_detalhado': return getLabelOperacao(mov.tipo_detalhado);
       case 'tipo_documento': return mov.tipo_documento || '-';
       case 'numero_documento': return mov.numero_documento || '-';
       case 'serie_documento': return mov.serie_documento || '-';
