@@ -197,9 +197,7 @@ export default function Backup() {
   const [exportando, setExportando] = useState(false);
   const [exportandoZip, setExportandoZip] = useState(false);
   const [importandoJson, setImportandoJson] = useState(false);
-  const [importandoZip, setImportandoZip] = useState(false);
   const inputJsonRef = useRef(null);
-  const inputZipRef = useRef(null);
 
   const [showImport, setShowImport] = useState(false);
   const [importPercent, setImportPercent] = useState(0);
@@ -326,15 +324,7 @@ export default function Backup() {
             <Download className="w-3.5 h-3.5 mr-2" />
             {exportando ? 'Exportando...' : 'Exportar Dados (.json)'}
           </Button>
-          <Button 
-            onClick={baixarBackupZIP}
-            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
-            size="sm"
-            disabled={exportandoZip}
-          >
-            <Download className="w-3.5 h-3.5 mr-2" />
-            {exportandoZip ? 'Compactando...' : 'Exportar Pacote (.zip)'}
-          </Button>
+>
           <Button 
             onClick={() => inputJsonRef.current?.click()}
             className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
