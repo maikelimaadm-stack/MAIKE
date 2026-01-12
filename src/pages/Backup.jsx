@@ -226,27 +226,7 @@ export default function Backup() {
     }
   };
 
-   const baixarBackupZIP = async () => {
-    try {
-      setExportandoZip(true);
-      const res = await base44.functions.invoke('exportBackupZip');
-      const data = res.data; // arraybuffer/uint8
-      const blob = new Blob([data], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup_pacote_${new Date().toISOString().split('T')[0]}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Pacote (.zip) exportado com sucesso');
-    } catch (e) {
-      toast.error('Falha ao exportar pacote .zip');
-    } finally {
-      setExportandoZip(false);
-    }
-  };
+
 
 
 
@@ -324,7 +304,7 @@ export default function Backup() {
           >
             <Download className="w-3.5 h-3.5 mr-2" />
             {exportando ? 'Exportando...' : 'Exportar Dados (.json)'}
-          </Button>
+          </Button
            <Button 
              onClick={() => inputJsonRef.current?.click()}
              className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
@@ -334,14 +314,6 @@ export default function Backup() {
             <Download className="w-3.5 h-3.5 mr-2" />
             {importandoJson ? 'Importando...' : 'Importar Dados (.json)'}
           </Button>
-          <div className="flex items-center gap-2 ml-2">
-            <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
-            <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
-          </div>
-          <div className="flex items-center gap-2 ml-2">
-            <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
-            <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
-          </div>
           <div className="flex items-center gap-2 ml-2">
             <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
             <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
@@ -367,10 +339,6 @@ export default function Backup() {
         </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-2">
-        <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
-        <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
-        </div>
 
         <Dialog open={showImport} onOpenChange={setShowImport}>
         <DialogContent className="max-w-md">
