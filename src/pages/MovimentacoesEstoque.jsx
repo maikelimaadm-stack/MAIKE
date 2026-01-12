@@ -492,9 +492,6 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleExport = () => {
-    // Importar função para label
-    const { getLabelOperacao, getLocalEstoque } = require("../components/movimentacoes/utils/movimentacaoUtils");
-    
     const csvRows = [];
     const headers = ['Nº', 'Data/Hora', 'Tipo', 'Tipo Detalhado', 'Produto', 'Qtd', 'Local Estoque', 'Origem', 'Destino', 'Documento', 'Motivo'];
     csvRows.push(headers.join(';'));
