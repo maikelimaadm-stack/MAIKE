@@ -314,10 +314,6 @@ export default function Backup() {
             <Download className="w-3.5 h-3.5 mr-2" />
             {importandoJson ? 'Importando...' : 'Importar Dados (.json)'}
           </Button>
-          <div className="flex items-center gap-2 ml-2">
-            <Checkbox id="replaceAll" checked={replaceAll} onCheckedChange={(v) => setReplaceAll(!!v)} />
-            <label htmlFor="replaceAll" className="text-xs text-slate-700">Substituir tudo</label>
-          </div>
 
           <Button 
             onClick={handleCopyAllPaths} 
