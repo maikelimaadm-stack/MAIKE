@@ -130,11 +130,6 @@ export default function MovimentacoesEstoque() {
   const [dadosImportadosXML, setDadosImportadosXML] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
-  // Edição: prompt de escolha e modo em lote
-  const [editChoiceOpen, setEditChoiceOpen] = useState(false);
-  const [pendingEditMov, setPendingEditMov] = useState(null);
-  const [isBulkEditing, setIsBulkEditing] = useState(false);
-  const [bulkEditIds, setBulkEditIds] = useState([]);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -432,44 +427,6 @@ export default function MovimentacoesEstoque() {
         return;
       }
 
-      // Edição em lote (aplicar cabeçalho a vários itens)
-      if (isBulkEditing && bulkEditIds.length > 0) {
-        const { produtos_selecionados, produtos: produtosForm, ...dadosComuns } = formData;
-        const locaisEdit = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao });
-        const updates = {
-          tipo_movimentacao: dadosComuns.tipo_movimentacao,
-          tipo_detalhado: dadosComuns.tipo_detalhado,
-          ...locaisEdit,
-          tipo_documento: dadosComuns.tipo_documento || undefined,
-          numero_documento: dadosComuns.numero_documento || undefined,
-          serie_documento: dadosComuns.serie_documento || undefined,
-          chave_documento: dadosComuns.chave_documento || undefined,
-          data_documento: dadosComuns.data_documento || undefined,
-          cfop: dadosComuns.cfop || undefined,
-          natureza_operacao: dadosComuns.natureza_operacao || undefined,
-          fornecedor_id: dadosComuns.fornecedor_id || undefined,
-          fornecedor_nome: dadosComuns.fornecedor_id ? fornecedores.find(f => f.id === dadosComuns.fornecedor_id)?.nome : undefined,
-          cliente_nome: dadosComuns.cliente_nome || undefined,
-          centro_custo_id: dadosComuns.centro_custo_id || undefined,
-          centro_custo_nome: dadosComuns.centro_custo_id ? centros.find(c => c.id === dadosComuns.centro_custo_id)?.nome : undefined,
-          motivo_movimentacao: dadosComuns.motivo_movimentacao || undefined,
-          observacoes: dadosComuns.observacoes || undefined,
-        };
-
-        for (const id of bulkEditIds) {
-          await base44.entities.MovimentacaoEstoque.update(id, updates);
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
-        setIsBulkEditing(false);
-        setBulkEditIds([]);
-        setIsSaving(false);
-        setShowForm(false);
-        setEditingMovimentacao(null);
-        toast.success('Edição em lote aplicada');
-        return;
-      }
-
       // Criar novas movimentações
       let saved = 0;
       for (const produto of produtosLista) {
@@ -493,11 +450,6 @@ export default function MovimentacoesEstoque() {
       setIsSaving(false);
       toast.error(error.message || 'Erro ao processar movimentação');
     }
-  };
-
-  const openEditPrompt = (movimentacao) => {
-    setPendingEditMov(movimentacao);
-    setEditChoiceOpen(true);
   };
 
   const handleEdit = (movimentacao) => {
@@ -642,7 +594,7 @@ export default function MovimentacoesEstoque() {
         {showForm && (
           <MovimentacaoEstoqueFormV2
             onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); setDadosImportadosXML(null); setIsBulkEditing(false); setBulkEditIds([]); }}
+            onCancel={() => { setShowForm(false); setEditingMovimentacao(null); setDadosImportadosXML(null); }}
             initialData={dadosImportadosXML || editingMovimentacao}
             produtos={produtos}
             fornecedores={fornecedores}
@@ -650,7 +602,7 @@ export default function MovimentacoesEstoque() {
         )}
       </AnimatePresence>
 
-      {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={openEditPrompt} onCancel={handleCancel} isLoading={isLoading} />}
+      {!showForm && <TabelaMovimentacoes movimentacoes={movimentacoes} onEdit={handleEdit} onCancel={handleCancel} isLoading={isLoading} />}
 
       <ImportarNFeMovimentacao
         open={showImportXML}
@@ -659,67 +611,6 @@ export default function MovimentacoesEstoque() {
         produtos={produtos}
         fornecedores={fornecedores}
       />
-
-      {/* Prompt de escolha ao clicar em editar */}
-      <Dialog open={editChoiceOpen} onOpenChange={setEditChoiceOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Editar movimentação</DialogTitle>
-            <DialogDescription className="text-xs">Deseja editar apenas este item ou todos os produtos deste lançamento (mesmos dados de cabeçalho)?</DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setEditChoiceOpen(false); setPendingEditMov(null); }}>Cancelar</Button>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
-              setEditChoiceOpen(false);
-              setIsBulkEditing(false);
-              if (pendingEditMov) handleEdit(pendingEditMov);
-            }}>Apenas este item</Button>
-            <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
-              if (!pendingEditMov) return;
-              const keyOf = (m) => [m.tipo_movimentacao, m.tipo_detalhado, m.numero_documento || '', m.serie_documento || '', (m.data_documento || '').slice(0,10), m.fornecedor_id || ''].join('|');
-              const key = keyOf(pendingEditMov);
-              const grupo = movimentacoes.filter(x => keyOf(x) === key);
-              setIsBulkEditing(true);
-              setBulkEditIds(grupo.map(g => g.id));
-              // montar initialData com cabeçalho do registro selecionado
-              const initialData = {
-                tipo_movimentacao: pendingEditMov.tipo_movimentacao,
-                tipo_detalhado: pendingEditMov.tipo_detalhado,
-                data_movimentacao: pendingEditMov.data_movimentacao,
-                local_estoque_origem: pendingEditMov.local_estoque_origem,
-                local_estoque_destino: pendingEditMov.local_estoque_destino,
-                local_origem: pendingEditMov.local_origem,
-                local_destino: pendingEditMov.local_destino,
-                tipo_documento: pendingEditMov.tipo_documento,
-                numero_documento: pendingEditMov.numero_documento,
-                serie_documento: pendingEditMov.serie_documento,
-                chave_documento: pendingEditMov.chave_documento,
-                data_documento: pendingEditMov.data_documento,
-                cfop: pendingEditMov.cfop,
-                natureza_operacao: pendingEditMov.natureza_operacao,
-                fornecedor_id: pendingEditMov.fornecedor_id,
-                fornecedor_nome: pendingEditMov.fornecedor_nome,
-                cliente_nome: pendingEditMov.cliente_nome,
-                centro_custo_id: pendingEditMov.centro_custo_id,
-                centro_custo_nome: pendingEditMov.centro_custo_nome,
-                motivo_movimentacao: pendingEditMov.motivo_movimentacao,
-                observacoes: pendingEditMov.observacoes,
-                produtos_selecionados: grupo.map(g => ({
-                  produto_id: g.produto_id,
-                  produto_nome: g.produto_nome,
-                  quantidade: g.quantidade,
-                  unidade: g.unidade_medida,
-                  valor_unitario: g.valor_unitario,
-                  valor_total: g.valor_total,
-                }))
-              };
-              setEditingMovimentacao(initialData);
-              setEditChoiceOpen(false);
-              setShowForm(true);
-            }}>Todos do lançamento</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={isSaving} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
