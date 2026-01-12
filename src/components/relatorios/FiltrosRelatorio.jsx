@@ -33,7 +33,7 @@ export function FiltroSelect({ label, value, onChange, opcoes, placeholder = "Se
   );
 }
 
-export function FiltroMultiplo({ label, selecionados, opcoes, onToggle }) {
+export function FiltroMultiplo({ label, selecionados, opcoes, onToggle, renderLabel }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -47,7 +47,7 @@ export function FiltroMultiplo({ label, selecionados, opcoes, onToggle }) {
           {opcoes.map(op => (
             <div key={op} className="flex items-center space-x-2">
               <Checkbox checked={selecionados.includes(op)} onCheckedChange={() => onToggle(op)} />
-              <label className="text-sm cursor-pointer">{op}</label>
+              <label className="text-sm cursor-pointer">{renderLabel ? renderLabel(op) : op}</label>
             </div>
           ))}
         </div>
