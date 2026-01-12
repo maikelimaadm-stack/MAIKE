@@ -28,6 +28,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import AutocompleteGenerico from "../financeiro/AutocompleteGenerico.jsx";
+import { toValue, prepararLocaisParaSalvar } from "./utils/movimentacaoUtils";
 
 // ========== FUNÇÕES UTILITÁRIAS ==========
 const formatarMoedaBR = (valor) => {
