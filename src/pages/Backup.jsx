@@ -283,9 +283,10 @@ export default function Backup() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
       setImportStage('Importando registros no servidor...');
+      const empresaId = localStorage.getItem('empresa_selecionada_id') || null;
       const payload = type === 'json'
-        ? { json_url: file_url, mode: replaceAll ? 'replace' : 'append' }
-        : { zip_url: file_url, mode: replaceAll ? 'replace' : 'append' };
+        ? { json_url: file_url, mode: replaceAll ? 'replace' : 'append', target_empresa_id: empresaId }
+        : { zip_url: file_url, mode: replaceAll ? 'replace' : 'append', target_empresa_id: empresaId };
 
       const res = await base44.functions.invoke('importBackup', payload);
       const summary = res.data?.summary || {};
@@ -343,15 +344,7 @@ export default function Backup() {
             <Download className="w-3.5 h-3.5 mr-2" />
             {importandoJson ? 'Importando...' : 'Importar Dados (.json)'}
           </Button>
-          <Button 
-            onClick={() => inputZipRef.current?.click()}
-            className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
-            size="sm"
-            disabled={importandoZip}
-          >
-            <Download className="w-3.5 h-3.5 mr-2" />
-            {importandoZip ? 'Importando...' : 'Importar Pacote (.zip)'}
-          </Button>
+
           <Button 
             onClick={handleCopyAllPaths} 
             variant="outline"
@@ -404,14 +397,7 @@ export default function Backup() {
         setImportandoJson(false);
         e.target.value = '';
       }} />
-      <input type="file" ref={inputZipRef} accept="application/zip,.zip" className="hidden" onChange={async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setImportandoZip(true);
-        await handleImport(file, 'zip');
-        setImportandoZip(false);
-        e.target.value = '';
-      }} />
+
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

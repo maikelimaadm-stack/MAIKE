@@ -69,12 +69,24 @@ Deno.serve(async (req) => {
       if (records.length === 0) continue;
 
       try {
+        const hasEmpresaField = records.some(r => r && typeof r === 'object' && Object.prototype.hasOwnProperty.call(r, 'empresa_id'));
+
         if (mode === 'replace') {
-          // apaga todos antes de importar (admin)
-          await base44.asServiceRole.entities[entity].deleteMany({});
-          summary.replaced[entity] = true;
+          if (hasEmpresaField && target_empresa_id) {
+            await base44.asServiceRole.entities[entity].deleteMany({ empresa_id: target_empresa_id });
+            summary.replaced[entity] = 'by_empresa_id';
+          } else {
+            // Para segurança, não apagamos entidades globais (sem empresa_id)
+            // ou quando não foi informado target_empresa_id
+            summary.replaced[entity] = hasEmpresaField ? 'skipped_no_target_empresa' : 'skipped_no_empresa_field';
+          }
         }
-        const count = await bulkInsert(base44, entity, records);
+
+        const recordsForInsert = hasEmpresaField && target_empresa_id
+          ? records.map(r => ({ ...r, empresa_id: target_empresa_id }))
+          : records;
+
+        const count = await bulkInsert(base44, entity, recordsForInsert);
         summary.imported[entity] = count;
       } catch (e) {
         summary.errors[entity] = String(e?.message || e);
