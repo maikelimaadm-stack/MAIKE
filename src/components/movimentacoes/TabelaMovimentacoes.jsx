@@ -356,11 +356,8 @@ export default function TabelaMovimentacoes({ movimentacoes = [], onEdit, onCanc
       case 'fornecedor':
         return <TableCell className="text-xs border-r border-slate-200">{mov.fornecedor_nome || mov.cliente_nome || '-'}</TableCell>;
       case 'local_estoque':
-        // Mostrar o local principal (origem para saída, destino para entrada)
-        const localPrincipal = mov.tipo_movimentacao === 'Entrada' 
-          ? (mov.local_estoque_destino || mov.local_destino || mov.local_estoque || '-')
-          : (mov.local_estoque_origem || mov.local_origem || mov.local_estoque || '-');
-        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{localPrincipal}</TableCell>;
+        // Usar função utilitária para pegar local correto
+        return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{getLocalEstoque(mov) || '-'}</TableCell>;
       case 'local_origem':
         return <TableCell className="text-xs max-w-[120px] truncate border-r border-slate-200">{mov.local_estoque_origem || mov.local_origem || '-'}</TableCell>;
       case 'local_destino':
