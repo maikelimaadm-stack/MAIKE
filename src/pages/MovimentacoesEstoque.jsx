@@ -75,24 +75,25 @@ const parseMoedaBR = (str) => {
 
 // Criar lote de estoque (para entradas)
 const criarLoteEstoque = async (empresaId, produto, dadosComuns, fornecedor) => {
-  const loteData = {
-    empresa_id: empresaId,
-    produto_id: produto.produto_id,
-    produto_nome: produto.produto_nome,
-    local_estoque_id: dadosComuns.local_estoque_destino_id,
-    local_estoque_nome: dadosComuns.local_estoque_destino_nome,
-    numero_documento: dadosComuns.numero_documento || null,
-    serie_documento: dadosComuns.serie_documento || null,
-    data_documento: dadosComuns.data_documento || null,
-    fornecedor_id: dadosComuns.fornecedor_id || null,
-    fornecedor_nome: fornecedor?.nome || null,
-    custo_unitario: produto.valor_unitario || 0,
-    quantidade_entrada: produto.quantidade,
-    quantidade_disponivel: produto.quantidade,
-    status: 'Disponivel'
-  };
-  
-  return await base44.entities.EstoqueLoteNota.create(loteData);
+const destinoStr = (dadosComuns.local_estoque_destino || dadosComuns.local_destino || "").trim();
+const loteData = {
+  empresa_id: empresaId,
+  produto_id: produto.produto_id,
+  produto_nome: produto.produto_nome,
+  local_estoque_id: destinoStr,
+  local_estoque_nome: destinoStr,
+  numero_documento: dadosComuns.numero_documento || null,
+  serie_documento: dadosComuns.serie_documento || null,
+  data_documento: dadosComuns.data_documento || null,
+  fornecedor_id: dadosComuns.fornecedor_id || null,
+  fornecedor_nome: fornecedor?.nome || null,
+  custo_unitario: produto.valor_unitario || 0,
+  quantidade_entrada: produto.quantidade,
+  quantidade_disponivel: produto.quantidade,
+  status: 'Disponivel'
+};
+
+return await base44.entities.EstoqueLoteNota.create(loteData);
 };
 
 // Baixar estoque do lote (para saídas)
@@ -234,6 +235,8 @@ export default function MovimentacoesEstoque() {
     const vincId = produto.vinculo_id;
     const vincNome = produto.vinculo_nome;
 
+    const locais = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao });
+
     const movimentacao = {
        empresa_id: empresaSelecionadaId,
       numero_movimentacao: String(proximoNumero),
@@ -248,13 +251,7 @@ export default function MovimentacoesEstoque() {
       unidade_medida: produto.unidade || produtoData.unidade_medida,
       valor_unitario: valorUnitario,
       valor_total: valorLiquido,
-      // Usar campos de local já preparados pelo formulário
-      local_estoque_origem_id: dadosComuns.local_estoque_origem_id,
-      local_estoque_origem: dadosComuns.local_estoque_origem,
-      local_estoque_origem_nome: dadosComuns.local_estoque_origem_nome,
-      local_estoque_destino_id: dadosComuns.local_estoque_destino_id,
-      local_estoque_destino: dadosComuns.local_estoque_destino,
-      local_estoque_destino_nome: dadosComuns.local_estoque_destino_nome,
+      ...locais,
       tipo_documento: dadosComuns.tipo_documento || undefined,
       numero_documento: dadosComuns.numero_documento || undefined,
       serie_documento: dadosComuns.serie_documento || undefined,
@@ -374,6 +371,8 @@ export default function MovimentacoesEstoque() {
         const vincNome = produto.vinculo_nome;
 
         // Usar campos de local que já vêm preparados do formulário
+        const locaisEdit = prepararLocaisParaSalvar({ ...dadosComuns, tipo_movimentacao: dadosComuns.tipo_movimentacao });
+
         await base44.entities.MovimentacaoEstoque.update(editingMovimentacao.id, {
           tipo_movimentacao: dadosComuns.tipo_movimentacao,
           tipo_detalhado: toValue(dadosComuns.tipo_detalhado), // Sempre salvar como slug
@@ -384,13 +383,7 @@ export default function MovimentacoesEstoque() {
           unidade_medida: produto.unidade || produtoData.unidade_medida,
           valor_unitario: valorUnitario,
           valor_total: valorLiquido,
-          // Usar campos de local já preparados pelo formulário
-          local_estoque_origem_id: dadosComuns.local_estoque_origem_id,
-          local_estoque_origem: dadosComuns.local_estoque_origem,
-          local_estoque_origem_nome: dadosComuns.local_estoque_origem_nome,
-          local_estoque_destino_id: dadosComuns.local_estoque_destino_id,
-          local_estoque_destino: dadosComuns.local_estoque_destino,
-          local_estoque_destino_nome: dadosComuns.local_estoque_destino_nome,
+          ...locaisEdit,
           tipo_documento: dadosComuns.tipo_documento || undefined,
           numero_documento: dadosComuns.numero_documento || undefined,
           serie_documento: dadosComuns.serie_documento || undefined,
@@ -459,7 +452,46 @@ export default function MovimentacoesEstoque() {
   };
 
   const handleEdit = (movimentacao) => {
-    setEditingMovimentacao(movimentacao);
+    // Transformar registro para initialData compatível com o formulário
+    const prodSel = [{
+      produto_id: movimentacao.produto_id,
+      produto_nome: movimentacao.produto_nome,
+      quantidade: movimentacao.quantidade,
+      unidade: movimentacao.unidade_medida,
+      valor_unitario: movimentacao.valor_unitario,
+      valor_total: movimentacao.valor_total,
+      vinculo_tipo: movimentacao.tipo_vinculo || undefined,
+      vinculo_id: movimentacao.lote_vinculado_id || movimentacao.area_vinculada_id || movimentacao.maquina_vinculada_id || undefined,
+      vinculo_nome: movimentacao.lote_vinculado_nome || movimentacao.area_vinculada_nome || movimentacao.maquina_vinculada_nome || undefined,
+    }];
+
+    const initialData = {
+      id: movimentacao.id,
+      tipo_movimentacao: movimentacao.tipo_movimentacao,
+      tipo_detalhado: getLabelOperacao(movimentacao.tipo_detalhado),
+      data_movimentacao: movimentacao.data_movimentacao,
+      local_estoque_origem: movimentacao.local_estoque_origem || movimentacao.local_origem || "",
+      local_estoque_destino: movimentacao.local_estoque_destino || movimentacao.local_destino || "",
+      local_origem: movimentacao.local_origem || "",
+      local_destino: movimentacao.local_destino || "",
+      tipo_documento: movimentacao.tipo_documento,
+      numero_documento: movimentacao.numero_documento,
+      serie_documento: movimentacao.serie_documento,
+      chave_documento: movimentacao.chave_documento,
+      data_documento: movimentacao.data_documento,
+      cfop: movimentacao.cfop,
+      natureza_operacao: movimentacao.natureza_operacao,
+      fornecedor_id: movimentacao.fornecedor_id,
+      fornecedor_nome: movimentacao.fornecedor_nome,
+      cliente_nome: movimentacao.cliente_nome,
+      centro_custo_id: movimentacao.centro_custo_id,
+      centro_custo_nome: movimentacao.centro_custo_nome,
+      motivo_movimentacao: movimentacao.motivo_movimentacao,
+      observacoes: movimentacao.observacoes,
+      produtos_selecionados: prodSel,
+    };
+
+    setEditingMovimentacao(initialData);
     setShowForm(true);
   };
 
