@@ -7,6 +7,7 @@ import RelatorioBase from "../components/relatorios/RelatorioBase";
 import { FiltroData, BotaoLimparFiltros } from "../components/relatorios/FiltrosRelatorio";
 import { format } from "date-fns";
 import AutocompleteGenerico from "../components/financeiro/AutocompleteGenerico";
+import { getLocalEstoque, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
@@ -206,7 +207,7 @@ export default function RelatorioKardex() {
                 <TableRow key={m.id} className="hover:bg-gray-50">
                   <TableCell className="text-xs py-1 border border-gray-300">{formatarData(m.data_movimentacao)}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{m.tipo_movimentacao}</TableCell>
-                  <TableCell className="text-xs py-1 border border-gray-300">{m.tipo_detalhado || '-'}</TableCell>
+                  <TableCell className="text-xs py-1 border border-gray-300">{getLabelOperacao(m.tipo_detalhado)}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">{m.numero_documento || '-'}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono text-green-700">
                     {qtdEntrada > 0 ? formatarNumero(qtdEntrada) : ''}
@@ -220,7 +221,7 @@ export default function RelatorioKardex() {
                   <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(m.valor_unitario)}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300 text-right font-mono">{formatarMoeda(m.valor_total)}</TableCell>
                   <TableCell className="text-xs py-1 border border-gray-300">
-                    {m.fornecedor_nome || m.cliente_nome || m.local_estoque_origem || m.local_estoque_destino || '-'}
+                    {m.fornecedor_nome || m.cliente_nome || getLocalEstoque(m) || '-'}
                   </TableCell>
                 </TableRow>
               );

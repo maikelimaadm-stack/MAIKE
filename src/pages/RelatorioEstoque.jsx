@@ -24,6 +24,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getLocalEstoque as getLocalEstoqueUtil, getLabelOperacao } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "";
@@ -195,11 +196,9 @@ export default function RelatorioEstoque() {
     return m.lote_vinculado_nome || m.area_vinculada_nome || m.maquina_vinculada_nome || '';
   };
 
-  // Função para obter o local de estoque
+  // Função para obter o local de estoque usando utilitário centralizado
   const getLocalEstoque = (m) => {
-    return m.tipo_movimentacao === 'Entrada' 
-      ? (m.local_estoque_destino || m.local_destino || '')
-      : (m.local_estoque_origem || m.local_origem || '');
+    return getLocalEstoqueUtil(m);
   };
 
   // Movimentações filtradas
@@ -888,7 +887,7 @@ export default function RelatorioEstoque() {
                           <TableRow key={m.id}>
                             {colunasVisiveis.includes('data') && <TableCell className="border border-gray-300 text-xs py-1">{formatarData(m.data_movimentacao)}</TableCell>}
                             {colunasVisiveis.includes('tipo') && <TableCell className="border border-gray-300 text-xs py-1">{m.tipo_movimentacao}</TableCell>}
-                            {colunasVisiveis.includes('operacao') && <TableCell className="border border-gray-300 text-xs py-1">{m.tipo_detalhado || ''}</TableCell>}
+                            {colunasVisiveis.includes('operacao') && <TableCell className="border border-gray-300 text-xs py-1">{getLabelOperacao(m.tipo_detalhado)}</TableCell>}
                             {colunasVisiveis.includes('produto') && <TableCell className="border border-gray-300 text-xs py-1">{m.produto_nome}</TableCell>}
                             {colunasVisiveis.includes('codigo') && <TableCell className="border border-gray-300 text-xs py-1">{m.produto_codigo || ''}</TableCell>}
                             {colunasVisiveis.includes('quantidade') && <TableCell className="border border-gray-300 text-xs text-right py-1">{formatarNumero(m.quantidade)}</TableCell>}

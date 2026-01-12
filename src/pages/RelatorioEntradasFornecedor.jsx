@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import RelatorioBase from "../components/relatorios/RelatorioBase";
 import { FiltroData, FiltroMultiplo, BotaoLimparFiltros } from "../components/relatorios/FiltrosRelatorio";
+import { getLocalEstoque } from "../components/movimentacoes/utils/movimentacaoUtils";
 
 const formatarNumero = (num) => {
   if (!num && num !== 0) return "0,00";
@@ -47,7 +48,7 @@ export default function RelatorioEntradasFornecedor() {
   });
 
   const fornecedoresUnicos = [...new Set(movimentacoes.map(m => m.fornecedor_nome))].filter(Boolean).sort();
-  const locaisUnicos = [...new Set(movimentacoes.map(m => m.local_estoque_destino))].filter(Boolean).sort();
+  const locaisUnicos = [...new Set(movimentacoes.map(m => getLocalEstoque(m)))].filter(Boolean).sort();
 
   const toggleFiltro = (lista, setLista, valor) => {
     setLista(prev => prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]);
@@ -68,7 +69,7 @@ export default function RelatorioEntradasFornecedor() {
         if (mDate > fDate) return false;
       }
       if (fornecedoresSelecionados.length > 0 && !fornecedoresSelecionados.includes(m.fornecedor_nome)) return false;
-      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(m.local_estoque_destino)) return false;
+      if (locaisSelecionados.length > 0 && !locaisSelecionados.includes(getLocalEstoque(m))) return false;
       return true;
     });
   }, [movimentacoes, dataInicio, dataFim, fornecedoresSelecionados, locaisSelecionados]);
