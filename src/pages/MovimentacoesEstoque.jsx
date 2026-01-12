@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -135,6 +135,7 @@ export default function MovimentacoesEstoque() {
   const [pendingEditMov, setPendingEditMov] = useState(null);
   const [isBulkEditing, setIsBulkEditing] = useState(false);
   const [bulkEditIds, setBulkEditIds] = useState([]);
+  const formRef = useRef(null);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -180,6 +181,12 @@ export default function MovimentacoesEstoque() {
     },
     enabled: !!empresaSelecionadaId,
   });
+
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      try { formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+    }
+  }, [showForm]);
 
   useEffect(() => {
     const numerarMovimentacoes = async () => {
@@ -664,6 +671,7 @@ export default function MovimentacoesEstoque() {
         </>
       )}
 
+      <div ref={formRef} />
       <AnimatePresence>
         {showForm && (
           <MovimentacaoEstoqueFormV2
